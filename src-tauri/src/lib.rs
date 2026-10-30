@@ -3,6 +3,7 @@ use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent}
 use tauri::{Manager, RunEvent, WindowEvent};
 
 mod attention;
+mod scm;
 
 const KEYRING_SERVICE: &str = "com.leon.betterjira";
 const KEYRING_USER: &str = "atlassian-session";
@@ -54,7 +55,11 @@ pub fn run() {
             session_delete,
             attention::attention_serve,
             attention::attention_read,
-            attention::attention_trigger
+            attention::attention_trigger,
+            scm::scm_request,
+            scm::scm_gh_hosts,
+            scm::scm_token_set,
+            scm::scm_token_delete
         ])
         .setup(|app| {
             let open = MenuItem::with_id(app, "open", "betterjira öffnen", true, None::<&str>)?;

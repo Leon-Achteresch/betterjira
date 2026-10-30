@@ -6,6 +6,8 @@ import { de } from "date-fns/locale";
 import { motion, useReducedMotion, type Variants } from "motion/react";
 import { ArrowUpRightIcon, ChevronRightIcon, LinkIcon, PaperclipIcon, SlidersHorizontalIcon, TimerIcon } from "lucide-react";
 import { toast } from "sonner";
+import { CreateBranchDialog } from "@/components/development/create-branch-dialog";
+import { IssueDevelopment } from "@/components/development/issue-development";
 import { IssueComments } from "@/components/issue-comments";
 import { IssueDrawer, type IssueDrawerTab } from "@/components/issue-drawer";
 import { EditableField, FieldValue, richFieldIds } from "@/components/issue-fields";
@@ -15,6 +17,7 @@ import { Tooltip } from "@/components/motion/tooltip";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Spinner } from "@/components/ui/spinner";
+import { useIssueDevelopmentPanel } from "@/hooks/scm/use-issue-development-panel";
 import { EASE_OUT } from "@/lib/ease";
 import { useJiraIssue, useJiraSite, type JiraIssueDetail } from "@/lib/jira/queries";
 import { cn } from "@/lib/utils";
@@ -138,6 +141,10 @@ export function IssueView({ issueKey }: { issueKey: string }) {
   const reduce = useReducedMotion();
   const [drawer, setDrawer] = useState(false);
   const [tab, setTab] = useState<IssueDrawerTab>("details");
+  const development = useIssueDevelopmentPanel(
+    issueKey,
+    issue.data && { projectKey: issue.data.fields.project.key, summary: issue.data.fields.summary },
+  );
 
   if (issue.error) {
     return (
@@ -255,6 +262,11 @@ export function IssueView({ issueKey }: { issueKey: string }) {
       ))}
 
       {subtasks.length > 0 && <Subtasks subtasks={subtasks} />}
+
+      <Section title="Entwicklung">
+        <IssueDevelopment {...development.panel} projectName={fields.project.name} />
+        <CreateBranchDialog {...development.branchDialog} />
+      </Section>
 
       <Section title={`Kommentare · ${comments.length}`}>
         <IssueComments issueKey={issue.data.key} comments={comments} />
