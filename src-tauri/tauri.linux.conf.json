@@ -1,0 +1,16 @@
+{
+  "app": {
+    "windows": [
+      {
+        "title": "betterjira",
+        "width": 1280,
+        "height": 820,
+        "minWidth": 760,
+        "minHeight": 560,
+        "decorations": false,
+        "backgroundThrottling": "disabled",
+        "label": "main"
+      }
+    ]
+  }
+}
