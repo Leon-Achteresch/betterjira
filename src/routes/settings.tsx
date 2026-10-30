@@ -9,6 +9,7 @@ export const Route = createFileRoute("/settings")({
 
 const TABS = [
   { to: "/settings/bereiche", label: "Bereiche" },
+  { to: "/settings/code-hosting", label: "Code-Hosting" },
   { to: "/settings/briefing", label: "KI-Briefing" },
 ] as const;
 

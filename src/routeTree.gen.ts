@@ -18,6 +18,7 @@ import { Route as IssueKeyRouteImport } from './routes/issue/$key'
 import { Route as SettingsIndexRouteImport } from './routes/settings/index'
 import { Route as SettingsBereicheRouteImport } from './routes/settings/bereiche'
 import { Route as SettingsBriefingRouteImport } from './routes/settings/briefing'
+import { Route as SettingsCodeHostingRouteImport } from './routes/settings/code-hosting'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -64,6 +65,11 @@ const SettingsBriefingRoute = SettingsBriefingRouteImport.update({
   path: '/briefing',
   getParentRoute: () => SettingsRoute,
 } as any)
+const SettingsCodeHostingRoute = SettingsCodeHostingRouteImport.update({
+  id: '/code-hosting',
+  path: '/code-hosting',
+  getParentRoute: () => SettingsRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -74,6 +80,7 @@ export interface FileRoutesByFullPath {
   '/issue/$key': typeof IssueKeyRoute
   '/settings/bereiche': typeof SettingsBereicheRoute
   '/settings/briefing': typeof SettingsBriefingRoute
+  '/settings/code-hosting': typeof SettingsCodeHostingRoute
   '/settings/': typeof SettingsIndexRoute
 }
 export interface FileRoutesByTo {
@@ -84,6 +91,7 @@ export interface FileRoutesByTo {
   '/issue/$key': typeof IssueKeyRoute
   '/settings/bereiche': typeof SettingsBereicheRoute
   '/settings/briefing': typeof SettingsBriefingRoute
+  '/settings/code-hosting': typeof SettingsCodeHostingRoute
   '/settings': typeof SettingsIndexRoute
 }
 export interface FileRoutesById {
@@ -96,6 +104,7 @@ export interface FileRoutesById {
   '/issue/$key': typeof IssueKeyRoute
   '/settings/bereiche': typeof SettingsBereicheRoute
   '/settings/briefing': typeof SettingsBriefingRoute
+  '/settings/code-hosting': typeof SettingsCodeHostingRoute
   '/settings/': typeof SettingsIndexRoute
 }
 export interface FileRouteTypes {
@@ -109,6 +118,7 @@ export interface FileRouteTypes {
     | '/issue/$key'
     | '/settings/bereiche'
     | '/settings/briefing'
+    | '/settings/code-hosting'
     | '/settings/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -119,6 +129,7 @@ export interface FileRouteTypes {
     | '/issue/$key'
     | '/settings/bereiche'
     | '/settings/briefing'
+    | '/settings/code-hosting'
     | '/settings'
   id:
     | '__root__'
@@ -130,6 +141,7 @@ export interface FileRouteTypes {
     | '/issue/$key'
     | '/settings/bereiche'
     | '/settings/briefing'
+    | '/settings/code-hosting'
     | '/settings/'
   fileRoutesById: FileRoutesById
 }
@@ -207,18 +219,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsBriefingRouteImport
       parentRoute: typeof SettingsRoute
     }
+    '/settings/code-hosting': {
+      id: '/settings/code-hosting'
+      path: '/code-hosting'
+      fullPath: '/settings/code-hosting'
+      preLoaderRoute: typeof SettingsCodeHostingRouteImport
+      parentRoute: typeof SettingsRoute
+    }
   }
 }
 
 interface SettingsRouteChildren {
   SettingsBereicheRoute: typeof SettingsBereicheRoute
   SettingsBriefingRoute: typeof SettingsBriefingRoute
+  SettingsCodeHostingRoute: typeof SettingsCodeHostingRoute
   SettingsIndexRoute: typeof SettingsIndexRoute
 }
 
 const SettingsRouteChildren: SettingsRouteChildren = {
   SettingsBereicheRoute: SettingsBereicheRoute,
   SettingsBriefingRoute: SettingsBriefingRoute,
+  SettingsCodeHostingRoute: SettingsCodeHostingRoute,
   SettingsIndexRoute: SettingsIndexRoute,
 }
 
