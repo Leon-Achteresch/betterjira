@@ -27,6 +27,8 @@ tauri-plugin-oauth = "2.1.0"
 tauri-plugin-notification = "2"
 tiny_http = "0.12"
 keyring = { version = "3", features = ["apple-native", "windows-native", "sync-secret-service"] }
+tauri-plugin-process = "2"
+tauri-plugin-updater = "2"
 
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration

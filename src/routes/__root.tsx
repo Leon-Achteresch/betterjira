@@ -1,6 +1,4 @@
 import { Outlet, createRootRouteWithContext } from "@tanstack/react-router";
-import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
-import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import type { QueryClient } from "@tanstack/react-query";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
@@ -8,6 +6,7 @@ import { AppHeader } from "@/components/shell/app-header";
 import { AppSidebar } from "@/components/shell/app-sidebar";
 import { useNotificationPoller } from "@/lib/jira/notifications";
 import { useAttentionScheduler } from "@/hooks/attention/use-attention-scheduler";
+import { useAppUpdate } from "@/hooks/use-app-update";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 
 function NotificationPoller() {
@@ -17,6 +16,11 @@ function NotificationPoller() {
 
 function AttentionScheduler() {
   useAttentionScheduler();
+  return null;
+}
+
+function AppUpdater() {
+  useAppUpdate();
   return null;
 }
 
@@ -35,6 +39,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       <Toaster />
       <NotificationPoller />
       <AttentionScheduler />
+      <AppUpdater />
     </TooltipProvider>
   ),
 });

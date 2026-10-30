@@ -17,6 +17,8 @@
     "opener:default",
     "core:window:allow-set-badge-count",
     "notification:default",
+    "updater:default",
+    "process:allow-restart",
     "oauth:allow-start",
     "oauth:allow-cancel",
     {
