@@ -55,4 +55,18 @@ jobs:
           releaseBody: Lade unten den Installer für dein System herunter.
           releaseDraft: false
           prerelease: false
+          uploadUpdaterJson: false
           args: ${{ matrix.args }}
+
+  updater-manifest:
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: latest.json erzeugen
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          version=$(jq -r .version src-tauri/tauri.conf.json)
+          .github/scripts/updater-manifest.sh "${{ github.repository }}" "v$version" "Lade unten den Installer für dein System herunter."
