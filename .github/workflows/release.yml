@@ -55,7 +55,7 @@ jobs:
           releaseBody: Lade unten den Installer für dein System herunter.
           releaseDraft: false
           prerelease: false
-          uploadUpdaterJson: false
+          includeUpdaterJson: false
           args: ${{ matrix.args }}
 
   updater-manifest:
