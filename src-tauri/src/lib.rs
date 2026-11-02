@@ -3,6 +3,7 @@ use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent}
 use tauri::{Manager, WindowEvent};
 
 mod attention;
+mod oauth;
 mod scm;
 
 const KEYRING_SERVICE: &str = "com.leon.betterjira";
@@ -49,7 +50,6 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_http::init())
-        .plugin(tauri_plugin_oauth::init())
         .plugin(tauri_plugin_notification::init())
         .invoke_handler(tauri::generate_handler![
             session_get,
@@ -58,6 +58,8 @@ pub fn run() {
             attention::attention_serve,
             attention::attention_read,
             attention::attention_trigger,
+            oauth::oauth_login,
+            oauth::oauth_cancel,
             scm::scm_request,
             scm::scm_gh_hosts,
             scm::scm_token_set,

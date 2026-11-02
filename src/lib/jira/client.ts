@@ -1,9 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { fetch } from "@tauri-apps/plugin-http";
-import { openUrl } from "@tauri-apps/plugin-opener";
-import { cancel, onUrl, start } from "@fabianlars/tauri-plugin-oauth";
-import { Data, Deferred, Effect, Exit, Fiber, Schedule, Schema, Semaphore } from "effect";
+import { Data, Effect, Fiber, Schema, Semaphore } from "effect";
 
 const CLIENT_ID: string | undefined = import.meta.env.VITE_ATLASSIAN_CLIENT_ID;
 const CLIENT_SECRET: string | undefined = import.meta.env.VITE_ATLASSIAN_CLIENT_SECRET;
@@ -100,31 +98,11 @@ const deleteSession = Effect.tryPromise({
 });
 
 const awaitCallback = Effect.fnUntraced(function* (authorizeUrl: string) {
-  const callback = yield* Deferred.make<URL>();
-  yield* Effect.promise(() => cancel(CALLBACK_PORT).catch(() => undefined));
-  const port = yield* Effect.acquireRelease(
-    Effect.tryPromise({
-      try: () =>
-        start({
-          ports: [CALLBACK_PORT],
-          response:
-            "<html><body>Verbunden. Du kannst dieses Fenster schließen und zu betterjira zurückkehren.<script>setTimeout(() => window.close(), 300)</script></body></html>",
-        }),
-      catch: authError(`Port ${CALLBACK_PORT} ist belegt`),
-    }).pipe(Effect.retry({ schedule: Schedule.spaced("100 millis"), times: 10 })),
-    (port) => Effect.promise(() => cancel(port).catch(() => undefined)),
-  );
-  yield* Effect.acquireRelease(
-    Effect.promise(() =>
-      onUrl((raw) => {
-        const url = new URL(raw);
-        if (url.port === String(port)) Deferred.doneUnsafe(callback, Exit.succeed(url));
-      }),
-    ),
-    (unlisten) => Effect.sync(unlisten),
-  );
-  yield* Effect.tryPromise({ try: () => openUrl(authorizeUrl), catch: authError("Browser konnte nicht geöffnet werden") });
-  const url = yield* Deferred.await(callback).pipe(
+  const raw = yield* Effect.tryPromise({
+    try: () => invoke<string>("oauth_login", { port: CALLBACK_PORT, authorizeUrl }),
+    catch: (cause) => new JiraAuthError({ message: typeof cause === "string" ? cause : "Anmeldung fehlgeschlagen", cause }),
+  }).pipe(
+    Effect.onInterrupt(() => Effect.promise(() => invoke("oauth_cancel").catch(() => undefined))),
     Effect.timeoutOrElse({
       duration: "5 minutes",
       orElse: () => Effect.fail(new JiraAuthError({ message: "Anmeldung abgelaufen" })),
@@ -135,8 +113,8 @@ const awaitCallback = Effect.fnUntraced(function* (authorizeUrl: string) {
     await window.unminimize();
     await window.setFocus();
   }).pipe(Effect.ignore);
-  return url;
-}, Effect.scoped);
+  return new URL(raw);
+});
 
 export const login = Effect.gen(function* () {
   if (!CLIENT_ID || !CLIENT_SECRET) {

@@ -19,8 +19,6 @@
     "notification:default",
     "updater:default",
     "process:allow-restart",
-    "oauth:allow-start",
-    "oauth:allow-cancel",
     {
       "identifier": "http:default",
       "allow": [
