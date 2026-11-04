@@ -3,6 +3,7 @@ import { useDebouncedValue } from "@tanstack/react-pacer";
 import { useFieldCatalog } from "@/hooks/jira/use-field-catalog";
 import { useIssueCount } from "@/hooks/jira/use-issue-count";
 import { useIssueSearch } from "@/hooks/jira/use-issue-search";
+import { useIssueSelection } from "@/hooks/use-issue-selection";
 import { type SavedIssueView, useIssueViews } from "@/hooks/use-issue-views";
 import { copyToClipboard } from "@/lib/clipboard";
 import { fieldText } from "@/lib/jira/field-text";
@@ -57,6 +58,7 @@ export function useIssueTable(scope: string, baseJql: string) {
   const facetSource = useIssueSearch(composeJql(baseJql, []), FACET_KEYS, 100);
 
   const issues = search.data?.pages.flatMap((page) => page.issues) ?? [];
+  const selection = useIssueSelection(JSON.stringify([scope, jql]), issues);
   const facetIssues = facetSource.data?.pages[0]?.issues ?? [];
 
   const columns = view.columns.map((id) => {
@@ -82,19 +84,21 @@ export function useIssueTable(scope: string, baseJql: string) {
   const cellText = (issue: (typeof issues)[number], column: string) =>
     column === KEY_COLUMN ? issue.key : fieldText(issue.fields[column]);
 
-  const exportAs = (format: ExportFormat) => {
+  const exportAs = (format: ExportFormat, selectedOnly = false) => {
+    const exported = selectedOnly ? selection.selected : issues;
     if (format === "jql") return copyToClipboard(jql, "JQL kopiert");
-    if (format === "keys") return copyToClipboard(issues.map((issue) => issue.key).join(", "), `${issues.length} Schlüssel kopiert`);
+    if (format === "keys") return copyToClipboard(exported.map((issue) => issue.key).join(", "), `${exported.length} Schlüssel kopiert`);
     const header = columns.map((column) => column.label);
-    const rows = issues.map((issue) => view.columns.map((column) => cellText(issue, column)));
+    const rows = exported.map((issue) => view.columns.map((column) => cellText(issue, column)));
     const content = format === "tsv" ? toTsv(header, rows) : toMarkdown(header, rows);
-    return copyToClipboard(content, `${issues.length} Zeilen kopiert`);
+    return copyToClipboard(content, `${exported.length} Zeilen kopiert`);
   };
 
   const filterCount = quick.length + facetCount(view.facets);
 
   return {
     scope,
+    selection,
     jql,
     issues,
     columns,

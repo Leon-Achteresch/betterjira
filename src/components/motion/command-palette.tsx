@@ -143,7 +143,7 @@ export function CommandPalette({
   // Clearing the query would drop the cursor on its own, but only if it had
   // changed; `moveTo(null)` covers reopening on an already-empty query.
   useOnOpen(open, () => {
-    setQuery("");
+    setQueryState("");
     setIntro(true);
     moveTo(null);
   });

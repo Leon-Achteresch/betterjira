@@ -53,7 +53,7 @@ jobs:
           tagName: v__VERSION__
           releaseName: betterjira v__VERSION__
           releaseBody: Lade unten den Installer für dein System herunter.
-          releaseDraft: false
+          releaseDraft: true
           prerelease: false
           includeUpdaterJson: false
           args: ${{ matrix.args }}
@@ -70,3 +70,10 @@ jobs:
         run: |
           version=$(jq -r .version src-tauri/tauri.conf.json)
           .github/scripts/updater-manifest.sh "${{ github.repository }}" "v$version" "Lade unten den Installer für dein System herunter."
+
+      - name: Release veröffentlichen
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          version=$(jq -r .version src-tauri/tauri.conf.json)
+          gh release edit "v$version" --draft=false --latest --notes-file CHANGELOG.md

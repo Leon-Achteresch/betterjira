@@ -1,13 +1,18 @@
 import { useState, type FormEvent, type ReactNode } from "react";
 import { PencilIcon } from "lucide-react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { AdfContent, ExternalLink, safeUrl } from "@/components/adf-content";
 import { encode, initialValue, jiraErrors, JiraFieldInput, kindOf } from "@/components/jira-field-input";
 import { JiraUserLabel } from "@/components/jira-user-avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { useJiraEditIssue, useJiraEditIssueWiki, useJiraWikiField } from "@/lib/jira/issue";
+import { useJiraEditIssue, useJiraWikiField } from "@/hooks/jira/use-issue-mutations";
+import { useFieldDraft, useFieldDraftPresence } from "@/hooks/use-field-draft";
+import { EASE_OUT } from "@/lib/ease";
+import { IS_MAC } from "@/lib/platform";
 import type { JiraIssueDetail } from "@/lib/jira/queries";
 import { cn } from "@/lib/utils";
 
@@ -165,6 +170,7 @@ export function EditableField({
   const edit = useJiraEditIssue(issue.key);
   const [draft, setDraft] = useState<{ value: unknown }>();
   const current = issue.fields[id];
+  const hasSavedDraft = useFieldDraftPresence(issue.key, id);
 
   if (!editable) return <div className={className}>{children}</div>;
   const { meta, kind } = editable;
@@ -173,6 +179,7 @@ export function EditableField({
     return (
       <button
         type="button"
+        aria-label={hasSavedDraft ? `${meta.name}: Entwurf fortsetzen` : `${meta.name} bearbeiten`}
         onClick={() => {
           edit.reset();
           setDraft({ value: initialValue(kind, current) });
@@ -183,6 +190,9 @@ export function EditableField({
         )}
       >
         <span className="min-w-0 flex-1">{children}</span>
+        <AnimatePresence initial={false}>
+          {hasSavedDraft && <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15, ease: EASE_OUT }} className="ml-2 shrink-0 self-start"><Badge variant="secondary">Entwurf</Badge></motion.span>}
+        </AnimatePresence>
         <PencilIcon
           aria-label={`${meta.name} bearbeiten`}
           className="mt-0.5 size-3.5 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
@@ -193,6 +203,10 @@ export function EditableField({
 
   if (kind === "richtext") {
     return <WikiEditor issueKey={issue.key} id={id} className={className} onDone={() => setDraft(undefined)} />;
+  }
+
+  if (kind === "text") {
+    return <StringFieldForm issueKey={issue.key} id={id} initial={typeof current === "string" ? current : ""} mode="text" field={meta} className={className} onDone={() => setDraft(undefined)} />;
   }
 
   const errors = jiraErrors(edit.error);
@@ -248,60 +262,98 @@ function WikiEditor({ issueKey, id, className, onDone }: { issueKey: string; id:
     );
   }
   if (wiki.data === undefined) return <Spinner />;
-  return <WikiForm issueKey={issueKey} id={id} initial={wiki.data} className={className} onDone={onDone} />;
+  return <StringFieldForm issueKey={issueKey} id={id} initial={wiki.data} mode="wiki" className={className} onDone={onDone} />;
 }
 
-function WikiForm({
+function StringFieldForm({
   issueKey,
   id,
   initial,
   className,
   onDone,
+  mode,
+  field,
 }: {
   issueKey: string;
   id: string;
   initial: string;
   className?: string;
   onDone: () => void;
+  mode: "text" | "wiki";
+  field?: JiraIssueDetail["editmeta"]["fields"][string];
 }) {
-  const edit = useJiraEditIssueWiki(issueKey);
-  const [text, setText] = useState(initial);
-  const errors = jiraErrors(edit.error);
-  const submit = (event?: FormEvent) => {
-    event?.preventDefault();
-    if (text === initial) return onDone();
-    edit.mutate({ [id]: text }, { onSuccess: onDone });
-  };
+  const editor = useFieldDraft({ issueKey, field: id, initial, mode, onClose: onDone });
+  const reduce = useReducedMotion();
 
   return (
-    <form onSubmit={submit} className={cn("flex flex-col gap-2", className)}>
-      <Textarea
-        autoFocus
-        value={text}
-        aria-label="Text bearbeiten"
-        className="min-h-48 font-mono text-xs"
-        onChange={(event) => setText(event.target.value)}
-        onKeyDown={(event) => {
-          if (event.key === "Escape") onDone();
-          if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) submit();
-        }}
-      />
-      {[...errors.messages, ...Object.values(errors.fields)].map((message) => (
+    <motion.form
+      initial={{ opacity: 0, y: reduce ? 0 : 4 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.18, ease: EASE_OUT }}
+      onSubmit={editor.submit}
+      onKeyDown={editor.onKeyDown}
+      className={cn("flex flex-col gap-2", className)}
+    >
+      <fieldset disabled={!editor.ready} className="min-w-0">
+        {mode === "wiki" ? (
+          <Textarea
+            autoFocus
+            value={editor.text}
+            aria-label="Text bearbeiten"
+            className="min-h-48 font-mono text-xs"
+            onChange={(event) => editor.setText(event.target.value)}
+          />
+        ) : (
+          <Input
+            autoFocus
+            id={`field-${id}`}
+            aria-label={field?.name ?? id}
+            required={field?.required}
+            value={editor.text}
+            onChange={(event) => editor.setText(event.target.value)}
+          />
+        )}
+      </fieldset>
+      {editor.errors.map((message) => (
         <p key={message} role="alert" className="text-xs text-destructive">
           {message}
         </p>
       ))}
-      <div className="flex items-center gap-2">
-        <Button type="submit" size="sm" disabled={edit.isPending}>
-          {edit.isPending && <Spinner />}
+      <div className="flex flex-wrap items-center gap-2">
+        <Button type="submit" size="sm" disabled={!editor.ready || editor.pending}>
+          {editor.pending && <Spinner />}
           Speichern
         </Button>
-        <Button type="button" size="sm" variant="ghost" onClick={onDone}>
-          Abbrechen
+        <Button type="button" size="sm" variant="ghost" onClick={editor.close}>
+          Schließen
         </Button>
-        <span className="ml-auto text-xs text-muted-foreground">Jira-Wiki-Syntax · ⌘ + Enter speichert</span>
+        {editor.hasDraft && (
+          <Button type="button" size="sm" variant="ghost" disabled={editor.pending} onClick={editor.discard}>
+            Verwerfen
+          </Button>
+        )}
+        <AnimatePresence initial={false}>
+          {editor.hasDraft && (
+            <motion.span
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15, ease: EASE_OUT }}
+              className="ml-auto text-xs text-muted-foreground"
+              role="status"
+            >
+              Entwurf lokal gespeichert
+            </motion.span>
+          )}
+        </AnimatePresence>
       </div>
-    </form>
+      {mode === "wiki" && (
+        <span className="text-xs text-muted-foreground">
+          Jira-Wiki-Syntax · {IS_MAC ? "⌘" : "Strg"} + Enter speichert
+        </span>
+      )}
+      {editor.notice && <p role="status" className="text-xs text-muted-foreground">{editor.notice}</p>}
+    </motion.form>
   );
 }
 

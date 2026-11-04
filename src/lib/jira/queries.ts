@@ -4,6 +4,10 @@ import { currentSite, jira, jiraAgile, jiraImage, jiraSend, logout, runLogin } f
 
 export const jiraKeys = {
   all: ["jira"] as const,
+  allIssues: ["jira", "issues"] as const,
+  allBoards: ["jira", "board"] as const,
+  attachment: (variant: string, id: string) => ["jira", "attachment", variant, id] as const,
+  wiki: (key: string, field: string) => ["jira", "wiki", key, field] as const,
   site: ["jira", "site"] as const,
   myself: ["jira", "myself"] as const,
   projects: ["jira", "projects"] as const,

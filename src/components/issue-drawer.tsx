@@ -1,13 +1,15 @@
+import type { ReactNode } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import { IssueAttachments } from "@/components/issue-attachments";
 import { IssueFields } from "@/components/issue-fields";
 import { IssueWorklog } from "@/components/issue-worklog";
+import { IssueNote } from "@/components/issues/issue-note";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { JiraIssueDetail } from "@/lib/jira/queries";
 import { EASE_OUT } from "@/lib/ease";
 
-export type IssueDrawerTab = "details" | "attachments" | "time";
+export type IssueDrawerTab = "details" | "attachments" | "time" | "note" | "development";
 
 export function IssueDrawer({
   issue,
@@ -15,12 +17,18 @@ export function IssueDrawer({
   tab,
   onOpenChange,
   onTabChange,
+  onCloseAutoFocus,
+  development,
+  extraFields,
 }: {
   issue: JiraIssueDetail;
   open: boolean;
   tab: IssueDrawerTab;
   onOpenChange: (open: boolean) => void;
   onTabChange: (tab: IssueDrawerTab) => void;
+  onCloseAutoFocus?: (event: Event) => void;
+  development?: ReactNode;
+  extraFields?: ReactNode;
 }) {
   const reduce = useReducedMotion();
   const { fields } = issue;
@@ -28,11 +36,13 @@ export function IssueDrawer({
     { id: "details", label: "Details" },
     { id: "attachments", label: `Anhänge · ${fields.attachment?.length ?? 0}` },
     { id: "time", label: "Zeit" },
+    { id: "note", label: "Notiz" },
+    { id: "development", label: "Code" },
   ] as const;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full gap-0 sm:max-w-lg">
+      <SheetContent onCloseAutoFocus={onCloseAutoFocus} className="w-full gap-0 data-[side=right]:sm:max-w-lg">
         <SheetHeader className="border-b px-5 pt-5 pb-4">
           <SheetDescription className="font-mono text-xs">{issue.key}</SheetDescription>
           <SheetTitle className="truncate pr-8">{fields.summary}</SheetTitle>
@@ -59,9 +69,20 @@ export function IssueDrawer({
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.2, ease: EASE_OUT }}
               >
-                {id === "details" && <IssueFields issue={issue} />}
-                {id === "attachments" && <IssueAttachments issueKey={issue.key} attachments={fields.attachment ?? []} />}
-                {id === "time" && <IssueWorklog issueKey={issue.key} timetracking={fields.timetracking} worklog={fields.worklog} />}
+                {id === "details" && (
+                  <div className="flex flex-col gap-6">
+                    {extraFields}
+                    <IssueFields issue={issue} />
+                  </div>
+                )}
+                {id === "attachments" && (
+                  <IssueAttachments issueKey={issue.key} attachments={fields.attachment ?? []} />
+                )}
+                {id === "time" && (
+                  <IssueWorklog issueKey={issue.key} timetracking={fields.timetracking} worklog={fields.worklog} />
+                )}
+                {id === "note" && <IssueNote issueKey={issue.key} />}
+                {id === "development" && development}
               </motion.div>
             </TabsContent>
           ))}

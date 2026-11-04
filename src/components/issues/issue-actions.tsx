@@ -1,0 +1,113 @@
+import { motion, useReducedMotion } from "motion/react";
+import {
+  ArrowUpRightIcon,
+  CopyIcon,
+  EllipsisIcon,
+  GitBranchIcon,
+  LinkIcon,
+  PaperclipIcon,
+  PinIcon,
+  SlidersHorizontalIcon,
+  StickyNoteIcon,
+  TimerIcon,
+} from "lucide-react";
+import { Tooltip } from "@/components/motion/tooltip";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import type { useIssueActions } from "@/hooks/use-issue-actions";
+import { SPRING_PRESS } from "@/lib/ease";
+import { cn } from "@/lib/utils";
+
+const MotionButton = motion.create(Button);
+
+export function IssueActions({
+  actions,
+  attachmentCount,
+  timeSpent,
+}: {
+  actions: ReturnType<typeof useIssueActions>;
+  attachmentCount: number;
+  timeSpent?: string;
+}) {
+  const reduce = useReducedMotion();
+  return (
+    <div className="ml-auto flex items-center gap-1">
+      <Button
+        ref={actions.detailsRef}
+        variant="outline"
+        size="sm"
+        onClick={() => actions.show("details")}
+        aria-label="Details öffnen"
+      >
+        <SlidersHorizontalIcon />
+        Details
+      </Button>
+      <Tooltip content={actions.pinned ? "Nicht mehr anheften" : "Anheften · in Weiterarbeiten merken"} side="bottom">
+        <MotionButton
+          variant="ghost"
+          size="icon-sm"
+          aria-label={actions.pinned ? "Nicht mehr anheften" : "Vorgang anheften"}
+          aria-pressed={actions.pinned}
+          disabled={!actions.ready}
+          onClick={actions.togglePin}
+          whileTap={reduce ? undefined : { scale: 0.96 }}
+          transition={SPRING_PRESS}
+          className={cn("text-muted-foreground", actions.pinned && "bg-primary/10 text-primary")}
+        >
+          <PinIcon />
+        </MotionButton>
+      </Tooltip>
+      <DropdownMenu>
+        <Tooltip content="Weitere Aktionen" side="bottom">
+          <DropdownMenuTrigger asChild>
+            <Button ref={actions.menuRef} variant="ghost" size="icon-sm" aria-label="Weitere Ticketaktionen">
+              <EllipsisIcon />
+            </Button>
+          </DropdownMenuTrigger>
+        </Tooltip>
+        <DropdownMenuContent align="end" className="w-64">
+          <DropdownMenuItem onSelect={() => actions.show("note")}>
+            <StickyNoteIcon />
+            Private Notiz für später
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => actions.show("attachments")}>
+            <PaperclipIcon />
+            Anhänge<span className="ml-auto text-xs text-muted-foreground tabular-nums">{attachmentCount}</span>
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => actions.show("time")}>
+            <TimerIcon />
+            Zeit erfassen{timeSpent && <span className="ml-auto text-xs text-muted-foreground">{timeSpent}</span>}
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => actions.show("development")}>
+            <GitBranchIcon />
+            Entwicklung
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onSelect={actions.copyKey}>
+            <CopyIcon />
+            Schlüssel kopieren
+          </DropdownMenuItem>
+          {actions.openInJira && (
+            <>
+              <DropdownMenuItem onSelect={actions.copyLink}>
+                <LinkIcon />
+                Link kopieren
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onSelect={actions.openInJira}>
+                <ArrowUpRightIcon />
+                In Jira öffnen
+              </DropdownMenuItem>
+            </>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  );
+}

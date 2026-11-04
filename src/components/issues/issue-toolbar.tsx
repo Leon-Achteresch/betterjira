@@ -3,6 +3,7 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import {
   BookmarkIcon,
   BookmarkPlusIcon,
+  ChevronDownIcon,
   ClipboardCopyIcon,
   CodeIcon,
   EllipsisIcon,
@@ -33,23 +34,25 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "@/components/ui/input-group";
 import type { IssueTableState } from "@/hooks/use-issue-table";
+import { useIssueToolbar, type IssueToolbarFilters } from "@/hooks/use-issue-toolbar";
 import { EASE_OUT, SPRING_LAYOUT, SPRING_PRESS } from "@/lib/ease";
-import { QUICK_FILTERS, type QuickFilter } from "@/lib/jira/issue-view";
+import { QUICK_FILTERS } from "@/lib/jira/issue-view";
 import { cn } from "@/lib/utils";
 
-const QUICK_KEYS = Object.keys(QUICK_FILTERS) as QuickFilter[];
-
 function QuickFilterChip({ active, label, onClick }: { active: boolean; label: string; onClick: () => void }) {
+  const reduce = useReducedMotion();
   return (
     <motion.button
       type="button"
       aria-pressed={active}
       onClick={onClick}
-      whileTap={{ scale: 0.96 }}
+      whileTap={reduce ? undefined : { scale: 0.96 }}
       transition={SPRING_PRESS}
       className={cn(
         "h-7 rounded-full border px-3 text-xs font-medium whitespace-nowrap outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring",
-        active ? "border-primary/40 bg-primary/10 text-primary" : "border-border text-muted-foreground hover:bg-muted hover:text-foreground",
+        active
+          ? "border-primary/40 bg-primary/10 text-primary"
+          : "border-border text-muted-foreground hover:bg-muted hover:text-foreground",
       )}
     >
       {label}
@@ -58,15 +61,16 @@ function QuickFilterChip({ active, label, onClick }: { active: boolean; label: s
 }
 
 function ResultCount({ loaded, total }: { loaded: number; total?: number }) {
+  const reduce = useReducedMotion();
   const label = total === undefined || total === loaded ? `${loaded}` : `${loaded} von ${total}`;
   return (
     <span className="flex items-center text-xs text-muted-foreground tabular-nums" aria-live="polite">
       <AnimatePresence mode="popLayout" initial={false}>
         <motion.span
           key={label}
-          initial={{ opacity: 0, y: 4 }}
+          initial={{ opacity: 0, y: reduce ? 0 : 4 }}
           animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -4, transition: { duration: 0.1 } }}
+          exit={{ opacity: 0, y: reduce ? 0 : -4, transition: { duration: 0.1 } }}
           transition={{ duration: 0.18, ease: EASE_OUT }}
         >
           {label} Vorgänge
@@ -95,7 +99,10 @@ function ViewMenu({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="min-w-60">
-          <DropdownMenuCheckboxItem checked={table.dense} onCheckedChange={(checked) => table.setDense(checked === true)}>
+          <DropdownMenuCheckboxItem
+            checked={table.dense}
+            onCheckedChange={(checked) => table.setDense(checked === true)}
+          >
             <Rows3Icon />
             Kompakte Zeilen
           </DropdownMenuCheckboxItem>
@@ -175,26 +182,42 @@ function ViewMenu({
   );
 }
 
-function ActiveFilters({ table }: { table: IssueTableState }) {
+function ActiveFilters({ table, filters }: { table: IssueTableState; filters: IssueToolbarFilters }) {
   const reduce = useReducedMotion();
-  const chips = table.facets.flatMap((facet) =>
-    facet.selected.map((value) => ({
-      facet,
-      option: facet.options.find((option) => option.value === value) ?? { value, label: value },
-    })),
-  );
   return (
     <AnimatePresence initial={false}>
-      {chips.length > 0 && (
+      {(filters.facetChips.length > 0 || filters.activeSecondary.length > 0) && (
         <motion.div
-          initial={{ opacity: 0, y: -4 }}
+          initial={{ opacity: 0, y: reduce ? 0 : -4 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, transition: { duration: 0.12 } }}
           transition={{ duration: 0.2, ease: EASE_OUT }}
           className="flex flex-wrap items-center gap-1.5"
         >
           <AnimatePresence initial={false} mode="popLayout">
-            {chips.map(({ facet, option }) => (
+            {filters.activeSecondary.map((key) => (
+              <motion.span
+                key={`quick:${key}`}
+                layout={!reduce}
+                initial={{ opacity: 0, scale: reduce ? 1 : 0.96 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: reduce ? 1 : 0.96, transition: { duration: 0.12 } }}
+                transition={SPRING_LAYOUT}
+                className="flex h-6 items-center gap-1 rounded-md bg-primary/10 pr-0.5 pl-2 text-xs text-primary"
+              >
+                {QUICK_FILTERS[key].label}
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  className="size-5"
+                  aria-label={`${QUICK_FILTERS[key].label} entfernen`}
+                  onClick={() => table.toggleQuick(key)}
+                >
+                  <XIcon />
+                </Button>
+              </motion.span>
+            ))}
+            {filters.facetChips.map(({ facet, option }) => (
               <motion.span
                 key={`${facet.id}:${option.value}`}
                 layout={!reduce}
@@ -239,6 +262,8 @@ export function IssueToolbar({
   onAdoptJql?: (jql: string) => void;
   onOpenSearch?: (jql: string) => void;
 }) {
+  const filters = useIssueToolbar(table);
+  const reduce = useReducedMotion();
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-2">
@@ -257,7 +282,12 @@ export function IssueToolbar({
           <AnimatePresence initial={false}>
             {table.text && (
               <InputGroupAddon align="inline-end">
-                <motion.span initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }} transition={{ duration: 0.12 }}>
+                <motion.span
+                  initial={{ opacity: 0, scale: reduce ? 1 : 0.96 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: reduce ? 1 : 0.96 }}
+                  transition={{ duration: 0.12, ease: EASE_OUT }}
+                >
                   <InputGroupButton size="icon-xs" aria-label="Suche leeren" onClick={() => table.setText("")}>
                     <XIcon />
                   </InputGroupButton>
@@ -267,7 +297,7 @@ export function IssueToolbar({
           </AnimatePresence>
         </InputGroup>
         <div className="flex flex-wrap items-center gap-1.5">
-          {QUICK_KEYS.map((key) => (
+          {filters.primary.map((key) => (
             <QuickFilterChip
               key={key}
               label={QUICK_FILTERS[key].label}
@@ -275,11 +305,40 @@ export function IssueToolbar({
               onClick={() => table.toggleQuick(key)}
             />
           ))}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm" className="text-muted-foreground">
+                Weitere Filter
+                {filters.activeSecondary.length > 0 && (
+                  <span className="text-primary tabular-nums">{filters.activeSecondary.length}</span>
+                )}
+                <ChevronDownIcon />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="min-w-48">
+              {filters.secondary.map((key) => (
+                <DropdownMenuCheckboxItem
+                  key={key}
+                  checked={table.quick.includes(key)}
+                  onCheckedChange={() => table.toggleQuick(key)}
+                  onSelect={(event) => event.preventDefault()}
+                >
+                  {QUICK_FILTERS[key].label}
+                </DropdownMenuCheckboxItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
         <div className="ml-auto flex items-center gap-2">
           <ResultCount loaded={table.issues.length} total={table.total} />
-          <Button variant="ghost" size="icon-sm" aria-label="Aktualisieren" onClick={table.refresh} disabled={table.isFetching}>
-            <RefreshCwIcon className={cn(table.isFetching && "animate-spin")} />
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label="Aktualisieren"
+            onClick={table.refresh}
+            disabled={table.isFetching}
+          >
+            <RefreshCwIcon className={cn(table.isFetching && !reduce && "animate-spin")} />
           </Button>
           <FacetMenu
             groups={table.facets}
@@ -296,7 +355,7 @@ export function IssueToolbar({
           <ViewMenu table={table} onAdoptJql={onAdoptJql} onOpenSearch={onOpenSearch} />
         </div>
       </div>
-      <ActiveFilters table={table} />
+      <ActiveFilters table={table} filters={filters} />
     </div>
   );
 }

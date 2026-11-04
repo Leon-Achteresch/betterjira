@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
-import { useJiraAttachmentImage, useJiraUploadAttachments } from "@/lib/jira/issue";
+import { useJiraAttachmentImage, useJiraUploadAttachments } from "@/hooks/jira/use-issue-mutations";
 import { type JiraIssueDetail, useJiraSite } from "@/lib/jira/queries";
 
 type Attachment = NonNullable<JiraIssueDetail["fields"]["attachment"]>[number];

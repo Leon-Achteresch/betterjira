@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { IssueCell } from "@/components/issues/issue-cell";
 import { IssuePreviewTooltip } from "@/components/issues/issue-preview";
+import { Checkbox } from "@/components/motion/checkbox";
 import { Button } from "@/components/ui/button";
 import {
   ContextMenu,
@@ -39,7 +40,13 @@ import type { SortDirection } from "@/lib/jira/jql";
 import type { SearchIssue } from "@/lib/jira/search";
 import { cn } from "@/lib/utils";
 
-export type GridColumn = { id: string; label: string; sortable: boolean; direction?: SortDirection; sortIndex?: number };
+export type GridColumn = {
+  id: string;
+  label: string;
+  sortable: boolean;
+  direction?: SortDirection;
+  sortIndex?: number;
+};
 
 const MotionRow = motion.create(TableRow);
 
@@ -171,6 +178,10 @@ export function IssueGrid({
   columns,
   issues,
   dense,
+  selectedKeys,
+  allSelected,
+  onToggleSelection,
+  onToggleAll,
   siteUrl,
   onSort,
   onSortDirection,
@@ -180,6 +191,10 @@ export function IssueGrid({
   columns: GridColumn[];
   issues: SearchIssue[];
   dense: boolean;
+  selectedKeys: ReadonlySet<string>;
+  allSelected: boolean;
+  onToggleSelection: (key: string) => void;
+  onToggleAll: () => void;
   siteUrl?: string;
   onSort: (column: string, additive: boolean) => void;
   onSortDirection: (column: string, direction: SortDirection | undefined) => void;
@@ -194,10 +209,20 @@ export function IssueGrid({
     <Table>
       <TableHeader>
         <TableRow className="hover:bg-transparent">
+          <TableHead className="w-10">
+            <Checkbox
+              aria-label="Alle geladenen Vorgänge auswählen"
+              checked={allSelected}
+              indeterminate={selectedKeys.size > 0 && !allSelected}
+              onCheckedChange={onToggleAll}
+            />
+          </TableHead>
           {columns.map((column, index) => (
             <TableHead
               key={column.id}
-              aria-sort={column.direction === "ASC" ? "ascending" : column.direction === "DESC" ? "descending" : undefined}
+              aria-sort={
+                column.direction === "ASC" ? "ascending" : column.direction === "DESC" ? "descending" : undefined
+              }
               className={cn(column.id === KEY_COLUMN && "sticky left-0 z-20 bg-background")}
             >
               <ColumnHeader
@@ -213,7 +238,13 @@ export function IssueGrid({
           ))}
         </TableRow>
       </TableHeader>
-      <motion.tbody variants={BODY} initial="hidden" animate="show" data-slot="table-body" className="[&_tr:last-child]:border-0">
+      <motion.tbody
+        variants={BODY}
+        initial="hidden"
+        animate="show"
+        data-slot="table-body"
+        className="[&_tr:last-child]:border-0"
+      >
         <AnimatePresence initial={false}>
           {issues.map((issue) => {
             const url = siteUrl && `${siteUrl}/browse/${issue.key}`;
@@ -221,13 +252,26 @@ export function IssueGrid({
               <ContextMenu key={issue.id}>
                 <IssuePreviewTooltip issueKey={issue.key}>
                   <ContextMenuTrigger asChild>
-                    <MotionRow variants={row} exit="exit" className="group/row relative">
+                    <MotionRow
+                      variants={row}
+                      exit="exit"
+                      data-state={selectedKeys.has(issue.key) ? "selected" : undefined}
+                      className="group/row relative"
+                    >
+                      <TableCell className="relative z-20 w-10">
+                        <Checkbox
+                          aria-label={`${issue.key} auswählen`}
+                          checked={selectedKeys.has(issue.key)}
+                          onCheckedChange={() => onToggleSelection(issue.key)}
+                        />
+                      </TableCell>
                       {columns.map((column) => (
                         <TableCell
                           key={column.id}
                           className={cn(
                             dense ? "py-1" : "py-2.5",
-                            column.id === KEY_COLUMN && "sticky left-0 z-10 bg-background transition-colors group-hover/row:bg-muted",
+                            column.id === KEY_COLUMN &&
+                              "sticky left-0 z-10 bg-background transition-colors group-hover/row:bg-muted group-data-[state=selected]/row:bg-muted",
                           )}
                         >
                           <IssueCell issue={issue} column={column.id} />

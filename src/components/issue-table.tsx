@@ -1,14 +1,15 @@
 import { useNavigate } from "@tanstack/react-router";
-import { motion } from "motion/react";
+import { motion, useReducedMotion } from "motion/react";
 import { SearchXIcon } from "lucide-react";
 import { IssueGrid } from "@/components/issues/issue-grid";
 import { IssueToolbar } from "@/components/issues/issue-toolbar";
+import { SelectionToolbar } from "@/components/issues/selection-toolbar";
 import { Button } from "@/components/ui/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { useIssueTable } from "@/hooks/use-issue-table";
-import { EASE_OUT } from "@/lib/ease";
+import { EASE_OUT, SPRING_LAYOUT } from "@/lib/ease";
 import { jiraErrors } from "@/lib/jira/field-values";
 import { useJiraSite } from "@/lib/jira/queries";
 
@@ -24,6 +25,7 @@ export function IssueTable({
   onAdoptJql?: (jql: string) => void;
 }) {
   const table = useIssueTable(scope, jql);
+  const reduce = useReducedMotion();
   const site = useJiraSite();
   const navigate = useNavigate();
   const filtered = table.filterCount > 0 || table.text.trim() !== "";
@@ -35,8 +37,19 @@ export function IssueTable({
         onAdoptJql={onAdoptJql}
         onOpenSearch={openSearch ? (composed) => void navigate({ to: "/suche", search: { jql: composed } }) : undefined}
       />
+      <SelectionToolbar
+        count={table.selection.selected.length}
+        loaded={table.issues.length}
+        onCopyKeys={() => void table.exportAs("keys", true)}
+        onCopyTable={() => void table.exportAs("tsv", true)}
+        onCopyMarkdown={() => void table.exportAs("markdown", true)}
+        onClear={table.selection.clear}
+      />
       {table.error ? (
-        <div role="alert" className="flex flex-col gap-1 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+        <div
+          role="alert"
+          className="flex flex-col gap-1 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive"
+        >
           {jiraErrors(table.error).messages.map((message) => (
             <p key={message}>{message}</p>
           ))}
@@ -54,7 +67,9 @@ export function IssueTable({
               <SearchXIcon />
             </EmptyMedia>
             <EmptyTitle>Keine Vorgänge</EmptyTitle>
-            <EmptyDescription>{filtered ? "Kein Vorgang passt zu den aktiven Filtern." : "Diese Abfrage liefert keine Vorgänge."}</EmptyDescription>
+            <EmptyDescription>
+              {filtered ? "Kein Vorgang passt zu den aktiven Filtern." : "Diese Abfrage liefert keine Vorgänge."}
+            </EmptyDescription>
           </EmptyHeader>
           {filtered && (
             <Button variant="outline" size="sm" onClick={table.clearFilters}>
@@ -64,14 +79,19 @@ export function IssueTable({
         </Empty>
       ) : (
         <motion.div
+          layout={reduce ? false : "position"}
           animate={{ opacity: table.isFetching ? 0.6 : 1 }}
-          transition={{ duration: 0.15, ease: EASE_OUT }}
+          transition={{ opacity: { duration: 0.15, ease: EASE_OUT }, layout: SPRING_LAYOUT }}
           className="flex flex-col items-center gap-3"
         >
           <IssueGrid
             columns={table.columns}
             issues={table.issues}
             dense={table.dense}
+            selectedKeys={table.selection.selectedKeys}
+            allSelected={table.selection.allSelected}
+            onToggleSelection={table.selection.toggle}
+            onToggleAll={table.selection.toggleAll}
             siteUrl={site.data?.siteUrl}
             onSort={table.toggleSort}
             onSortDirection={table.setSortDirection}

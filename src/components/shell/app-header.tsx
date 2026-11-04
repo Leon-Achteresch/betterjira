@@ -3,6 +3,7 @@ import { Settings } from "lucide-react";
 import { Tooltip } from "@/components/motion/tooltip";
 import { AppCommandPalette } from "@/components/shell/app-command-palette";
 import { NotificationBell } from "@/components/shell/notification-bell";
+import { WorkQueue } from "@/components/shell/work-queue";
 import { WindowControls } from "@/components/shell/window-controls";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { IS_MAC, USE_CUSTOM_WINDOW_CONTROLS } from "@/lib/platform";
@@ -31,6 +32,7 @@ export function AppHeader() {
         <AppCommandPalette />
       </div>
       <nav className="ml-auto flex items-center gap-1 px-3" aria-label="Hauptnavigation">
+        <WorkQueue />
         <NotificationBell />
         <Tooltip content="Einstellungen" side="bottom">
           <Link

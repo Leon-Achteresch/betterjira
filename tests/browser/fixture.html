@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>betterjira – UI-Testdaten</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module">
+      import "./mock-tauri.js";
+      const route =
+        new URLSearchParams(location.search).get("route") || "/issue/DEMO-1";
+      history.replaceState(null, "", route);
+      await import("/src/main.tsx");
+    </script>
+  </body>
+</html>
