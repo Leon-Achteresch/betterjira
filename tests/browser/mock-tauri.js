@@ -269,6 +269,12 @@ let callbackId = 0;
 const requests = new Map();
 let nextId = 0;
 window.__qa = { writes: [], failNextWrite: false, delayMs: 0, issues, wiki, briefing, briefingFailure: false };
+window.__qa.outlook = {
+  calls: [],
+  failNext: false,
+  account: { id: "ABC123", displayName: "Lokaler Outlook-Testkalender", email: "outlook@example.com" },
+  events: [{ id: "AAAA", title: "Externer Outlook-Termin", start: "2026-11-06T10:00:00.000Z", end: "2026-11-06T11:00:00.000Z", webLink: "", isAllDay: false }],
+};
 const respond = async (request) => {
   const url = new URL(request.url);
   const path = url.pathname.replace(/^.*\/rest\/(?:api\/[23]|agile\/1\.0)/, "");
@@ -377,6 +383,34 @@ window.__TAURI_INTERNALS__ = {
   },
   unregisterCallback: () => {},
   invoke: async (command, args = {}) => {
+    if (command === "outlook_request") {
+      const outlook = window.__qa.outlook;
+      const input = args.request;
+      outlook.calls.push(input);
+      if (outlook.failNext) {
+        outlook.failNext = false;
+        const message = outlook.failureMessage ?? "Test: Outlook vorübergehend nicht erreichbar";
+        outlook.failureMessage = null;
+        throw message;
+      }
+      if (input.action === "account") return outlook.account;
+      if (input.accountId !== outlook.account.id) throw "Test: Outlook-Profil wurde gewechselt";
+      if (input.action === "list") return outlook.events.filter((event) => event.start < input.end && event.end > input.start);
+      if (input.action === "upsert") {
+        const rollout = input.rollout;
+        const existing = outlook.events.find((event) => event.rolloutId === rollout.id);
+        const event = { id: existing?.id ?? `BEEF${outlook.events.length}`, rolloutId: rollout.id, title: rollout.title, start: rollout.start, end: rollout.end, webLink: "", isAllDay: false };
+        outlook.events = [...outlook.events.filter((entry) => entry.id !== event.id), event];
+        return { id: event.id, accountId: outlook.account.id };
+      }
+      if (input.action === "delete") {
+        outlook.events = outlook.events.filter((event) => event.id !== input.eventId);
+        return null;
+      }
+      if (input.action === "open") return null;
+      throw "Test: Unbekannte Outlook-Aktion";
+    }
+    if (command === "session_get" && scenario === "calendar-offline") return null;
     if (command === "session_get")
       return JSON.stringify({
         accessToken: "local-test",

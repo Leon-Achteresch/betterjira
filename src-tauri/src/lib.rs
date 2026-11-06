@@ -4,6 +4,7 @@ use tauri::{Manager, WindowEvent};
 
 mod attention;
 mod oauth;
+mod outlook;
 mod scm;
 mod secrets;
 
@@ -88,6 +89,7 @@ pub fn run() {
             attention::attention_trigger,
             oauth::oauth_login,
             oauth::oauth_cancel,
+            outlook::outlook_request,
             scm::scm_request,
             scm::scm_gh_hosts,
             scm::scm_token_set,

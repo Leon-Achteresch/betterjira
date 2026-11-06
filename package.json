@@ -8,6 +8,8 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "test": "vitest run",
+    "test:e2e": "playwright test",
+    "test:outlook": "powershell.exe -NoProfile -NonInteractive -STA -File tests/native/outlook.integration.ps1 -RunLive",
     "tauri": "tauri",
     "prepare": "effect-language-service patch"
   },
@@ -60,6 +62,7 @@
   },
   "devDependencies": {
     "@effect/language-service": "^0.87.5",
+    "@playwright/test": "^1.65.0",
     "@tanstack/react-query-devtools": "^5.105.0",
     "@tanstack/react-router-devtools": "^1.167.2",
     "@tanstack/router-plugin": "^1.168.48",

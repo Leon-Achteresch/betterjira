@@ -2,6 +2,7 @@ import { useState, type ReactNode } from "react";
 import { Link, useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import {
+  CalendarDaysIcon,
   ChartColumnIcon,
   ChevronRightIcon,
   ChevronsUpDownIcon,
@@ -319,6 +320,18 @@ export function AppSidebar() {
         </SidebarHeader>
       )}
       <SidebarContent>
+        <SidebarGroup className="pb-0">
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild tooltip="Kalender">
+                <Link to="/kalender" activeProps={{ "data-active": true }}>
+                  <CalendarDaysIcon className="text-muted-foreground" />
+                  <span>Kalender</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarGroup>
         {site.data && (
           <>
             {favorites.length > 0 && (

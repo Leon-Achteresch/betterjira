@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as KalenderRouteImport } from './routes/kalender'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SucheRouteImport } from './routes/suche'
 import { Route as BereicheKeyRouteImport } from './routes/bereiche/$key'
@@ -24,6 +25,11 @@ import { Route as SettingsDarstellungRouteImport } from './routes/settings/darst
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const KalenderRoute = KalenderRouteImport.update({
+  id: '/kalender',
+  path: '/kalender',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SettingsRoute = SettingsRouteImport.update({
@@ -79,6 +85,7 @@ const SettingsDarstellungRoute = SettingsDarstellungRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/kalender': typeof KalenderRoute
   '/settings': typeof SettingsRouteWithChildren
   '/suche': typeof SucheRoute
   '/bereiche/$key': typeof BereicheKeyRoute
@@ -92,6 +99,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/kalender': typeof KalenderRoute
   '/suche': typeof SucheRoute
   '/bereiche/$key': typeof BereicheKeyRoute
   '/filter/$id': typeof FilterIdRoute
@@ -105,6 +113,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/kalender': typeof KalenderRoute
   '/settings': typeof SettingsRouteWithChildren
   '/suche': typeof SucheRoute
   '/bereiche/$key': typeof BereicheKeyRoute
@@ -120,6 +129,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/kalender'
     | '/settings'
     | '/suche'
     | '/bereiche/$key'
@@ -133,6 +143,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/kalender'
     | '/suche'
     | '/bereiche/$key'
     | '/filter/$id'
@@ -145,6 +156,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/kalender'
     | '/settings'
     | '/suche'
     | '/bereiche/$key'
@@ -159,6 +171,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  KalenderRoute: typeof KalenderRoute
   SettingsRoute: typeof SettingsRouteWithChildren
   SucheRoute: typeof SucheRoute
   BereicheKeyRoute: typeof BereicheKeyRoute
@@ -173,6 +186,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/kalender': {
+      id: '/kalender'
+      path: '/kalender'
+      fullPath: '/kalender'
+      preLoaderRoute: typeof KalenderRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/settings': {
@@ -270,6 +290,7 @@ const SettingsRouteWithChildren = SettingsRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  KalenderRoute: KalenderRoute,
   SettingsRoute: SettingsRouteWithChildren,
   SucheRoute: SucheRoute,
   BereicheKeyRoute: BereicheKeyRoute,
