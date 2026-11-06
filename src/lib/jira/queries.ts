@@ -19,6 +19,8 @@ export const jiraKeys = {
   filter: (id: string) => ["jira", "filter", id] as const,
   jqlValidation: (jql: string) => ["jira", "jql-validation", jql] as const,
   issue: (key: string) => ["jira", "issue", key] as const,
+  comments: (key: string) => ["jira", "comments", key] as const,
+  mentionSearch: (issueKey: string, query: string) => ["jira", "mention-search", issueKey, query] as const,
   transitions: (key: string) => ["jira", "transitions", key] as const,
   userSearch: (query: string, issueKey: string, assignee: boolean) => ["jira", "user-search", query, issueKey, assignee] as const,
   filters: ["jira", "filters"] as const,
@@ -464,13 +466,14 @@ const IssueDetail = Schema.Struct({
       created: Schema.String,
       updated: Schema.String,
       issuetype: Schema.Struct({ name: Schema.String }),
-      project: Schema.Struct({ key: Schema.String, name: Schema.String }),
+      project: Schema.Struct({ key: Schema.String, name: Schema.String, projectTypeKey: Schema.optional(Schema.String) }),
       parent: Schema.optional(Schema.Struct({ key: Schema.String, fields: Schema.Struct({ summary: Schema.String }) })),
       subtasks: Schema.optional(
         Schema.Array(Schema.Struct({ id: Schema.String, key: Schema.String, fields: Schema.Struct({ summary: Schema.String, status: JiraStatus }) })),
       ),
       comment: Schema.optional(
         Schema.Struct({
+          total: Schema.optional(Schema.Number),
           comments: Schema.Array(
             Schema.Struct({ id: Schema.String, author: Schema.optional(IssueUser), body: Schema.Unknown, created: Schema.String }),
           ),

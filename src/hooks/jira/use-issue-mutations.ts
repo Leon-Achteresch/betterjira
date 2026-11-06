@@ -9,23 +9,23 @@ import {
   uploadAttachments,
   wikiField,
 } from "@/lib/jira/issue";
+import type { AdfNode } from "@/lib/jira/adf";
+import { postComment, postReply } from "@/lib/jira/comments";
 import { jiraKeys, useJiraSite } from "@/lib/jira/queries";
 
-const useIssueMutation = <A>(
+const useIssueMutation = <A, B>(
   key: string,
-  run: (input: A) => Effect.Effect<unknown, unknown>,
+  run: (input: A) => Effect.Effect<B, unknown>,
+  extraKeys: readonly (readonly unknown[])[] = [],
 ) => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: A) => Effect.runPromise(run(input)),
     onSuccess: () =>
       Promise.all(
-        [
-          jiraKeys.issue(key),
-          jiraKeys.myWork,
-          jiraKeys.allIssues,
-          jiraKeys.allBoards,
-        ].map((queryKey) => queryClient.invalidateQueries({ queryKey })),
+        [jiraKeys.issue(key), jiraKeys.myWork, jiraKeys.allIssues, jiraKeys.allBoards, ...extraKeys].map((queryKey) =>
+          queryClient.invalidateQueries({ queryKey }),
+        ),
       ),
   });
 };
@@ -37,6 +37,16 @@ export const useJiraEditIssue = (key: string) =>
 
 export const useJiraAddComment = (key: string) =>
   useIssueMutation(key, (body: string) => addComment(key, body));
+
+export const useJiraPostComment = (key: string) =>
+  useIssueMutation(key, (body: AdfNode) => postComment(key, body), [jiraKeys.comments(key)]);
+
+export const useJiraPostReply = (key: string) =>
+  useIssueMutation(
+    key,
+    ({ body, threadKey }: { body: AdfNode; threadKey: string }) => postReply(key, body, threadKey),
+    [jiraKeys.comments(key)],
+  );
 
 export const useJiraAddWorklog = (key: string) =>
   useIssueMutation(
