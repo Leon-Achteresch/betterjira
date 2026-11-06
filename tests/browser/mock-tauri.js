@@ -122,6 +122,64 @@ if (scenario === "busy") {
     ]).flat(),
   };
 }
+const boardStatuses = [
+  { id: "10", name: "Triage", statusCategory: { key: "new", colorName: "blue-gray" } },
+  { id: "11", name: "Zu erledigen", statusCategory: { key: "new", colorName: "blue-gray" } },
+  { id: "3", name: "In Arbeit", statusCategory: { key: "indeterminate", colorName: "yellow" } },
+  { id: "12", name: "Review", statusCategory: { key: "indeterminate", colorName: "yellow" } },
+  { id: "13", name: "Blockiert", statusCategory: { key: "indeterminate", colorName: "yellow" } },
+  { id: "4", name: "Erledigt", statusCategory: { key: "done", colorName: "green" } },
+];
+if (scenario === "board") {
+  const people = ["Alex Beispiel", "Sam Muster", "Kim Probe", "Jo Test"].map((displayName, index) => ({
+    accountId: `qa-${index}`,
+    displayName,
+    avatarUrls: author.avatarUrls,
+  }));
+  const priorities = ["Highest", "High", "Medium", "Low", "Lowest"];
+  const labelPool = ["Performance", "Barrierefreiheit", "Dokumentation", "Bug", "Design", "Sicherheit"];
+  const summaries = [
+  "Datentabelle: Kopfmenü schwer auffindbar",
+  "Datumsauswahl lädt bei langsamer Verbindung zu lange",
+  "Combobox überspringt deaktivierte Optionen",
+  "Toast-Stapel erscheint in falscher Reihenfolge",
+  "Command Palette hängt bei Fehlern der Quelle",
+  "Popover verrutscht auf iOS",
+  "Select: Tippen springt nicht zwischen Gruppen",
+  "Tailwind-Upgrade vorbereiten",
+  "Avatar: Fallback bei fehlender Nutzer-ID",
+  "Aria-Label für Formularfelder ergänzen",
+  ];
+  let seed = 7;
+  const pick = (list) => list[(seed = (seed * 9301 + 49297) % 233280) % list.length];
+  issues.length = 0;
+  for (let index = 0; index < 64; index++) {
+    const statusIndex = [0, 1, 1, 1, 2, 2, 3, 4, 5, 5, 5][index % 11];
+    const labels = labelPool.filter(() => pick([0, 0, 0, 1]) === 1).slice(0, 2);
+    issues.push({
+      id: String(index + 1),
+      key: `DEMO-${index + 1}`,
+      fields: {
+        summary: `${summaries[index % summaries.length]}${index >= summaries.length ? ` (${Math.floor(index / summaries.length) + 1})` : ""}`,
+        status: boardStatuses[statusIndex],
+        project,
+        assignee: index % 7 === 6 ? null : pick(people),
+        reporter: author,
+        priority: { name: pick(priorities) },
+        issuetype: { name: pick(["Aufgabe", "Bug", "Story"]) },
+        labels,
+        duedate: index % 3 === 0 ? `2026-11-${String((index % 27) + 1).padStart(2, "0")}` : null,
+        created: "2026-10-20T09:00:00Z",
+        updated: "2026-11-04T10:00:00Z",
+        customfield_10016: pick([1, 2, 3, 5, 8]),
+        subtasks: [],
+        comment: { total: 0, comments: [] },
+        attachment: [],
+        worklog: { total: 0, worklogs: [] },
+      },
+    });
+  }
+}
 const wiki = Object.fromEntries(
   issues.map((issue) => [issue.key, "h2. Beschreibung\n\nVorhandener Text für die Bearbeitung."]),
 );
@@ -133,6 +191,8 @@ const transitions = [
     to: { id: "4", name: "Erledigt", statusCategory: { key: "done", colorName: "green" } },
   },
 ];
+if (scenario === "board")
+  transitions.splice(0, transitions.length, ...boardStatuses.map((entry) => ({ id: `t${entry.id}`, name: entry.name, to: entry })));
 const briefing = {
   runId: "qa-briefing",
   generatedAt: new Date().toISOString(),
@@ -273,6 +333,18 @@ const respond = async (request) => {
       })),
     };
   if (path.startsWith("/search/jql")) return { body: { issues, isLast: true } };
+  if (scenario === "board" && /^\/board\/\d+\/configuration/.test(path))
+    return {
+      body: {
+        filter: { id: "100" },
+        estimation: { field: { fieldId: "customfield_10016" } },
+        columnConfig: {
+          columns: boardStatuses.map((entry) => ({ name: entry.name, statuses: [{ id: entry.id }] })),
+        },
+      },
+    };
+  if (scenario === "board" && path.startsWith("/board"))
+    return { body: { values: [{ id: 1, name: "Team-Board", type: "kanban", location: { projectKey: "DEMO" } }] } };
   if (path.startsWith("/board")) return { body: { values: [] } };
   if (path.endsWith("/transitions")) return { body: { transitions } };
   const issue = issues.find((issue) => path === `/issue/${issue.key}`);

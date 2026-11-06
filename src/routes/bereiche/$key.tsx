@@ -4,7 +4,7 @@ import { useMutationState, useQueryClient } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { useTransitionFlow } from "@/components/issue-status-menu";
-import { ArrowRightLeftIcon, BookmarkIcon, CalendarIcon, ChevronRightIcon, ClockIcon, Columns3Icon, FilterIcon, FlagIcon, ListChecksIcon, TagIcon, Trash2Icon, UserRoundIcon } from "lucide-react";
+import { ArrowRightLeftIcon, ChartColumnStackedIcon, BookmarkIcon, CalendarIcon, ChevronRightIcon, ClockIcon, Columns3Icon, FilterIcon, FlagIcon, ListChecksIcon, TagIcon, Trash2Icon, UserRoundIcon } from "lucide-react";
 import { JiraUserAvatar } from "@/components/jira-user-avatar";
 import { ProjectAvatar } from "@/components/shell/project-avatar";
 import { IssueTable } from "@/components/issue-table";
@@ -32,11 +32,18 @@ import {
   EMPTY_VIEWS,
   FILTER_FIELDS,
   type FilterField,
-  type FilterValues,
-  UNASSIGNED,
   filterCount,
-  matchesFilter,
+  columnMatches,
 } from "@/lib/board-filters";
+import { type BoardCard, type BoardColumn, cardValues } from "@/lib/board-card";
+import { CARD_PROPERTIES, DEFAULT_HIDDEN_PROPERTIES } from "@/lib/board-display";
+import { EMPTY_VALUES, INSIGHT_DIMENSIONS, INSIGHT_MEASURES, insightColor, labelColor } from "@/lib/board-insights";
+import { useBoardDisplay } from "@/hooks/use-board-display";
+import { useBoardInsights } from "@/hooks/use-board-insights";
+import { InsightsPanel } from "@/components/issues/insights-panel";
+import { DisplayMenu } from "@/components/issues/display-menu";
+import { StatusIcon } from "@/components/issues/status-icon";
+import { PriorityIcon } from "@/components/issues/priority-icon";
 import { useBoardFilters } from "@/hooks/use-board-filters";
 import { EASE_OUT } from "@/lib/ease";
 import { boardLanes } from "@/lib/board-lanes";
@@ -120,11 +127,6 @@ const DAY_MS = 86_400_000;
 
 const daysSince = (date: string) => Math.max(0, Math.floor((Date.now() - new Date(date).getTime()) / DAY_MS));
 
-const HIGH_PRIORITY = /highest|high|critical|blocker|kritisch|hoch|dringend/i;
-
-type BoardColumn = NonNullable<ReturnType<typeof useJiraBoard>["data"]>[number]["columns"][number];
-type BoardCard = BoardColumn["issues"][number];
-
 type BoardDnd = {
   dragging?: BoardCard;
   setDragging: (issue?: BoardCard) => void;
@@ -132,13 +134,6 @@ type BoardDnd = {
   moving: string[];
   moveTo: (issue: BoardCard, column: BoardColumn) => void;
 };
-
-const cardValues = ({ fields }: BoardCard): FilterValues => ({
-  assignee: [fields.assignee?.displayName ?? UNASSIGNED],
-  issuetype: [fields.issuetype.name],
-  priority: fields.priority ? [fields.priority.name] : [],
-  label: fields.labels ?? [],
-});
 
 function FilterOptionIcon({ field, sample }: { field: FilterField; sample?: BoardCard }) {
   if (field === "label") return <TagIcon className="text-muted-foreground" />;
@@ -388,11 +383,14 @@ function SprintInfo({ sprint, named }: { sprint: JiraSprint; named?: boolean }) 
 
 function IssueCard({ issue, columns, dnd }: { issue: BoardCard; columns: BoardColumn[]; dnd: BoardDnd }) {
   const { fields } = issue;
+  const hidden = useBoardDisplay((state) => state.hiddenProperties);
+  const show = (property: keyof typeof CARD_PROPERTIES) => !hidden.includes(property);
   const moving = dnd.moving.includes(issue.key);
   const days = daysSince(issue.inColumnSince);
   const subtasks = fields.subtasks ?? [];
   const doneSubtasks = subtasks.filter((subtask) => subtask.fields.status.statusCategory.key === "done").length;
   const overdue = !!fields.duedate && fields.duedate < new Date().toISOString().slice(0, 10);
+  const labels = show("labels") ? (fields.labels ?? []) : [];
 
   return (
     <IssuePreviewTooltip issueKey={issue.key}>
@@ -407,22 +405,29 @@ function IssueCard({ issue, columns, dnd }: { issue: BoardCard; columns: BoardCo
       onDragEnd={() => dnd.setDragging(undefined)}
       aria-busy={moving}
       className={cn(
-        "relative cursor-grab transition-[background-color,opacity] hover:bg-muted/50 active:cursor-grabbing",
+        "relative cursor-grab transition-[background-color,opacity,box-shadow] hover:bg-muted/50 hover:shadow-sm active:cursor-grabbing",
         (moving || dnd.dragging?.key === issue.key) && "opacity-50",
       )}
     >
       <CardContent className="flex flex-col gap-2">
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          {show("priority") && (
+            <span title={fields.priority?.name ?? EMPTY_VALUES.priority}>
+              <PriorityIcon name={fields.priority?.name} />
+            </span>
+          )}
           <span className="font-mono">{issue.key}</span>
-          <span className="truncate">{fields.issuetype.name}</span>
+          {show("issuetype") && <span className="truncate">{fields.issuetype.name}</span>}
           {issue.flagged && <FlagIcon aria-label="Markiert" className="size-3.5 shrink-0 fill-amber-400 text-amber-400" />}
-          <span className="ml-auto tabular-nums" title="Rang im Board">
-            #{issue.rank}
-          </span>
+          {show("rank") && (
+            <span className="ml-auto tabular-nums" title="Rang im Board">
+              #{issue.rank}
+            </span>
+          )}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon-xs" className="relative z-10 -my-1" aria-label={`${issue.key} in andere Spalte verschieben`} disabled={moving}>
-                {moving ? <Spinner /> : <ArrowRightLeftIcon />}
+              <Button variant="ghost" size="icon-xs" className={cn("relative z-10 -my-1", !show("rank") && "ml-auto")} aria-label={`${issue.key} in andere Spalte verschieben`} disabled={moving}>
+                {moving ? <Spinner /> : <StatusIcon color={fields.status.statusCategory.colorName} label={fields.status.name} />}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-auto min-w-40">
@@ -431,60 +436,59 @@ function IssueCard({ issue, columns, dnd }: { issue: BoardCard; columns: BoardCo
                 .filter((column) => !column.statusIds.includes(fields.status.id))
                 .map((column) => (
                   <DropdownMenuItem key={column.name} onSelect={() => dnd.moveTo(issue, column)}>
+                    <ArrowRightLeftIcon />
                     {column.name}
                   </DropdownMenuItem>
                 ))}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
-        <Link to="/issue/$key" params={{ key: issue.key }} draggable={false} data-row-link className="line-clamp-3 outline-none after:absolute after:inset-0 after:rounded-[inherit] focus-visible:after:ring-2 focus-visible:after:ring-ring">
+        <Link to="/issue/$key" params={{ key: issue.key }} draggable={false} data-row-link className="line-clamp-3 font-medium outline-none after:absolute after:inset-0 after:rounded-[inherit] focus-visible:after:ring-2 focus-visible:after:ring-ring">
           {fields.summary}
         </Link>
-        {fields.parent && (
+        {show("parent") && fields.parent && (
           <p className="truncate text-xs text-muted-foreground" title={fields.parent.key}>
             {fields.parent.fields.summary}
           </p>
         )}
-        {fields.labels && fields.labels.length > 0 && (
+        {labels.length > 0 && (
           <div className="flex flex-wrap gap-1">
-            {fields.labels.map((label) => (
-              <Badge key={label} variant="outline">
+            {labels.map((label) => (
+              <span key={label} className="inline-flex h-5 items-center gap-1.5 rounded-full px-2 text-xs ring-1 ring-foreground/10">
+                <span aria-hidden className="size-1.5 rounded-full" style={{ background: labelColor(label) }} />
                 {label}
-              </Badge>
+              </span>
             ))}
           </div>
         )}
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
-          {fields.priority && (
-            <Badge variant={HIGH_PRIORITY.test(fields.priority.name) ? "destructive" : "secondary"}>
-              {fields.priority.name}
-            </Badge>
-          )}
-          {issue.points !== undefined && (
+          {show("points") && issue.points !== undefined && (
             <Badge variant="secondary" title="Story Points">
               {issue.points} SP
             </Badge>
           )}
-          {subtasks.length > 0 && (
+          {show("subtasks") && subtasks.length > 0 && (
             <span className="flex items-center gap-1" title="Erledigte Unteraufgaben">
               <ListChecksIcon className="size-3.5" />
               {doneSubtasks}/{subtasks.length}
             </span>
           )}
-          {fields.duedate && (
+          {show("duedate") && fields.duedate && (
             <span className={cn("flex items-center gap-1", overdue && "text-destructive")} title="Fälligkeit">
               <CalendarIcon className="size-3.5" />
               {sprintDate(fields.duedate)}
             </span>
           )}
-          <span
-            className={cn("flex items-center gap-1", days >= 7 && "text-warning")}
-            title={`In dieser Spalte seit ${sprintDate(issue.inColumnSince)}`}
-          >
-            <ClockIcon className="size-3.5" />
-            {days === 1 ? "1 Tag" : `${days} Tage`}
-          </span>
-          {fields.assignee && (
+          {show("age") && (
+            <span
+              className={cn("flex items-center gap-1", days >= 7 && "text-warning")}
+              title={`In dieser Spalte seit ${sprintDate(issue.inColumnSince)}`}
+            >
+              <ClockIcon className="size-3.5" />
+              {days === 1 ? "1 Tag" : `${days} Tage`}
+            </span>
+          )}
+          {show("assignee") && fields.assignee && (
             <span className="ml-auto" title={fields.assignee.displayName}>
               <JiraUserAvatar user={fields.assignee} />
             </span>
@@ -545,19 +549,38 @@ function Board({
   };
 
   const data = sprints.data ?? [];
-  const allIssues = data.flatMap(({ columns }) => columns.flatMap((column) => column.issues));
+  const allColumns = data.flatMap(({ columns }) => columns);
+  const allIssues = allColumns.flatMap((column) => column.issues);
   const single = data.length === 1;
+  const insights = useBoardInsights(board.id, allColumns);
+  const showInsights = !backlog && insights.insightsOpen && data.length > 0;
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex min-w-0 items-center gap-4">
+      <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2">
         {title}
         <SprintPicker board={board} sprintId={sprintId} onChange={onSprintChange} />
         {single && data[0].sprint && <SprintInfo sprint={data[0].sprint} named={board.type !== "scrum"} />}
         {!backlog && (
-          <div className="ml-auto flex shrink-0 items-center gap-1">
+          <div className="ml-auto flex flex-wrap items-center justify-end gap-1">
+            {sprints.data && (
+              <span className="mr-2 text-sm text-muted-foreground tabular-nums" aria-live="polite">
+                {insights.count === allIssues.length ? allIssues.length : `${insights.count} von ${allIssues.length}`} Vorgänge
+              </span>
+            )}
+            <FilterMenu scope={String(board.id)} issues={allIssues} label="Board filtern" />
+            <Button
+              variant={insights.insightsOpen ? "secondary" : "ghost"}
+              size="sm"
+              aria-pressed={insights.insightsOpen}
+              aria-label="Insights"
+              title="Insights"
+              onClick={insights.toggleInsights}
+            >
+              <ChartColumnStackedIcon />
+            </Button>
             {data[0] && <ColumnsMenu board={String(board.id)} columns={data[0].columns.map((column) => column.name)} />}
             <ViewMenu board={String(board.id)} />
-            <FilterMenu scope={String(board.id)} issues={allIssues} label="Board filtern" />
+            <BoardDisplayMenu />
           </div>
         )}
       </div>
@@ -580,6 +603,8 @@ function Board({
       ) : data.length === 0 ? (
         <p className="text-muted-foreground">{sprintId === undefined ? "Kein aktiver Sprint." : "Keine Vorgänge in diesem Sprint."}</p>
       ) : null}
+      <div className="flex flex-col items-start gap-4 lg:flex-row">
+      <div className="flex w-full min-w-0 flex-1 flex-col gap-4">
       {!backlog && data.map(({ sprint, columns }) => (
         <div key={sprint?.id ?? "board"} className="flex flex-col gap-2">
           {!single && sprint && <SprintInfo sprint={sprint} named />}
@@ -594,8 +619,68 @@ function Board({
           )}
         </div>
       ))}
+      </div>
+      <AnimatePresence>
+        {showInsights && (
+          <InsightsPanel
+            key="insights"
+            total={insights.insights.total}
+            unit={insights.measure === "points" ? "Story Points" : "Vorgänge"}
+            measure={{ value: insights.measure, options: INSIGHT_MEASURES, onChange: insights.setMeasure }}
+            slice={{ value: insights.slice, options: INSIGHT_DIMENSIONS, onChange: insights.setSlice }}
+            segment={{ value: insights.segment, options: SEGMENT_OPTIONS, onChange: insights.setSegment }}
+            segments={insights.insights.segments}
+            rows={insights.insights.rows}
+            colorOf={(name, index) => insightColor(insights.segment, name, index)}
+            renderLabel={(name) => <InsightLabel dimension={insights.slice} name={name} statusColor={insights.statusColors[name]} />}
+            active={insights.active}
+            canSelect={insights.canFilter}
+            onSelect={insights.toggleRow}
+            onClose={insights.closeInsights}
+          />
+        )}
+      </AnimatePresence>
+      </div>
       {flow.dialog}
     </div>
+  );
+}
+
+const SEGMENT_OPTIONS = { none: "Kein Segment", ...INSIGHT_DIMENSIONS } as const;
+
+function InsightLabel({ dimension, name, statusColor }: { dimension: keyof typeof INSIGHT_DIMENSIONS; name: string; statusColor?: string }) {
+  const icon =
+    dimension === "status" ? (
+      <StatusIcon color={statusColor ?? ""} />
+    ) : dimension === "priority" ? (
+      <PriorityIcon name={name === EMPTY_VALUES.priority ? undefined : name} />
+    ) : dimension === "label" ? (
+      <span aria-hidden className="size-2 shrink-0 rounded-full" style={{ background: insightColor("label", name, 0) }} />
+    ) : dimension === "assignee" ? (
+      <UserRoundIcon className="size-3.5 shrink-0 text-muted-foreground" />
+    ) : null;
+  return (
+    <>
+      {icon}
+      <span className="truncate">{name}</span>
+    </>
+  );
+}
+
+function BoardDisplayMenu() {
+  const hidden = useBoardDisplay((state) => state.hiddenProperties);
+  const toggleProperty = useBoardDisplay((state) => state.toggleProperty);
+  const resetProperties = useBoardDisplay((state) => state.resetProperties);
+  const changed = hidden.length !== DEFAULT_HIDDEN_PROPERTIES.length || hidden.some((property) => !DEFAULT_HIDDEN_PROPERTIES.includes(property));
+  return (
+    <DisplayMenu
+      title="Eigenschaften auf Karten"
+      properties={CARD_PROPERTIES}
+      hidden={hidden}
+      changed={changed}
+      onToggle={toggleProperty}
+      onReset={resetProperties}
+    />
   );
 }
 
@@ -633,24 +718,20 @@ function BoardColumns({ boardId, columns, dnd }: { boardId: number; columns: Boa
   const filters = useBoardFilters((state) => state.filters);
   const ignoreBoard = useBoardFilters((state) => state.ignoreBoard);
   const hidden = useBoardFilters((state) => state.hiddenColumns[boardId] ?? EMPTY_COLUMNS);
-  const boardFilter = filters[boardId] ?? EMPTY_FILTER;
   const reduce = useReducedMotion();
   return (
     <div className="flex gap-3 overflow-x-auto pb-2">
       <AnimatePresence initial={false} mode="popLayout">
         {columns.filter((column) => !hidden.includes(column.name)).map((column) => {
           const scope = `${boardId}:${column.name}`;
-          const columnFilter = filters[scope] ?? EMPTY_FILTER;
-          const issues = column.issues.filter((issue) => {
-            const values = cardValues(issue);
-            return (ignoreBoard[scope] || matchesFilter(boardFilter, values)) && matchesFilter(columnFilter, values);
-          });
+          const issues = column.issues.filter((issue) => columnMatches(filters, ignoreBoard, boardId, column.name, cardValues(issue)));
+          const statusColor = (column.issues[0] ?? issues[0])?.fields.status.statusCategory.colorName ?? "";
           const origin = !!dnd.dragging && column.statusIds.includes(dnd.dragging.fields.status.id);
           const reachable = !!dnd.targets && column.statusIds.some((id) => dnd.targets!.has(id));
           return (
             <motion.section
               key={column.name}
-              layout={!reduce}
+              layout={reduce ? false : "position"}
               initial={{ opacity: 0, scale: reduce ? 1 : 0.98 }}
               animate={{ opacity: 1, scale: 1, transition: { duration: 0.2, ease: EASE_OUT } }}
               exit={{ opacity: 0, transition: { duration: 0.12, ease: EASE_OUT } }}
@@ -670,12 +751,15 @@ function BoardColumns({ boardId, columns, dnd }: { boardId: number; columns: Boa
                 dnd.dragging && dnd.targets && !origin && !reachable && "opacity-50",
               )}
             >
-              <h2 className="flex items-center justify-between gap-2 px-1 text-xs font-medium uppercase text-muted-foreground">
+              <h2 className="flex items-center justify-between gap-2 px-1 text-sm font-medium">
+                <StatusIcon color={statusColor} />
                 <span className="truncate">{column.name}</span>
-                <span className="ml-auto tabular-nums">
+                <span className="text-muted-foreground tabular-nums">
                   {issues.length === column.issues.length ? issues.length : `${issues.length}/${column.issues.length}`}
                 </span>
-                <FilterMenu scope={scope} issues={column.issues} label={`Spalte ${column.name} filtern`} column />
+                <span className="ml-auto">
+                  <FilterMenu scope={scope} issues={column.issues} label={`Spalte ${column.name} filtern`} column />
+                </span>
               </h2>
               {issues.map((issue) => (
                 <IssueCard key={issue.id} issue={issue} columns={columns} dnd={dnd} />
