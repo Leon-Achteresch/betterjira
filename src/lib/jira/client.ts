@@ -77,7 +77,7 @@ const requestTokens = Effect.fnUntraced(function* (grant: Record<string, string>
 const loadSession = Effect.gen(function* () {
   const raw = yield* Effect.tryPromise({
     try: () => invoke<string | null>("session_get"),
-    catch: authError("Schlüsselbund konnte nicht gelesen werden"),
+    catch: authError("Anmeldedaten konnten nicht gelesen werden"),
   });
   if (raw === null) return yield* new NotAuthenticated();
   return yield* Effect.try(() => JSON.parse(raw)).pipe(
@@ -89,12 +89,12 @@ const loadSession = Effect.gen(function* () {
 const saveSession = (session: Session) =>
   Effect.tryPromise({
     try: () => invoke("session_set", { value: JSON.stringify(session) }),
-    catch: authError("Schlüsselbund konnte nicht beschrieben werden"),
+    catch: authError("Anmeldedaten konnten nicht gespeichert werden"),
   });
 
 const deleteSession = Effect.tryPromise({
   try: () => invoke("session_delete"),
-  catch: authError("Schlüsselbund konnte nicht geleert werden"),
+  catch: authError("Anmeldedaten konnten nicht gelöscht werden"),
 });
 
 const awaitCallback = Effect.fnUntraced(function* (authorizeUrl: string) {

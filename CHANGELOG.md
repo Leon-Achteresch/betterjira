@@ -1,5 +1,12 @@
 # Änderungen
 
+## 0.2.1 – 2026-11-06
+
+### Fehlerbehebung
+
+- Die Anmeldung im installierten Build scheitert nicht mehr mit „Schlüsselbund konnte nicht beschrieben werden“. Anmeldedaten und Code-Hosting-Tokens liegen jetzt in einer nur für dich lesbaren Datei im App-Datenordner statt im macOS-Schlüsselbund, so bleiben sie auch nach Updates erhalten.
+- Nach dem Update einmal neu bei Jira anmelden und Code-Hosting-Tokens erneut hinterlegen.
+
 ## 0.2.0 – 2026-11-04
 
 ### Im Arbeitsalltag weiterkommen

@@ -44,7 +44,7 @@ export function ConnectionList(props: ConnectionListProps) {
                       </Badge>
                     )}
                   </ItemTitle>
-                  <ItemDescription>{connection.account ? `Angemeldet als ${connection.account}` : "Token im Schlüsselbund"}</ItemDescription>
+                  <ItemDescription>{connection.account ? `Angemeldet als ${connection.account}` : "Token lokal gespeichert"}</ItemDescription>
                 </ItemContent>
                 {!connection.viaCli && (
                   <ItemActions>

@@ -4,7 +4,7 @@ use std::sync::Mutex;
 use serde::{Deserialize, Serialize};
 use tauri_plugin_http::reqwest;
 
-use super::KEYRING_SERVICE;
+use super::secrets;
 
 const GH_PATHS: [&str; 4] = [
     "/opt/homebrew/bin/gh",
@@ -71,15 +71,14 @@ fn gh_token(host: &str, fresh: bool) -> Result<String, String> {
     Ok(token)
 }
 
-fn token_entry(id: &str) -> Result<keyring::Entry, String> {
-    keyring::Entry::new(KEYRING_SERVICE, &format!("scm-{id}")).map_err(|e| e.to_string())
+fn token_key(id: &str) -> String {
+    format!("scm-{id}")
 }
 
 fn stored_token(id: &str) -> Result<StoredToken, String> {
-    match token_entry(id)?.get_password() {
-        Ok(raw) => serde_json::from_str(&raw).map_err(|e| e.to_string()),
-        Err(keyring::Error::NoEntry) => Err("Für diese Verbindung ist kein Token gespeichert".to_string()),
-        Err(e) => Err(e.to_string()),
+    match secrets::get(&token_key(id))? {
+        Some(raw) => serde_json::from_str(&raw).map_err(|e| e.to_string()),
+        None => Err("Für diese Verbindung ist kein Token gespeichert".to_string()),
     }
 }
 
@@ -151,13 +150,10 @@ pub async fn scm_gh_hosts() -> Result<String, String> {
 #[tauri::command]
 pub fn scm_token_set(id: String, token: String, host: String) -> Result<(), String> {
     let value = serde_json::to_string(&StoredToken { token, host }).map_err(|e| e.to_string())?;
-    token_entry(&id)?.set_password(&value).map_err(|e| e.to_string())
+    secrets::set(&token_key(&id), &value)
 }
 
 #[tauri::command]
 pub fn scm_token_delete(id: String) -> Result<(), String> {
-    match token_entry(&id)?.delete_credential() {
-        Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
-        Err(e) => Err(e.to_string()),
-    }
+    secrets::delete(&token_key(&id))
 }

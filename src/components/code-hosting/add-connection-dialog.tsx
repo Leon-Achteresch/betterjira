@@ -87,7 +87,7 @@ function AddConnectionForm({ pending, error, onSubmit, onCancel }: AddConnection
             onChange={(event) => update({ token: event.target.value })}
             aria-invalid={!!error}
           />
-          <FieldDescription>{kind.token} Der Token liegt nur im Schlüsselbund.</FieldDescription>
+          <FieldDescription>{kind.token} Der Token bleibt nur auf diesem Gerät.</FieldDescription>
           {error && <FieldError>{error}</FieldError>}
         </Field>
       </FieldGroup>
