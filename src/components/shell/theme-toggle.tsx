@@ -1,19 +1,12 @@
-import { Monitor, Moon, Sun } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { Tooltip } from "@/components/motion/tooltip";
-import { useTheme } from "@/hooks/use-theme";
+import { useThemeCycle } from "@/hooks/use-theme";
 import { SPRING_PRESS, SPRING_SWAP } from "@/lib/ease";
+import { cn } from "@/lib/utils";
 
-const THEMES = {
-  system: { next: "light", label: "Design: System", Icon: Monitor },
-  light: { next: "dark", label: "Design: Hell", Icon: Sun },
-  dark: { next: "system", label: "Design: Dunkel", Icon: Moon },
-} as const;
-
-export function ThemeToggle() {
-  const { theme, setTheme } = useTheme();
+export function ThemeToggle({ className }: { className?: string }) {
+  const { theme, label, Icon, cycle } = useThemeCycle();
   const reduceMotion = useReducedMotion();
-  const { next, label, Icon } = THEMES[theme];
   const offset = reduceMotion ? 0 : 6;
 
   return (
@@ -21,10 +14,13 @@ export function ThemeToggle() {
       <motion.button
         type="button"
         aria-label={label}
-        onClick={() => setTheme(next)}
+        onClick={cycle}
         whileTap={reduceMotion ? undefined : { scale: 0.96 }}
         transition={SPRING_PRESS}
-        className="relative inline-flex size-7 shrink-0 items-center justify-center overflow-hidden rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        className={cn(
+          "relative inline-flex size-7 shrink-0 items-center justify-center overflow-hidden rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
+          className,
+        )}
       >
         <AnimatePresence mode="popLayout" initial={false}>
           <motion.span

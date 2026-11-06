@@ -23,7 +23,7 @@ import { copyToClipboard } from "@/lib/clipboard";
 import { EASE_OUT, SPRING_LAYOUT } from "@/lib/ease";
 import { cn } from "@/lib/utils";
 
-type IssueTab = { key: string; title?: string; pinned: boolean; url?: string };
+export type IssueTab = { key: string; title?: string; pinned: boolean; url?: string };
 
 type IssueTabActions = {
   onClose: (key: string) => void;
@@ -35,15 +35,16 @@ type IssueTabActions = {
 type IssueTabsProps = IssueTabActions & {
   tabs: IssueTab[];
   activeKey?: string;
+  className?: string;
 };
 
-export function IssueTabs({ tabs, activeKey, ...actions }: IssueTabsProps) {
+export function IssueTabs({ tabs, activeKey, className, ...actions }: IssueTabsProps) {
   return (
     <div
       role="tablist"
       aria-label="Geöffnete Tickets"
       data-tauri-drag-region="deep"
-      className="flex h-full min-w-0 items-stretch gap-0.5 overflow-x-auto px-2 [scrollbar-width:none]"
+      className={cn("flex h-full min-w-0 items-stretch gap-0.5 overflow-x-auto px-2 [scrollbar-width:none]", className)}
     >
       <AnimatePresence initial={false} mode="popLayout">
         {tabs.map((tab, index) => (

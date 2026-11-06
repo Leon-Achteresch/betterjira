@@ -1,6 +1,7 @@
 import { SearchIcon } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 import { CommandPalette } from "@/components/motion/command-palette";
+import { Tooltip } from "@/components/motion/tooltip";
 import { useAppCommandPalette } from "@/hooks/use-app-command-palette";
 import { SPRING_PRESS } from "@/lib/ease";
 import { IS_MAC } from "@/lib/platform";
@@ -12,21 +13,25 @@ export function AppCommandPalette() {
   const reduce = useReducedMotion();
   return (
     <>
-      <motion.button
-        type="button"
-        data-tauri-drag-region="false"
-        onClick={() => palette.setOpen(true)}
-        whileHover={reduce ? undefined : { y: -1 }}
-        whileTap={reduce ? undefined : { scale: 0.98 }}
-        transition={SPRING_PRESS}
-        className="group mx-3 flex h-7 w-full max-w-sm min-w-0 items-center gap-2 rounded-lg bg-sidebar-accent/60 px-2.5 text-sm text-muted-foreground ring-1 ring-transparent transition-colors hover:bg-sidebar-accent hover:text-foreground hover:ring-border"
-      >
-        <SearchIcon className="size-3.5 shrink-0" />
-        <span className="flex-1 truncate text-left">Suchen…</span>
-        <kbd className="hidden shrink-0 rounded border border-border bg-background px-1.5 py-0.5 text-[10px] sm:inline-block">
-          {MOD} K
-        </kbd>
-      </motion.button>
+      <Tooltip content={`Suchen (${MOD} K)`} side="bottom">
+        <motion.button
+          type="button"
+          aria-label="Suchen"
+          aria-keyshortcuts={IS_MAC ? "Meta+K" : "Control+K"}
+          data-tauri-drag-region="false"
+          onClick={() => palette.setOpen(true)}
+          whileHover={reduce ? undefined : { y: -1 }}
+          whileTap={reduce ? undefined : { scale: 0.98 }}
+          transition={SPRING_PRESS}
+          className="group relative mx-2 flex size-7 shrink-0 items-center justify-center gap-2 rounded-lg bg-sidebar-accent/60 text-sm text-muted-foreground ring-1 ring-transparent transition-colors after:absolute after:-inset-0.5 hover:bg-sidebar-accent hover:text-foreground hover:ring-border lg:mx-3 lg:w-full lg:max-w-sm lg:min-w-0 lg:shrink lg:justify-start lg:px-2.5 lg:after:hidden"
+        >
+          <SearchIcon className="size-3.5 shrink-0" />
+          <span className="hidden flex-1 truncate text-left lg:block">Suchen…</span>
+          <kbd className="hidden shrink-0 rounded border border-border bg-background px-1.5 py-0.5 text-[10px] lg:inline-block">
+            {MOD} K
+          </kbd>
+        </motion.button>
+      </Tooltip>
       <CommandPalette
         items={palette.items}
         open={palette.open}

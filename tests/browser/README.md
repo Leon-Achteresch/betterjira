@@ -65,7 +65,8 @@ Pins, Verlauf und Entwürfe verwenden in dieser Simulation den separaten Arbeits
 
 - Board mit 64 Tickets, sechs Spalten und Insights: `http://localhost:1420/tests/browser/fixture.html?scenario=board&route=/bereiche/DEMO?board=1`. Geprüft am 06.11.2026: Insights öffnen und schließen, Messgröße/Gruppierung/Segment wechseln, Story-Point-Summe, Zeilenklick filtert das Board, Anzeige-Eigenschaften ein- und ausblenden, Ticket über das Status-Icon verschieben (Zahlen im Panel ziehen mit), hell/dunkel, 390 px, reduzierte Bewegung.
 
-- Viele parallele Arbeitskontexte und langes Ticket: `http://localhost:1420/tests/browser/fixture.html?scenario=busy` (35 vorbereitete Kontexte).
+- Viele parallele Arbeitskontexte und langes Ticket: `http://localhost:1420/tests/browser/fixture.html?scenario=busy` (35 vorbereitete Kontexte, 12 offene Ticket-Tabs, einer angeheftet).
+- Kopfleiste in schmalen Fenstern: `bunx playwright test tests/browser/header.e2e.ts --workers=1` prüft bei 390, 760, 1024 und 1440 px, dass sich keine Bedienelemente überdecken, sowie Suche, Einstellungen, „Weitere Aktionen“, Seitenleiste, Tastaturfokus und Tab-Wechsel.
 - KI mit acht Vorschlägen und simuliertem Rückkanal: `http://localhost:1420/tests/browser/fixture.html?scenario=ai&route=/`.
 - Reduzierte JS-Bewegung: `http://localhost:1420/tests/browser/fixture.html?scenario=busy&reduce=1`.
 
