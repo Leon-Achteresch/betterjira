@@ -16,6 +16,8 @@ export const EMPTY_FILTER: BoardFilter = {};
 
 export const EMPTY_VIEWS: BoardView[] = [];
 
+export const EMPTY_COLUMNS: string[] = [];
+
 export const matchesFilter = (filter: BoardFilter, values: FilterValues) =>
   (Object.keys(filter) as FilterField[]).every((field) => {
     const selected = filter[field];

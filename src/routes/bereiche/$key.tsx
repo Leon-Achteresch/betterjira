@@ -4,7 +4,7 @@ import { useMutationState, useQueryClient } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { useTransitionFlow } from "@/components/issue-status-menu";
-import { ArrowRightLeftIcon, BookmarkIcon, CalendarIcon, ClockIcon, FilterIcon, FlagIcon, ListChecksIcon, TagIcon, Trash2Icon, UserRoundIcon } from "lucide-react";
+import { ArrowRightLeftIcon, BookmarkIcon, CalendarIcon, ChevronRightIcon, ClockIcon, Columns3Icon, FilterIcon, FlagIcon, ListChecksIcon, TagIcon, Trash2Icon, UserRoundIcon } from "lucide-react";
 import { JiraUserAvatar } from "@/components/jira-user-avatar";
 import { ProjectAvatar } from "@/components/shell/project-avatar";
 import { IssueTable } from "@/components/issue-table";
@@ -26,6 +26,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
+  EMPTY_COLUMNS,
   EMPTY_FILTER,
   EMPTY_VIEWS,
   FILTER_FIELDS,
@@ -37,6 +38,7 @@ import {
 } from "@/lib/board-filters";
 import { useBoardFilters } from "@/hooks/use-board-filters";
 import { EASE_OUT } from "@/lib/ease";
+import { boardLanes } from "@/lib/board-lanes";
 import {
   BACKLOG,
   type BoardSprint,
@@ -209,6 +211,35 @@ function FilterMenu({ scope, issues, label, column }: { scope: string; issues: B
         <DropdownMenuItem disabled={!active} onSelect={() => clear(scope)}>
           Filter zurücksetzen
         </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+function ColumnsMenu({ board, columns }: { board: string; columns: string[] }) {
+  const hidden = useBoardFilters((state) => state.hiddenColumns[board] ?? EMPTY_COLUMNS);
+  const toggleColumn = useBoardFilters((state) => state.toggleColumn);
+  const count = columns.filter((column) => hidden.includes(column)).length;
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant={count > 0 ? "secondary" : "ghost"} size="sm" aria-label="Spalten ein- und ausblenden">
+          <Columns3Icon />
+          {count > 0 && count}
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="min-w-48">
+        <DropdownMenuLabel>Spalten anzeigen</DropdownMenuLabel>
+        {columns.map((column) => (
+          <DropdownMenuCheckboxItem
+            key={column}
+            checked={!hidden.includes(column)}
+            onCheckedChange={() => toggleColumn(board, column)}
+            onSelect={(event) => event.preventDefault()}
+          >
+            <span className="truncate">{column}</span>
+          </DropdownMenuCheckboxItem>
+        ))}
       </DropdownMenuContent>
     </DropdownMenu>
   );
@@ -522,6 +553,7 @@ function Board({
         {single && data[0].sprint && <SprintInfo sprint={data[0].sprint} named={board.type !== "scrum"} />}
         {!backlog && (
           <div className="ml-auto flex shrink-0 items-center gap-1">
+            {data[0] && <ColumnsMenu board={String(board.id)} columns={data[0].columns.map((column) => column.name)} />}
             <ViewMenu board={String(board.id)} />
             <FilterMenu scope={String(board.id)} issues={allIssues} label="Board filtern" />
           </div>
@@ -549,7 +581,15 @@ function Board({
       {!backlog && data.map(({ sprint, columns }) => (
         <div key={sprint?.id ?? "board"} className="flex flex-col gap-2">
           {!single && sprint && <SprintInfo sprint={sprint} named />}
-          <BoardColumns boardId={board.id} columns={columns} dnd={dnd} />
+          {boardLanes(columns).map((lane) =>
+            lane.name ? (
+              <BoardLaneSection key={lane.name} name={lane.name} count={lane.columns.reduce((sum, column) => sum + column.issues.length, 0)}>
+                <BoardColumns boardId={board.id} columns={lane.columns} dnd={dnd} />
+              </BoardLaneSection>
+            ) : (
+              <BoardColumns key="all" boardId={board.id} columns={lane.columns} dnd={dnd} />
+            ),
+          )}
         </div>
       ))}
       {flow.dialog}
@@ -557,53 +597,91 @@ function Board({
   );
 }
 
+function BoardLaneSection({ name, count, children }: { name: string; count: number; children: ReactNode }) {
+  const [open, setOpen] = useState(true);
+  const reduce = useReducedMotion();
+  return (
+    <section className="flex flex-col gap-2">
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen(!open)}
+        className="flex w-fit items-center gap-1.5 rounded-md px-1 text-sm font-medium hover:text-foreground"
+      >
+        <ChevronRightIcon className={cn("size-4 transition-transform duration-200", open && "rotate-90")} />
+        {name}
+        <span className="text-xs font-normal text-muted-foreground tabular-nums">({count} Vorgänge)</span>
+      </button>
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0, y: reduce ? 0 : -6 }}
+            animate={{ opacity: 1, y: 0, transition: { duration: 0.2, ease: EASE_OUT } }}
+            exit={{ opacity: 0, transition: { duration: 0.12, ease: EASE_OUT } }}
+          >
+            {children}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </section>
+  );
+}
+
 function BoardColumns({ boardId, columns, dnd }: { boardId: number; columns: BoardColumn[]; dnd: BoardDnd }) {
   const filters = useBoardFilters((state) => state.filters);
   const ignoreBoard = useBoardFilters((state) => state.ignoreBoard);
+  const hidden = useBoardFilters((state) => state.hiddenColumns[boardId] ?? EMPTY_COLUMNS);
   const boardFilter = filters[boardId] ?? EMPTY_FILTER;
+  const reduce = useReducedMotion();
   return (
     <div className="flex gap-3 overflow-x-auto pb-2">
-      {columns.map((column) => {
-        const scope = `${boardId}:${column.name}`;
-        const columnFilter = filters[scope] ?? EMPTY_FILTER;
-        const issues = column.issues.filter((issue) => {
-          const values = cardValues(issue);
-          return (ignoreBoard[scope] || matchesFilter(boardFilter, values)) && matchesFilter(columnFilter, values);
-        });
-        const origin = !!dnd.dragging && column.statusIds.includes(dnd.dragging.fields.status.id);
-        const reachable = !!dnd.targets && column.statusIds.some((id) => dnd.targets!.has(id));
-        return (
-          <section
-            key={column.name}
-            onDragOver={(event) => {
-              if (!dnd.dragging || origin) return;
-              event.preventDefault();
-              event.dataTransfer.dropEffect = "move";
-            }}
-            onDrop={(event) => {
-              event.preventDefault();
-              if (dnd.dragging) dnd.moveTo(dnd.dragging, column);
-              dnd.setDragging(undefined);
-            }}
-            className={cn(
-              "flex w-72 shrink-0 flex-col gap-2 rounded-lg bg-muted/50 p-2 transition-[box-shadow,opacity]",
-              dnd.dragging && !origin && reachable && "ring-2 ring-primary/40",
-              dnd.dragging && dnd.targets && !origin && !reachable && "opacity-50",
-            )}
-          >
-            <h2 className="flex items-center justify-between gap-2 px-1 text-xs font-medium uppercase text-muted-foreground">
-              <span className="truncate">{column.name}</span>
-              <span className="ml-auto tabular-nums">
-                {issues.length === column.issues.length ? issues.length : `${issues.length}/${column.issues.length}`}
-              </span>
-              <FilterMenu scope={scope} issues={column.issues} label={`Spalte ${column.name} filtern`} column />
-            </h2>
-            {issues.map((issue) => (
-              <IssueCard key={issue.id} issue={issue} columns={columns} dnd={dnd} />
-            ))}
-          </section>
-        );
-      })}
+      <AnimatePresence initial={false} mode="popLayout">
+        {columns.filter((column) => !hidden.includes(column.name)).map((column) => {
+          const scope = `${boardId}:${column.name}`;
+          const columnFilter = filters[scope] ?? EMPTY_FILTER;
+          const issues = column.issues.filter((issue) => {
+            const values = cardValues(issue);
+            return (ignoreBoard[scope] || matchesFilter(boardFilter, values)) && matchesFilter(columnFilter, values);
+          });
+          const origin = !!dnd.dragging && column.statusIds.includes(dnd.dragging.fields.status.id);
+          const reachable = !!dnd.targets && column.statusIds.some((id) => dnd.targets!.has(id));
+          return (
+            <motion.section
+              key={column.name}
+              layout={!reduce}
+              initial={{ opacity: 0, scale: reduce ? 1 : 0.98 }}
+              animate={{ opacity: 1, scale: 1, transition: { duration: 0.2, ease: EASE_OUT } }}
+              exit={{ opacity: 0, transition: { duration: 0.12, ease: EASE_OUT } }}
+              onDragOver={(event) => {
+                if (!dnd.dragging || origin) return;
+                event.preventDefault();
+                event.dataTransfer.dropEffect = "move";
+              }}
+              onDrop={(event) => {
+                event.preventDefault();
+                if (dnd.dragging) dnd.moveTo(dnd.dragging, column);
+                dnd.setDragging(undefined);
+              }}
+              className={cn(
+                "flex w-72 shrink-0 flex-col gap-2 rounded-lg bg-muted/50 p-2 transition-[box-shadow,opacity]",
+                dnd.dragging && !origin && reachable && "ring-2 ring-primary/40",
+                dnd.dragging && dnd.targets && !origin && !reachable && "opacity-50",
+              )}
+            >
+              <h2 className="flex items-center justify-between gap-2 px-1 text-xs font-medium uppercase text-muted-foreground">
+                <span className="truncate">{column.name}</span>
+                <span className="ml-auto tabular-nums">
+                  {issues.length === column.issues.length ? issues.length : `${issues.length}/${column.issues.length}`}
+                </span>
+                <FilterMenu scope={scope} issues={column.issues} label={`Spalte ${column.name} filtern`} column />
+              </h2>
+              {issues.map((issue) => (
+                <IssueCard key={issue.id} issue={issue} columns={columns} dnd={dnd} />
+              ))}
+            </motion.section>
+          );
+        })}
+      </AnimatePresence>
     </div>
   );
 }

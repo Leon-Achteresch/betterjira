@@ -6,12 +6,14 @@ type BoardFiltersState = {
   filters: Record<string, BoardFilter>;
   ignoreBoard: Record<string, boolean>;
   views: Record<string, BoardView[]>;
+  hiddenColumns: Record<string, string[]>;
   toggle: (scope: string, field: FilterField, value: string) => void;
   toggleIgnoreBoard: (scope: string) => void;
   clear: (scope: string) => void;
   saveView: (board: string, name: string) => void;
   applyView: (board: string, view: BoardView) => void;
   deleteView: (board: string, name: string) => void;
+  toggleColumn: (board: string, column: string) => void;
 };
 
 export const useBoardFilters = create<BoardFiltersState>()(
@@ -20,6 +22,7 @@ export const useBoardFilters = create<BoardFiltersState>()(
       filters: {},
       ignoreBoard: {},
       views: {},
+      hiddenColumns: {},
       toggle: (scope, field, value) =>
         set(({ filters }) => {
           const current = filters[scope]?.[field] ?? [];
@@ -47,6 +50,12 @@ export const useBoardFilters = create<BoardFiltersState>()(
         })),
       deleteView: (board, name) =>
         set(({ views }) => ({ views: { ...views, [board]: (views[board] ?? []).filter((view) => view.name !== name) } })),
+      toggleColumn: (board, column) =>
+        set(({ hiddenColumns }) => {
+          const hidden = hiddenColumns[board] ?? [];
+          const next = hidden.includes(column) ? hidden.filter((name) => name !== column) : [...hidden, column];
+          return { hiddenColumns: { ...hiddenColumns, [board]: next } };
+        }),
     }),
     { name: "betterjira-board-filters" },
   ),
