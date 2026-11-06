@@ -1,5 +1,21 @@
 # Änderungen
 
+## 0.4.0 – 2026-11-06
+
+### Neu
+
+- Ticket-Tabs im Header wie im Browser: Jedes geöffnete Ticket bekommt einen Tab. Tabs lassen sich per Kontextmenü anheften, per Mittelklick schließen und bleiben nach einem Neustart erhalten. Strg/Cmd-Klick legt ein Ticket als Tab an, ohne es zu öffnen.
+- Tastenkürzel: Strg/Cmd+1–9 und Strg+Tab wechseln Tabs, Strg/Cmd+W schließt den aktiven Tab, Zurück/Vor im Header und per Alt+Pfeil. `?` zeigt alle Kürzel, J/K springen durch Listen.
+- Benachrichtigungen wie in Jira, getrennt nach „Direkt“ und „Beobachtet“ und gruppiert je Ticket.
+- Board: Spalten lassen sich ein- und ausblenden, eine eigene Blocker-Lane zeigt blockierte Tickets.
+- Neue Einstellungsseite „Darstellung“, Glas-Oberflächen für Menüs und Dialoge, auf macOS natives Fensterglas.
+- Ticketansicht mit rechter Eigenschaftsspalte, Ladeplatzhalter und Seitenübergänge.
+
+### Fehlerbehebung
+
+- Kurzzeitige Jira-Fehler (Zeitüberschreitung, Rate-Limit) werden automatisch wiederholt.
+- Nicht angemeldet: Die App fordert sauber zur Anmeldung auf.
+
 ## 0.3.0 – 2026-11-06
 
 ### Neu
