@@ -18,6 +18,7 @@ import { SHORTCUT_GROUPS } from "@/lib/shortcuts";
 import { RenderErrorBoundary } from "@/components/ui/render-error-boundary";
 import { RenderError } from "@/components/shell/render-error";
 import { useRenderRecovery } from "@/hooks/use-render-recovery";
+import { useReadabilitySync } from "@/hooks/use-readability";
 
 function NotificationPoller() {
   useNotificationPoller();
@@ -42,6 +43,11 @@ function AppUpdater() {
       onReleaseNotes={app.openReleaseNotes}
     />
   );
+}
+
+function ReadabilitySync() {
+  useReadabilitySync();
+  return null;
 }
 
 function BackgroundTabClick() {
@@ -83,6 +89,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   errorComponent: RootError,
   component: () => (
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+      <ReadabilitySync />
       <TooltipProvider>
         <SidebarProvider className="h-dvh min-h-0 flex-col">
           <AppHeader />
