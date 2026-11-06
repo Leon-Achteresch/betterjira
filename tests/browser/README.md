@@ -131,3 +131,9 @@ Der vollständige Ablaufbericht einschließlich Vielnutzer, sorgfältigem Leser,
 - Zweites Konto derselben Instanz: `&account=qa-colleague`. Es sieht nur seinen eigenen QA-Kontext; die Daten von `qa-user` bleiben unverändert im lokalen Speicher.
 - Abmelden simuliert `session_delete`; danach meldet die Sitzung bis zum erneuten Öffnen der Fixture „Nicht angemeldet“.
 - Automatisch: `bunx playwright test tests/browser/workspace-page.e2e.ts --workers=1`. Mit `WORKSPACE_SHOTS=<Ordner>` speichert der Test Screenshots.
+
+## Tastenkürzel-Hilfe
+
+- `...fixture.html?route=/settings/darstellung` und „Übersicht öffnen“ oder <kbd>?</kbd> drücken. Das Suchfeld findet Aktionen („Zurück“), Bereiche („Navigation“) und angezeigte Tasten, auch über übliche Namen wie „Strg“, „Cmd“, „Option“ oder „Enter“. Einzelne Zeichen gelten als Taste oder Wortanfang, damit „g h“ genau die Tastenfolge findet.
+- <kbd>Esc</kbd> leert zuerst die Suche und schließt erst danach den Dialog.
+- Automatisch: `bunx playwright test tests/browser/shortcut-help.e2e.ts --workers=1`; mit `SHORTCUT_HELP_SHOTS=<Ordner>` zusätzlich Screenshots.
