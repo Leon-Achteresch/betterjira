@@ -1,0 +1,137 @@
+import { describe, expect, it } from "vitest";
+import { Effect, Schema } from "effect";
+import type { AdfNode } from "./adf";
+import {
+  RawComment,
+  buildThreads,
+  collectCommentPages,
+  commentCount,
+  replyPayload,
+  replyPrefill,
+  threadKey,
+  toIssueComment,
+  type IssueComment,
+} from "./comment-thread";
+
+const avatar = { "48x48": "a.png" };
+const comment = (id: string, day: string, parentId?: string): IssueComment => ({
+  id,
+  created: `2026-11-0${day}T10:00:00Z`,
+  body: null,
+  ...(parentId && { parentId }),
+});
+const raw = (id: string) => ({ id, body: null, created: "2026-11-01T10:00:00Z" });
+const doc: AdfNode = { type: "doc", version: 1, content: [{ type: "paragraph", content: [{ type: "text", text: "Hallo" }] }] };
+
+describe("Kommentarliste", () => {
+  it("führt parentId als Zeichenkette, ob Jira Zahl oder Text liefert", () => {
+    expect(toIssueComment({ id: "2", parentId: 1, body: null, created: "x" }).parentId).toBe("1");
+    expect(toIssueComment({ id: "3", parentId: "1", body: null, created: "x" }).parentId).toBe("1");
+    expect(toIssueComment({ id: "1", body: null, created: "x" })).not.toHaveProperty("parentId");
+    expect(toIssueComment({ id: "4", parentId: null, body: null, created: "x" })).not.toHaveProperty("parentId");
+  });
+
+  it("übernimmt accountId, accountType und active des Autors", () => {
+    const decoded = Schema.decodeUnknownSync(RawComment)({
+      id: "2",
+      parentId: 56518,
+      author: { accountId: "a", accountType: "atlassian", active: true, displayName: "Anna", avatarUrls: avatar, emailAddress: "a@example.com" },
+      body: {},
+      created: "2026-11-01T10:00:00Z",
+    });
+    expect(toIssueComment(decoded)).toMatchObject({
+      parentId: "56518",
+      author: { accountId: "a", accountType: "atlassian", active: true, displayName: "Anna" },
+    });
+  });
+
+  it("lädt Seiten zu je 100, bis total erreicht ist", () => {
+    const all = Array.from({ length: 150 }, (_, index) => raw(String(index)));
+    const calls: number[] = [];
+    const result = Effect.runSync(
+      collectCommentPages((startAt) => {
+        calls.push(startAt);
+        return Effect.succeed({ startAt, maxResults: 100, total: all.length, comments: all.slice(startAt, startAt + 100) });
+      }),
+    );
+    expect(result).toHaveLength(150);
+    expect(calls).toEqual([0, 100]);
+  });
+
+  it("setzt bei kürzeren Seiten als angefragt richtig fort", () => {
+    const all = Array.from({ length: 5 }, (_, index) => raw(String(index)));
+    const calls: number[] = [];
+    const result = Effect.runSync(
+      collectCommentPages((startAt) => {
+        calls.push(startAt);
+        return Effect.succeed({ startAt, maxResults: 2, total: all.length, comments: all.slice(startAt, startAt + 2) });
+      }),
+    );
+    expect(result.map((entry) => entry.id)).toEqual(["0", "1", "2", "3", "4"]);
+    expect(calls).toEqual([0, 2, 4]);
+  });
+
+  it("bricht bei leerer Seite ab, auch wenn total mehr verspricht", () => {
+    const result = Effect.runSync(
+      collectCommentPages((startAt) =>
+        Effect.succeed({ startAt, maxResults: 100, total: 300, comments: startAt === 0 ? [raw("1")] : [] }),
+      ),
+    );
+    expect(result).toHaveLength(1);
+  });
+});
+
+describe("Threads", () => {
+  it("hängt Antworten chronologisch unter ihren Thread-Anfang, in beiden Sortierungen", () => {
+    const comments = [comment("1", "1"), comment("2", "2"), comment("4", "4", "1"), comment("3", "3", "1")];
+    const oldest = buildThreads(comments, false);
+    expect(oldest.map((thread) => thread.root.id)).toEqual(["1", "2"]);
+    expect(oldest[0]?.replies.map((reply) => reply.id)).toEqual(["3", "4"]);
+    const newest = buildThreads(comments, true);
+    expect(newest.map((thread) => thread.root.id)).toEqual(["2", "1"]);
+    expect(newest[1]?.replies.map((reply) => reply.id)).toEqual(["3", "4"]);
+  });
+
+  it("zeigt eine Antwort ohne vorhandenen Thread-Anfang als eigenen Thread", () => {
+    const threads = buildThreads([comment("1", "1"), comment("5", "2", "99")], false);
+    expect(threads.map((thread) => thread.root.id)).toEqual(["1", "5"]);
+    expect(threads.flatMap((thread) => thread.replies)).toEqual([]);
+  });
+
+  it("verliert keinen Kommentar, wenn eine Antwort auf eine Antwort zeigt", () => {
+    const threads = buildThreads([comment("1", "1"), comment("2", "2", "1"), comment("3", "3", "2")], false);
+    expect(threads).toHaveLength(1);
+    expect(threads[0]?.replies.map((reply) => reply.id)).toEqual(["2", "3"]);
+  });
+
+  it("nimmt als Thread-Schlüssel parentId, sonst die eigene ID", () => {
+    expect(threadKey(comment("3", "3", "1"))).toBe("1");
+    expect(threadKey(comment("1", "1"))).toBe("1");
+  });
+
+  it("zählt alle Kommentare einschließlich Antworten", () => {
+    expect(commentCount([comment("1", "1"), comment("2", "2", "1"), comment("3", "3")], { total: 20, comments: [] })).toBe(3);
+    expect(commentCount(undefined, { total: 25, comments: [] })).toBe(25);
+    expect(commentCount(undefined, { comments: [1, 2] })).toBe(2);
+    expect(commentCount(undefined, undefined)).toBe(0);
+  });
+});
+
+describe("Antworten", () => {
+  it("sendet parentId als Zahl, wenn der Thread-Schlüssel nur Ziffern hat", () => {
+    expect(replyPayload(doc, "10002")).toEqual({ body: doc, parentId: 10002 });
+    expect(replyPayload(doc, "abc")).toEqual({ body: doc, parentId: "abc" });
+  });
+
+  it("belegt mit dem Autor vor, außer bei eigenen Kommentaren oder ohne accountId", () => {
+    const ben = { accountId: "b", displayName: "Ben", avatarUrls: avatar };
+    expect(replyPrefill(ben, "me")).toEqual({
+      type: "doc",
+      version: 1,
+      content: [{ type: "paragraph", content: [{ type: "mention", attrs: { id: "b", text: "@Ben" } }, { type: "text", text: " " }] }],
+    });
+    expect(replyPrefill(ben, "b")).toBeUndefined();
+    expect(replyPrefill({ displayName: "Anonym", avatarUrls: avatar }, "me")).toBeUndefined();
+    expect(replyPrefill(undefined, "me")).toBeUndefined();
+  });
+});
