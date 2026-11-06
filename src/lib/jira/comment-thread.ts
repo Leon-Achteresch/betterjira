@@ -148,3 +148,25 @@ export const deleteReplyHint = (count: number): string | undefined => {
     ? "Die Antwort bleibt erhalten und steht danach als eigener Thread."
     : `Die ${count} Antworten bleiben erhalten und stehen danach als eigener Thread.`;
 };
+
+export type RefetchProgress = "none" | "running" | "refreshed" | "failed";
+
+export const refetchProgress = (startedAt: number | undefined, dataUpdatedAt: number, errorUpdatedAt: number): RefetchProgress => {
+  if (startedAt === undefined) return "none";
+  if (dataUpdatedAt >= startedAt) return "refreshed";
+  return errorUpdatedAt >= startedAt ? "failed" : "running";
+};
+
+export type CommentJumpState = "idle" | "wait" | "refetch" | "found" | "missing";
+
+export const commentJumpState = (
+  comments: readonly IssueComment[] | undefined,
+  commentId: string | undefined,
+  progress: RefetchProgress,
+): CommentJumpState => {
+  if (!commentId) return "idle";
+  if (!comments) return "wait";
+  if (comments.some((comment) => comment.id === commentId)) return "found";
+  if (progress === "none") return "refetch";
+  return progress === "refreshed" ? "missing" : "wait";
+};

@@ -15,6 +15,7 @@ export type CommentEntryView = {
   editedNote?: string;
   editor: ReactNode;
   onResumeEdit?: () => void;
+  highlighted?: boolean;
 };
 
 function CommentEntry({
@@ -30,7 +31,20 @@ function CommentEntry({
 }) {
   const editing = !!view.editor;
   return (
-    <article className="group/comment relative flex flex-col gap-2">
+    <article data-comment-id={comment.id} className="group/comment relative isolate flex flex-col gap-2">
+      <AnimatePresence>
+        {view.highlighted && (
+          <motion.div
+            key="highlight"
+            aria-hidden
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0, transition: { duration: 0.4, ease: EASE_OUT } }}
+            transition={{ duration: 0.25, ease: EASE_OUT }}
+            className="pointer-events-none absolute -inset-x-2 -inset-y-1.5 -z-10 rounded-lg bg-primary/12"
+          />
+        )}
+      </AnimatePresence>
       <div className="flex items-center gap-2 text-sm">
         <JiraUserLabel user={comment.author} />
         <span className="text-xs text-muted-foreground" title={new Date(comment.created).toLocaleString("de-DE")}>

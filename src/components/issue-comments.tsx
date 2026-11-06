@@ -13,6 +13,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { useCommentActions } from "@/hooks/use-comment-actions";
 import { useCommentDeletion } from "@/hooks/use-comment-deletion";
 import { useCommentEdits } from "@/hooks/use-comment-edits";
+import { useCommentJump } from "@/hooks/use-comment-jump";
 import { useCommentReplies } from "@/hooks/use-comment-replies";
 import { useIssueComments } from "@/hooks/use-issue-comments";
 import { EASE_OUT } from "@/lib/ease";
@@ -39,12 +40,13 @@ function CommentListSkeleton() {
   );
 }
 
-export function IssueComments({ issue }: { issue: JiraIssueDetail }) {
+export function IssueComments({ issue, focusComment, onFocusHandled }: { issue: JiraIssueDetail; focusComment?: string; onFocusHandled: () => void }) {
   const view = useIssueComments(issue);
   const replies = useCommentReplies(issue);
   const actions = useCommentActions(issue);
   const edits = useCommentEdits(issue.key);
   const deletion = useCommentDeletion(issue.key, edits.closeFor);
+  const jump = useCommentJump(issue.key, focusComment, onFocusHandled);
   const reduce = useReducedMotion();
 
   return (
@@ -201,6 +203,7 @@ export function IssueComments({ issue }: { issue: JiraIssueDetail }) {
                           />
                         ),
                         editedNote: actions.editedNote(comment),
+                        highlighted: jump.highlighted === comment.id,
                         onResumeEdit: allowed.canEdit && edits.hasDraft(comment) ? () => edits.start(comment) : undefined,
                         editor: edits.isOpenFor(comment) ? (
                           <CommentEditorBox

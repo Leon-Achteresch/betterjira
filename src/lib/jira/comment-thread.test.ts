@@ -6,10 +6,12 @@ import {
   buildThreads,
   collectCommentPages,
   commentCount,
+  commentJumpState,
   commentLink,
   deleteReplyHint,
   editPayload,
   editedNote,
+  refetchProgress,
   replyPayload,
   replyPrefill,
   repliesKeptOnDelete,
@@ -211,5 +213,37 @@ describe("Bearbeiten und Löschen", () => {
   it("zählt bei einem verwaisten Thread-Anfang keine Antworten", () => {
     const [, orphan] = buildThreads([comment("1", "1"), comment("5", "3", "99"), comment("6", "4", "99")], false);
     expect(repliesKeptOnDelete(orphan!, orphan!.root)).toBe(0);
+  });
+});
+
+describe("Sprung zum Kommentar", () => {
+  const list = [comment("1", "1"), comment("2", "2", "1")];
+
+  it("wartet ohne Liste und tut ohne Ziel nichts", () => {
+    expect(commentJumpState(undefined, "2", "none")).toBe("wait");
+    expect(commentJumpState(list, undefined, "none")).toBe("idle");
+  });
+
+  it("findet Thread-Anfänge und Antworten", () => {
+    expect(commentJumpState(list, "1", "none")).toBe("found");
+    expect(commentJumpState(list, "2", "failed")).toBe("found");
+  });
+
+  it("lädt einmal neu, bevor es einen Kommentar als fehlend meldet", () => {
+    expect(commentJumpState(list, "9", "none")).toBe("refetch");
+    expect(commentJumpState(list, "9", "running")).toBe("wait");
+    expect(commentJumpState(list, "9", "refreshed")).toBe("missing");
+  });
+
+  it("meldet nichts als fehlend, wenn das Nachladen einer zwischengespeicherten Liste scheitert", () => {
+    expect(commentJumpState(list, "9", "failed")).toBe("wait");
+  });
+
+  it("zählt nur neue Daten als Neuladen, einen Fehler als gescheitert", () => {
+    expect(refetchProgress(undefined, 500, 500)).toBe("none");
+    expect(refetchProgress(100, 50, 0)).toBe("running");
+    expect(refetchProgress(100, 150, 0)).toBe("refreshed");
+    expect(refetchProgress(100, 50, 150)).toBe("failed");
+    expect(refetchProgress(100, 160, 150)).toBe("refreshed");
   });
 });

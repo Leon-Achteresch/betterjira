@@ -148,12 +148,12 @@ function IssueViewSkeleton() {
   );
 }
 
-export function IssueView({ issueKey }: { issueKey: string }) {
+export function IssueView({ issueKey, focusComment, onFocusHandled }: { issueKey: string; focusComment?: string; onFocusHandled: () => void }) {
   const site = useJiraSite();
   const issue = useJiraIssue(issueKey);
   const commentList = useIssueCommentList(issueKey);
   const reduce = useReducedMotion();
-  useIssueReadingPosition(issueKey, !!issue.data);
+  useIssueReadingPosition(issueKey, !!issue.data, !!focusComment);
   const actions = useIssueActions(issue.data, site.data?.siteUrl);
   const development = useIssueDevelopmentPanel(
     issueKey,
@@ -236,7 +236,7 @@ export function IssueView({ issueKey }: { issueKey: string }) {
         {subtasks.length > 0 && <Subtasks subtasks={subtasks} />}
 
         <Section title={`Kommentare · ${commentCount(commentList.data, fields.comment)}`}>
-          <IssueComments key={issue.data.key} issue={issue.data} />
+          <IssueComments key={issue.data.key} issue={issue.data} focusComment={focusComment} onFocusHandled={onFocusHandled} />
         </Section>
       </div>
 
