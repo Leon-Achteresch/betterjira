@@ -1,5 +1,11 @@
 # Änderungen
 
+## 0.6.0 – 2026-11-06
+
+### Neu
+
+- Rollout-Kalender mit lokaler Outlook-Anbindung
+
 ## 0.5.0 – 2026-11-06
 
 ### Neu
