@@ -121,3 +121,9 @@ Der vollständige Ablaufbericht einschließlich Vielnutzer, sorgfältigem Leser,
 - Zweites Konto derselben Instanz: `&account=qa-colleague`. Es sieht nur seinen eigenen QA-Kontext; die Daten von `qa-user` bleiben unverändert im lokalen Speicher.
 - Abmelden simuliert `session_delete`; danach meldet die Sitzung bis zum erneuten Öffnen der Fixture „Nicht angemeldet“.
 - Automatisch: `bunx playwright test tests/browser/workspace-page.e2e.ts --workers=1`. Mit `WORKSPACE_SHOTS=<Ordner>` speichert der Test Screenshots.
+
+## Änderungsverlauf im Ticket
+
+- `...fixture.html?route=/issue/DEMO-1`, unten „Änderungsverlauf“ aufklappen. DEMO-1 hat 48 lokale Testeinträge (u. a. mehrere Felder in einer Änderung, gelöschte und unbekannte Person, rohe Feld-ID, Beschreibung mit Markup als Text), DEMO-2 keinen, DEMO-3 drei. Eingeklappt wird nichts abgerufen.
+- `window.__qaHistory.reads` enthält die gesendeten Changelog-Anfragen (`startAt`, `maxResults`, Konto). `window.__qaHistoryRule = (key, startAt, account) => ({ delayMs, status, html, values })` verzögert, lässt einzelne Seiten scheitern oder ersetzt die Einträge.
+- Automatisch: `bunx playwright test tests/browser/issue-history.e2e.ts --workers=1`; mit `ISSUE_HISTORY_SHOTS=<Ordner>` entstehen Screenshots.

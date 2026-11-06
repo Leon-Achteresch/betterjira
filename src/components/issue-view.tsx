@@ -14,9 +14,11 @@ import { JiraStatusBadge } from "@/components/jira-status-badge";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { IssueActions } from "@/components/issues/issue-actions";
+import { IssueHistoryPanel } from "@/components/issues/issue-history-panel";
 import { useIssueReadingPosition } from "@/hooks/use-issue-reading-position";
 import { useIssueActions } from "@/hooks/use-issue-actions";
 import { useIssueDevelopmentPanel } from "@/hooks/scm/use-issue-development-panel";
+import { useIssueHistory } from "@/hooks/jira/use-issue-history";
 import { EASE_OUT } from "@/lib/ease";
 import { useJiraIssue, useJiraSite, type JiraIssueDetail } from "@/lib/jira/queries";
 import { cn } from "@/lib/utils";
@@ -152,6 +154,7 @@ export function IssueView({ issueKey, initialTab }: { issueKey: string; initialT
   const reduce = useReducedMotion();
   useIssueReadingPosition(issueKey, !!issue.data);
   const actions = useIssueActions(issue.data, site.data?.siteUrl, initialTab);
+  const history = useIssueHistory(issueKey);
   const development = useIssueDevelopmentPanel(
     issueKey,
     issue.data && { projectKey: issue.data.fields.project.key, summary: issue.data.fields.summary },
@@ -236,6 +239,10 @@ export function IssueView({ issueKey, initialTab }: { issueKey: string; initialT
         <Section title={`Kommentare · ${comments.length}`}>
           <IssueComments key={issue.data.key} issueKey={issue.data.key} comments={comments} />
         </Section>
+
+        <motion.div variants={reveal(reduce)}>
+          <IssueHistoryPanel {...history} />
+        </motion.div>
       </div>
 
       <IssueDrawer
