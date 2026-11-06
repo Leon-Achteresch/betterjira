@@ -88,6 +88,19 @@ Der vollständige Ablaufbericht einschließlich Vielnutzer, sorgfältigem Leser,
 - Übersicht und Seitenleiste zeigen einen Lesefehler der Sitzung ebenfalls als „Anmeldung konnte nicht geprüft werden“ mit Retry statt als Abmeldung. Der simulierte Login (`oauth_login`) bricht immer mit „Test: Anmeldung abgebrochen“ ab.
 - Automatisch: `bunx playwright test tests/browser/navigation.e2e.ts tests/browser/session.e2e.ts --workers=1`.
 
+## Verbindungen und Offline-Hinweis
+
+- Übersicht: `http://localhost:1420/tests/browser/fixture.html?route=/settings/verbindungen` (abgemeldet mit `scenario=calendar-offline`, Lesefehler mit `scenario=session-error`).
+- `window.__qa.failMyself`, `window.__qa.myselfDelayMs` und `window.__qa.myselfCalls` steuern bzw. zählen die Jira-Prüfung (`/myself`). `window.__qaGhHosts` (per `addInitScript`) liefert die Antwort von `gh auth status`. `window.__qa.commands` listet alle simulierten Tauri-Kommandos.
+- Automatisch: `bunx playwright test tests/browser/connections.e2e.ts --workers=1`. Mit `CONNECTIONS_SHOTS=<Ordner>` speichert der Test Screenshots.
+- Offline wird nur im Browser simuliert: Der Test überschreibt `navigator.onLine` und löst `offline`/`online` aus. Das ersetzt keine native Netzprüfung; ob Atlassian, GitHub oder Bitbucket tatsächlich erreichbar sind, zeigt nur die jeweilige Prüfung. In der Simulation pausiert TanStack Query wie im echten Offline-Fall, auch für die lokalen Abfragen von GitHub CLI und Outlook.
+
+## Meine Zeiterfassung
+
+- Lokale Testbuchungen: `...fixture.html?scenario=time-tracking&route=/zeiterfassung` (eigene Buchungen in der Woche ab 02.11.2026, eine fremde Buchung, eine aus der Vorwoche).
+- `window.__qaWorklogRule = (key) => ({ status, delayMs, pageSize })` lässt Worklog-Abrufe einzelner Tickets scheitern, verzögern oder in kleinen Seiten antworten.
+- Automatisch: `bunx playwright test tests/browser/time-tracking.e2e.ts --workers=1`; `TIME_TRACKING_SHOTS=<Ordner>` speichert Screenshots.
+
 ## Benachrichtigungen
 
 - Inbox mit lokal gespeicherten QA-Benachrichtigungen: `...fixture.html?scenario=notifications&route=/benachrichtigungen` (Filter über `?ansicht=beobachtet`, `?nur=ungelesen`, `?suche=`). Die Einträge sind reine Testdaten im lokalen Speicher, es werden keine Jira-Benachrichtigungen erzeugt.
