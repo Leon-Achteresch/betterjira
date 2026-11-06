@@ -14,6 +14,7 @@ import { Route as KalenderRouteImport } from './routes/kalender'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SucheRouteImport } from './routes/suche'
 import { Route as TicketsRouteImport } from './routes/tickets'
+import { Route as ZeiterfassungRouteImport } from './routes/zeiterfassung'
 import { Route as BereicheKeyRouteImport } from './routes/bereiche/$key'
 import { Route as FilterIdRouteImport } from './routes/filter/$id'
 import { Route as IssueKeyRouteImport } from './routes/issue/$key'
@@ -46,6 +47,11 @@ const SucheRoute = SucheRouteImport.update({
 const TicketsRoute = TicketsRouteImport.update({
   id: '/tickets',
   path: '/tickets',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ZeiterfassungRoute = ZeiterfassungRouteImport.update({
+  id: '/zeiterfassung',
+  path: '/zeiterfassung',
   getParentRoute: () => rootRouteImport,
 } as any)
 const BereicheKeyRoute = BereicheKeyRouteImport.update({
@@ -95,6 +101,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof SettingsRouteWithChildren
   '/suche': typeof SucheRoute
   '/tickets': typeof TicketsRoute
+  '/zeiterfassung': typeof ZeiterfassungRoute
   '/bereiche/$key': typeof BereicheKeyRoute
   '/filter/$id': typeof FilterIdRoute
   '/issue/$key': typeof IssueKeyRoute
@@ -109,6 +116,7 @@ export interface FileRoutesByTo {
   '/kalender': typeof KalenderRoute
   '/suche': typeof SucheRoute
   '/tickets': typeof TicketsRoute
+  '/zeiterfassung': typeof ZeiterfassungRoute
   '/bereiche/$key': typeof BereicheKeyRoute
   '/filter/$id': typeof FilterIdRoute
   '/issue/$key': typeof IssueKeyRoute
@@ -125,6 +133,7 @@ export interface FileRoutesById {
   '/settings': typeof SettingsRouteWithChildren
   '/suche': typeof SucheRoute
   '/tickets': typeof TicketsRoute
+  '/zeiterfassung': typeof ZeiterfassungRoute
   '/bereiche/$key': typeof BereicheKeyRoute
   '/filter/$id': typeof FilterIdRoute
   '/issue/$key': typeof IssueKeyRoute
@@ -142,6 +151,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/suche'
     | '/tickets'
+    | '/zeiterfassung'
     | '/bereiche/$key'
     | '/filter/$id'
     | '/issue/$key'
@@ -156,6 +166,7 @@ export interface FileRouteTypes {
     | '/kalender'
     | '/suche'
     | '/tickets'
+    | '/zeiterfassung'
     | '/bereiche/$key'
     | '/filter/$id'
     | '/issue/$key'
@@ -171,6 +182,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/suche'
     | '/tickets'
+    | '/zeiterfassung'
     | '/bereiche/$key'
     | '/filter/$id'
     | '/issue/$key'
@@ -187,6 +199,7 @@ export interface RootRouteChildren {
   SettingsRoute: typeof SettingsRouteWithChildren
   SucheRoute: typeof SucheRoute
   TicketsRoute: typeof TicketsRoute
+  ZeiterfassungRoute: typeof ZeiterfassungRoute
   BereicheKeyRoute: typeof BereicheKeyRoute
   FilterIdRoute: typeof FilterIdRoute
   IssueKeyRoute: typeof IssueKeyRoute
@@ -227,6 +240,13 @@ declare module '@tanstack/react-router' {
       path: '/tickets'
       fullPath: '/tickets'
       preLoaderRoute: typeof TicketsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/zeiterfassung': {
+      id: '/zeiterfassung'
+      path: '/zeiterfassung'
+      fullPath: '/zeiterfassung'
+      preLoaderRoute: typeof ZeiterfassungRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/bereiche/$key': {
@@ -314,6 +334,7 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsRoute: SettingsRouteWithChildren,
   SucheRoute: SucheRoute,
   TicketsRoute: TicketsRoute,
+  ZeiterfassungRoute: ZeiterfassungRoute,
   BereicheKeyRoute: BereicheKeyRoute,
   FilterIdRoute: FilterIdRoute,
   IssueKeyRoute: IssueKeyRoute,
