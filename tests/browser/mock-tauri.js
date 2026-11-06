@@ -568,7 +568,7 @@ const respond = async (request) => {
     if (window.__qa.failMyself) return { status: 503, body: { errorMessages: ["Test: Jira vorübergehend nicht erreichbar"] } };
     return { body: { ...author, accountId } };
   }
-  if (path.startsWith("/project/search")) return { body: { isLast: true, values: [project] } };
+  if (path.startsWith("/project/search")) return { body: { isLast: true, values: window.__qaProjects ?? [project] } };
   if (path.startsWith("/filter/my")) {
     window.__qa.filterRequests++;
     if (window.__qa.failFilters) return { status: 503, body: { errorMessages: ["Test: Filter vorübergehend nicht erreichbar"] } };

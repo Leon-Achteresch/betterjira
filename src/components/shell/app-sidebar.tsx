@@ -13,7 +13,6 @@ import {
   SquareKanbanIcon,
   StarIcon,
   StarOffIcon,
-  TerminalSquareIcon,
 } from "lucide-react";
 import { ProjectStatsDialog } from "@/components/project-stats/project-stats-dialog";
 import { PrimaryNav } from "@/components/shell/primary-nav";
@@ -252,10 +251,10 @@ export function AppSidebar() {
             <Section label="Filter" count={filters.loaded ? filters.items.length : undefined}>
               <SidebarMenu>
                 <SidebarMenuItem>
-                  <SidebarMenuButton asChild tooltip="JQL-Suche">
+                  <SidebarMenuButton asChild tooltip="Ticketsuche">
                     <Link to="/suche" search={{}} activeProps={{ "data-active": true }}>
-                      <TerminalSquareIcon className="text-muted-foreground" />
-                      <span>JQL-Suche</span>
+                      <SearchIcon className="text-muted-foreground" />
+                      <span>Ticketsuche</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
