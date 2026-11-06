@@ -1,7 +1,7 @@
 import { Effect, Schema } from "effect";
 import { scm } from "./client";
 import { mentionsIssue } from "./issue-key";
-import type { CheckState, PullRequest, PullRequestDraft, ScmConnection } from "./model";
+import { PULL_REQUEST_LIST_LIMIT, type CheckState, type PullRequest, type PullRequestDraft, type PullRequestListState, type ScmConnection } from "./model";
 import type { ScmProvider } from "./provider";
 
 const api = (connection: ScmConnection) => `${connection.baseUrl}/rest/api/latest`;
@@ -147,7 +147,28 @@ const repos = (connection: ScmConnection) =>
     Effect.map(({ values }) => values.map((repo) => `${repo.project.key}/${repo.slug}`)),
   );
 
+const ListPage = Schema.Struct({ values: Schema.Array(ServerPullRequest), isLastPage: Schema.optional(Schema.Boolean) });
+
+const LIST_STATES: Record<PullRequestListState, string> = { open: "OPEN", merged: "MERGED", closed: "DECLINED" };
+
+const pullRequests = (connection: ScmConnection, repo: string, state: PullRequestListState) =>
+  Effect.gen(function* () {
+    const result = yield* scm(
+      connection.auth,
+      `${api(connection)}/${repoPath(repo)}/pull-requests?state=${LIST_STATES[state]}&order=NEWEST&limit=${PULL_REQUEST_LIST_LIMIT}`,
+      ListPage,
+    );
+    const pullRequests = yield* Effect.forEach(
+      result.values,
+      (pr) => checksFor(connection, pr).pipe(Effect.map((checks) => toPullRequest(pr, checks))),
+      { concurrency: 4 },
+    );
+    return { pullRequests, truncated: result.isLastPage === false };
+  });
+
+const pullRequestsUrl = (connection: ScmConnection, repo: string) => `${connection.baseUrl}/${repoPath(repo)}/pull-requests`;
+
 const verify = (connection: ScmConnection) =>
   scm(connection.auth, `${api(connection)}/repos?limit=1`, Schema.Unknown).pipe(Effect.as(null));
 
-export const bitbucketDataCenter: ScmProvider = { development, createBranch, createPullRequest, repos, verify };
+export const bitbucketDataCenter: ScmProvider = { development, createBranch, createPullRequest, repos, pullRequests, pullRequestsUrl, verify };

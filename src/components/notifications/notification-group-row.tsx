@@ -5,10 +5,12 @@ import { ChevronDown, ExternalLink } from "lucide-react";
 import { useState } from "react";
 import { Tooltip } from "@/components/motion/tooltip";
 import { JiraUserAvatar } from "@/components/jira-user-avatar";
-import type { NotificationGroup as Group } from "@/hooks/use-notification-feed";
+import type { FeedGroup } from "@/lib/jira/notification-feed";
 import type { JiraNotification } from "@/lib/jira/notifications";
 import { EASE_OUT, SPRING_LAYOUT } from "@/lib/ease";
 import { cn } from "@/lib/utils";
+
+type Group = FeedGroup<JiraNotification>;
 
 type Props = {
   group: Group;
@@ -90,13 +92,13 @@ export function NotificationGroupRow({ group, onOpen, onOpenExternal, onToggleRe
           )}
         </AnimatePresence>
       </div>
-      <div className="relative flex shrink-0 flex-col items-center gap-1">
+      <div className="relative -my-1 flex shrink-0 flex-col items-center">
         <Tooltip content={unread ? "Als gelesen markieren" : "Als ungelesen markieren"} side="left">
           <button
             type="button"
             onClick={() => onToggleRead(group)}
             aria-label={unread ? "Als gelesen markieren" : "Als ungelesen markieren"}
-            className="grid size-6 place-items-center rounded-md outline-none hover:bg-background focus-visible:ring-2 focus-visible:ring-ring"
+            className="grid size-8 place-items-center rounded-xl outline-none hover:bg-background focus-visible:ring-2 focus-visible:ring-ring"
           >
             <motion.span
               animate={{ scale: unread ? 1 : 0.8, opacity: unread ? 1 : 0.35 }}
@@ -110,7 +112,7 @@ export function NotificationGroupRow({ group, onOpen, onOpenExternal, onToggleRe
             type="button"
             onClick={() => onOpenExternal(group.issueKey)}
             aria-label="In Jira öffnen"
-            className="grid size-6 place-items-center rounded-md text-muted-foreground opacity-0 outline-none transition-opacity hover:bg-background hover:text-foreground focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring group-hover:opacity-100"
+            className="grid size-8 place-items-center rounded-xl text-muted-foreground opacity-0 outline-none transition-opacity hover:bg-background hover:text-foreground focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring group-hover:opacity-100 pointer-coarse:opacity-100"
           >
             <ExternalLink className="size-3.5" />
           </button>

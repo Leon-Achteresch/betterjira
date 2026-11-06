@@ -5,7 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
 import { AppHeader } from "@/components/shell/app-header";
 import { AppSidebar } from "@/components/shell/app-sidebar";
-import { useNotificationPoller } from "@/lib/jira/notifications";
+import { useNotificationPoller } from "@/hooks/notifications/use-notification-poller";
 import { useAttentionScheduler } from "@/hooks/attention/use-attention-scheduler";
 import { useAppUpdate } from "@/hooks/use-app-update";
 import { useBackgroundTabClick } from "@/hooks/use-issue-tabs";
@@ -20,6 +20,8 @@ import { RenderError } from "@/components/shell/render-error";
 import { useRenderRecovery } from "@/hooks/use-render-recovery";
 import { OfflineNotice } from "@/components/connections/offline-notice";
 import { useDeviceOnline } from "@/hooks/connections/use-device-online";
+
+import { useReadabilitySync } from "@/hooks/use-readability";
 
 function NotificationPoller() {
   useNotificationPoller();
@@ -44,6 +46,11 @@ function AppUpdater() {
       onReleaseNotes={app.openReleaseNotes}
     />
   );
+}
+
+function ReadabilitySync() {
+  useReadabilitySync();
+  return null;
 }
 
 function BackgroundTabClick() {
@@ -89,6 +96,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   errorComponent: RootError,
   component: () => (
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+      <ReadabilitySync />
       <TooltipProvider>
         <SidebarProvider className="h-dvh min-h-0 flex-col">
           <AppHeader />
