@@ -131,3 +131,8 @@ Der vollständige Ablaufbericht einschließlich Vielnutzer, sorgfältigem Leser,
 - Zweites Konto derselben Instanz: `&account=qa-colleague`. Es sieht nur seinen eigenen QA-Kontext; die Daten von `qa-user` bleiben unverändert im lokalen Speicher.
 - Abmelden simuliert `session_delete`; danach meldet die Sitzung bis zum erneuten Öffnen der Fixture „Nicht angemeldet“.
 - Automatisch: `bunx playwright test tests/browser/workspace-page.e2e.ts --workers=1`. Mit `WORKSPACE_SHOTS=<Ordner>` speichert der Test Screenshots.
+
+## Unbekannte Routen
+
+- Direktlink auf eine nicht vorhandene Ansicht: `...fixture.html?route=/gibt-es-nicht?token=test`. Kopfzeile und Seitenleiste bleiben, die Seite zeigt weder Pfad noch Parameter, die URL bleibt unverändert. „Zurück“ erscheint nur nach einer Navigation innerhalb der App.
+- Automatisch: `bunx playwright test tests/browser/not-found.e2e.ts --workers=1`; mit `NOT_FOUND_SHOTS=<Ordner>` zusätzlich Screenshots.
