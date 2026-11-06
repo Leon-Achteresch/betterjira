@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { useJqlSearch } from "@/hooks/use-jql-search";
 import { useJiraSite } from "@/lib/jira/queries";
+import { LoginPrompt } from "@/components/shell/login-prompt";
 
 export const Route = createFileRoute("/suche")({
   validateSearch: (search: Record<string, unknown>): { jql?: string } =>
@@ -23,7 +24,7 @@ function Suche() {
   const [saving, setSaving] = useState(false);
 
   if (!site.isPending && !site.data) {
-    return <p className="p-8 text-muted-foreground">Melde dich auf der Startseite an, um zu suchen.</p>;
+    return <div className="p-8"><LoginPrompt description="Melde dich an, um zu suchen." /></div>;
   }
   return (
     <div className="flex flex-col gap-6 p-8">

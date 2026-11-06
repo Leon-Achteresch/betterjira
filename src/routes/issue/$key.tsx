@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { IssueView } from "@/components/issue-view";
 import { useIssueTabStore } from "@/hooks/use-issue-tabs";
 import { useJiraSite } from "@/lib/jira/queries";
+import { LoginPrompt } from "@/components/shell/login-prompt";
 
 export const Route = createFileRoute("/issue/$key")({
   onEnter: ({ params }) => useIssueTabStore.getState().open(params.key),
@@ -15,7 +16,7 @@ function Issue() {
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col p-8">
       {!site.isPending && !site.data ? (
-        <p className="text-muted-foreground">Melde dich auf der Startseite an, um Tickets zu sehen.</p>
+        <LoginPrompt description="Melde dich an, um Tickets zu sehen." />
       ) : (
         <IssueView key={key} issueKey={key} />
       )}

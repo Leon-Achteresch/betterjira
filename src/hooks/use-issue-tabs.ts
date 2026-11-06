@@ -65,6 +65,7 @@ export const useIssueTabs = () => {
   return {
     tabs,
     activeKey,
+    openTab,
     closeTab,
     togglePin,
     closeOthers: (key: string) => keepTabs(key, keepOthers),

@@ -39,7 +39,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           <AppHeader />
           <div className="flex min-h-0 flex-1">
             <AppSidebar />
-            <SidebarInset className="min-h-0 overflow-auto">
+            <SidebarInset id="app-scroll" data-scroll-restoration-id="app-scroll" className="min-h-0 overflow-auto">
               <Outlet />
             </SidebarInset>
           </div>

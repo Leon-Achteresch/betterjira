@@ -55,6 +55,7 @@ import {
   useJiraTransitions,
 } from "@/lib/jira/queries";
 import { cn } from "@/lib/utils";
+import { LoginPrompt } from "@/components/shell/login-prompt";
 
 export const Route = createFileRoute("/bereiche/$key")({
   validateSearch: (search: Record<string, unknown>): { board?: number; sprint?: BoardSprint } => ({
@@ -87,7 +88,7 @@ function Bereich() {
     <div className="flex flex-col gap-4 p-6">
       {!board && title}
       {!site.isPending && !site.data ? (
-        <p className="text-muted-foreground">Melde dich auf der Startseite an, um Bereiche zu sehen.</p>
+        <LoginPrompt description="Melde dich an, um Bereiche zu sehen." />
       ) : boardId === undefined ? (
         <IssueTable key={key} jql={`project = "${key}" ORDER BY updated DESC`} />
       ) : boards.error ? (
