@@ -1,9 +1,10 @@
-import { useRef, type FormEvent, type KeyboardEvent } from "react";
+import { useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import { toast } from "sonner";
 import { useJiraAddComment } from "@/hooks/jira/use-issue-mutations";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { useCommentComposer } from "@/hooks/use-comment-composer";
 import { appendTemplate, clearSubmittedDraft, setCommentDraft } from "@/lib/workspace";
+import { filterComments } from "@/lib/jira/comment-search";
 import type { JiraIssueDetail } from "@/lib/jira/queries";
 
 type Comment = NonNullable<JiraIssueDetail["fields"]["comment"]>["comments"][number];
@@ -17,6 +18,20 @@ export function useIssueComments(issueKey: string, comments: readonly Comment[])
   const draft = workspace.drafts[issueKey] ?? "";
   const composer = useCommentComposer(!!draft || add.isPending);
   const setDraft = (value: string) => update((current) => setCommentDraft(current, issueKey, value));
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const searchToggleRef = useRef<HTMLButtonElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const sorted = [...comments].sort((a, b) =>
+    workspace.newestFirst
+      ? Date.parse(b.created) - Date.parse(a.created)
+      : Date.parse(a.created) - Date.parse(b.created),
+  );
+  const closeSearch = () => {
+    setQuery("");
+    setSearchOpen(false);
+    searchToggleRef.current?.focus();
+  };
 
   const submit = async (event?: FormEvent) => {
     event?.preventDefault();
@@ -44,11 +59,25 @@ export function useIssueComments(issueKey: string, comments: readonly Comment[])
     pending: add.isPending,
     error: add.error?.message,
     newestFirst: workspace.newestFirst,
-    comments: [...comments].sort((a, b) =>
-      workspace.newestFirst
-        ? Date.parse(b.created) - Date.parse(a.created)
-        : Date.parse(a.created) - Date.parse(b.created),
-    ),
+    comments: filterComments(sorted, query),
+    search: {
+      open: searchOpen,
+      query,
+      loaded: comments.length,
+      toggleRef: searchToggleRef,
+      inputRef: searchInputRef,
+      setQuery,
+      reset: () => {
+        setQuery("");
+        searchInputRef.current?.focus();
+      },
+      toggle: () => (searchOpen ? closeSearch() : setSearchOpen(true)),
+      onKeyDown: (event: KeyboardEvent) => {
+        if (event.key !== "Escape" || query) return;
+        event.stopPropagation();
+        closeSearch();
+      },
+    },
     toggleOrder: () => update((current) => ({ ...current, newestFirst: !current.newestFirst })),
     insertTemplate: (body: string) => {
       templateInserted.current = true;
