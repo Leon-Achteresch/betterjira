@@ -4,12 +4,23 @@ import { isMentionable, JiraPerson } from "./people";
 
 export const COMMENT_PAGE_SIZE = 100;
 
+export const CommentVisibility = Schema.Struct({
+  type: Schema.String,
+  value: Schema.String,
+  identifier: Schema.optional(Schema.String),
+});
+
+export type CommentVisibility = typeof CommentVisibility.Type;
+
 export const RawComment = Schema.Struct({
   id: Schema.String,
   parentId: Schema.optional(Schema.NullOr(Schema.Union([Schema.String, Schema.Number]))),
   author: Schema.optional(JiraPerson),
+  updateAuthor: Schema.optional(Schema.NullOr(JiraPerson)),
   body: Schema.Unknown,
   created: Schema.String,
+  updated: Schema.optional(Schema.String),
+  visibility: Schema.optional(Schema.NullOr(CommentVisibility)),
 });
 
 export const CommentPage = Schema.Struct({
@@ -19,13 +30,24 @@ export const CommentPage = Schema.Struct({
   comments: Schema.Array(RawComment),
 });
 
-export type IssueComment = { id: string; parentId?: string; author?: JiraPerson; body: unknown; created: string };
+export type IssueComment = {
+  id: string;
+  parentId?: string;
+  author?: JiraPerson;
+  updateAuthor?: JiraPerson;
+  body: unknown;
+  created: string;
+  updated?: string;
+  visibility?: CommentVisibility;
+};
 
 export type CommentThread = { root: IssueComment; replies: IssueComment[] };
 
-export const toIssueComment = ({ parentId, ...comment }: typeof RawComment.Type): IssueComment => ({
+export const toIssueComment = ({ parentId, updateAuthor, visibility, ...comment }: typeof RawComment.Type): IssueComment => ({
   ...comment,
   ...(parentId !== undefined && parentId !== null && { parentId: String(parentId) }),
+  ...(updateAuthor && { updateAuthor }),
+  ...(visibility && { visibility }),
 });
 
 export const collectCommentPages = <E>(fetchPage: (startAt: number) => Effect.Effect<typeof CommentPage.Type, E>) =>
@@ -98,3 +120,31 @@ export const replyPrefill = (author: JiraPerson | undefined, myAccountId: string
         ],
       }
     : undefined;
+
+export const commentLink = (siteUrl: string, issueKey: string, commentId: string) =>
+  `${siteUrl}/browse/${issueKey}?focusedCommentId=${commentId}`;
+
+const EDITED_FORMAT: Intl.DateTimeFormatOptions = { dateStyle: "medium", timeStyle: "short" };
+
+export const editedNote = (comment: IssueComment): string | undefined => {
+  if (!comment.updated || !(Date.parse(comment.updated) > Date.parse(comment.created))) return undefined;
+  const when = new Date(comment.updated).toLocaleString("de-DE", EDITED_FORMAT);
+  return comment.updateAuthor ? `Bearbeitet am ${when} von ${comment.updateAuthor.displayName}` : `Bearbeitet am ${when}`;
+};
+
+export type CommentEditPayload = { body: AdfNode; visibility?: CommentVisibility };
+
+export const editPayload = (body: AdfNode, comment: IssueComment): CommentEditPayload => ({
+  body,
+  ...(!comment.parentId && comment.visibility && { visibility: comment.visibility }),
+});
+
+export const repliesKeptOnDelete = (thread: CommentThread, comment: IssueComment) =>
+  thread.root.id === comment.id && !comment.parentId ? thread.replies.length : 0;
+
+export const deleteReplyHint = (count: number): string | undefined => {
+  if (count <= 0) return undefined;
+  return count === 1
+    ? "Die Antwort bleibt erhalten und steht danach als eigener Thread."
+    : `Die ${count} Antworten bleiben erhalten und stehen danach als eigener Thread.`;
+};

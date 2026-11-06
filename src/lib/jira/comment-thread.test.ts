@@ -6,8 +6,13 @@ import {
   buildThreads,
   collectCommentPages,
   commentCount,
+  commentLink,
+  deleteReplyHint,
+  editPayload,
+  editedNote,
   replyPayload,
   replyPrefill,
+  repliesKeptOnDelete,
   threadKey,
   toIssueComment,
   type IssueComment,
@@ -147,5 +152,64 @@ describe("Antworten", () => {
       ["5", ["6", "7"]],
     ]);
     expect(new Set(threads.map((thread) => threadKey(thread.root))).size).toBe(threads.length);
+  });
+});
+
+describe("Bearbeiten und Löschen", () => {
+  const lea = { accountId: "lea", displayName: "Lea", avatarUrls: avatar };
+
+  it("übernimmt updated, updateAuthor und visibility, sofern geliefert", () => {
+    const decoded = Schema.decodeUnknownSync(RawComment)({
+      id: "7",
+      body: {},
+      created: "2026-11-04T13:00:00Z",
+      updated: "2026-11-05T08:30:00Z",
+      updateAuthor: { ...lea, accountType: "atlassian" },
+      visibility: { type: "role", value: "Developers", identifier: "Developers" },
+    });
+    expect(toIssueComment(decoded)).toMatchObject({
+      updated: "2026-11-05T08:30:00Z",
+      updateAuthor: { accountId: "lea", displayName: "Lea" },
+      visibility: { type: "role", value: "Developers", identifier: "Developers" },
+    });
+    const plain = toIssueComment(Schema.decodeUnknownSync(RawComment)({ id: "8", body: {}, created: "x", updateAuthor: null, visibility: null }));
+    expect(plain).not.toHaveProperty("updateAuthor");
+    expect(plain).not.toHaveProperty("visibility");
+  });
+
+  it("markiert nur Kommentare als bearbeitet, deren updated nach created liegt", () => {
+    const base = { ...comment("1", "4"), updated: "2026-11-05T08:30:00Z" };
+    const when = new Date("2026-11-05T08:30:00Z").toLocaleString("de-DE", { dateStyle: "medium", timeStyle: "short" });
+    expect(editedNote({ ...base, updateAuthor: lea })).toBe(`Bearbeitet am ${when} von Lea`);
+    expect(editedNote(base)).toBe(`Bearbeitet am ${when}`);
+    expect(editedNote({ ...base, updated: base.created })).toBeUndefined();
+    expect(editedNote(comment("2", "4"))).toBeUndefined();
+  });
+
+  it("sendet beim Speichern visibility nur für Thread-Anfänge mit", () => {
+    const visibility = { type: "role", value: "Developers" };
+    expect(editPayload(doc, { ...comment("1", "1"), visibility })).toEqual({ body: doc, visibility });
+    expect(editPayload(doc, { ...comment("2", "2", "1"), visibility })).toEqual({ body: doc });
+    expect(editPayload(doc, comment("3", "3"))).toEqual({ body: doc });
+  });
+
+  it("baut den Kommentar-Link wie Jira", () => {
+    expect(commentLink("https://example.atlassian.net", "DEMO-1", "10002")).toBe(
+      "https://example.atlassian.net/browse/DEMO-1?focusedCommentId=10002",
+    );
+  });
+
+  it("nennt beim Löschen eines Thread-Anfangs die Antworten, die stehen bleiben", () => {
+    const [thread] = buildThreads([comment("1", "1"), comment("2", "2", "1"), comment("3", "3", "1")], false);
+    expect(repliesKeptOnDelete(thread!, thread!.root)).toBe(2);
+    expect(repliesKeptOnDelete(thread!, thread!.replies[0]!)).toBe(0);
+    expect(deleteReplyHint(2)).toBe("Die 2 Antworten bleiben erhalten und stehen danach als eigener Thread.");
+    expect(deleteReplyHint(1)).toBe("Die Antwort bleibt erhalten und steht danach als eigener Thread.");
+    expect(deleteReplyHint(0)).toBeUndefined();
+  });
+
+  it("zählt bei einem verwaisten Thread-Anfang keine Antworten", () => {
+    const [, orphan] = buildThreads([comment("1", "1"), comment("5", "3", "99"), comment("6", "4", "99")], false);
+    expect(repliesKeptOnDelete(orphan!, orphan!.root)).toBe(0);
   });
 });

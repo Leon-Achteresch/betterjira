@@ -5,7 +5,7 @@ import { persist } from "zustand/middleware";
 import { useJiraMyself, useJiraSite } from "@/lib/jira/queries";
 import {
   EMPTY_WORKSPACE,
-  migrateWorkspaces,
+  restoreWorkspaces,
   Workspaces,
   workspaceId,
   type Workspace,
@@ -16,7 +16,7 @@ type WorkspaceState = {
   update: (id: string, transform: (workspace: Workspace) => Workspace) => void;
 };
 
-const PersistedState = Schema.Struct({ workspaces: Workspaces });
+const PersistedState = Schema.Struct({ workspaces: Schema.Unknown });
 
 export const useWorkspaceStore = create<WorkspaceState>()(
   persist(
@@ -34,7 +34,7 @@ export const useWorkspaceStore = create<WorkspaceState>()(
       name: "betterjira-workspaces",
       merge: (persisted, current) =>
         Schema.is(PersistedState)(persisted)
-          ? { ...current, workspaces: migrateWorkspaces(persisted.workspaces) }
+          ? { ...current, workspaces: restoreWorkspaces(persisted.workspaces) }
           : current,
     },
   ),

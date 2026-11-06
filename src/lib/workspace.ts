@@ -1,5 +1,5 @@
 import { Schema } from "effect";
-import { AdfDoc, appendBlocks, isBlankAdf, sameAdf, textToAdf, type AdfNode } from "./jira/adf";
+import { AdfDoc, appendBlocks, isAdfDoc, isBlankAdf, sameAdf, textToAdf, type AdfNode } from "./jira/adf";
 
 const RememberedIssue = Schema.Struct({
   key: Schema.String,
@@ -25,6 +25,7 @@ export const Workspace = Schema.Struct({
   contexts: Schema.optional(Schema.Record(Schema.String, IssueContext)),
   commentDrafts: Schema.optional(Schema.Record(Schema.String, AdfDoc)),
   replyDrafts: Schema.optional(Schema.Record(Schema.String, Schema.Record(Schema.String, AdfDoc))),
+  editDrafts: Schema.optional(Schema.Record(Schema.String, Schema.Record(Schema.String, AdfDoc))),
 });
 
 export type Workspace = typeof Workspace.Type;
@@ -39,6 +40,7 @@ export const EMPTY_WORKSPACE: Workspace = {
   contexts: {},
   commentDrafts: {},
   replyDrafts: {},
+  editDrafts: {},
 };
 export const RECENT_ISSUE_LIMIT = 50;
 
@@ -48,10 +50,14 @@ const draftKeys = (workspace: Workspace) => [
   ...Object.keys(workspace.drafts),
   ...Object.keys(workspace.commentDrafts ?? {}),
   ...Object.keys(workspace.replyDrafts ?? {}),
+  ...Object.keys(workspace.editDrafts ?? {}),
 ];
 
 const hasCommentDraft = (workspace: Workspace, key: string) =>
-  !!workspace.drafts[key]?.trim() || !!workspace.commentDrafts?.[key] || Object.keys(workspace.replyDrafts?.[key] ?? {}).length > 0;
+  !!workspace.drafts[key]?.trim() ||
+  !!workspace.commentDrafts?.[key] ||
+  Object.keys(workspace.replyDrafts?.[key] ?? {}).length > 0 ||
+  Object.keys(workspace.editDrafts?.[key] ?? {}).length > 0;
 
 export const rememberIssue = (
   workspace: Workspace,
@@ -199,14 +205,37 @@ export const clearSubmittedMainDraft = (workspace: Workspace, key: string, submi
 
 export const replyDraftOf = (workspace: Workspace, key: string, thread: string) => workspace.replyDrafts?.[key]?.[thread];
 
-export const setReplyDraft = (workspace: Workspace, key: string, thread: string, draft: AdfNode | undefined): Workspace => {
-  const threads = { ...without(workspace.replyDrafts?.[key], thread), ...(kept(draft) && { [thread]: draft }) };
-  const others = without(workspace.replyDrafts, key);
-  return { ...workspace, replyDrafts: Object.keys(threads).length > 0 ? { ...others, [key]: threads } : others };
+type NestedDrafts = Readonly<Record<string, Readonly<Record<string, AdfNode>>>>;
+
+const setNestedDraft = (record: NestedDrafts | undefined, key: string, inner: string, draft: AdfNode | undefined) => {
+  const entries = { ...without(record?.[key], inner), ...(kept(draft) && { [inner]: draft }) };
+  const others = without(record, key);
+  return Object.keys(entries).length > 0 ? { ...others, [key]: entries } : others;
 };
+
+export const setReplyDraft = (workspace: Workspace, key: string, thread: string, draft: AdfNode | undefined): Workspace => ({
+  ...workspace,
+  replyDrafts: setNestedDraft(workspace.replyDrafts, key, thread, draft),
+});
 
 export const clearSubmittedReplyDraft = (workspace: Workspace, key: string, thread: string, submitted: AdfNode): Workspace =>
   sameAdf(replyDraftOf(workspace, key, thread), submitted) ? setReplyDraft(workspace, key, thread, undefined) : workspace;
+
+export const editDraftOf = (workspace: Workspace, key: string, commentId: string) => workspace.editDrafts?.[key]?.[commentId];
+
+export const setEditDraft = (workspace: Workspace, key: string, commentId: string, draft: AdfNode | undefined): Workspace => ({
+  ...workspace,
+  editDrafts: setNestedDraft(workspace.editDrafts, key, commentId, draft),
+});
+
+export const clearSubmittedEditDraft = (workspace: Workspace, key: string, commentId: string, submitted: AdfNode): Workspace =>
+  sameAdf(editDraftOf(workspace, key, commentId), submitted) ? setEditDraft(workspace, key, commentId, undefined) : workspace;
+
+export const pruneEditDrafts = (workspace: Workspace, key: string, existingIds: readonly string[]): Workspace => {
+  const existing = new Set(existingIds);
+  const stale = Object.keys(workspace.editDrafts?.[key] ?? {}).filter((id) => !existing.has(id));
+  return stale.reduce((current, id) => setEditDraft(current, key, id, undefined), workspace);
+};
 
 export const migrateLegacyDrafts = (workspace: Workspace): Workspace => {
   if (Object.keys(workspace.drafts).length === 0) return workspace;
@@ -219,6 +248,44 @@ export const migrateLegacyDrafts = (workspace: Workspace): Workspace => {
 
 export const migrateWorkspaces = (workspaces: typeof Workspaces.Type): Record<string, Workspace> =>
   Object.fromEntries(Object.entries(workspaces).map(([id, workspace]) => [id, migrateLegacyDrafts(workspace)]));
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+const docsOnly = (value: unknown): Record<string, AdfNode> =>
+  isRecord(value) ? Object.fromEntries(Object.entries(value).filter((entry): entry is [string, AdfNode] => isAdfDoc(entry[1]))) : {};
+
+const nestedDocsOnly = (value: unknown): Record<string, Record<string, AdfNode>> =>
+  isRecord(value)
+    ? Object.fromEntries(
+        Object.entries(value)
+          .map(([key, inner]) => [key, docsOnly(inner)] as const)
+          .filter(([, inner]) => Object.keys(inner).length > 0),
+      )
+    : {};
+
+const isWorkspace = Schema.is(Workspace);
+
+export const sanitizeWorkspace = (value: unknown): Workspace | undefined => {
+  if (!isRecord(value)) return undefined;
+  const cleaned = {
+    ...value,
+    commentDrafts: docsOnly(value.commentDrafts),
+    replyDrafts: nestedDocsOnly(value.replyDrafts),
+    editDrafts: nestedDocsOnly(value.editDrafts),
+  };
+  return isWorkspace(cleaned) ? cleaned : undefined;
+};
+
+export const restoreWorkspaces = (value: unknown): Record<string, Workspace> =>
+  isRecord(value)
+    ? Object.fromEntries(
+        Object.entries(value).flatMap(([id, stored]) => {
+          const workspace = sanitizeWorkspace(stored);
+          return workspace ? [[id, migrateLegacyDrafts(workspace)] as const] : [];
+        }),
+      )
+    : {};
 
 const boldLine = (text: string): AdfNode => ({ type: "paragraph", content: [{ type: "text", text, marks: [{ type: "strong" }] }] });
 

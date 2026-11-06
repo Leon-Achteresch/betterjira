@@ -6,13 +6,18 @@ import {
   EMPTY_WORKSPACE,
   RECENT_ISSUE_LIMIT,
   Workspaces,
+  clearSubmittedEditDraft,
   clearSubmittedMainDraft,
   clearSubmittedReplyDraft,
+  editDraftOf,
   mainDraftOf,
   migrateLegacyDrafts,
   migrateWorkspaces,
+  pruneEditDrafts,
   rememberIssue,
   replyDraftOf,
+  restoreWorkspaces,
+  setEditDraft,
   setIssueContext,
   setMainDraft,
   setReplyDraft,
@@ -255,5 +260,76 @@ describe("Kommentarentwürfe als ADF", () => {
     expect(result.content?.[2]?.type).toBe("bulletList");
     expect(ADF_COMMENT_TEMPLATES.map((template) => template.label)).toEqual(["Statusupdate", "Rückfrage", "Übergabe"]);
     expect(ADF_COMMENT_TEMPLATES.every((template) => isEditableAdf(appendBlocks(undefined, template.blocks)))).toBe(true);
+  });
+});
+
+describe("Bearbeitungsentwürfe", () => {
+  it("speichert je Ticket und Kommentar-ID und verwirft leere Entwürfe", () => {
+    const workspace = setEditDraft(EMPTY_WORKSPACE, "A-1", "10", doc("Neu"));
+    expect(editDraftOf(workspace, "A-1", "10")).toEqual(doc("Neu"));
+    expect(editDraftOf(workspace, "A-1", "11")).toBeUndefined();
+    expect(editDraftOf(workspace, "A-2", "10")).toBeUndefined();
+    expect(setEditDraft(workspace, "A-1", "10", { type: "doc", version: 1, content: [{ type: "paragraph" }] }).editDrafts).toEqual({});
+  });
+
+  it("löscht nach dem Speichern nur einen Entwurf, der dem gesendeten Inhalt gleicht", () => {
+    const workspace = setEditDraft(EMPTY_WORKSPACE, "A-1", "10", doc("Neu"));
+    expect(editDraftOf(clearSubmittedEditDraft(workspace, "A-1", "10", doc("Neu")), "A-1", "10")).toBeUndefined();
+    expect(editDraftOf(clearSubmittedEditDraft(workspace, "A-1", "10", doc("Alt")), "A-1", "10")).toEqual(doc("Neu"));
+  });
+
+  it("zählt ein Ticket mit Bearbeitungsentwurf als angefangen", () => {
+    const items = workQueueItems(setEditDraft(EMPTY_WORKSPACE, "A-1", "10", doc("Neu")), "drafts");
+    expect(items.map((item) => [item.key, item.hasDraft])).toEqual([["A-1", true]]);
+  });
+
+  it("räumt Entwürfe zu nicht mehr vorhandenen Kommentaren auf", () => {
+    let workspace = setEditDraft(EMPTY_WORKSPACE, "A-1", "10", doc("Bleibt"));
+    workspace = setEditDraft(workspace, "A-1", "11", doc("Weg"));
+    workspace = setEditDraft(workspace, "A-2", "20", doc("Anderes Ticket"));
+    const pruned = pruneEditDrafts(workspace, "A-1", ["10", "12"]);
+    expect(pruned.editDrafts).toEqual({ "A-1": { "10": doc("Bleibt") }, "A-2": { "20": doc("Anderes Ticket") } });
+    expect(pruneEditDrafts(pruned, "A-1", ["10"])).toBe(pruned);
+    expect(pruneEditDrafts(pruned, "A-1", []).editDrafts).toEqual({ "A-2": { "20": doc("Anderes Ticket") } });
+  });
+
+  it("liest gespeicherte Arbeitsbereiche mit und ohne editDrafts", () => {
+    const legacy = { recent: [], pinned: [], drafts: {}, newestFirst: false };
+    expect(Schema.is(Workspaces)({ a: legacy })).toBe(true);
+    expect(Schema.is(Workspaces)({ a: { ...legacy, editDrafts: { "A-1": { "10": doc("x") } } } })).toBe(true);
+  });
+});
+
+describe("Gespeicherte Arbeitsbereiche lesen", () => {
+  const issue = { key: "A-1", summary: "Ticket" };
+  const base = { recent: [issue], pinned: [issue], drafts: {}, newestFirst: true };
+
+  it("behält recent und pinned, wenn Entwürfe kaputt gespeichert sind", () => {
+    const restored = restoreWorkspaces({
+      a: {
+        ...base,
+        commentDrafts: { "A-1": "Text", "A-2": doc("Bleibt") },
+        replyDrafts: null,
+        editDrafts: { "A-1": { "10": "Text", "11": doc("Gültig") }, "A-3": "kaputt" },
+      },
+    });
+    expect(restored.a?.recent).toEqual([issue]);
+    expect(restored.a?.pinned).toEqual([issue]);
+    expect(restored.a?.newestFirst).toBe(true);
+    expect(restored.a?.commentDrafts).toEqual({ "A-2": doc("Bleibt") });
+    expect(restored.a?.replyDrafts).toEqual({});
+    expect(restored.a?.editDrafts).toEqual({ "A-1": { "11": doc("Gültig") } });
+  });
+
+  it("verwirft nur den Arbeitsbereich, der sich auch bereinigt nicht lesen lässt", () => {
+    const restored = restoreWorkspaces({ a: base, b: { recent: "kaputt" }, c: null });
+    expect(Object.keys(restored)).toEqual(["a"]);
+    expect(restoreWorkspaces("kaputt")).toEqual({});
+  });
+
+  it("überführt alte Textentwürfe weiterhin", () => {
+    const restored = restoreWorkspaces({ a: { ...base, drafts: { "A-1": "Hallo" } } });
+    expect(restored.a?.drafts).toEqual({});
+    expect(mainDraftOf(restored.a!, "A-1")).toEqual(doc("Hallo"));
   });
 });

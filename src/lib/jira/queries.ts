@@ -20,6 +20,7 @@ export const jiraKeys = {
   jqlValidation: (jql: string) => ["jira", "jql-validation", jql] as const,
   issue: (key: string) => ["jira", "issue", key] as const,
   comments: (key: string) => ["jira", "comments", key] as const,
+  commentPermissions: (key: string) => ["jira", "comment-permissions", key] as const,
   mentionSearch: (issueKey: string, query: string) => ["jira", "mention-search", issueKey, query] as const,
   transitions: (key: string) => ["jira", "transitions", key] as const,
   userSearch: (query: string, issueKey: string, assignee: boolean) => ["jira", "user-search", query, issueKey, assignee] as const,
