@@ -1,7 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Effect } from "effect";
 import {
-  addComment,
   addWorklog,
   attachmentImage,
   editIssue,
@@ -34,9 +33,6 @@ export const useJiraEditIssue = (key: string) =>
   useIssueMutation(key, (fields: Record<string, unknown>) =>
     editIssue(key, fields),
   );
-
-export const useJiraAddComment = (key: string) =>
-  useIssueMutation(key, (body: string) => addComment(key, body));
 
 export const useJiraPostComment = (key: string) =>
   useIssueMutation(key, (body: AdfNode) => postComment(key, body), [jiraKeys.comments(key)]);

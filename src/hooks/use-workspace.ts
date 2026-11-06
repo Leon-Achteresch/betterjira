@@ -5,6 +5,7 @@ import { persist } from "zustand/middleware";
 import { useJiraMyself, useJiraSite } from "@/lib/jira/queries";
 import {
   EMPTY_WORKSPACE,
+  migrateWorkspaces,
   Workspaces,
   workspaceId,
   type Workspace,
@@ -33,7 +34,7 @@ export const useWorkspaceStore = create<WorkspaceState>()(
       name: "betterjira-workspaces",
       merge: (persisted, current) =>
         Schema.is(PersistedState)(persisted)
-          ? { ...current, workspaces: persisted.workspaces }
+          ? { ...current, workspaces: migrateWorkspaces(persisted.workspaces) }
           : current,
     },
   ),

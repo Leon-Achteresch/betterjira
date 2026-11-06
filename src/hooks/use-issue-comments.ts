@@ -1,31 +1,40 @@
-import { useRef, type FormEvent, type KeyboardEvent } from "react";
+import { useRef, type FormEvent } from "react";
 import { toast } from "sonner";
-import { useJiraAddComment } from "@/hooks/jira/use-issue-mutations";
-import { useWorkspace } from "@/hooks/use-workspace";
+import type { AdfEditorHandle } from "@/components/adf-editor";
+import { useIssueCommentList } from "@/hooks/jira/use-issue-comment-list";
+import { useJiraPostComment } from "@/hooks/jira/use-issue-mutations";
 import { useCommentComposer } from "@/hooks/use-comment-composer";
-import { appendTemplate, clearSubmittedDraft, setCommentDraft } from "@/lib/workspace";
+import { useWorkspace } from "@/hooks/use-workspace";
+import { appendBlocks, hasSendableContent, type AdfNode } from "@/lib/jira/adf";
+import { buildThreads } from "@/lib/jira/comment-thread";
+import { issueParticipants } from "@/lib/jira/people";
 import type { JiraIssueDetail } from "@/lib/jira/queries";
+import { clearSubmittedMainDraft, mainDraftOf, setMainDraft } from "@/lib/workspace";
 
-type Comment = NonNullable<JiraIssueDetail["fields"]["comment"]>["comments"][number];
+type ListState = "loading" | "error" | "ready";
 
-export function useIssueComments(issueKey: string, comments: readonly Comment[]) {
-  const add = useJiraAddComment(issueKey);
+export function useIssueComments(issue: JiraIssueDetail) {
+  const issueKey = issue.key;
+  const list = useIssueCommentList(issueKey);
+  const post = useJiraPostComment(issueKey);
   const { workspace, update, ready } = useWorkspace();
   const submitting = useRef(false);
-  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const editorRef = useRef<AdfEditorHandle>(null);
   const templateInserted = useRef(false);
-  const draft = workspace.drafts[issueKey] ?? "";
-  const composer = useCommentComposer(!!draft || add.isPending);
-  const setDraft = (value: string) => update((current) => setCommentDraft(current, issueKey, value));
+  const draft = mainDraftOf(workspace, issueKey);
+  const composer = useCommentComposer(!!draft || post.isPending);
+  const comments = list.data ?? [];
+  const setDraft = (value: AdfNode | undefined) => update((current) => setMainDraft(current, issueKey, value));
+  const listState: ListState = list.isPending || (list.isError && list.isFetching) ? "loading" : list.isError ? "error" : "ready";
 
   const submit = async (event?: FormEvent) => {
     event?.preventDefault();
-    if (!ready || !draft.trim() || submitting.current || add.isPending) return;
+    if (!ready || !draft || !hasSendableContent(draft) || submitting.current || post.isPending) return;
     submitting.current = true;
     const submitted = draft;
     try {
-      await add.mutateAsync(submitted.trim());
-      update((current) => clearSubmittedDraft(current, issueKey, submitted));
+      await post.mutateAsync(submitted);
+      update((current) => clearSubmittedMainDraft(current, issueKey, submitted));
       toast.success("Kommentar hinzugefügt");
     } catch {
       return;
@@ -38,47 +47,42 @@ export function useIssueComments(issueKey: string, comments: readonly Comment[])
     draft,
     composer,
     ready,
-    inputRef,
+    editorRef,
     setDraft,
     submit,
-    pending: add.isPending,
-    error: add.error?.message,
+    canSend: ready && !!draft && hasSendableContent(draft) && !post.isPending,
+    pending: post.isPending,
+    error: post.error?.message,
+    participants: issueParticipants(issue.fields, comments),
+    threads: buildThreads(comments, workspace.newestFirst),
+    hasComments: comments.length > 0,
+    listState,
+    listError: list.error?.message,
+    reload: () => void list.refetch(),
     newestFirst: workspace.newestFirst,
-    comments: [...comments].sort((a, b) =>
-      workspace.newestFirst
-        ? Date.parse(b.created) - Date.parse(a.created)
-        : Date.parse(a.created) - Date.parse(b.created),
-    ),
     toggleOrder: () => update((current) => ({ ...current, newestFirst: !current.newestFirst })),
-    insertTemplate: (body: string) => {
+    insertTemplate: (blocks: readonly AdfNode[]) => {
       templateInserted.current = true;
-      setDraft(appendTemplate(draft, body));
-      inputRef.current?.focus();
+      setDraft(appendBlocks(draft, blocks));
+      editorRef.current?.focus();
     },
     onTemplateMenuClose: (event: Event) => {
       if (!templateInserted.current) return;
       templateInserted.current = false;
       event.preventDefault();
-      inputRef.current?.focus();
+      editorRef.current?.focus();
     },
     discard: () => {
+      if (!draft) return;
       const discarded = draft;
-      setDraft("");
+      setDraft(undefined);
       toast("Entwurf verworfen", {
         action: {
           label: "Rückgängig",
           onClick: () =>
-            update((current) =>
-              setCommentDraft(current, issueKey, appendTemplate(current.drafts[issueKey] ?? "", discarded)),
-            ),
+            update((current) => setMainDraft(current, issueKey, appendBlocks(mainDraftOf(current, issueKey), discarded.content ?? []))),
         },
       });
-    },
-    onKeyDown: (event: KeyboardEvent<HTMLTextAreaElement>) => {
-      if (event.key === "Enter" && (event.metaKey || event.ctrlKey) && !event.nativeEvent.isComposing) {
-        event.preventDefault();
-        void submit();
-      }
     },
   };
 }

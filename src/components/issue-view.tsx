@@ -14,10 +14,12 @@ import { JiraStatusBadge } from "@/components/jira-status-badge";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { IssueActions } from "@/components/issues/issue-actions";
+import { useIssueCommentList } from "@/hooks/jira/use-issue-comment-list";
 import { useIssueReadingPosition } from "@/hooks/use-issue-reading-position";
 import { useIssueActions } from "@/hooks/use-issue-actions";
 import { useIssueDevelopmentPanel } from "@/hooks/scm/use-issue-development-panel";
 import { EASE_OUT } from "@/lib/ease";
+import { commentCount } from "@/lib/jira/comment-thread";
 import { useJiraIssue, useJiraSite, type JiraIssueDetail } from "@/lib/jira/queries";
 import { cn } from "@/lib/utils";
 
@@ -149,6 +151,7 @@ function IssueViewSkeleton() {
 export function IssueView({ issueKey }: { issueKey: string }) {
   const site = useJiraSite();
   const issue = useJiraIssue(issueKey);
+  const commentList = useIssueCommentList(issueKey);
   const reduce = useReducedMotion();
   useIssueReadingPosition(issueKey, !!issue.data);
   const actions = useIssueActions(issue.data, site.data?.siteUrl);
@@ -167,7 +170,6 @@ export function IssueView({ issueKey }: { issueKey: string }) {
   if (!issue.data) return <IssueViewSkeleton />;
   const { fields } = issue.data;
   const subtasks = fields.subtasks ?? [];
-  const comments = fields.comment?.comments ?? [];
 
   return (
     <motion.article variants={container} initial="hidden" animate="show" className={LAYOUT.article}>
@@ -233,8 +235,8 @@ export function IssueView({ issueKey }: { issueKey: string }) {
 
         {subtasks.length > 0 && <Subtasks subtasks={subtasks} />}
 
-        <Section title={`Kommentare · ${comments.length}`}>
-          <IssueComments key={issue.data.key} issueKey={issue.data.key} comments={comments} />
+        <Section title={`Kommentare · ${commentCount(commentList.data, fields.comment)}`}>
+          <IssueComments key={issue.data.key} issue={issue.data} />
         </Section>
       </div>
 

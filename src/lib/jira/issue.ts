@@ -12,8 +12,6 @@ const WikiFields = Schema.Struct({
 
 export const editIssue = (key: string, fields: Record<string, unknown>) =>
   jiraSend(issuePath(key), json("PUT", { fields }));
-export const addComment = (key: string, body: string) =>
-  jiraSend(`${issuePath(key)}/comment`, json("POST", { body }), "api/2");
 export const addWorklog = (
   key: string,
   worklog: { timeSpent: string; started: string; comment?: string },

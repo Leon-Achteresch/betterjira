@@ -182,32 +182,6 @@ export const togglePinnedIssue = (workspace: Workspace, issue: RememberedIssue):
     : [...workspace.pinned, issue],
 });
 
-export const setCommentDraft = (workspace: Workspace, key: string, draft: string): Workspace => {
-  const { [key]: previous, ...others } = workspace.drafts;
-  return { ...workspace, drafts: draft ? { ...others, [key]: draft } : others };
-};
-
-export const clearSubmittedDraft = (workspace: Workspace, key: string, submitted: string): Workspace =>
-  workspace.drafts[key] === submitted ? setCommentDraft(workspace, key, "") : workspace;
-
-export const COMMENT_TEMPLATES = [
-  {
-    label: "Statusupdate",
-    body: "*Stand*\n\n* Nächster Schritt:\n* Offene Fragen:",
-  },
-  {
-    label: "Rückfrage",
-    body: "*Rückfrage*\n\n* Was ich noch brauche:\n* Warum das wichtig ist:",
-  },
-  {
-    label: "Übergabe",
-    body: "*Übergabe*\n\n* Erledigt:\n* Noch offen:\n* Zum Testen:",
-  },
-] as const;
-
-export const appendTemplate = (draft: string, template: string) =>
-  draft.trim() ? `${draft.trimEnd()}\n\n${template}` : template;
-
 const without = <V>(record: Readonly<Record<string, V>> | undefined, key: string): Record<string, V> =>
   Object.fromEntries(Object.entries(record ?? {}).filter(([entry]) => entry !== key));
 
