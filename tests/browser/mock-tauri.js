@@ -7,6 +7,7 @@ if (new URLSearchParams(location.search).get("reduce") === "1") {
   };
 }
 const scenario = new URLSearchParams(location.search).get("scenario");
+const accountId = new URLSearchParams(location.search).get("account") || "qa-user";
 const scheme = matchMedia("(prefers-color-scheme: dark)");
 const applyScheme = () => document.documentElement.classList.toggle("dark", scheme.matches);
 applyScheme();
@@ -38,7 +39,7 @@ const titles = [
   "Tastaturbedienung im Editor verbessern",
   "Übergabe an das Team vorbereiten",
 ];
-const issues = Array.from({ length: scenario === "busy" ? 35 : scenario === "ai" ? 8 : 3 }, (_, index) => ({
+const issues = Array.from({ length: scenario === "busy" ? 35 : scenario === "workspace" ? 12 : scenario === "ai" ? 8 : 3 }, (_, index) => ({
   id: String(index + 1),
   key: `DEMO-${index + 1}`,
   names: {
@@ -389,6 +390,54 @@ if (scmScenario) {
     }),
   );
 }
+if (scenario === "workspace") {
+  const stored = JSON.parse(localStorage.getItem("betterjira-workspaces") || '{"state":{"workspaces":{}},"version":0}');
+  const own = JSON.stringify(["qa-cloud", "qa-user"]);
+  const remembered = (index) => ({ key: issues[index].key, summary: issues[index].fields.summary });
+  const context = (index, extra = {}) => ({
+    summary: issues[index].fields.summary,
+    note: "",
+    scrollTop: 0,
+    visitedAt: Date.now() - (index + 1) * 7 * 60000,
+    statusName: "In Arbeit",
+    statusColor: "yellow",
+    ...extra,
+  });
+  stored.state.workspaces[own] ??= {
+    recent: issues.slice(0, 10).map((_, index) => remembered(index)),
+    pinned: [remembered(1), remembered(4)],
+    drafts: { "DEMO-3": "QA-Entwurf: Rückfrage zur Übergabe noch offen" },
+    newestFirst: false,
+    contexts: {
+      ...Object.fromEntries(issues.slice(0, 10).map((issue, index) => [issue.key, context(index)])),
+      "DEMO-1": context(0, { scrollTop: 640 }),
+      "DEMO-4": context(3, { note: "QA-Notiz: vor Freigabe mit Team abstimmen" }),
+    },
+  };
+  stored.state.workspaces[JSON.stringify(["qa-cloud", "qa-colleague"])] ??= {
+    recent: [remembered(11)],
+    pinned: [],
+    drafts: { "DEMO-12": "QA-Entwurf eines anderen Kontos" },
+    newestFirst: false,
+    contexts: { "DEMO-12": context(11, { note: "QA-Notiz eines anderen Kontos" }) },
+  };
+  localStorage.setItem("betterjira-workspaces", JSON.stringify(stored));
+  if (!localStorage.getItem("betterjira-field-drafts")) {
+    const draft = (key) => JSON.stringify(["qa-cloud", "qa-user", key, "description"]);
+    localStorage.setItem(
+      "betterjira-field-drafts",
+      JSON.stringify({
+        state: {
+          drafts: {
+            [draft("DEMO-2")]: { text: "QA-Feldentwurf Beschreibung", revision: "qa-1" },
+            [draft("OPS-7")]: { text: "QA-Feldentwurf ohne bekannte Details", revision: "qa-2" },
+          },
+        },
+        version: 0,
+      }),
+    );
+  }
+}
 const callbacks = new Map();
 const listeners = new Map();
 let listenerId = 0;
@@ -446,7 +495,7 @@ const respond = async (request) => {
     }
     return { status: 204 };
   }
-  if (path === "/myself") return { body: author };
+  if (path === "/myself") return { body: { ...author, accountId } };
   if (path.startsWith("/project/search")) return { body: { isLast: true, values: [project] } };
   if (path.startsWith("/filter/my")) return { body: [] };
   if (path === "/field")
@@ -556,7 +605,11 @@ window.__TAURI_INTERNALS__ = {
     }
     if (command === "session_get" && window.__qa.sessionDelayMs)
       await new Promise((resolve) => setTimeout(resolve, window.__qa.sessionDelayMs));
-    if (command === "session_get" && scenario === "calendar-offline") return null;
+    if (command === "session_get" && (scenario === "calendar-offline" || window.__qa.signedOut)) return null;
+    if (command === "session_delete") {
+      window.__qa.signedOut = true;
+      return null;
+    }
     if (command === "session_get" && window.__qa.sessionFailure) throw "Test: Schlüsselbund gesperrt";
     if (command === "session_get")
       return JSON.stringify({
