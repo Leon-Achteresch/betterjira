@@ -1,31 +1,27 @@
 import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { openUrl } from "@tauri-apps/plugin-opener";
 import { isPermissionGranted, requestPermission, sendNotification } from "@tauri-apps/plugin-notification";
 import { Effect, Schema } from "effect";
 import { toast } from "sonner";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { jira } from "./client";
+import { describeChanges, type FeedItem } from "./notification-feed";
 import { jiraKeys, useJiraMyself, useJiraSite } from "./queries";
 
-export type JiraNotification = {
-  id: string;
-  issueKey: string;
-  summary: string;
+export type JiraNotification = FeedItem & {
   title: string;
   body: string;
   actor: { displayName: string; avatarUrls: { "48x48": string } };
-  created: number;
-  read: boolean;
 };
 
 type NotificationState = {
   items: JiraNotification[];
   checkedAt: number | null;
   receive: (items: JiraNotification[], checkedAt: number) => JiraNotification[];
-  markRead: (id: string) => void;
+  setRead: (ids: string[], read: boolean) => void;
   markAllRead: () => void;
   clear: () => void;
 };
@@ -46,11 +42,18 @@ export const useNotifications = create<NotificationState>()(
         }));
         return fresh;
       },
-      markRead: (id) => set(({ items }) => ({ items: items.map((item) => (item.id === id ? { ...item, read: true } : item)) })),
+      setRead: (ids, read) => set(({ items }) => ({ items: items.map((item) => (ids.includes(item.id) ? { ...item, read } : item)) })),
       markAllRead: () => set(({ items }) => ({ items: items.map((item) => ({ ...item, read: true })) })),
       clear: () => set({ items: [] }),
     }),
-    { name: "betterjira-notifications" },
+    {
+      name: "betterjira-notifications",
+      version: 1,
+      migrate: (persisted) => {
+        const state = persisted as { items?: Array<Partial<JiraNotification>>; checkedAt?: number | null };
+        return { ...state, items: (state.items ?? []).map((item) => ({ kind: "watching", ...item })) } as NotificationState;
+      },
+    },
   ),
 );
 
@@ -70,6 +73,7 @@ const ActivityPage = Schema.Struct({
         summary: Schema.String,
         created: Schema.String,
         reporter: Schema.optional(Schema.NullOr(Actor)),
+        assignee: Schema.optional(Schema.NullOr(Actor)),
         comment: Schema.optional(
           Schema.Struct({
             comments: Schema.Array(
@@ -90,6 +94,7 @@ const ActivityPage = Schema.Struct({
                   field: Schema.String,
                   fromString: Schema.optional(Schema.NullOr(Schema.String)),
                   toString: Schema.optional(Schema.NullOr(Schema.String)),
+                  to: Schema.optional(Schema.NullOr(Schema.String)),
                 }),
               ),
             }),
@@ -112,14 +117,6 @@ const adfText = (node: unknown, me: string): { text: string; mentioned: boolean 
   };
 };
 
-const describeChanges = (items: ReadonlyArray<{ field: string; fromString?: string | null; toString?: string | null }>) => {
-  const status = items.find((item) => item.field === "status");
-  if (status) return { title: "hat den Status geändert", body: `${status.fromString ?? "–"} → ${status.toString ?? "–"}` };
-  const assignee = items.find((item) => item.field === "assignee");
-  if (assignee) return { title: "hat die Zuweisung geändert", body: assignee.toString ? `Zugewiesen an ${assignee.toString}` : "Zuweisung entfernt" };
-  return { title: "hat das Ticket bearbeitet", body: [...new Set(items.map((item) => item.field))].join(", ") };
-};
-
 const BASE_INTERVAL = 30_000;
 const MAX_INTERVAL = 5 * 60_000;
 let quietPolls = 0;
@@ -137,20 +134,21 @@ const fetchActivity = (me: string, since: number) =>
     const jql = `(assignee = currentUser() OR reporter = currentUser() OR watcher = currentUser()) AND updated >= -${minutes}m ORDER BY updated DESC`;
     const probe = yield* jira(`/search/jql?${new URLSearchParams({ jql, fields: "updated", maxResults: "1" })}`, Probe);
     if (probe.issues.length === 0) return [];
-    const params = new URLSearchParams({ jql, fields: "summary,created,reporter,comment", expand: "changelog", maxResults: "50" });
+    const params = new URLSearchParams({ jql, fields: "summary,created,reporter,assignee,comment", expand: "changelog", maxResults: "50" });
     const { issues } = yield* jira(`/search/jql?${params}`, ActivityPage);
     const after = since - CLOCK_SKEW_MS;
     const isNew = (created: string) => Date.parse(created) > after;
     return issues.flatMap((issue): JiraNotification[] => {
-      const base = { issueKey: issue.key, summary: issue.fields.summary, read: false };
       const reporter = issue.fields.reporter;
+      const involved = reporter?.accountId === me || issue.fields.assignee?.accountId === me;
+      const base = { issueKey: issue.key, summary: issue.fields.summary, read: false, kind: involved ? ("direct" as const) : ("watching" as const) };
       const created =
         reporter && reporter.accountId !== me && isNew(issue.fields.created)
           ? [{ ...base, id: `${issue.key}:created`, title: "hat ein Ticket erstellt", body: issue.fields.summary, actor: reporter, created: Date.parse(issue.fields.created) }]
           : [];
       const changes = (issue.changelog?.histories ?? [])
         .filter((history) => history.author && history.author.accountId !== me && isNew(history.created))
-        .map((history) => ({ ...base, ...describeChanges(history.items), id: `h:${history.id}`, actor: history.author!, created: Date.parse(history.created) }));
+        .map((history) => ({ ...base, ...describeChanges(history.items, me), id: `h:${history.id}`, actor: history.author!, created: Date.parse(history.created) }));
       const comments = (issue.fields.comment?.comments ?? [])
         .filter((comment) => comment.author && comment.author.accountId !== me && isNew(comment.created))
         .map((comment) => {
@@ -158,7 +156,8 @@ const fetchActivity = (me: string, since: number) =>
           return {
             ...base,
             id: `c:${comment.id}`,
-            title: mentioned ? "hat dich erwähnt" : "hat kommentiert",
+            title: mentioned ? "hat dich in einem Kommentar erwähnt" : "hat einen Kommentar hinzugefügt",
+            ...(mentioned && { kind: "direct" as const }),
             body: text.trim().slice(0, 240),
             actor: comment.author!,
             created: Date.parse(comment.created),
@@ -182,18 +181,19 @@ const notifyNative = async (fresh: JiraNotification[]) => {
   }
 };
 
-export const openNotification = (siteUrl: string, item: JiraNotification) => {
-  useNotifications.getState().markRead(item.id);
-  void openUrl(`${siteUrl}/browse/${item.issueKey}`);
+export const openNotification = (item: JiraNotification, openIssue: (key: string) => void) => {
+  const { items, setRead } = useNotifications.getState();
+  setRead(items.filter((entry) => entry.issueKey === item.issueKey).map((entry) => entry.id), true);
+  openIssue(item.issueKey);
 };
 
-const deliver = (fresh: JiraNotification[], siteUrl: string) => {
+const deliver = (fresh: JiraNotification[], openIssue: (key: string) => void) => {
   if (fresh.length === 0) return;
   if (!document.hasFocus()) return void notifyNative(fresh).catch(() => undefined);
   for (const item of fresh.slice(0, MAX_NATIVE)) {
     toast(`${item.issueKey} · ${item.actor.displayName} ${item.title}`, {
       description: item.body,
-      action: { label: "Öffnen", onClick: () => openNotification(siteUrl, item) },
+      action: { label: "Öffnen", onClick: () => openNotification(item, openIssue) },
     });
   }
 };
@@ -203,6 +203,8 @@ export const useNotificationPoller = () => {
   const myself = useJiraMyself();
   const me = myself.data?.accountId;
   const siteUrl = site.data?.siteUrl;
+  const navigate = useNavigate();
+  const openIssue = (key: string) => void navigate({ to: "/issue/$key", params: { key } });
 
   useQuery({
     queryKey: [...jiraKeys.all, "notifications", me],
@@ -216,7 +218,7 @@ export const useNotificationPoller = () => {
       const activity = await Effect.runPromise(fetchActivity(me!, checkedAt), { signal });
       const fresh = receive(activity, startedAt);
       quietPolls = fresh.length > 0 ? 0 : quietPolls + 1;
-      deliver(fresh, siteUrl!);
+      deliver(fresh, openIssue);
       return startedAt;
     },
     enabled: !!me && !!siteUrl,

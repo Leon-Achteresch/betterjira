@@ -7,6 +7,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { useJiraProjects, useJiraSite } from "@/lib/jira/queries";
 import { useProjectPrefs } from "@/lib/project-prefs";
+import { LoginPrompt } from "@/components/shell/login-prompt";
 
 export const Route = createFileRoute("/settings/bereiche")({
   component: BereicheSettings,
@@ -24,7 +25,7 @@ function BereicheSettings() {
         <p className="text-muted-foreground">Lege fest, welche Bereiche in der Sidebar erscheinen.</p>
       </div>
       {!site.isPending && !site.data ? (
-        <p className="text-muted-foreground">Melde dich auf der Startseite an, um Bereiche zu sehen.</p>
+        <LoginPrompt description="Melde dich an, um Bereiche zu verwalten." />
       ) : projects.isPending ? (
         <Spinner />
       ) : projects.error ? (

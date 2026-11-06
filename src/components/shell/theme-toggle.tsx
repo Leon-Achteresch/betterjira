@@ -1,7 +1,7 @@
 import { Monitor, Moon, Sun } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { useTheme } from "next-themes";
 import { Tooltip } from "@/components/motion/tooltip";
+import { useTheme } from "@/hooks/use-theme";
 import { SPRING_PRESS, SPRING_SWAP } from "@/lib/ease";
 
 const THEMES = {
@@ -10,15 +10,10 @@ const THEMES = {
   dark: { next: "system", label: "Design: Dunkel", Icon: Moon },
 } as const;
 
-type ThemeName = keyof typeof THEMES;
-
-const isThemeName = (value: string | undefined): value is ThemeName => value !== undefined && value in THEMES;
-
 export function ThemeToggle() {
   const { theme, setTheme } = useTheme();
   const reduceMotion = useReducedMotion();
-  const current = isThemeName(theme) ? theme : "system";
-  const { next, label, Icon } = THEMES[current];
+  const { next, label, Icon } = THEMES[theme];
   const offset = reduceMotion ? 0 : 6;
 
   return (
@@ -33,7 +28,7 @@ export function ThemeToggle() {
       >
         <AnimatePresence mode="popLayout" initial={false}>
           <motion.span
-            key={current}
+            key={theme}
             initial={{ opacity: 0, y: offset }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -offset, transition: { duration: 0.12 } }}

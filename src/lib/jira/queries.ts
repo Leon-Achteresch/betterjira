@@ -516,14 +516,15 @@ const IssueDetail = Schema.Struct({
 
 export type JiraIssueDetail = typeof IssueDetail.Type;
 
+export const issueQuery = (key: string) => ({
+  queryKey: jiraKeys.issue(key),
+  queryFn: ({ signal }: { signal: AbortSignal }) =>
+    Effect.runPromise(jira(`/issue/${encodeURIComponent(key)}?fields=*all&expand=names,editmeta`, IssueDetail), { signal }),
+});
+
 export const useJiraIssue = (key: string) => {
   const site = useJiraSite();
-  return useQuery({
-    queryKey: jiraKeys.issue(key),
-    queryFn: ({ signal }) =>
-      Effect.runPromise(jira(`/issue/${encodeURIComponent(key)}?fields=*all&expand=names,editmeta`, IssueDetail), { signal }),
-    enabled: !!site.data,
-  });
+  return useQuery({ ...issueQuery(key), enabled: !!site.data });
 };
 
 const TransitionField = Schema.Struct({

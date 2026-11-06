@@ -8,13 +8,18 @@ import {
   FolderKanbanIcon,
   FunnelIcon,
   HomeIcon,
+  KeyboardIcon,
   LayersIcon,
   SparklesIcon,
   LogInIcon,
   LogOutIcon,
+  MonitorIcon,
+  MoonIcon,
   PanelLeftIcon,
   SettingsIcon,
   StarIcon,
+  SunIcon,
+  TerminalSquareIcon,
   PinIcon,
   HistoryIcon,
 } from "lucide-react";
@@ -32,10 +37,19 @@ import {
 } from "@/lib/jira/queries";
 import { IS_MAC } from "@/lib/platform";
 import { useProjectPrefs } from "@/lib/project-prefs";
+import { shortcutHint } from "@/lib/shortcuts";
+import { useShortcutHelp } from "@/hooks/use-app-shortcuts";
+import { type ThemePreference, useTheme } from "@/hooks/use-theme";
 import { useWorkspace } from "@/hooks/use-workspace";
 
 const MOD = IS_MAC ? "⌘" : "Strg";
 const ISSUE_KEY = /^[a-z][a-z0-9_]*-\d+$/i;
+
+const THEMES: { value: ThemePreference; label: string; icon: typeof SunIcon }[] = [
+  { value: "system", label: "Design: wie System", icon: MonitorIcon },
+  { value: "light", label: "Design: Hell", icon: SunIcon },
+  { value: "dark", label: "Design: Dunkel", icon: MoonIcon },
+];
 
 export function useAppCommandPalette() {
   const [open, setOpen] = useState(false);
@@ -51,6 +65,8 @@ export function useAppCommandPalette() {
   const logout = useJiraLogout();
   const hiddenIds = useProjectPrefs((state) => state.hiddenProjectIds);
   const favoriteIds = useProjectPrefs((state) => state.projectIds);
+  const { theme, setTheme } = useTheme();
+  const openShortcutHelp = useShortcutHelp((state) => state.setOpen);
 
   const text = debounced.replace(/[\\"]/g, "\\$&");
   const search = useJiraIssues(`text ~ "${text}*" ORDER BY updated DESC`, open && debounced.length >= 2);
@@ -179,13 +195,24 @@ export function useAppCommandPalette() {
       group: "Navigation",
       icon: HomeIcon,
       keywords: ["home", "dashboard"],
+      hint: shortcutHint("home"),
       onSelect: () => void navigate({ to: "/" }),
+    },
+    {
+      id: "nav:search",
+      label: "JQL-Suche",
+      group: "Navigation",
+      icon: TerminalSquareIcon,
+      keywords: ["jql", "suche", "query"],
+      hint: shortcutHint("search"),
+      onSelect: () => void navigate({ to: "/suche", search: {} }),
     },
     {
       id: "nav:settings",
       label: "Einstellungen",
       group: "Navigation",
       icon: SettingsIcon,
+      hint: shortcutHint("settings"),
       onSelect: () => void navigate({ to: "/settings" }),
     },
     {
@@ -210,6 +237,24 @@ export function useAppCommandPalette() {
       hint: `${MOD} B`,
       onSelect: toggleSidebar,
     },
+    {
+      id: "action:shortcuts",
+      label: "Tastenkürzel anzeigen",
+      group: "Aktionen",
+      icon: KeyboardIcon,
+      keywords: ["shortcuts", "hotkeys", "tastatur"],
+      hint: shortcutHint("help"),
+      onSelect: () => openShortcutHelp(true),
+    },
+    ...THEMES.map((option) => ({
+      id: `theme:${option.value}`,
+      label: option.label,
+      group: "Darstellung",
+      icon: option.icon,
+      keywords: ["theme", "design", "darstellung", "dark mode", "dunkelmodus", "hellmodus"],
+      badge: theme === option.value ? <span className="text-[10px] text-muted-foreground">Aktiv</span> : undefined,
+      onSelect: () => setTheme(option.value),
+    })),
     ...(site.data
       ? [
           {

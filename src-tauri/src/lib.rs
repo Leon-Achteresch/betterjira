@@ -7,6 +7,45 @@ mod oauth;
 mod scm;
 mod secrets;
 
+#[cfg(target_os = "macos")]
+fn app_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
+    use tauri::menu::{PredefinedMenuItem, Submenu};
+    let app_items = Submenu::with_items(
+        app,
+        "betterjira",
+        true,
+        &[
+            &PredefinedMenuItem::about(app, None, None)?,
+            &PredefinedMenuItem::separator(app)?,
+            &PredefinedMenuItem::hide(app, None)?,
+            &PredefinedMenuItem::hide_others(app, None)?,
+            &PredefinedMenuItem::separator(app)?,
+            &PredefinedMenuItem::quit(app, None)?,
+        ],
+    )?;
+    let edit = Submenu::with_items(
+        app,
+        "Bearbeiten",
+        true,
+        &[
+            &PredefinedMenuItem::undo(app, None)?,
+            &PredefinedMenuItem::redo(app, None)?,
+            &PredefinedMenuItem::separator(app)?,
+            &PredefinedMenuItem::cut(app, None)?,
+            &PredefinedMenuItem::copy(app, None)?,
+            &PredefinedMenuItem::paste(app, None)?,
+            &PredefinedMenuItem::select_all(app, None)?,
+        ],
+    )?;
+    let window = Submenu::with_items(
+        app,
+        "Fenster",
+        true,
+        &[&PredefinedMenuItem::minimize(app, None)?, &PredefinedMenuItem::fullscreen(app, None)?],
+    )?;
+    Menu::with_items(app, &[&app_items, &edit, &window])
+}
+
 const SESSION_KEY: &str = "atlassian-session";
 
 #[tauri::command]
@@ -56,6 +95,8 @@ pub fn run() {
         ])
         .setup(|app| {
             secrets::init(app.path().app_data_dir()?);
+            #[cfg(target_os = "macos")]
+            app.set_menu(app_menu(app.handle())?)?;
             let open = MenuItem::with_id(app, "open", "betterjira öffnen", true, None::<&str>)?;
             let quit = MenuItem::with_id(app, "quit", "Beenden", true, None::<&str>)?;
             let mut tray = TrayIconBuilder::with_id("main")

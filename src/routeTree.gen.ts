@@ -19,6 +19,7 @@ import { Route as SettingsIndexRouteImport } from './routes/settings/index'
 import { Route as SettingsBereicheRouteImport } from './routes/settings/bereiche'
 import { Route as SettingsBriefingRouteImport } from './routes/settings/briefing'
 import { Route as SettingsCodeHostingRouteImport } from './routes/settings/code-hosting'
+import { Route as SettingsDarstellungRouteImport } from './routes/settings/darstellung'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -70,6 +71,11 @@ const SettingsCodeHostingRoute = SettingsCodeHostingRouteImport.update({
   path: '/code-hosting',
   getParentRoute: () => SettingsRoute,
 } as any)
+const SettingsDarstellungRoute = SettingsDarstellungRouteImport.update({
+  id: '/darstellung',
+  path: '/darstellung',
+  getParentRoute: () => SettingsRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -81,6 +87,7 @@ export interface FileRoutesByFullPath {
   '/settings/bereiche': typeof SettingsBereicheRoute
   '/settings/briefing': typeof SettingsBriefingRoute
   '/settings/code-hosting': typeof SettingsCodeHostingRoute
+  '/settings/darstellung': typeof SettingsDarstellungRoute
   '/settings/': typeof SettingsIndexRoute
 }
 export interface FileRoutesByTo {
@@ -92,6 +99,7 @@ export interface FileRoutesByTo {
   '/settings/bereiche': typeof SettingsBereicheRoute
   '/settings/briefing': typeof SettingsBriefingRoute
   '/settings/code-hosting': typeof SettingsCodeHostingRoute
+  '/settings/darstellung': typeof SettingsDarstellungRoute
   '/settings': typeof SettingsIndexRoute
 }
 export interface FileRoutesById {
@@ -105,6 +113,7 @@ export interface FileRoutesById {
   '/settings/bereiche': typeof SettingsBereicheRoute
   '/settings/briefing': typeof SettingsBriefingRoute
   '/settings/code-hosting': typeof SettingsCodeHostingRoute
+  '/settings/darstellung': typeof SettingsDarstellungRoute
   '/settings/': typeof SettingsIndexRoute
 }
 export interface FileRouteTypes {
@@ -119,6 +128,7 @@ export interface FileRouteTypes {
     | '/settings/bereiche'
     | '/settings/briefing'
     | '/settings/code-hosting'
+    | '/settings/darstellung'
     | '/settings/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -130,6 +140,7 @@ export interface FileRouteTypes {
     | '/settings/bereiche'
     | '/settings/briefing'
     | '/settings/code-hosting'
+    | '/settings/darstellung'
     | '/settings'
   id:
     | '__root__'
@@ -142,6 +153,7 @@ export interface FileRouteTypes {
     | '/settings/bereiche'
     | '/settings/briefing'
     | '/settings/code-hosting'
+    | '/settings/darstellung'
     | '/settings/'
   fileRoutesById: FileRoutesById
 }
@@ -226,6 +238,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsCodeHostingRouteImport
       parentRoute: typeof SettingsRoute
     }
+    '/settings/darstellung': {
+      id: '/settings/darstellung'
+      path: '/darstellung'
+      fullPath: '/settings/darstellung'
+      preLoaderRoute: typeof SettingsDarstellungRouteImport
+      parentRoute: typeof SettingsRoute
+    }
   }
 }
 
@@ -233,6 +252,7 @@ interface SettingsRouteChildren {
   SettingsBereicheRoute: typeof SettingsBereicheRoute
   SettingsBriefingRoute: typeof SettingsBriefingRoute
   SettingsCodeHostingRoute: typeof SettingsCodeHostingRoute
+  SettingsDarstellungRoute: typeof SettingsDarstellungRoute
   SettingsIndexRoute: typeof SettingsIndexRoute
 }
 
@@ -240,6 +260,7 @@ const SettingsRouteChildren: SettingsRouteChildren = {
   SettingsBereicheRoute: SettingsBereicheRoute,
   SettingsBriefingRoute: SettingsBriefingRoute,
   SettingsCodeHostingRoute: SettingsCodeHostingRoute,
+  SettingsDarstellungRoute: SettingsDarstellungRoute,
   SettingsIndexRoute: SettingsIndexRoute,
 }
 

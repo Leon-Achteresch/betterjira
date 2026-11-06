@@ -5,6 +5,7 @@ import { FilterJqlPanel } from "@/components/issues/filter-jql-panel";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useFilterEditor } from "@/hooks/use-filter-editor";
 import { useJiraSite } from "@/lib/jira/queries";
+import { LoginPrompt } from "@/components/shell/login-prompt";
 
 export const Route = createFileRoute("/filter/$id")({
   component: Filter,
@@ -16,7 +17,7 @@ function Filter() {
   const editor = useFilterEditor(id);
 
   if (!site.isPending && !site.data) {
-    return <p className="p-8 text-muted-foreground">Melde dich auf der Startseite an, um Filter zu sehen.</p>;
+    return <div className="p-8"><LoginPrompt description="Melde dich an, um Filter zu sehen." /></div>;
   }
   return (
     <div className="flex flex-col gap-6 p-8">

@@ -256,7 +256,7 @@ export function IssueGrid({
                       variants={row}
                       exit="exit"
                       data-state={selectedKeys.has(issue.key) ? "selected" : undefined}
-                      className="group/row relative"
+                      className="group/row relative has-[a[data-row-link]:focus-visible]:bg-muted"
                     >
                       <TableCell className="relative z-20 w-10">
                         <Checkbox
@@ -271,7 +271,7 @@ export function IssueGrid({
                           className={cn(
                             dense ? "py-1" : "py-2.5",
                             column.id === KEY_COLUMN &&
-                              "sticky left-0 z-10 bg-background transition-colors group-hover/row:bg-muted group-data-[state=selected]/row:bg-muted",
+                              "sticky left-0 z-10 bg-background transition-colors group-hover/row:bg-muted group-data-[state=selected]/row:bg-muted group-has-[a[data-row-link]:focus-visible]/row:bg-muted",
                           )}
                         >
                           <IssueCell issue={issue} column={column.id} />

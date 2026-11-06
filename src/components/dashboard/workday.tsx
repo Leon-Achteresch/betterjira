@@ -205,6 +205,7 @@ function IssueSection({
             <Link
               to="/issue/$key"
               params={{ key: issue.key }}
+              data-row-link
               className={cn(
                 "truncate outline-none after:absolute after:inset-0 after:rounded-md",
                 compact && "text-sm text-muted-foreground line-through decoration-border",
