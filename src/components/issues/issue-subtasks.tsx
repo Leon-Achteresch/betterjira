@@ -9,15 +9,12 @@ import { useSubtaskOverview } from "@/hooks/jira/use-subtask-overview";
 import { useVisibleItems } from "@/hooks/use-visible-items";
 import { EASE_OUT } from "@/lib/ease";
 import { subtaskState } from "@/lib/jira/subtask-overview";
+import type { JiraIssueDetail } from "@/lib/jira/queries";
 import { cn } from "@/lib/utils";
 
 const LIST_LIMIT = 7;
 
-type Subtask = {
-  id: string;
-  key: string;
-  fields: { summary: string; status: { name: string; statusCategory: { key: string; colorName: string } } };
-};
+type Subtask = NonNullable<JiraIssueDetail["fields"]["subtasks"]>[number];
 
 const unknownLabel = (count: number) => (count === 1 ? "1 Status unbekannt" : `${count} Status unbekannt`);
 
