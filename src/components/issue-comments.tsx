@@ -1,5 +1,6 @@
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { ArrowDownWideNarrowIcon, CheckIcon, ChevronDownIcon, FileTextIcon, InfoIcon, RotateCwIcon, Trash2Icon } from "lucide-react";
+import { CommentActionsMenu } from "@/components/comment-actions-menu";
 import { CommentReplyBox } from "@/components/comment-reply-box";
 import { CommentThreadView } from "@/components/comment-thread";
 import { MentionEditor } from "@/components/mention-editor";
@@ -8,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
+import { useCommentActions } from "@/hooks/use-comment-actions";
 import { useCommentReplies } from "@/hooks/use-comment-replies";
 import { useIssueComments } from "@/hooks/use-issue-comments";
 import { EASE_OUT } from "@/lib/ease";
@@ -37,6 +39,7 @@ function CommentListSkeleton() {
 export function IssueComments({ issue }: { issue: JiraIssueDetail }) {
   const view = useIssueComments(issue);
   const replies = useCommentReplies(issue);
+  const actions = useCommentActions(issue);
   const reduce = useReducedMotion();
 
   return (
@@ -178,6 +181,10 @@ export function IssueComments({ issue }: { issue: JiraIssueDetail }) {
                 >
                   <CommentThreadView
                     thread={thread}
+                    viewFor={(comment) => ({
+                      menu: <CommentActionsMenu onCopyLink={() => actions.copyLink(comment)} />,
+                      editedNote: actions.editedNote(comment),
+                    })}
                     replyLabel={replies.labelFor(thread.root)}
                     onReply={replies.canReply ? (comment) => replies.start(comment, thread.root) : undefined}
                     replyBox={

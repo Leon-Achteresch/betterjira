@@ -1,6 +1,7 @@
 import { Effect, Schema } from "effect";
 import type { AdfNode } from "./adf";
 import { jira, jiraSend } from "./client";
+import { COMMENT_PERMISSION_KEYS, MyPermissions, toCommentPermissions } from "./comment-permissions";
 import { COMMENT_PAGE_SIZE, CommentPage, RawComment, collectCommentPages, replyPayload, toIssueComment } from "./comment-thread";
 import { toPeople } from "./people";
 
@@ -29,4 +30,9 @@ export const postReply = (key: string, body: AdfNode, threadKey: string) =>
 export const mentionSearch = (issueKey: string, query: string) =>
   jira(`/user/viewissue/search?${new URLSearchParams({ issueKey, query, maxResults: MENTION_SEARCH_RESULTS })}`, SearchResult).pipe(
     Effect.map(toPeople),
+  );
+
+export const commentPermissions = (issueKey: string) =>
+  jira(`/mypermissions?${new URLSearchParams({ issueKey, permissions: COMMENT_PERMISSION_KEYS.join(",") })}`, MyPermissions).pipe(
+    Effect.map(toCommentPermissions),
   );

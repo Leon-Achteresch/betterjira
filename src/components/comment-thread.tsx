@@ -5,26 +5,42 @@ import { de } from "date-fns/locale";
 import { ReplyIcon } from "lucide-react";
 import { AdfContent } from "@/components/adf-content";
 import { JiraUserLabel } from "@/components/jira-user-avatar";
+import { Tooltip } from "@/components/motion/tooltip";
 import { Button } from "@/components/ui/button";
 import { EASE_OUT } from "@/lib/ease";
 import type { CommentThread, IssueComment } from "@/lib/jira/comment-thread";
 
+export type CommentEntryView = {
+  menu: ReactNode;
+  editedNote?: string;
+};
+
 function CommentEntry({
   comment,
+  view,
   replyLabel,
   onReply,
 }: {
   comment: IssueComment;
+  view: CommentEntryView;
   replyLabel?: string;
   onReply?: (comment: IssueComment) => void;
 }) {
   return (
-    <article className="flex flex-col gap-2">
+    <article className="group/comment relative flex flex-col gap-2">
       <div className="flex items-center gap-2 text-sm">
         <JiraUserLabel user={comment.author} />
         <span className="text-xs text-muted-foreground" title={new Date(comment.created).toLocaleString("de-DE")}>
           {formatDistanceToNowStrict(new Date(comment.created), { locale: de, addSuffix: true })}
         </span>
+        {view.editedNote && (
+          <Tooltip content={view.editedNote}>
+            <span tabIndex={0} className="rounded-sm text-xs text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring">
+              bearbeitet
+            </span>
+          </Tooltip>
+        )}
+        <div className="ml-auto">{view.menu}</div>
       </div>
       <AdfContent doc={comment.body} className="pl-8" />
       {onReply && replyLabel && (
@@ -39,11 +55,13 @@ function CommentEntry({
 
 export function CommentThreadView({
   thread,
+  viewFor,
   replyLabel,
   onReply,
   replyBox,
 }: {
   thread: CommentThread;
+  viewFor: (comment: IssueComment) => CommentEntryView;
   replyLabel?: string;
   onReply?: (comment: IssueComment) => void;
   replyBox?: ReactNode;
@@ -51,7 +69,7 @@ export function CommentThreadView({
   const reduce = useReducedMotion();
   return (
     <div className="flex flex-col gap-3">
-      <CommentEntry comment={thread.root} replyLabel={replyLabel} onReply={onReply} />
+      <CommentEntry comment={thread.root} view={viewFor(thread.root)} replyLabel={replyLabel} onReply={onReply} />
       {thread.replies.length > 0 && (
         <ol className="ml-8 flex flex-col gap-4 border-l border-border pl-4">
           <AnimatePresence initial={false}>
@@ -64,7 +82,7 @@ export function CommentThreadView({
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.18, ease: EASE_OUT }}
               >
-                <CommentEntry comment={reply} replyLabel={replyLabel} onReply={onReply} />
+                <CommentEntry comment={reply} view={viewFor(reply)} replyLabel={replyLabel} onReply={onReply} />
               </motion.li>
             ))}
           </AnimatePresence>
