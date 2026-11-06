@@ -266,6 +266,129 @@ if (scenario === "busy") {
     localStorage.setItem("betterjira-issue-tabs", JSON.stringify({ state: { keys, pinned: [keys[1]] }, version: 0 }));
   }
 }
+const scmScenario = scenario?.startsWith("scm") ? scenario : null;
+const scmHoursAgo = (hours) => new Date(Date.now() - hours * 3600000).toISOString();
+const scmPerson = (login) => ({ login, avatarUrl: "/logo.svg" });
+const scmGraphPullRequest = (repo, number, title, state, hours, extra = {}) => ({
+  number,
+  title,
+  url: `https://github.com/${repo}/pull/${number}`,
+  state,
+  isDraft: false,
+  headRefName: `feature/DEMO-${number}`,
+  baseRefName: "main",
+  updatedAt: scmHoursAgo(hours),
+  author: scmPerson("qa-alex"),
+  latestReviews: { nodes: [] },
+  reviewRequests: { nodes: [] },
+  commits: { nodes: [{ commit: { statusCheckRollup: state === "OPEN" ? { state: "SUCCESS" } : null } }] },
+  ...extra,
+});
+const scmGithub = {
+  "qa/web-app": {
+    OPEN: [
+      scmGraphPullRequest("qa/web-app", 41, "DEMO-1 Suche für den Arbeitsalltag vereinfachen", "OPEN", 2, {
+        latestReviews: { nodes: [{ state: "APPROVED", author: scmPerson("qa-kim") }] },
+      }),
+      scmGraphPullRequest("qa/web-app", 39, "DEMO-2 Tastaturbedienung im Editor verbessern", "OPEN", 26, {
+        commits: { nodes: [{ commit: { statusCheckRollup: { state: "FAILURE" } } }] },
+        latestReviews: { nodes: [{ state: "CHANGES_REQUESTED", author: scmPerson("qa-sam") }] },
+      }),
+      scmGraphPullRequest("qa/web-app", 44, "DEMO-3 Übergabe an das Team vorbereiten", "OPEN", 5, {
+        isDraft: true,
+        commits: { nodes: [{ commit: { statusCheckRollup: { state: "PENDING" } } }] },
+      }),
+    ],
+    MERGED: [
+      scmGraphPullRequest("qa/web-app", 37, "DEMO-1 Filter in der Seitenleiste", "MERGED", 50),
+      scmGraphPullRequest("qa/web-app", 35, "Abhängigkeiten aktualisieren", "MERGED", 120),
+    ],
+    CLOSED: [scmGraphPullRequest("qa/web-app", 33, "Experiment: neue Navigation", "CLOSED", 200)],
+    totalOpen: 40,
+  },
+  "qa/design-system": {
+    OPEN: [
+      scmGraphPullRequest("qa/design-system", 12, "Tooltip-Abstände vereinheitlichen", "OPEN", 8, {
+        reviewRequests: { nodes: [{ requestedReviewer: scmPerson("qa-jo") }] },
+      }),
+    ],
+    MERGED: [scmGraphPullRequest("qa/design-system", 10, "Farbtokens für Dark Mode", "MERGED", 72)],
+    CLOSED: [],
+  },
+};
+const scmCloud = {
+  OPEN: [
+    {
+      id: 7,
+      title: "DEMO-2 Schnittstelle für Kommentare",
+      state: "OPEN",
+      draft: false,
+      updated_on: scmHoursAgo(3),
+      author: { display_name: "QA Kim", links: { avatar: { href: "/logo.svg" } } },
+      source: { branch: { name: "feature/DEMO-2-kommentare" }, commit: { hash: "abc123" } },
+      destination: { branch: { name: "main" } },
+      links: { html: { href: "https://bitbucket.org/qa-team/api/pull-requests/7" } },
+      participants: [{ user: { display_name: "QA Alex", links: {} }, role: "REVIEWER", approved: true, state: "approved" }],
+    },
+  ],
+  MERGED: [],
+  DECLINED: [],
+  SUPERSEDED: [],
+};
+const scmRespond = async ({ url, body }) => {
+  const qa = window.__qaScm;
+  qa.requests.push(url);
+  if (qa.delayMs) await new Promise((resolve) => setTimeout(resolve, qa.delayMs));
+  const json = (value, status = 200) => ({ status, body: JSON.stringify(value) });
+  if (url.startsWith("https://api.github.com/graphql")) {
+    const { query, variables } = JSON.parse(body);
+    const repo = `${variables.owner}/${variables.name}`;
+    if (qa.failRepos.includes(repo)) return json({ message: "Test: GitHub vorübergehend nicht erreichbar" }, 502);
+    if (query.includes("search(")) return json({ data: { search: { nodes: [] }, repository: { refs: { nodes: [] } } } });
+    const data = scmGithub[repo];
+    if (!data) return json({ data: { repository: null }, errors: [{ message: `Test: ${repo} nicht gefunden` }] });
+    const nodes = variables.states.flatMap((state) => data[state] ?? []);
+    const totalCount = variables.states.includes("OPEN") && data.totalOpen ? data.totalOpen : nodes.length;
+    return json({ data: { repository: { pullRequests: { totalCount, nodes } } } });
+  }
+  if (url.startsWith("https://api.bitbucket.org/2.0/repositories/qa-team/api/pullrequests")) {
+    if (qa.failRepos.includes("qa-team/api")) return json({ error: { message: "Test: Bitbucket antwortet nicht" } }, 503);
+    if (url.includes("/statuses")) return json({ values: [{ state: "INPROGRESS" }] });
+    const states = new URL(url).searchParams.getAll("state");
+    return json({ values: states.flatMap((state) => scmCloud[state] ?? []) });
+  }
+  return json({ message: `Keine Testantwort für ${url}` }, 404);
+};
+if (scmScenario) {
+  window.__qaScm = {
+    failRepos: scmScenario === "scm-partial" ? ["qa-team/api"] : [],
+    delayMs: scmScenario === "scm-slow" ? 1200 : 0,
+    requests: [],
+    opened: [],
+    hosts: scmScenario === "scm-empty" ? { hosts: {} } : { hosts: { "github.com": [{ state: "success", active: true, host: "github.com", login: "qa-user" }] } },
+  };
+  const cloudConnection = {
+    id: "qa-cloud-connection",
+    kind: "bitbucket-cloud",
+    label: "Bitbucket Cloud",
+    baseUrl: "https://bitbucket.org",
+    account: "QA Kim",
+    auth: { kind: "token", id: "qa-cloud-connection", username: "qa-kim" },
+  };
+  const links = [
+    { connectionId: "gh:github.com", repo: "qa/web-app" },
+    { connectionId: "gh:github.com", repo: "qa/design-system" },
+    { connectionId: cloudConnection.id, repo: "qa-team/api" },
+    ...(scmScenario === "scm-partial" ? [{ connectionId: "gh:git.example.test", repo: "qa/archiv" }] : []),
+  ];
+  localStorage.setItem(
+    "betterjira-scm",
+    JSON.stringify({
+      state: scmScenario === "scm-empty" ? { connections: [], repoLinks: {} } : { connections: [cloudConnection], repoLinks: { DEMO: links, OPS: links.slice(0, 1) } },
+      version: 0,
+    }),
+  );
+}
 const callbacks = new Map();
 const listeners = new Map();
 let listenerId = 0;
@@ -397,6 +520,13 @@ window.__TAURI_INTERNALS__ = {
   },
   unregisterCallback: () => {},
   invoke: async (command, args = {}) => {
+    if (command === "session_get" && scenario === "scm-offline") return null;
+    if (command === "scm_gh_hosts" && scmScenario) return JSON.stringify(window.__qaScm.hosts);
+    if (command === "scm_request" && scmScenario) return scmRespond(args);
+    if (command === "plugin:opener|open_url" && scmScenario) {
+      window.__qaScm.opened.push(args.url);
+      return null;
+    }
     if (command === "outlook_request") {
       const outlook = window.__qa.outlook;
       const input = args.request;

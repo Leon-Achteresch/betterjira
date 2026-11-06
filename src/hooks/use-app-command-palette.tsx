@@ -21,6 +21,7 @@ import {
   SunIcon,
   TerminalSquareIcon,
   TicketIcon,
+  GitPullRequestIcon,
   PinIcon,
   HistoryIcon,
 } from "lucide-react";
@@ -207,6 +208,14 @@ export function useAppCommandPalette() {
       keywords: ["tickets", "vorgänge", "meine", "beobachtet"],
       hint: shortcutHint("tickets"),
       onSelect: () => void navigate({ to: "/tickets" }),
+    },
+    {
+      id: "nav:pull-requests",
+      label: "Pull Requests",
+      group: "Navigation",
+      icon: GitPullRequestIcon,
+      keywords: ["pr", "pull requests", "review", "github", "bitbucket"],
+      onSelect: () => void navigate({ to: "/pull-requests" }),
     },
     {
       id: "nav:search",

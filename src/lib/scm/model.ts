@@ -40,6 +40,12 @@ export type NewConnection = { kind: ScmKind; baseUrl: string; username: string; 
 
 export type PullRequestDraft = { branch: string; title: string; body: string };
 
+export type PullRequestListState = "open" | "merged" | "closed";
+
+export type PullRequestPage = { pullRequests: PullRequest[]; truncated: boolean };
+
+export const PULL_REQUEST_LIST_LIMIT = 25;
+
 export const SCM_KIND_LABELS: Record<ScmKind, string> = {
   github: "GitHub",
   "bitbucket-cloud": "Bitbucket Cloud",
