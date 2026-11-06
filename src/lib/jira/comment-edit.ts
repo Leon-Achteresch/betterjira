@@ -8,6 +8,10 @@ export const editBaseline = (body: unknown): AdfNode | undefined => (canEditCont
 
 export const editBlockReason = (body: unknown): string | undefined => (canEditContent(body) ? undefined : NOT_EDITABLE_HINT);
 
+// Drafts survive only for comments that can still be edited here; any other draft could never be resumed or discarded.
+export const editableCommentIds = (comments: readonly { id: string; body?: unknown }[]): string[] =>
+  comments.filter((comment) => canEditContent(comment.body)).map((comment) => comment.id);
+
 export const canSaveEdit = (value: AdfNode | undefined, baseline: AdfNode | undefined, pending: boolean) =>
   !!value && !!baseline && !pending && hasSendableContent(value) && !sameAdf(value, baseline);
 

@@ -1,10 +1,18 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useIssueCommentList } from "@/hooks/jira/use-issue-comment-list";
 import { useJiraUpdateComment } from "@/hooks/jira/use-issue-mutations";
 import { useWorkspace } from "@/hooks/use-workspace";
 import type { AdfNode } from "@/lib/jira/adf";
-import { canSaveEdit, editBaseline, editBlockReason, editDraftToKeep, editErrorFor, saveFailureNotice } from "@/lib/jira/comment-edit";
+import {
+  canSaveEdit,
+  editableCommentIds,
+  editBaseline,
+  editBlockReason,
+  editDraftToKeep,
+  editErrorFor,
+  saveFailureNotice,
+} from "@/lib/jira/comment-edit";
 import { editPayload, type IssueComment } from "@/lib/jira/comment-thread";
 import { clearSubmittedEditDraft, editDraftOf, pruneEditDrafts, setEditDraft } from "@/lib/workspace";
 
@@ -23,12 +31,12 @@ export function useCommentEdits(issueKey: string) {
   const comments = list.data;
   const target = open ? comments?.find((comment) => comment.id === open.commentId) : undefined;
   const baseline = target ? editBaseline(target.body) : undefined;
-  const loadedIds = comments?.map((comment) => comment.id).join(",");
+  const editableIds = useMemo(() => (comments ? editableCommentIds(comments).join(",") : undefined), [comments]);
 
   useEffect(() => {
-    if (loadedIds === undefined) return;
-    update((current) => pruneEditDrafts(current, issueKey, loadedIds ? loadedIds.split(",") : []));
-  }, [issueKey, loadedIds, update]);
+    if (editableIds === undefined) return;
+    update((current) => pruneEditDrafts(current, issueKey, editableIds ? editableIds.split(",") : []));
+  }, [issueKey, editableIds, update]);
 
   const keepDraft = (commentId: string, value: AdfNode | undefined, base: AdfNode | undefined) =>
     update((current) => setEditDraft(current, issueKey, commentId, editDraftToKeep(value, base)));
@@ -95,7 +103,7 @@ export function useCommentEdits(issueKey: string) {
     discardChanges,
     closeFor: (commentId: string) => setOpen((current) => (current?.commentId === commentId ? null : current)),
     canSave: ready && canSaveEdit(open?.value, baseline, mutation.isPending),
-    pending: mutation.isPending,
+    pending: mutation.isPending && mutation.variables?.id === open?.commentId,
     error: editErrorFor(open?.commentId, mutation.variables?.id, mutation.error?.message),
   };
 }

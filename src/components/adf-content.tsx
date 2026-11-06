@@ -10,9 +10,12 @@ const isNode = (value: unknown): value is AdfNode =>
 
 export const safeUrl = (value: unknown) => (typeof value === "string" && /^https?:\/\//i.test(value) ? value : undefined);
 
-const openInBrowser = (href: string) => void openUrl(href);
+export type LinkOpenOptions = { background: boolean };
+export type LinkOpener = (href: string, options?: LinkOpenOptions) => void;
 
-export const AdfLinkContext = createContext<(href: string) => void>(openInBrowser);
+const openInBrowser: LinkOpener = (href) => void openUrl(href);
+
+export const AdfLinkContext = createContext<LinkOpener>(openInBrowser);
 
 export function ExternalLink({
   href,
@@ -23,14 +26,14 @@ export function ExternalLink({
   href: string;
   children: ReactNode;
   className?: string;
-  onOpen?: (href: string) => void;
+  onOpen?: LinkOpener;
 }) {
   return (
     <a
       href={href}
       onClick={(event) => {
         event.preventDefault();
-        onOpen(href);
+        onOpen(href, { background: event.ctrlKey || event.metaKey });
       }}
       title={href}
       className={cn("text-info underline underline-offset-2", className)}

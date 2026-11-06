@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { adfToEditor, editorToAdf, type AdfNode } from "./adf";
-import { canSaveEdit, editBaseline, editBlockReason, editDraftToKeep, editErrorFor, saveFailureNotice } from "./comment-edit";
+import {
+  canSaveEdit,
+  editableCommentIds,
+  editBaseline,
+  editBlockReason,
+  editDraftToKeep,
+  editErrorFor,
+  saveFailureNotice,
+} from "./comment-edit";
 
 const text = (value: string): AdfNode => ({ type: "text", text: value });
 const paragraph = (...content: AdfNode[]): AdfNode => ({ type: "paragraph", content });
@@ -37,6 +45,17 @@ describe("Kommentar bearbeiten", () => {
   it("nennt den Grund, wenn sich der Inhalt nur in Jira bearbeiten lässt", () => {
     expect(editBlockReason(body)).toBeUndefined();
     expect(editBlockReason(locked)).toBe("Enthält Inhalte, die sich nur in Jira bearbeiten lassen");
+  });
+
+  it("behält Entwürfe nur für Kommentare, die sich hier noch bearbeiten lassen", () => {
+    const comments = [
+      { id: "1", body },
+      { id: "2", body: locked },
+      { id: "3", body: "kein ADF" },
+      { id: "4", body: doc(paragraph(text("Neu"))) },
+    ];
+    expect(editableCommentIds(comments)).toEqual(["1", "4"]);
+    expect(editableCommentIds([])).toEqual([]);
   });
 
   it("zeigt einen Speicherfehler nur im Editor des gescheiterten Kommentars", () => {
