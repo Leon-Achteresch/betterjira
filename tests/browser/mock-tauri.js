@@ -528,12 +528,45 @@ const createMeta = {
   },
 };
 const callbacks = new Map();
+const linkTypes = {
+  blocks: { id: "10000", name: "Blocks", inward: "is blocked by", outward: "blocks" },
+  relates: { id: "10003", name: "Relates", inward: "relates to", outward: "relates to" },
+};
+const linkedRef = (key) => {
+  const target = issues.find((entry) => entry.key === key);
+  return {
+    id: target?.id ?? key,
+    key,
+    fields: target && { summary: target.fields.summary, status: target.fields.status, issuetype: target.fields.issuetype },
+  };
+};
+const issueLinks = {
+  get "DEMO-1"() {
+    return [
+      { id: "l1", type: linkTypes.blocks, outwardIssue: linkedRef("DEMO-2") },
+      { id: "l1", type: linkTypes.blocks, outwardIssue: linkedRef("DEMO-2") },
+      { id: "l2", type: linkTypes.blocks, inwardIssue: linkedRef("DEMO-3") },
+      { id: "l3", type: linkTypes.relates, inwardIssue: linkedRef("DEMO-3") },
+      { id: "l4", type: linkTypes.relates, outwardIssue: { id: "900", key: "OPS-7" } },
+      { id: "l5", type: linkTypes.relates },
+    ];
+  },
+  get "DEMO-2"() {
+    return [{ id: "l1", type: linkTypes.blocks, inwardIssue: linkedRef("DEMO-1") }];
+  },
+  get "DEMO-3"() {
+    return [
+      { id: "l2", type: linkTypes.blocks, outwardIssue: linkedRef("DEMO-1") },
+      { id: "l3", type: linkTypes.relates, outwardIssue: linkedRef("DEMO-1") },
+    ];
+  },
+};
 const listeners = new Map();
 let listenerId = 0;
 let callbackId = 0;
 const requests = new Map();
 let nextId = 0;
-window.__qa = { writes: [], failNextWrite: false, delayMs: 0, issues, wiki, briefing, briefingFailure: false, searches: [], searchDelayMs: 0, failSearch: false, emptySearch: false, sessionFailure: scenario === "session-error", sessionDelayMs: scenario === "session-slow" ? 1500 : 0, commands: [], myselfDelayMs: 0, failMyself: false, myselfCalls: 0, metaDelay: {}, createFailure: null, opened: [] };
+window.__qa = { writes: [], issueReads: [], failNextWrite: false, delayMs: 0, issues, wiki, briefing, briefingFailure: false, searches: [], searchDelayMs: 0, failSearch: false, emptySearch: false, sessionFailure: scenario === "session-error", sessionDelayMs: scenario === "session-slow" ? 1500 : 0, commands: [], myselfDelayMs: 0, failMyself: false, myselfCalls: 0, metaDelay: {}, createFailure: null, opened: [] };
 window.__qa.outlook = {
   calls: [],
   failNext: false,
@@ -675,6 +708,8 @@ const respond = async (request) => {
     return { body: { values: [{ id: 1, name: "Team-Board", type: "kanban", location: { projectKey: "DEMO" } }] } };
   if (path.startsWith("/board")) return { body: { values: [] } };
   if (path.endsWith("/transitions")) return { body: { transitions } };
+  if (path.startsWith("/issue/")) window.__qa.issueReads.push(`${path}?fields=${url.searchParams.get("fields") ?? ""}`);
+
   const worklogPath = path.match(/^\/issue\/([^/]+)\/worklog$/);
   if (worklogPath) {
     const target = issues.find((issue) => issue.id === worklogPath[1] || issue.key === worklogPath[1]);
@@ -693,6 +728,12 @@ const respond = async (request) => {
     return { body: { startAt, maxResults, total: all.length, worklogs: all.slice(startAt, startAt + maxResults) } };
   }
   const issue = issues.find((issue) => path === `/issue/${issue.key}`);
+  if (issue && url.searchParams.get("fields") === "issuelinks") {
+    const rule = window.__qaIssueLinksRule?.(issue.key) ?? {};
+    if (rule.delayMs) await new Promise((resolve) => setTimeout(resolve, rule.delayMs));
+    if (rule.status) return { status: rule.status, body: { errorMessages: [`Test: Jira antwortet mit ${rule.status}`] } };
+    return { body: { id: issue.id, key: issue.key, fields: { issuelinks: rule.issuelinks ?? issueLinks[issue.key] ?? [] } } };
+  }
   if (issue && url.pathname.includes("/api/2/") && url.searchParams.get("fields") === "description")
     return { body: { fields: { description: wiki[issue.key] } } };
   if (issue) return { body: issue };
