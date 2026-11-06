@@ -268,7 +268,7 @@ let listenerId = 0;
 let callbackId = 0;
 const requests = new Map();
 let nextId = 0;
-window.__qa = { writes: [], failNextWrite: false, delayMs: 0, issues, wiki, briefing, briefingFailure: false, searches: [], searchDelayMs: 0, failSearch: false, emptySearch: false, sessionFailure: scenario === "session-error" };
+window.__qa = { writes: [], failNextWrite: false, delayMs: 0, issues, wiki, briefing, briefingFailure: false, searches: [], searchDelayMs: 0, failSearch: false, emptySearch: false, sessionFailure: scenario === "session-error", sessionDelayMs: scenario === "session-slow" ? 1500 : 0 };
 window.__qa.outlook = {
   calls: [],
   failNext: false,
@@ -416,6 +416,8 @@ window.__TAURI_INTERNALS__ = {
       if (input.action === "open") return null;
       throw "Test: Unbekannte Outlook-Aktion";
     }
+    if (command === "session_get" && window.__qa.sessionDelayMs)
+      await new Promise((resolve) => setTimeout(resolve, window.__qa.sessionDelayMs));
     if (command === "session_get" && scenario === "calendar-offline") return null;
     if (command === "session_get" && window.__qa.sessionFailure) throw "Test: Schlüsselbund gesperrt";
     if (command === "session_get")
@@ -427,6 +429,8 @@ window.__TAURI_INTERNALS__ = {
         siteUrl: "https://example.atlassian.net",
         siteName: "Lokale UI-Testdaten",
       });
+    if (command === "oauth_login") throw "Test: Anmeldung abgebrochen";
+    if (command === "oauth_cancel") return null;
     if (command === "scm_gh_hosts") return JSON.stringify([]);
     if (command === "attention_read") return scenario === "ai" ? JSON.stringify(window.__qa.briefing) : null;
     if (command === "attention_serve") return 8743;
