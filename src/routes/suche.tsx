@@ -1,84 +1,46 @@
-import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { BookmarkPlusIcon, SearchIcon, TerminalSquareIcon } from "lucide-react";
-import { IssueTable } from "@/components/issue-table";
-import { JqlEditor } from "@/components/issues/jql-editor";
-import { NameDialog } from "@/components/issues/name-dialog";
-import { Button } from "@/components/ui/button";
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
-import { useJqlSearch } from "@/hooks/use-jql-search";
-import { useJiraSite } from "@/lib/jira/queries";
+import { JqlSearch } from "@/components/search/jql-search";
+import { SearchHeader } from "@/components/search/search-header";
+import { SearchModePanel } from "@/components/search/search-mode-panel";
+import { SearchModeTabs } from "@/components/search/search-mode-tabs";
+import { SimpleSearch } from "@/components/search/simple-search";
 import { LoginPrompt } from "@/components/shell/login-prompt";
+import { SessionGate } from "@/components/shell/session-gate";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useSearchPage } from "@/hooks/search/use-search-page";
+import { parseSucheSearch } from "@/lib/search/search-params";
 
 export const Route = createFileRoute("/suche")({
-  validateSearch: (search: Record<string, unknown>): { jql?: string } =>
-    typeof search.jql === "string" && search.jql.trim() ? { jql: search.jql } : {},
+  validateSearch: parseSucheSearch,
   component: Suche,
 });
 
 function Suche() {
-  const { jql = "" } = Route.useSearch();
-  const navigate = Route.useNavigate();
-  const site = useJiraSite();
-  const search = useJqlSearch(jql, (next) => void navigate({ search: next ? { jql: next } : {} }));
-  const [saving, setSaving] = useState(false);
+  const page = useSearchPage();
 
-  if (!site.isPending && !site.data) {
-    return <div className="p-8"><LoginPrompt description="Melde dich an, um zu suchen." /></div>;
-  }
   return (
-    <div className="flex flex-col gap-6 p-8">
-      <div className="flex items-center gap-3">
-        <div className="flex size-10 items-center justify-center rounded-md bg-muted">
-          <TerminalSquareIcon className="size-5 text-muted-foreground" />
-        </div>
-        <h1 className="text-2xl font-semibold">JQL-Suche</h1>
-      </div>
-      <section className="rounded-xl border bg-muted/30 p-3">
-        <JqlEditor value={search.value} onChange={search.setValue} onApply={search.search} errors={search.errors} validating={search.validating}>
-          <Button size="sm" onClick={search.search} disabled={!search.value.trim() || search.errors.length > 0}>
-            <SearchIcon />
-            Suchen
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={!jql}
-            onClick={() => {
-              search.resetCreate();
-              setSaving(true);
-            }}
-          >
-            <BookmarkPlusIcon />
-            Als Filter speichern…
-          </Button>
-        </JqlEditor>
-      </section>
-      {jql ? (
-        <IssueTable scope="suche" jql={jql} openSearch={false} onAdoptJql={search.setValue} />
-      ) : (
-        <Empty>
-          <EmptyHeader>
-            <EmptyMedia variant="icon">
-              <SearchIcon />
-            </EmptyMedia>
-            <EmptyTitle>Frei mit JQL suchen</EmptyTitle>
-            <EmptyDescription>Gib eine Abfrage ein und drücke Suchen. Gute Treffer kannst du direkt als Filter speichern.</EmptyDescription>
-          </EmptyHeader>
-        </Empty>
-      )}
-      <NameDialog
-        open={saving}
-        onOpenChange={setSaving}
-        title="Als Filter speichern"
-        description="Legt einen neuen Filter mit dieser JQL in Jira an."
-        submitLabel="Anlegen"
-        pending={search.creating}
-        error={search.createError}
-        onSubmit={(name) => {
-          search.saveAs(name);
-        }}
-      />
+    <div className="flex flex-col gap-6 p-4 sm:p-8">
+      <SearchHeader mode={page.mode} connected={page.session.status === "connected"} />
+      <SessionGate
+        session={page.session}
+        className="flex flex-col gap-6"
+        pending={<Skeleton className="h-64 w-full" />}
+        unconnected={<LoginPrompt description="Melde dich an, um zu suchen." />}
+      >
+        <SearchModeTabs mode={page.mode} targets={page.tabs} />
+        <SearchModePanel mode={page.mode}>
+          {page.mode === "jql" ? (
+            <JqlSearch jql={page.appliedJql} search={page.jql} />
+          ) : (
+            <SimpleSearch
+              search={page.simple}
+              stashedJql={page.stashedJql}
+              onDiscardStashedJql={page.discardStashedJql}
+              onAdoptJql={page.adoptJql}
+            />
+          )}
+        </SearchModePanel>
+      </SessionGate>
     </div>
   );
 }

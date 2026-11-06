@@ -3,6 +3,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { useDebouncedValue } from "@tanstack/react-pacer";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import {
+  BellIcon,
   BriefcaseIcon,
   ExternalLinkIcon,
   FileTextIcon,
@@ -18,6 +19,7 @@ import {
   MonitorIcon,
   MoonIcon,
   PanelLeftIcon,
+  SearchIcon,
   SettingsIcon,
   StarIcon,
   SunIcon,
@@ -26,6 +28,7 @@ import {
   GitPullRequestIcon,
   PinIcon,
   HistoryIcon,
+  TimerIcon,
 } from "lucide-react";
 import type { CommandItem } from "@/components/motion/command-palette";
 import { IssuePreview, ProjectPreview, FilterPreview, IssueKey } from "@/components/shell/command-previews";
@@ -220,6 +223,22 @@ export function useAppCommandPalette() {
       onSelect: () => void navigate({ to: "/tickets" }),
     },
     {
+      id: "nav:time-tracking",
+      label: "Meine Zeiterfassung",
+      group: "Navigation",
+      icon: TimerIcon,
+      keywords: ["zeit", "worklog", "gebucht", "stunden", "woche"],
+      onSelect: () => void navigate({ to: "/zeiterfassung", search: {} }),
+    },
+    {
+      id: "nav:notifications",
+      label: "Benachrichtigungen",
+      group: "Navigation",
+      icon: BellIcon,
+      keywords: ["inbox", "ungelesen", "erwähnungen", "aktivität"],
+      onSelect: () => void navigate({ to: "/benachrichtigungen" }),
+    },
+    {
       id: "nav:pull-requests",
       label: "Pull Requests",
       group: "Navigation",
@@ -229,12 +248,20 @@ export function useAppCommandPalette() {
     },
     {
       id: "nav:search",
+      label: "Ticketsuche",
+      group: "Navigation",
+      icon: SearchIcon,
+      keywords: ["suche", "volltext", "vorgänge", "projekt"],
+      hint: shortcutHint("search"),
+      onSelect: () => void navigate({ to: "/suche", search: {} }),
+    },
+    {
+      id: "nav:jql",
       label: "JQL-Suche",
       group: "Navigation",
       icon: TerminalSquareIcon,
-      keywords: ["jql", "suche", "query"],
-      hint: shortcutHint("search"),
-      onSelect: () => void navigate({ to: "/suche", search: {} }),
+      keywords: ["jql", "query", "abfrage", "experte", "filter"],
+      onSelect: () => void navigate({ to: "/suche", search: { modus: "jql" } }),
     },
     {
       id: "nav:settings",

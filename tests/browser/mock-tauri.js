@@ -195,6 +195,21 @@ if (scenario === "board") {
     });
   }
 }
+if (scenario === "time-tracking") {
+  const other = { accountId: "qa-other", displayName: "Sam Muster", avatarUrls: author.avatarUrls };
+  const entries = [
+    [0, "tt-1", author, "2026-11-02T09:00:00.000+0100", 3600, "Anforderungen mit dem Team abgestimmt"],
+    [0, "tt-2", author, "2026-11-02T14:00:00.000+0100", 1800, ""],
+    [0, "tt-3", other, "2026-11-02T10:00:00.000+0100", 7200, "Fremde Buchung"],
+    [1, "tt-4", author, "2026-11-04T23:30:00.000+0000", 2700, "Testfälle ergänzt"],
+    [1, "tt-5", author, "2026-11-06T08:15:00.000+0100", 4500, "Review vorbereitet"],
+    [2, "tt-6", author, "2026-10-27T13:00:00.000+0100", 7200, "Übergabe dokumentiert"],
+  ];
+  for (const [index, id, user, started, seconds, text] of entries) {
+    issues[index].fields.worklog.worklogs.push({ id, author: user, started, timeSpentSeconds: seconds, timeSpent: `${seconds / 60}m`, ...(text && { comment: paragraph(text) }) });
+    issues[index].fields.worklog.total++;
+  }
+}
 const wiki = Object.fromEntries(
   issues.map((issue) => [issue.key, "h2. Beschreibung\n\nVorhandener Text für die Bearbeitung."]),
 );
@@ -280,6 +295,33 @@ if (scenario === "busy") {
     const keys = issues.slice(0, 12).map((issue) => issue.key);
     localStorage.setItem("betterjira-issue-tabs", JSON.stringify({ state: { keys, pinned: [keys[1]] }, version: 0 }));
   }
+}
+if (scenario === "notifications" || scenario === "notifications-foreign") {
+  const minutes = (count) => Date.now() - count * 60000;
+  const qaPeople = ["Sam Muster", "Kim Probe", "Jo Test"].map((displayName) => ({ displayName, avatarUrls: author.avatarUrls }));
+  const entry = (id, issueKey, kind, created, title, body, actor, read = false) => ({
+    id,
+    issueKey,
+    summary: issues.find((issue) => issue.key === issueKey)?.fields.summary ?? `QA-Testticket ${issueKey}`,
+    kind,
+    created,
+    title,
+    body,
+    actor: qaPeople[actor],
+    read,
+  });
+  const items = [
+    entry("qa:1", "DEMO-1", "direct", minutes(5), "hat dich in einem Kommentar erwähnt", "Kannst du die Übergabe bis morgen prüfen?", 0),
+    entry("qa:2", "DEMO-1", "direct", minutes(40), "hat den Status geändert", "Zu erledigen → In Arbeit", 1),
+    entry("qa:3", "DEMO-2", "direct", minutes(90), "hat dir ein Ticket zugewiesen", "", 2),
+    entry("qa:4", "DEMO-3", "direct", minutes(26 * 60), "hat einen Kommentar hinzugefügt", "Der Entwurf liegt im Team-Ordner.", 1, true),
+    ...Array.from({ length: 9 }, (_, index) =>
+      entry(`qa:w${index}`, `DEMO-${index + 4}`, "watching", minutes(15 + index * 20), "hat die Priorität geändert", "Hoch", index % 3, index > 5),
+    ),
+  ];
+  const owner = JSON.stringify(scenario === "notifications" ? ["qa-cloud", "qa-user"] : ["other-cloud", "other-user"]);
+  if (scenario === "notifications-foreign" || !localStorage.getItem("betterjira-notifications"))
+    localStorage.setItem("betterjira-notifications", JSON.stringify({ state: { owner, items, checkedAt: minutes(1) }, version: 2 }));
 }
 const scmScenario = scenario?.startsWith("scm") ? scenario : null;
 const scmHoursAgo = (hours) => new Date(Date.now() - hours * 3600000).toISOString();
@@ -453,12 +495,45 @@ if (scenario === "workspace") {
   }
 }
 const callbacks = new Map();
+const linkTypes = {
+  blocks: { id: "10000", name: "Blocks", inward: "is blocked by", outward: "blocks" },
+  relates: { id: "10003", name: "Relates", inward: "relates to", outward: "relates to" },
+};
+const linkedRef = (key) => {
+  const target = issues.find((entry) => entry.key === key);
+  return {
+    id: target?.id ?? key,
+    key,
+    fields: target && { summary: target.fields.summary, status: target.fields.status, issuetype: target.fields.issuetype },
+  };
+};
+const issueLinks = {
+  get "DEMO-1"() {
+    return [
+      { id: "l1", type: linkTypes.blocks, outwardIssue: linkedRef("DEMO-2") },
+      { id: "l1", type: linkTypes.blocks, outwardIssue: linkedRef("DEMO-2") },
+      { id: "l2", type: linkTypes.blocks, inwardIssue: linkedRef("DEMO-3") },
+      { id: "l3", type: linkTypes.relates, inwardIssue: linkedRef("DEMO-3") },
+      { id: "l4", type: linkTypes.relates, outwardIssue: { id: "900", key: "OPS-7" } },
+      { id: "l5", type: linkTypes.relates },
+    ];
+  },
+  get "DEMO-2"() {
+    return [{ id: "l1", type: linkTypes.blocks, inwardIssue: linkedRef("DEMO-1") }];
+  },
+  get "DEMO-3"() {
+    return [
+      { id: "l2", type: linkTypes.blocks, outwardIssue: linkedRef("DEMO-1") },
+      { id: "l3", type: linkTypes.relates, outwardIssue: linkedRef("DEMO-1") },
+    ];
+  },
+};
 const listeners = new Map();
 let listenerId = 0;
 let callbackId = 0;
 const requests = new Map();
 let nextId = 0;
-window.__qa = { writes: [], failNextWrite: false, delayMs: 0, issues, wiki, briefing, briefingFailure: false, searches: [], searchDelayMs: 0, failSearch: false, emptySearch: false, sessionFailure: scenario === "session-error", sessionDelayMs: scenario === "session-slow" ? 1500 : 0 };
+window.__qa = { writes: [], issueReads: [], failNextWrite: false, delayMs: 0, issues, wiki, briefing, briefingFailure: false, searches: [], searchDelayMs: 0, failSearch: false, emptySearch: false, sessionFailure: scenario === "session-error", sessionDelayMs: scenario === "session-slow" ? 1500 : 0, commands: [], myselfDelayMs: 0, failMyself: false, myselfCalls: 0 };
 window.__qa.outlook = {
   calls: [],
   failNext: false,
@@ -510,12 +585,17 @@ const respond = async (request) => {
     return { status: 204 };
   }
   window.__qaReads?.push(path);
-  if (path === "/myself") return { body: { ...author, accountId } };
+  if (path === "/myself") {
+    window.__qa.myselfCalls++;
+    if (window.__qa.myselfDelayMs) await new Promise((resolve) => setTimeout(resolve, window.__qa.myselfDelayMs));
+    if (window.__qa.failMyself) return { status: 503, body: { errorMessages: ["Test: Jira vorübergehend nicht erreichbar"] } };
+    return { body: { ...author, accountId } };
+  }
   if (path.startsWith("/project/search")) {
     const rule = window.__qaProjectRule?.() ?? {};
     if (rule.delayMs) await new Promise((resolve) => setTimeout(resolve, rule.delayMs));
     if (rule.status) return { status: rule.status, body: { errorMessages: [`Test: Jira antwortet mit ${rule.status}`] } };
-    return { body: { isLast: true, values: rule.values ?? projects } };
+    return { body: { isLast: true, values: rule.values ?? window.__qaProjects ?? projects } };
   }
   if (path.startsWith("/filter/my")) return { body: [] };
   if (path === "/field")
@@ -559,7 +639,32 @@ const respond = async (request) => {
     return { body: { values: [{ id: 1, name: "Team-Board", type: "kanban", location: { projectKey: "DEMO" } }] } };
   if (path.startsWith("/board")) return { body: { values: [] } };
   if (path.endsWith("/transitions")) return { body: { transitions } };
+  if (path.startsWith("/issue/")) window.__qa.issueReads.push(`${path}?fields=${url.searchParams.get("fields") ?? ""}`);
+
+  const worklogPath = path.match(/^\/issue\/([^/]+)\/worklog$/);
+  if (worklogPath) {
+    const target = issues.find((issue) => issue.id === worklogPath[1] || issue.key === worklogPath[1]);
+    const rule = window.__qaWorklogRule?.(target?.key ?? worklogPath[1]) ?? {};
+    if (rule.delayMs) await new Promise((resolve) => setTimeout(resolve, rule.delayMs));
+    if (rule.status) return { status: rule.status, body: { errorMessages: [`Test: Jira antwortet mit ${rule.status}`] } };
+    const instant = (value) => Date.parse(value.replace(/([+-]\d{2})(\d{2})$/, "$1:$2"));
+    const seconds = (value = "") => [...value.matchAll(/(\d+)\s*([wdhm])/g)].reduce((total, [, amount, unit]) => total + Number(amount) * { w: 144000, d: 28800, h: 3600, m: 60 }[unit], 0);
+    const after = Number(url.searchParams.get("startedAfter") ?? -Infinity);
+    const before = Number(url.searchParams.get("startedBefore") ?? Infinity);
+    const startAt = Number(url.searchParams.get("startAt") ?? 0);
+    const maxResults = Math.min(rule.pageSize ?? Infinity, Number(url.searchParams.get("maxResults") ?? 5000));
+    const all = (target?.fields.worklog.worklogs ?? [])
+      .filter((entry) => instant(entry.started) >= after && instant(entry.started) < before)
+      .map((entry) => ({ ...entry, timeSpentSeconds: entry.timeSpentSeconds ?? seconds(entry.timeSpent) }));
+    return { body: { startAt, maxResults, total: all.length, worklogs: all.slice(startAt, startAt + maxResults) } };
+  }
   const issue = issues.find((issue) => path === `/issue/${issue.key}`);
+  if (issue && url.searchParams.get("fields") === "issuelinks") {
+    const rule = window.__qaIssueLinksRule?.(issue.key) ?? {};
+    if (rule.delayMs) await new Promise((resolve) => setTimeout(resolve, rule.delayMs));
+    if (rule.status) return { status: rule.status, body: { errorMessages: [`Test: Jira antwortet mit ${rule.status}`] } };
+    return { body: { id: issue.id, key: issue.key, fields: { issuelinks: rule.issuelinks ?? issueLinks[issue.key] ?? [] } } };
+  }
   if (issue && url.pathname.includes("/api/2/") && url.searchParams.get("fields") === "description")
     return { body: { fields: { description: wiki[issue.key] } } };
   if (issue) return { body: issue };
@@ -589,6 +694,7 @@ window.__TAURI_INTERNALS__ = {
   },
   unregisterCallback: () => {},
   invoke: async (command, args = {}) => {
+    window.__qa.commands.push(command);
     if (command === "session_get" && scenario === "scm-offline") return null;
     if (command === "scm_gh_hosts" && scmScenario) return JSON.stringify(window.__qaScm.hosts);
     if (command === "scm_request" && scmScenario) return scmRespond(args);
@@ -642,7 +748,7 @@ window.__TAURI_INTERNALS__ = {
       });
     if (command === "oauth_login") throw "Test: Anmeldung abgebrochen";
     if (command === "oauth_cancel") return null;
-    if (command === "scm_gh_hosts") return JSON.stringify([]);
+    if (command === "scm_gh_hosts") return JSON.stringify(window.__qaGhHosts ?? []);
     if (command === "attention_read") return scenario === "ai" ? JSON.stringify(window.__qa.briefing) : null;
     if (command === "attention_serve") return 8743;
     if (command === "attention_trigger") {
