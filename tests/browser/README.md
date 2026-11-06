@@ -79,4 +79,6 @@ Der vollständige Ablaufbericht einschließlich Vielnutzer, sorgfältigem Leser,
 - Abgemeldet: `...fixture.html?scenario=calendar-offline&route=/tickets`.
 - Sitzung nicht lesbar (kein Logout): `...fixture.html?scenario=session-error&route=/tickets`; `window.__qa.sessionFailure = false` und „Erneut versuchen“ meldet wieder an.
 - `window.__qa.searchDelayMs`, `window.__qa.emptySearch` und `window.__qa.failSearch` steuern Laden, leere Treffer und Abfragefehler; `window.__qa.searches` enthält die gesendeten JQL-Abfragen.
-- Automatisch: `bunx playwright test tests/browser/navigation.e2e.ts --workers=1`.
+- Verzögerte Sitzung: `...fixture.html?scenario=session-slow&route=/` (`window.__qa.sessionDelayMs`, Standard 1500 ms in diesem Szenario).
+- Übersicht und Seitenleiste zeigen einen Lesefehler der Sitzung ebenfalls als „Anmeldung konnte nicht geprüft werden“ mit Retry statt als Abmeldung. Der simulierte Login (`oauth_login`) bricht immer mit „Test: Anmeldung abgebrochen“ ab.
+- Automatisch: `bunx playwright test tests/browser/navigation.e2e.ts tests/browser/session.e2e.ts --workers=1`.

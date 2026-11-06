@@ -4,13 +4,10 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import {
   ChartColumnIcon,
   ChevronRightIcon,
-  ChevronsUpDownIcon,
   EyeOffIcon,
   ExternalLinkIcon,
   FunnelIcon,
   ListIcon,
-  LogInIcon,
-  LogOutIcon,
   SearchIcon,
   SquareKanbanIcon,
   StarIcon,
@@ -19,8 +16,8 @@ import {
 } from "lucide-react";
 import { ProjectStatsDialog } from "@/components/project-stats/project-stats-dialog";
 import { PrimaryNav } from "@/components/shell/primary-nav";
+import { ProfileMenu } from "@/components/shell/profile-menu";
 import { ProjectAvatar } from "@/components/shell/project-avatar";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   ContextMenu,
@@ -29,14 +26,6 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
   Sidebar,
   SidebarContent,
@@ -56,15 +45,8 @@ import {
   SidebarMenuBadge,
   SidebarMenuSkeleton,
 } from "@/components/ui/sidebar";
-import { Spinner } from "@/components/ui/spinner";
-import {
-  useJiraLogin,
-  useJiraLogout,
-  useJiraMyself,
-  useJiraProjectBoards,
-  useJiraSite,
-  type JiraProject,
-} from "@/lib/jira/queries";
+import { useJiraProjectBoards, useJiraSite, type JiraProject } from "@/lib/jira/queries";
+import { useProfileMenu } from "@/hooks/jira/use-profile-menu";
 import { useProjectStats } from "@/hooks/jira/use-project-stats";
 import { useSidebarSearch } from "@/hooks/use-sidebar-search";
 import { useProjectPrefs } from "@/lib/project-prefs";
@@ -223,67 +205,10 @@ function MenuSkeleton() {
   );
 }
 
-function ProfileMenu() {
-  const site = useJiraSite();
-  const myself = useJiraMyself();
-  const login = useJiraLogin();
-  const logout = useJiraLogout();
-
-  if (!site.isPending && !site.data) {
-    return (
-      <SidebarMenuButton size="lg" variant="outline" onClick={() => login.mutate()} disabled={login.isPending}>
-        {login.isPending ? <Spinner /> : <LogInIcon />}
-        <span>{login.isPending ? "Warte auf Browser" : "Mit Atlassian verbinden"}</span>
-      </SidebarMenuButton>
-    );
-  }
-
-  const name = myself.data?.displayName ?? "";
-  const initials = name
-    .split(" ")
-    .map((part) => part[0])
-    .join("")
-    .slice(0, 2);
-
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <SidebarMenuButton size="lg" className="data-[state=open]:bg-sidebar-accent">
-          <Avatar className="size-8">
-            {myself.data && <AvatarImage src={myself.data.avatarUrls["48x48"]} alt="" />}
-            <AvatarFallback>{initials}</AvatarFallback>
-          </Avatar>
-          <div className="grid min-w-0 flex-1 leading-tight">
-            <span className="truncate font-medium">{name || "…"}</span>
-            <span className="truncate text-xs text-muted-foreground">{site.data?.siteName}</span>
-          </div>
-          <ChevronsUpDownIcon className="ml-auto text-muted-foreground" />
-        </SidebarMenuButton>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent side="top" align="start" className="min-w-56">
-        <DropdownMenuLabel className="grid font-normal">
-          <span className="font-medium">{name}</span>
-          {myself.data?.emailAddress && <span className="text-xs text-muted-foreground">{myself.data.emailAddress}</span>}
-        </DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        {site.data && (
-          <DropdownMenuItem onSelect={() => void openUrl(site.data!.siteUrl)}>
-            <ExternalLinkIcon />
-            Jira öffnen
-          </DropdownMenuItem>
-        )}
-        <DropdownMenuItem onSelect={() => logout.mutate()} disabled={logout.isPending}>
-          <LogOutIcon />
-          Abmelden
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
-
 export function AppSidebar() {
   const site = useJiraSite();
   const search = useSidebarSearch();
+  const profile = useProfileMenu();
   const { projects, filters } = search;
 
   return (
@@ -366,7 +291,7 @@ export function AppSidebar() {
       <SidebarFooter className="border-t border-sidebar-border/60">
         <SidebarMenu>
           <SidebarMenuItem>
-            <ProfileMenu />
+            <ProfileMenu profile={profile} />
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>

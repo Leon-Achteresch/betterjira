@@ -1,17 +1,17 @@
 import { useAttentionStatus } from "@/hooks/attention/use-attention-status";
+import { useJiraSession } from "@/hooks/jira/use-jira-session";
 import {
   useJiraLogin,
   useJiraMyWork,
   useJiraMyself,
   useJiraProjects,
-  useJiraSite,
   type JiraWorkIssue,
 } from "@/lib/jira/queries";
 import { useProjectPrefs } from "@/lib/project-prefs";
 import { workdayGreeting } from "@/lib/workday";
 
 export function useDashboard() {
-  const site = useJiraSite();
+  const session = useJiraSession();
   const myself = useJiraMyself();
   const work = useJiraMyWork();
   const projects = useJiraProjects();
@@ -40,8 +40,7 @@ export function useDashboard() {
       };
     });
   return {
-    site: site.data,
-    sitePending: site.isPending,
+    session,
     login,
     attention,
     work,

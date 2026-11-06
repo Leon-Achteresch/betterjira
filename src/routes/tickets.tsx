@@ -4,10 +4,10 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { IssueTable } from "@/components/issue-table";
 import { NAV_TAB_CLASS, NavTabIndicator, NavTabs } from "@/components/motion/nav-tabs";
 import { LoginPrompt } from "@/components/shell/login-prompt";
-import { SessionError } from "@/components/shell/session-error";
+import { SessionGate } from "@/components/shell/session-gate";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useJiraSession } from "@/hooks/jira/use-jira-session";
 import { EASE_OUT } from "@/lib/ease";
-import { useJiraSite } from "@/lib/jira/queries";
 import { TICKET_PRESETS, TICKET_PRESET_IDS, ticketPresetOf, ticketPresetSearch } from "@/lib/jira/ticket-presets";
 
 export const Route = createFileRoute("/tickets")({
@@ -17,7 +17,8 @@ export const Route = createFileRoute("/tickets")({
 
 function Tickets() {
   const preset = ticketPresetOf(Route.useSearch().ansicht);
-  const site = useJiraSite();
+  const session = useJiraSession();
+  const connected = session.status === "connected";
   const reduce = useReducedMotion();
 
   return (
@@ -30,44 +31,41 @@ function Tickets() {
           <h1 className="text-2xl font-semibold">Jira-Tickets</h1>
           <AnimatePresence mode="wait" initial={false}>
             <motion.p
-              key={site.data ? preset : "signed-out"}
+              key={connected ? preset : "signed-out"}
               initial={{ opacity: 0, y: reduce ? 0 : 4 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, transition: { duration: 0.1, ease: EASE_OUT } }}
               transition={{ duration: 0.18, ease: EASE_OUT }}
               className="text-sm text-muted-foreground"
             >
-              {site.data ? TICKET_PRESETS[preset].description : "Deine persönlichen Tickets aus Jira."}
+              {connected ? TICKET_PRESETS[preset].description : "Deine persönlichen Tickets aus Jira."}
             </motion.p>
           </AnimatePresence>
         </div>
       </div>
-      {site.error ? (
-        <SessionError message={site.error.message} retrying={site.isFetching} onRetry={() => void site.refetch()} />
-      ) : site.isPending ? (
-        <Skeleton className="h-64 w-full" />
-      ) : !site.data ? (
-        <LoginPrompt description="Melde dich an, um deine Tickets zu sehen." />
-      ) : (
-        <>
-          <NavTabs id="ticket-presets" label="Ticket-Ansicht" className="self-start">
-            {TICKET_PRESET_IDS.map((id) => (
-              <Link
-                key={id}
-                to="/tickets"
-                search={ticketPresetSearch(id)}
-                activeOptions={{ exact: true }}
-                aria-current={id === preset ? "page" : undefined}
-                className={NAV_TAB_CLASS}
-              >
-                {TICKET_PRESETS[id].label}
-                {id === preset && <NavTabIndicator />}
-              </Link>
-            ))}
-          </NavTabs>
-          <IssueTable key={preset} scope={`tickets:${preset}`} jql={TICKET_PRESETS[preset].jql} />
-        </>
-      )}
+      <SessionGate
+        session={session}
+        className="flex flex-col gap-6"
+        pending={<Skeleton className="h-64 w-full" />}
+        unconnected={<LoginPrompt description="Melde dich an, um deine Tickets zu sehen." />}
+      >
+        <NavTabs id="ticket-presets" label="Ticket-Ansicht" className="self-start">
+          {TICKET_PRESET_IDS.map((id) => (
+            <Link
+              key={id}
+              to="/tickets"
+              search={ticketPresetSearch(id)}
+              activeOptions={{ exact: true }}
+              aria-current={id === preset ? "page" : undefined}
+              className={NAV_TAB_CLASS}
+            >
+              {TICKET_PRESETS[id].label}
+              {id === preset && <NavTabIndicator />}
+            </Link>
+          ))}
+        </NavTabs>
+        <IssueTable key={preset} scope={`tickets:${preset}`} jql={TICKET_PRESETS[preset].jql} />
+      </SessionGate>
     </div>
   );
 }
