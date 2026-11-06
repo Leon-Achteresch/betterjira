@@ -12,7 +12,7 @@ const resetOnLogout = (error: unknown) => {
 };
 
 const isPermanent = (error: unknown) =>
-  error instanceof NotAuthenticated || (error instanceof JiraApiError && error.status >= 400 && error.status < 500);
+  error instanceof NotAuthenticated || (error instanceof JiraApiError && error.status >= 400 && error.status < 500 && error.status !== 408 && error.status !== 429);
 
 const queryClient: QueryClient = new QueryClient({
   defaultOptions: {

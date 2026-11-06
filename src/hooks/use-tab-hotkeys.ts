@@ -22,9 +22,9 @@ export const useTabHotkeys = (options: Options) => {
     const onKey = (event: KeyboardEvent) => {
       const hotkey = tabHotkey(event, IS_MAC);
       if (!hotkey || event.defaultPrevented) return;
+      if (hotkey.type !== "cycle" && isEditable(event.target)) return;
       const { keys, activeKey, openTab, closeTab } = latest.current;
       if (hotkey.type === "history") {
-        if (event.altKey && isEditable(event.target)) return;
         event.preventDefault();
         router.history.go(hotkey.step);
         return;
