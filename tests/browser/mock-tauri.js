@@ -520,6 +520,11 @@ let callbackId = 0;
 const requests = new Map();
 let nextId = 0;
 window.__qa = { writes: [], issueReads: [], failNextWrite: false, delayMs: 0, issues, wiki, briefing, briefingFailure: false, searches: [], searchDelayMs: 0, failSearch: false, emptySearch: false, sessionFailure: scenario === "session-error", sessionDelayMs: scenario === "session-slow" ? 1500 : 0, commands: [], myselfDelayMs: 0, failMyself: false, myselfCalls: 0 };
+window.__qa.filters = [
+  { id: "100", name: "Offene Testtickets", jql: "project = DEMO AND statusCategory != Done ORDER BY updated DESC", favourite: true, owner: author },
+  { id: "200", name: "Team-Rückstand", jql: "project = DEMO ORDER BY created DESC", favourite: false, owner: author },
+];
+window.__qa.filterReads = [];
 window.__qa.outlook = {
   calls: [],
   failNext: false,
@@ -542,6 +547,8 @@ const respond = async (request) => {
     }
     const input = request.data ? JSON.parse(new TextDecoder().decode(new Uint8Array(request.data))) : {};
     window.__qa.writes.push({ path, method: request.method, input });
+    const filter = window.__qa.filters.find((entry) => path === `/filter/${entry.id}`);
+    if (filter && request.method === "PUT") return { body: Object.assign(filter, input) };
     const issue = issues.find((issue) => path.startsWith(`/issue/${issue.key}/`) || path === `/issue/${issue.key}`);
     if (path.endsWith("/comment") && issue)
       issue.fields.comment.comments.push({
@@ -577,7 +584,16 @@ const respond = async (request) => {
     return { body: { ...author, accountId } };
   }
   if (path.startsWith("/project/search")) return { body: { isLast: true, values: window.__qaProjects ?? [project] } };
-  if (path.startsWith("/filter/my")) return { body: [] };
+  if (path.startsWith("/filter/my")) return { body: (scenario === "filters" ? window.__qa.filters : []).map(({ id, name, favourite }) => ({ id, name, favourite })) };
+  const filterId = path.match(/^\/filter\/([^/]+)$/)?.[1];
+  if (filterId) {
+    window.__qa.filterReads.push(filterId);
+    const rule = window.__qaFilterRule?.(filterId) ?? {};
+    if (rule.delayMs) await new Promise((resolve) => setTimeout(resolve, rule.delayMs));
+    if (rule.status) return { status: rule.status, body: { errorMessages: [`Test: Jira antwortet mit ${rule.status}`] } };
+    const filter = window.__qa.filters.find((entry) => entry.id === filterId);
+    if (filter) return { body: filter };
+  }
   if (path === "/field")
     return {
       body: ["summary", "status", "assignee", "priority", "updated", "issuetype"].map((id) => ({
