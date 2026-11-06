@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ArbeitsplatzRouteImport } from './routes/arbeitsplatz'
+import { Route as BenachrichtigungenRouteImport } from './routes/benachrichtigungen'
 import { Route as KalenderRouteImport } from './routes/kalender'
 import { Route as PullRequestsRouteImport } from './routes/pull-requests'
 import { Route as SettingsRouteImport } from './routes/settings'
@@ -33,6 +34,11 @@ const IndexRoute = IndexRouteImport.update({
 const ArbeitsplatzRoute = ArbeitsplatzRouteImport.update({
   id: '/arbeitsplatz',
   path: '/arbeitsplatz',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BenachrichtigungenRoute = BenachrichtigungenRouteImport.update({
+  id: '/benachrichtigungen',
+  path: '/benachrichtigungen',
   getParentRoute: () => rootRouteImport,
 } as any)
 const KalenderRoute = KalenderRouteImport.update({
@@ -104,6 +110,7 @@ const SettingsDarstellungRoute = SettingsDarstellungRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/arbeitsplatz': typeof ArbeitsplatzRoute
+  '/benachrichtigungen': typeof BenachrichtigungenRoute
   '/kalender': typeof KalenderRoute
   '/pull-requests': typeof PullRequestsRoute
   '/settings': typeof SettingsRouteWithChildren
@@ -121,6 +128,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/arbeitsplatz': typeof ArbeitsplatzRoute
+  '/benachrichtigungen': typeof BenachrichtigungenRoute
   '/kalender': typeof KalenderRoute
   '/pull-requests': typeof PullRequestsRoute
   '/suche': typeof SucheRoute
@@ -138,6 +146,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/arbeitsplatz': typeof ArbeitsplatzRoute
+  '/benachrichtigungen': typeof BenachrichtigungenRoute
   '/kalender': typeof KalenderRoute
   '/pull-requests': typeof PullRequestsRoute
   '/settings': typeof SettingsRouteWithChildren
@@ -157,6 +166,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/arbeitsplatz'
+    | '/benachrichtigungen'
     | '/kalender'
     | '/pull-requests'
     | '/settings'
@@ -174,6 +184,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/arbeitsplatz'
+    | '/benachrichtigungen'
     | '/kalender'
     | '/pull-requests'
     | '/suche'
@@ -190,6 +201,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/arbeitsplatz'
+    | '/benachrichtigungen'
     | '/kalender'
     | '/pull-requests'
     | '/settings'
@@ -208,6 +220,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ArbeitsplatzRoute: typeof ArbeitsplatzRoute
+  BenachrichtigungenRoute: typeof BenachrichtigungenRoute
   KalenderRoute: typeof KalenderRoute
   PullRequestsRoute: typeof PullRequestsRoute
   SettingsRoute: typeof SettingsRouteWithChildren
@@ -232,6 +245,13 @@ declare module '@tanstack/react-router' {
       path: '/arbeitsplatz'
       fullPath: '/arbeitsplatz'
       preLoaderRoute: typeof ArbeitsplatzRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/benachrichtigungen': {
+      id: '/benachrichtigungen'
+      path: '/benachrichtigungen'
+      fullPath: '/benachrichtigungen'
+      preLoaderRoute: typeof BenachrichtigungenRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/kalender': {
@@ -351,6 +371,7 @@ const SettingsRouteWithChildren = SettingsRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ArbeitsplatzRoute: ArbeitsplatzRoute,
+  BenachrichtigungenRoute: BenachrichtigungenRoute,
   KalenderRoute: KalenderRoute,
   PullRequestsRoute: PullRequestsRoute,
   SettingsRoute: SettingsRouteWithChildren,
