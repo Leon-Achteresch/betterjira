@@ -109,7 +109,7 @@ export function useIssueTable(scope: string, baseJql: string) {
     if (isPlaceholder || exported.length === 0) return;
     const { header, rows } = tableOf(exported);
     downloadFile(toDelimitedFile(format, header, rows), delimitedFileName(format, new Date(), selectedOnly), DELIMITED_MIME[format]);
-    toast.success(`${format.toUpperCase()}-Datei heruntergeladen`, {
+    toast.success(`${format.toUpperCase()}-Download gestartet`, {
       description: `${selectedOnly ? "Ausgewählte" : "Geladene"} Tickets: ${exported.length}`,
     });
   };

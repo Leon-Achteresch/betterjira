@@ -88,7 +88,7 @@ test("Alle geladenen Tickets als CSV-Datei mit neutralisierten Formeln und leere
     ].join("\r\n"),
   );
   expect(await page.evaluate(() => window.__qaBlobs)).toEqual(["text/csv;charset=utf-8"]);
-  await expect(page.getByText("CSV-Datei heruntergeladen")).toBeVisible();
+  await expect(page.getByText("CSV-Download gestartet")).toBeVisible();
 });
 
 test("Auswahl exportiert nur gewählte Zeilen in Tabellenreihenfolge und aktuellen Spalten", async ({ page }, testInfo) => {
