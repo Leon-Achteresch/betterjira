@@ -54,7 +54,7 @@ test("Seitenfehler lässt die Shell nutzbar und Retry stellt die Ansicht wieder 
 
   await expect(alert(page, PAGE_TITLE)).toBeVisible();
   await expect(page.getByText(SECRET)).toHaveCount(0);
-  await expect(mainNav(page)).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "Werkzeuge" }).getByRole("link", { name: "Einstellungen", exact: true })).toBeVisible();
   await expect(retry(page)).toBeFocused();
   if (testInfo.project.use.reducedMotion === "reduce") {
     const item = page.getByRole("alert").locator("xpath=..");
@@ -126,7 +126,7 @@ test("Root-Fallback fängt Shell-Fehler und Retry stellt die App wieder her", as
   await expect(retry(page)).toBeFocused();
   await page.keyboard.press("Enter");
 
-  await expect(mainNav(page)).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "Werkzeuge" }).getByRole("link", { name: "Einstellungen", exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Kalender", exact: true })).toBeVisible();
   await expect(page.getByRole("alert").filter({ hasText: APP_TITLE })).toHaveCount(0);
 });
