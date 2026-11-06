@@ -21,6 +21,7 @@ export const useAppShortcuts = () => {
   useHotkeys([
     { hotkey: shortcutHotkey("help"), callback: () => help.setOpen(!help.open) },
     { hotkey: shortcutHotkey("home"), callback: () => void navigate({ to: "/" }) },
+    { hotkey: shortcutHotkey("tickets"), callback: () => void navigate({ to: "/tickets" }) },
     { hotkey: shortcutHotkey("search"), callback: () => void navigate({ to: "/suche", search: {} }) },
     { hotkey: shortcutHotkey("settings"), callback: () => void navigate({ to: "/settings" }) },
     { hotkey: shortcutHotkey("nextRow"), callback: () => focusRowLink(1) },

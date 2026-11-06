@@ -67,7 +67,7 @@ export function AppHeader() {
       <div className="flex w-72 shrink-0">
         <AppCommandPalette />
       </div>
-      <nav className="ml-auto flex items-center gap-1 px-3" aria-label="Hauptnavigation">
+      <nav className="ml-auto flex items-center gap-1 px-3" aria-label="Werkzeuge">
         <WorkQueue />
         <NotificationBell />
         <ThemeToggle />

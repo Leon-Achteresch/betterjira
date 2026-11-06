@@ -268,7 +268,7 @@ let listenerId = 0;
 let callbackId = 0;
 const requests = new Map();
 let nextId = 0;
-window.__qa = { writes: [], failNextWrite: false, delayMs: 0, issues, wiki, briefing, briefingFailure: false };
+window.__qa = { writes: [], failNextWrite: false, delayMs: 0, issues, wiki, briefing, briefingFailure: false, searches: [], searchDelayMs: 0, failSearch: false, emptySearch: false, sessionFailure: scenario === "session-error" };
 window.__qa.outlook = {
   calls: [],
   failNext: false,
@@ -338,7 +338,13 @@ const respond = async (request) => {
         clauseNames: [id],
       })),
     };
-  if (path.startsWith("/search/jql")) return { body: { issues, isLast: true } };
+  if (path.startsWith("/search/jql")) {
+    const qa = window.__qa;
+    qa.searches.push(url.searchParams.get("jql"));
+    if (qa.searchDelayMs) await new Promise((resolve) => setTimeout(resolve, qa.searchDelayMs));
+    if (qa.failSearch) return { status: 400, body: { errorMessages: ["Test: Abfrage nicht möglich"] } };
+    return { body: { issues: qa.emptySearch ? [] : issues, isLast: true } };
+  }
   if (scenario === "board" && /^\/board\/\d+\/configuration/.test(path))
     return {
       body: {
@@ -411,6 +417,7 @@ window.__TAURI_INTERNALS__ = {
       throw "Test: Unbekannte Outlook-Aktion";
     }
     if (command === "session_get" && scenario === "calendar-offline") return null;
+    if (command === "session_get" && window.__qa.sessionFailure) throw "Test: Schlüsselbund gesperrt";
     if (command === "session_get")
       return JSON.stringify({
         accessToken: "local-test",

@@ -8,6 +8,7 @@ export type ShortcutId =
   | "back"
   | "forward"
   | "home"
+  | "tickets"
   | "search"
   | "settings"
   | "nextTab"
@@ -45,7 +46,8 @@ export const SHORTCUTS: Shortcut[] = [
   shortcut("sidebar", "Mod+B", "Seitenleiste ein-/ausblenden", "Allgemein"),
   shortcut("back", IS_MAC ? "Mod+[" : "Alt+ArrowLeft", "Zurück", "Navigation"),
   shortcut("forward", IS_MAC ? "Mod+]" : "Alt+ArrowRight", "Vor", "Navigation"),
-  shortcut("home", ["G", "H"], "Startseite", "Navigation"),
+  shortcut("home", ["G", "H"], "Übersicht", "Navigation"),
+  shortcut("tickets", ["G", "T"], "Jira-Tickets", "Navigation"),
   shortcut("search", ["G", "S"], "JQL-Suche", "Navigation"),
   shortcut("settings", "Mod+,", "Einstellungen", "Navigation"),
   shortcut("nextTab", "Control+Tab", "Nächster Ticket-Tab", "Ticket-Tabs"),
