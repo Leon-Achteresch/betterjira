@@ -241,7 +241,7 @@ export function CommandPalette({
                 {...gate}
                 onKeyDown={onKeyDown}
                 className={cn(
-                  "pointer-events-auto w-full max-w-xl overflow-hidden rounded-2xl border border-border bg-background shadow-2xl will-change-transform",
+                  "pointer-events-auto w-full max-w-xl overflow-hidden rounded-2xl border border-border glass shadow-2xl will-change-transform",
                   hasPreviews && "md:max-w-3xl",
                 )}
               >
