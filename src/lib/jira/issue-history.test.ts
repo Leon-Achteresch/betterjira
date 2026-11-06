@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { JiraApiError, JiraAuthError } from "./client";
+import { jiraKeys } from "./queries";
 import {
   HISTORY_LIMIT,
   HISTORY_PAGE_SIZE,
@@ -163,6 +164,12 @@ describe("historyErrorDetail", () => {
 });
 
 describe("issueHistoryKeys", () => {
+  it("wird mit erfolgreichen Änderungen desselben Tickets invalidiert", () => {
+    const key = issueHistoryKeys.issue("cloud-a", "user-a", "DEMO-1");
+    expect(key.slice(0, jiraKeys.issue("DEMO-1").length)).toEqual(jiraKeys.issue("DEMO-1"));
+    expect(key.slice(0, jiraKeys.issue("DEMO-2").length)).not.toEqual(jiraKeys.issue("DEMO-2"));
+  });
+
   it("trennt Cache nach Instanz, Konto und Ticket", () => {
     const keys = [
       issueHistoryKeys.issue("cloud-a", "user-a", "DEMO-1"),

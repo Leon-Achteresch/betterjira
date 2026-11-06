@@ -184,7 +184,7 @@ export const olderPageParam = (pages: readonly HistoryPage[]): HistoryPageParam 
 };
 
 export const issueHistoryKeys = {
-  issue: (cloudId: string, accountId: string, key: string) => [...jiraKeys.all, "issue-history", cloudId, accountId, key] as const,
+  issue: (cloudId: string, accountId: string, key: string) => [...jiraKeys.issue(key), "history", cloudId, accountId] as const,
 };
 
 const changelogPath = (key: string, { startAt, maxResults }: { startAt: number; maxResults: number }) =>
