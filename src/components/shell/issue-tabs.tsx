@@ -92,7 +92,8 @@ function IssueTabItem({
           animate={{ opacity: 1, y: 0, transition: { duration: 0.2, ease: EASE_OUT } }}
           exit={{ opacity: 0, scale: reduceMotion ? 1 : 0.96, transition: { duration: 0.12, ease: EASE_OUT } }}
           transition={SPRING_LAYOUT}
-          onAuxClick={(event) => event.button === 1 && !tab.pinned && onClose(tab.key)}
+          onMouseDown={(event) => event.button === 1 && event.preventDefault()}
+          onMouseUp={(event) => event.button === 1 && !tab.pinned && onClose(tab.key)}
           className={cn(
             "group relative flex shrink-0 items-center rounded-t-lg text-xs transition-colors",
             tab.pinned ? "w-auto" : "w-44",
