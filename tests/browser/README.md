@@ -131,3 +131,9 @@ Der vollständige Ablaufbericht einschließlich Vielnutzer, sorgfältigem Leser,
 - Zweites Konto derselben Instanz: `&account=qa-colleague`. Es sieht nur seinen eigenen QA-Kontext; die Daten von `qa-user` bleiben unverändert im lokalen Speicher.
 - Abmelden simuliert `session_delete`; danach meldet die Sitzung bis zum erneuten Öffnen der Fixture „Nicht angemeldet“.
 - Automatisch: `bunx playwright test tests/browser/workspace-page.e2e.ts --workers=1`. Mit `WORKSPACE_SHOTS=<Ordner>` speichert der Test Screenshots.
+
+## Übersicht aktualisieren
+
+- Übersicht: `...fixture.html?route=/`. Der Knopf neben dem Stand lädt Tickets und Profil (bei Favoriten auch die Bereiche) erneut; während des Abrufs löst ein weiterer Klick keinen zweiten Abruf aus.
+- `window.__qaSearchRule = (jql) => jql.includes("resolved >= -7d") ? { status: 400 } : {}` lässt nur die Arbeitsliste scheitern (Teilfehler), zusammen mit `window.__qa.failMyself = true` scheitern alle Abfragen. Geladene Tickets bleiben sichtbar, der Stand bleibt beim letzten erfolgreichen Abruf.
+- Automatisch: `bunx playwright test tests/browser/dashboard-refresh.e2e.ts --workers=1` prüft initiales Laden, Initialfehler mit Retry, Aktualisieren und Doppelklick, vollständigen und teilweisen Refreshfehler mit Retry, leere Liste mit Fehler, offline/online sowie Tastatur und 390 px. `DASHBOARD_SHOTS=<Ordner>` speichert Screenshots.
