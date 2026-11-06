@@ -15,11 +15,14 @@ const notification = (id: string): JiraNotification => ({
 });
 
 describe("useNotifications", () => {
-  it("keeps legacy items for the first account and drops them when the account changes", () => {
+  it("does not assign unowned legacy items to the first account", () => {
     useNotifications.setState({ owner: null, items: [notification("a")], checkedAt: 5 });
     useNotifications.getState().adopt("first");
-    expect(useNotifications.getState()).toMatchObject({ owner: "first", checkedAt: 5 });
-    expect(useNotifications.getState().items).toHaveLength(1);
+    expect(useNotifications.getState()).toMatchObject({ owner: "first", items: [], checkedAt: null });
+  });
+
+  it("retains the current account items and drops them when the account changes", () => {
+    useNotifications.setState({ owner: "first", items: [notification("a")], checkedAt: 5 });
 
     useNotifications.getState().adopt("first");
     expect(useNotifications.getState().items).toHaveLength(1);

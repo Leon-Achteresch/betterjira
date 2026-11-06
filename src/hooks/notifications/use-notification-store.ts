@@ -26,7 +26,7 @@ export const useNotifications = create<NotificationState>()(
       adopt: (owner) => {
         const current = get().owner;
         if (current === owner) return;
-        set(current === null ? { owner } : { owner, items: [], checkedAt: null });
+        set({ owner, items: [], checkedAt: null });
       },
       receive: (incoming, checkedAt) => {
         const known = new Set(get().items.map((item) => item.id));
