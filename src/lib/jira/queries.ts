@@ -28,6 +28,10 @@ export const jiraKeys = {
   boardSprints: (id: number) => ["jira", "board-sprints", id] as const,
   boardConfig: (id: number) => ["jira", "board-config", id] as const,
   projectStats: (key: string) => ["jira", "project-stats", key] as const,
+  allProjectStats: ["jira", "project-stats"] as const,
+  createIssueTypes: (projectId: string) => ["jira", "create-meta", projectId] as const,
+  createFields: (projectId: string, issueTypeId: string) => ["jira", "create-meta", projectId, issueTypeId] as const,
+  createPermission: (projectId: string) => ["jira", "create-permission", projectId] as const,
 };
 
 const Myself = Schema.Struct({

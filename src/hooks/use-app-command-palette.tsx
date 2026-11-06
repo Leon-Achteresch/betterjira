@@ -26,6 +26,7 @@ import {
   GitPullRequestIcon,
   PinIcon,
   HistoryIcon,
+  SquarePenIcon,
 } from "lucide-react";
 import type { CommandItem } from "@/components/motion/command-palette";
 import { IssuePreview, ProjectPreview, FilterPreview, IssueKey } from "@/components/shell/command-previews";
@@ -265,6 +266,15 @@ export function useAppCommandPalette() {
       group: "Navigation",
       icon: SparklesIcon,
       onSelect: () => void navigate({ to: "/settings/briefing" }),
+    },
+    {
+      id: "action:create-issue",
+      label: "Ticket erstellen",
+      group: "Aktionen",
+      icon: SquarePenIcon,
+      keywords: ["neu", "anlegen", "vorgang", "issue", "create"],
+      hint: shortcutHint("createIssue"),
+      onSelect: () => void navigate({ to: "/neu" }),
     },
     {
       id: "action:sidebar",

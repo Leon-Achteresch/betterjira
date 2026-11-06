@@ -465,13 +465,60 @@ if (scenario === "workspace") {
     );
   }
 }
+const createProjects = [
+  project,
+  { ...project, id: "2", key: "OPS", name: "Betrieb" },
+  { ...project, id: "3", key: "LOCK", name: "Archiv ohne Rechte" },
+];
+const metaField = (fieldId, name, schema, extra = {}) => ({ fieldId, key: fieldId, name, required: true, schema, operations: ["set"], ...extra });
+const baseFields = [
+  metaField("summary", "Zusammenfassung", { type: "string", system: "summary" }),
+  metaField("issuetype", "Vorgangstyp", { type: "issuetype", system: "issuetype" }),
+  metaField("project", "Projekt", { type: "project", system: "project" }),
+  metaField("reporter", "Melder", { type: "user", system: "reporter" }, { hasDefaultValue: true }),
+];
+const createMeta = {
+  1: {
+    types: [
+      { id: "10001", name: "Aufgabe", subtask: false, iconUrl: "/logo.svg" },
+      { id: "10002", name: "Fehler", subtask: false, iconUrl: "/logo.svg" },
+      { id: "10003", name: "Unteraufgabe", subtask: true, iconUrl: "/logo.svg" },
+    ],
+    fields: {
+      10001: [
+        ...baseFields,
+        metaField("description", "Beschreibung", { type: "string", system: "description" }, { required: false }),
+        metaField("priority", "Priorität", { type: "priority", system: "priority" }, {
+          allowedValues: [{ id: "2", name: "Hoch" }, { id: "3", name: "Mittel" }],
+        }),
+        metaField("customfield_kunde", "Kunde", { type: "string", custom: "com.atlassian.jira.plugin.system.customfieldtypes:textfield" }),
+      ],
+      10002: [
+        ...baseFields,
+        metaField("description", "Beschreibung", { type: "string", system: "description" }, { required: false }),
+        metaField("customfield_umgebung", "Umgebung", { type: "option", custom: "com.atlassian.jira.plugin.system.customfieldtypes:select" }, {
+          allowedValues: [{ id: "e1", value: "Produktion" }, { id: "e2", value: "Test" }],
+        }),
+      ],
+    },
+  },
+  2: {
+    types: [{ id: "20001", name: "Störung", subtask: false, iconUrl: "/logo.svg" }],
+    fields: {
+      20001: [
+        ...baseFields,
+        metaField("customfield_team", "Team", { type: "team", custom: "com.atlassian.teams:rm-teams-custom-field-team" }),
+      ],
+    },
+  },
+};
 const callbacks = new Map();
 const listeners = new Map();
 let listenerId = 0;
 let callbackId = 0;
 const requests = new Map();
 let nextId = 0;
-window.__qa = { writes: [], failNextWrite: false, delayMs: 0, issues, wiki, briefing, briefingFailure: false, searches: [], searchDelayMs: 0, failSearch: false, emptySearch: false, sessionFailure: scenario === "session-error", sessionDelayMs: scenario === "session-slow" ? 1500 : 0 };
+window.__qa = { writes: [], failNextWrite: false, delayMs: 0, issues, wiki, briefing, briefingFailure: false, searches: [], searchDelayMs: 0, failSearch: false, emptySearch: false, sessionFailure: scenario === "session-error", sessionDelayMs: scenario === "session-slow" ? 1500 : 0, metaDelay: {}, createFailure: null, opened: [] };
 window.__qa.outlook = {
   calls: [],
   failNext: false,
@@ -493,7 +540,32 @@ const respond = async (request) => {
       };
     }
     const input = request.data ? JSON.parse(new TextDecoder().decode(new Uint8Array(request.data))) : {};
+    if (path === "/issue" && window.__qa.createFailure) {
+      const failure = window.__qa.createFailure;
+      window.__qa.createFailure = null;
+      window.__qa.writes.push({ path, method: request.method, input, failed: failure.status });
+      return failure;
+    }
     window.__qa.writes.push({ path, method: request.method, input });
+    if (path === "/issue" && request.method === "POST") {
+      const target = createProjects.find((entry) => entry.id === input.fields.project.id) ?? project;
+      const key = `${target.key}-${issues.length + 1}`;
+      const id = String(10000 + issues.length + 1);
+      issues.push({
+        ...issues[0],
+        id,
+        key,
+        fields: {
+          ...issues[0].fields,
+          summary: input.fields.summary,
+          project: target,
+          description: input.fields.description ?? null,
+          comment: { total: 0, comments: [] },
+          worklog: { total: 0, worklogs: [] },
+        },
+      });
+      return { status: 201, body: { id, key, self: `https://example.atlassian.net/rest/api/3/issue/${id}` } };
+    }
     const issue = issues.find((issue) => path.startsWith(`/issue/${issue.key}/`) || path === `/issue/${issue.key}`);
     if (path.endsWith("/comment") && issue)
       issue.fields.comment.comments.push({
@@ -523,7 +595,21 @@ const respond = async (request) => {
     return { status: 204 };
   }
   if (path === "/myself") return { body: { ...author, accountId } };
-  if (path.startsWith("/project/search")) return { body: { isLast: true, values: [project] } };
+  if (path.startsWith("/project/search")) return { body: { isLast: true, values: scenario === "create" ? createProjects : [project] } };
+  if (path === "/mypermissions") {
+    const allowed = url.searchParams.get("projectId") !== "3";
+    return { body: { permissions: { CREATE_ISSUES: { key: "CREATE_ISSUES", havePermission: allowed } } } };
+  }
+  const createMetaPath = /^\/issue\/createmeta\/([^/]+)\/issuetypes(?:\/([^/]+))?$/.exec(path);
+  if (createMetaPath) {
+    const [, projectId, typeId] = createMetaPath;
+    const delay = window.__qa.metaDelay[projectId];
+    if (delay) await new Promise((resolve) => setTimeout(resolve, delay));
+    const meta = createMeta[projectId] ?? { types: [], fields: {} };
+    if (!typeId) return { body: { startAt: 0, maxResults: 100, total: meta.types.length, issueTypes: meta.types } };
+    const fields = meta.fields[typeId] ?? [];
+    return { body: { startAt: 0, maxResults: 100, total: fields.length, fields } };
+  }
   if (path.startsWith("/filter/my")) return { body: [] };
   if (path === "/field")
     return {
@@ -649,6 +735,10 @@ window.__TAURI_INTERNALS__ = {
       });
     if (command === "oauth_login") throw "Test: Anmeldung abgebrochen";
     if (command === "oauth_cancel") return null;
+    if (command === "plugin:opener|open_url") {
+      window.__qa.opened.push(args.url);
+      return null;
+    }
     if (command === "scm_gh_hosts") return JSON.stringify([]);
     if (command === "attention_read") return scenario === "ai" ? JSON.stringify(window.__qa.briefing) : null;
     if (command === "attention_serve") return 8743;

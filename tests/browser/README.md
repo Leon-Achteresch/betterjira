@@ -108,3 +108,9 @@ Der vollständige Ablaufbericht einschließlich Vielnutzer, sorgfältigem Leser,
 - Zweites Konto derselben Instanz: `&account=qa-colleague`. Es sieht nur seinen eigenen QA-Kontext; die Daten von `qa-user` bleiben unverändert im lokalen Speicher.
 - Abmelden simuliert `session_delete`; danach meldet die Sitzung bis zum erneuten Öffnen der Fixture „Nicht angemeldet“.
 - Automatisch: `bunx playwright test tests/browser/workspace-page.e2e.ts --workers=1`. Mit `WORKSPACE_SHOTS=<Ordner>` speichert der Test Screenshots.
+
+## Ticket erstellen
+
+- Formular: `http://localhost:1420/tests/browser/fixture.html?scenario=create&route=/neu`. Projekte: „Produktentwicklung“ (Aufgabe mit Pflichtfeldern Priorität und Kunde, Fehler mit Pflichtfeld Umgebung, Unteraufgabe nur in Jira), „Betrieb“ (Pflichtfeld Team, nicht unterstützt) und „Archiv ohne Rechte“ (keine Create-Berechtigung).
+- `window.__qa.createFailure = { status, body }` lässt den nächsten `POST /issue` einmalig scheitern, `window.__qa.metaDelay = { "<projektId>": ms }` verzögert die Create-Metadaten, `window.__qa.opened` sammelt geöffnete Jira-Links. Erstellte Tickets bleiben in der Simulation.
+- Automatisch: `bunx playwright test tests/browser/create-issue.e2e.ts --workers=1`; mit `CREATE_ISSUE_SHOTS=<Ordner>` zusätzlich Screenshots.
