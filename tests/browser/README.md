@@ -71,7 +71,7 @@ Der vollständige Ablaufbericht einschließlich Vielnutzer, sorgfältigem Leser,
 
 ## Kommentare, Antworten und Erwähnungen
 
-Öffnen: `http://localhost:1420/tests/browser/fixture.html?route=/issue/DEMO-1`. DEMO-1 hat sieben Kommentare: Lea Musters Rückfrage mit zwei Antworten (`parentId` einmal als Zahl, einmal als Zeichenkette), eine verwaiste Antwort mit `parentId` 99999 und einen Kommentar des App-Kontos „Automation für Jira“. Melder ist die deaktivierte „Ehemalige Kollegin“. Die Fixture liefert die Kommentarliste in Seiten zu je zwei Einträgen.
+Öffnen: `http://localhost:1420/tests/browser/fixture.html?route=/issue/DEMO-1`. DEMO-1 hat elf Kommentare: Lea Musters Rückfrage mit zwei Antworten (`parentId` einmal als Zahl, einmal als Zeichenkette), eine verwaiste Antwort mit `parentId` 99999, einen Kommentar des App-Kontos „Automation für Jira“, einen eigenen Kommentar mit einer Liste, die mit Code beginnt (nicht bearbeitbar), einen eigenen Thread-Anfang mit `visibility` „Developers“, einen von Lea Muster bearbeiteten Kommentar und einen Kommentar mit Links auf Kommentar 20012 in DEMO-2, auf DEMO-3 und auf eine externe Seite. Melder ist die deaktivierte „Ehemalige Kollegin“. Die Fixture liefert die Kommentarliste in Seiten zu je zwei Einträgen.
 
 Testschalter in der Browserkonsole:
 
@@ -82,9 +82,12 @@ window.__qa.failCommentList = true;
 window.__qa.failUserSearch = true;
 window.__qa.rejectParentId = true;
 window.__qa.ignoreParentId = true;
+window.__qa.ownPermissionsOnly = true;
 ```
 
 `commentPageSize` begrenzt die Einträge je Seite von `GET /comment`. `readDelayMs` verzögert `GET /comment`. `failCommentList` lässt `GET /comment` mit HTTP 503 scheitern, solange der Schalter an ist. `failUserSearch` lässt `GET /user/viewissue/search` scheitern. `rejectParentId` beantwortet ein `POST /comment` mit `parentId` mit HTTP 400. `ignoreParentId` legt die Antwort ohne `parentId` an, wie ein Jira, das das Feld still verwirft. Projekt vom Typ `service_desk`: `http://localhost:1420/tests/browser/fixture.html?scenario=jsm&route=/issue/DEMO-1`.
+
+`ownPermissionsOnly` liefert bei `GET /mypermissions` nur `EDIT_OWN_COMMENTS` und `DELETE_OWN_COMMENTS`. Weil die App die Rechte je Ticket zwischenspeichert, am einfachsten mit `&permissions=own` in der Fixture-URL starten. `PUT` und `DELETE` auf `/issue/{key}/comment/{id}` ändern die Testdaten und stehen in `writes`; `failNextWrite` und `delayMs` gelten auch für sie.
 
 Alten Textentwurf vorbereiten: Fixture einmal öffnen, dann `http://localhost:1420/logo.svg` öffnen und das Snippet dort in der Konsole ausführen, denn die laufende Fixture überschreibt den Eintrag beim Verlassen. Danach die Fixture neu öffnen:
 
@@ -97,7 +100,7 @@ localStorage.setItem("betterjira-workspaces", JSON.stringify(stored));
 Prüfliste:
 
 - [ ] Bei „Älteste zuerst“ und bei „Neueste zuerst“ steht die Kommentar-Box über der Liste; der Umschalter ordnet die Threads um.
-- [ ] Der Titel zeigt „Kommentare · 7“, alle sieben Kommentare sind sichtbar, obwohl jede Seite nur zwei liefert.
+- [ ] Der Titel zeigt „Kommentare · 11“, alle elf Kommentare sind sichtbar, obwohl jede Seite nur zwei liefert.
 - [ ] `readDelayMs = 1500` setzen und in der App ein noch nicht geöffnetes Ticket (DEMO-3) öffnen: ein Skeleton steht an der Stelle der Liste, in die Box lässt sich tippen.
 - [ ] Mit `failCommentList = true` erscheint die Fehlermeldung mit „Erneut laden“; nach `failCommentList = false` lädt „Erneut laden“ die Liste.
 - [ ] Lea Musters Rückfrage zeigt beide Antworten eingerückt in aufsteigender Zeit, in beiden Sortierungen, ohne Zuklappen.
@@ -105,7 +108,7 @@ Prüfliste:
 - [ ] „Antworten“ an Leas Kommentar öffnet die Box am Ende des Threads mit Fokus und dem Inhalt „@Lea Muster “.
 - [ ] „Antworten“ am eigenen Kommentar von Alex Beispiel öffnet die Box ohne Vorbelegung.
 - [ ] In Box A tippen, dann an einem anderen Thread „Antworten“: Box A schließt, ihr Thread zeigt an jedem Kommentar „Antwort fortsetzen“, beim Zurückkehren ist der Text da.
-- [ ] Antwort in Leas Thread senden: `window.__qa.writes.at(-1).input` hat `parentId` 10002 und `body.type` „doc“, die Meldung lautet „Antwort hinzugefügt“, die Box schließt, die Antwort erscheint unter dem Thread, der Titel zeigt 8.
+- [ ] Antwort in Leas Thread senden: `window.__qa.writes.at(-1).input` hat `parentId` 10002 und `body.type` „doc“, die Meldung lautet „Antwort hinzugefügt“, die Box schließt, die Antwort erscheint unter dem Thread, der Titel zeigt 12.
 - [ ] Mit `ignoreParentId = true` meldet die App nach dem Senden, dass Jira die Antwort als normalen Kommentar angelegt hat; der Kommentar steht als neuer Thread.
 - [ ] Mit `rejectParentId = true` steht die Fehlermeldung in der Antwortbox, der Text bleibt.
 - [ ] Antwort auf die verwaiste Antwort sendet `parentId` 99999.
@@ -126,3 +129,25 @@ Prüfliste:
 - [ ] Mit gespeichertem Entwurf die Fixture neu öffnen und sofort tippen: der Text erweitert den Entwurf, nichts wird überschrieben.
 - [ ] Bei offener Vorschlagsliste die Seite scrollen: die Liste bleibt am Cursor; im Status-Dialog und in Rich-Text-Feldern öffnet `@` keine Liste.
 - [ ] Antwortbox, Vorschlagsliste, neue Kommentare und die Markierung bewegen sich hell und dunkel mit Popover-Fläche, Schatten und Haarlinie; mit `&reduce=1` wird nur ein- und ausgeblendet.
+
+## Kommentare bearbeiten, löschen und verlinken
+
+Öffnen: `http://localhost:1420/tests/browser/fixture.html?route=/issue/DEMO-1`.
+
+- [ ] Ab 640 px Breite erscheint der Button „Weitere Aktionen“ nur bei Hover, Fokus im Kommentar oder offenem Menü; schmaler ist er immer sichtbar.
+- [ ] Das Menü zeigt „Link kopieren“, „Bearbeiten“, Trennlinie und rotes „Löschen…“; „Link kopieren“ meldet „Link kopiert“, die Zwischenablage enthält `https://example.atlassian.net/browse/DEMO-1?focusedCommentId=<id>`.
+- [ ] Kommentar 10008: „Bearbeiten“ ist deaktiviert und nennt „Enthält Inhalte, die sich nur in Jira bearbeiten lassen“.
+- [ ] Kommentar 10010 zeigt „bearbeitet“; der Tooltip lautet „Bearbeitet am 05.11.2026, … von Lea Muster“.
+- [ ] Mit `&permissions=own` in der Fixture-URL fehlen an Leas Kommentaren „Bearbeiten“ und „Löschen…“, „Link kopieren“ bleibt; an eigenen Kommentaren sind beide da. Im Szenario `jsm` fehlt „Bearbeiten“, „Löschen…“ bleibt.
+- [ ] „Bearbeiten“ ersetzt Text und Aktionen durch den Editor mit Formatierleiste, Fokus am Ende; `@` schlägt Personen vor; „Speichern“ ist gesperrt, solange nichts geändert ist.
+- [ ] Kommentar 10009 ändern und speichern: „Kommentar gespeichert“, `window.__qa.writes.at(-1)` ist `PUT` mit `input.visibility` `{ type: "role", value: "Developers", identifier: "Developers" }`; Antwort 10003 speichern: kein `visibility`, kein `parentId`; danach steht „bearbeitet“ am Kommentar.
+- [ ] Ändern und Escape drücken: Editor schließt, „Entwurf“ steht neben der Zeit, das Menü heißt „Bearbeitung fortsetzen“, DEMO-1 steht in der Arbeitsliste unter „Angefangen“; „Änderungen verwerfen“ setzt den Text zurück und der Knopf „Entwurf“ verschwindet.
+- [ ] Mit `delayMs = 1500` speichern und sofort weitertippen: Editor schließt nach dem Erfolg, „Entwurf“ steht am Kommentar, „Bearbeitung fortsetzen“ zeigt den neueren Text.
+- [ ] Mit `failNextWrite = true` speichern: Fehlermeldung im Editor, Inhalt bleibt. Mit `delayMs = 1500` und `failNextWrite = true` speichern und sofort einen anderen Kommentar bearbeiten: Toast „Kommentar konnte nicht gespeichert werden“, im zweiten Editor kein Fehler.
+- [ ] Leas Rückfrage 10002 löschen: Dialog „Kommentar löschen?“ nennt „Das lässt sich nicht rückgängig machen. Die 2 Antworten bleiben erhalten und stehen danach als eigener Thread.“; nach „Löschen“ meldet die App „Kommentar gelöscht“ und 10003 und 10005 stehen als eigener Thread.
+- [ ] Mit `delayMs = 1500` „Löschen“ bestätigen und sofort Escape drücken: der Dialog bleibt offen, „Löschen“ ist gesperrt, bis die Antwort kommt. Mit `failNextWrite = true` löschen: Dialog schließt, Toast „Kommentar konnte nicht gelöscht werden“ mit der Meldung „Test: Jira vorübergehend nicht erreichbar“.
+- [ ] Fixture neu öffnen, `failCommentList = true` setzen und in Kommentar 10011 „die Abstimmung in DEMO-2“ anklicken: DEMO-2 öffnet, keine Meldung „Kommentar nicht mehr vorhanden“, keine Meldung „An letzter Lesestelle fortgesetzt“, `comment` bleibt in der URL; nach `failCommentList = false` und „Erneut laden“ springt die Ansicht zu 20012.
+- [ ] Zurück in DEMO-1 „die Abstimmung in DEMO-2“ anklicken: DEMO-2 öffnet in der App, Kommentar 20012 steht mittig und ist etwa 2 Sekunden hinterlegt; Text und Menü bleiben lesbar und klickbar; die Seite springt danach nicht nach oben; die URL trägt kein `comment` mehr; keine Meldung „An letzter Lesestelle fortgesetzt“. Mit `&reduce=1` springt die Ansicht ohne Scroll-Animation.
+- [ ] In 10011 die Karte auf DEMO-3 öffnet DEMO-3 in der App; „die Doku“ öffnet im Browser.
+- [ ] In DEMO-2 Kommentar 20012 löschen, zurück in DEMO-1 „die Abstimmung in DEMO-2“ anklicken: nach einem Neuladen der Liste meldet die App „Kommentar nicht mehr vorhanden“, `comment` verschwindet aus der URL.
+- [ ] Nur in FSI-38, weil die Fixture keine fremden neuen Kommentare erzeugt: eine Benachrichtigung über einen Kommentar öffnen (Zeile, Gruppenzeile oder Toast „Öffnen“): das Ticket öffnet und springt zu diesem Kommentar.

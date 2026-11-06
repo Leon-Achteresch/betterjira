@@ -128,6 +128,60 @@ const comments = Object.fromEntries(
   ]),
 );
 let nextCommentId = 30000;
+const lockedBody = {
+  type: "doc",
+  version: 1,
+  content: [
+    {
+      type: "bulletList",
+      content: [{ type: "listItem", content: [{ type: "codeBlock", content: [{ type: "text", text: "bun run release" }] }] }],
+    },
+  ],
+};
+const linkBody = {
+  type: "doc",
+  version: 1,
+  content: [
+    {
+      type: "paragraph",
+      content: [
+        { type: "text", text: "Siehe " },
+        {
+          type: "text",
+          text: "die Abstimmung in DEMO-2",
+          marks: [{ type: "link", attrs: { href: "https://example.atlassian.net/browse/DEMO-2?focusedCommentId=20012" } }],
+        },
+        { type: "text", text: ", das Ticket " },
+        { type: "inlineCard", attrs: { url: "https://example.atlassian.net/browse/DEMO-3" } },
+        { type: "text", text: " und " },
+        { type: "text", text: "die Doku", marks: [{ type: "link", attrs: { href: "https://example.com/doku" } }] },
+        { type: "text", text: "." },
+      ],
+    },
+  ],
+};
+if (comments["DEMO-1"]) {
+  comments["DEMO-1"].push(
+    { id: "10008", author, created: "2026-11-04T11:00:00Z", updated: "2026-11-04T11:00:00Z", body: lockedBody },
+    {
+      id: "10009",
+      author,
+      created: "2026-11-04T12:00:00Z",
+      updated: "2026-11-04T12:00:00Z",
+      body: paragraph("Nur für Entwickler sichtbar: Die Zugangsdaten liegen im Tresor."),
+      visibility: { type: "role", value: "Developers", identifier: "Developers" },
+    },
+    {
+      id: "10010",
+      author: lea,
+      created: "2026-11-04T13:00:00Z",
+      updated: "2026-11-05T08:30:00Z",
+      updateAuthor: lea,
+      body: paragraph("Der Termin ist auf Donnerstag verschoben."),
+    },
+    { id: "10011", author, created: "2026-11-04T14:00:00Z", updated: "2026-11-04T14:00:00Z", body: linkBody },
+  );
+}
 const withEmbeddedComments = (issue) => {
   const list = comments[issue.key] ?? [];
   return {
@@ -318,6 +372,7 @@ window.__qa = {
   failUserSearch: false,
   rejectParentId: false,
   ignoreParentId: false,
+  ownPermissionsOnly: new URLSearchParams(location.search).get("permissions") === "own",
 };
 const respond = async (request) => {
   const url = new URL(request.url);
@@ -335,6 +390,19 @@ const respond = async (request) => {
     }
     const input = request.data ? JSON.parse(new TextDecoder().decode(new Uint8Array(request.data))) : {};
     const issue = issues.find((issue) => path.startsWith(`/issue/${issue.key}/`) || path === `/issue/${issue.key}`);
+    const commentItem = path.match(/^\/issue\/([^/]+)\/comment\/([^/]+)$/);
+    if (commentItem && issue && (request.method === "PUT" || request.method === "DELETE")) {
+      const list = comments[issue.key] ?? [];
+      const index = list.findIndex((entry) => entry.id === decodeURIComponent(commentItem[2]));
+      if (index === -1) return { status: 404, body: { errorMessages: ["Test: Kommentar nicht gefunden"] } };
+      window.__qa.writes.push({ path, method: request.method, input });
+      if (request.method === "DELETE") {
+        list.splice(index, 1);
+        return { status: 204 };
+      }
+      list[index] = { ...list[index], body: input.body, updated: new Date().toISOString(), updateAuthor: author };
+      return { status: 200, body: list[index] };
+    }
     if (path.endsWith("/comment") && issue && request.method === "POST") {
       if (input.parentId !== undefined && window.__qa.rejectParentId)
         return { status: 400, body: { errorMessages: ["Test: Jira lehnt parentId ab"] } };
@@ -369,6 +437,20 @@ const respond = async (request) => {
       }
     }
     return { status: 204 };
+  }
+  if (path === "/mypermissions") {
+    const all = !window.__qa.ownPermissionsOnly;
+    const grant = (key, havePermission) => [key, { id: key, key, name: key, type: "PROJECT", description: "", havePermission }];
+    return {
+      body: {
+        permissions: Object.fromEntries([
+          grant("EDIT_OWN_COMMENTS", true),
+          grant("DELETE_OWN_COMMENTS", true),
+          grant("EDIT_ALL_COMMENTS", all),
+          grant("DELETE_ALL_COMMENTS", all),
+        ]),
+      },
+    };
   }
   if (path === "/myself") return { body: author };
   if (path.startsWith("/project/search")) return { body: { isLast: true, values: [project] } };
