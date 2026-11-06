@@ -47,12 +47,12 @@ export function useCreateIssueForm() {
   const draft = { summary, description, values: values[scope] ?? {} };
   const missing = new Set(attempted ? missingFields(draft, plan) : []);
   const errors = createErrors(create.error, fieldList, plan);
-  const loadError = permission.error ?? types.error ?? fields.error;
+  const loadError = (projects.data ? null : projects.error) ?? permission.error ?? types.error ?? fields.error;
 
-  const status: CreateIssueStatus = !projectId
-    ? "no-project"
-    : loadError
-      ? "load-error"
+  const status: CreateIssueStatus = loadError
+    ? "load-error"
+    : !projectId
+      ? "no-project"
       : permission.data === false
         ? "no-permission"
         : permission.isPending || types.isPending
@@ -122,7 +122,7 @@ export function useCreateIssueForm() {
     setValue: (fieldId: string, value: unknown) =>
       setValues((current) => ({ ...current, [scope]: { ...current[scope], [fieldId]: value } })),
     retryLoad: () => {
-      for (const query of [permission, types, fields]) if (query.isError) void query.refetch();
+      for (const query of [projects, permission, types, fields]) if (query.isError) void query.refetch();
     },
     openInJira: () => {
       if (!site.data || !projectId) return;

@@ -245,7 +245,7 @@ export function CreateIssueForm({ form }: { form: CreateIssueFormModel }) {
             <motion.div initial={enter} animate={shown} exit={leave} transition={{ duration: 0.2, ease: EASE_OUT }}>
               <Alert variant="destructive" className="rounded-xl">
                 <AlertCircleIcon />
-                <AlertTitle>Ticket wurde nicht erstellt</AlertTitle>
+                <AlertTitle>{form.errors.uncertain ? "Ergebnis konnte nicht bestätigt werden" : "Ticket wurde nicht erstellt"}</AlertTitle>
                 <AlertDescription className="[&_p:not(:last-child)]:mb-1">
                   {form.errors.global.map((message) => (
                     <p key={message}>{message}</p>

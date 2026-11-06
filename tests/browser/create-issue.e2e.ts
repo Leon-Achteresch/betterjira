@@ -4,6 +4,7 @@ type Write = { path: string; method: string; input: { fields: Record<string, unk
 
 declare global {
   interface Window {
+    __qaProjectFailure?: boolean;
     __qa: {
       writes: Write[];
       searches: string[];
@@ -43,6 +44,18 @@ test.beforeEach(async ({ page }) => {
   page.on("pageerror", (error) => {
     throw error;
   });
+});
+
+test("Projektladefehler wird angezeigt und kann erneut geladen werden", async ({ page }) => {
+  await page.addInitScript(() => { window.__qaProjectFailure = true; });
+  await open(page);
+  await expect(main(page).getByRole("alert")).toContainText("Angaben zum Erstellen konnten nicht geladen werden");
+  await expect(submitButton(page)).toBeDisabled();
+  await page.evaluate(() => { window.__qaProjectFailure = false; });
+  await main(page).getByRole("button", { name: "Erneut laden" }).click();
+  await choose(page, "Projekt", /Produktentwicklung/);
+  await expect(main(page).getByRole("combobox", { name: "Vorgangstyp", exact: true })).toContainText("Aufgabe");
+  expect(await posts(page)).toEqual([]);
 });
 
 test("Erstellt genau ein Ticket trotz Doppelklick und Enter und öffnet es", async ({ page }) => {

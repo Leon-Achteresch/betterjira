@@ -595,7 +595,10 @@ const respond = async (request) => {
     return { status: 204 };
   }
   if (path === "/myself") return { body: { ...author, accountId } };
-  if (path.startsWith("/project/search")) return { body: { isLast: true, values: scenario === "create" ? createProjects : [project] } };
+  if (path.startsWith("/project/search")) {
+    if (window.__qaProjectFailure) return { status: 503, body: { errorMessages: ["Test: Projekte konnten nicht geladen werden"] } };
+    return { body: { isLast: true, values: scenario === "create" ? createProjects : [project] } };
+  }
   if (path === "/mypermissions") {
     const allowed = url.searchParams.get("projectId") !== "3";
     return { body: { permissions: { CREATE_ISSUES: { key: "CREATE_ISSUES", havePermission: allowed } } } };
