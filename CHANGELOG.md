@@ -1,5 +1,13 @@
 # Änderungen
 
+## 0.5.0 – 2026-11-06
+
+### Neu
+
+- Neues Update-Fenster unten rechts: zeigt die wichtigsten Neuerungen, die neue und die aktuelle Version und den Installationsfortschritt in Prozent.
+- Updates lassen sich auf „Später“ verschieben oder einzeln überspringen, „Alle Release Notes“ öffnet die Versionsübersicht.
+- Board: Insights-Panel mit wählbarer Messgröße, Gruppierung und Segment, dazu ein Anzeige-Menü sowie Status- und Prioritäts-Icons.
+
 ## 0.4.0 – 2026-11-06
 
 ### Neu
