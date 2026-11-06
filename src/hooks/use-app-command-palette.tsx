@@ -26,6 +26,7 @@ import {
   GitPullRequestIcon,
   PinIcon,
   HistoryIcon,
+  TimerIcon,
 } from "lucide-react";
 import type { CommandItem } from "@/components/motion/command-palette";
 import { IssuePreview, ProjectPreview, FilterPreview, IssueKey } from "@/components/shell/command-previews";
@@ -218,6 +219,14 @@ export function useAppCommandPalette() {
       keywords: ["tickets", "vorgänge", "meine", "beobachtet"],
       hint: shortcutHint("tickets"),
       onSelect: () => void navigate({ to: "/tickets" }),
+    },
+    {
+      id: "nav:time-tracking",
+      label: "Meine Zeiterfassung",
+      group: "Navigation",
+      icon: TimerIcon,
+      keywords: ["zeit", "worklog", "gebucht", "stunden", "woche"],
+      onSelect: () => void navigate({ to: "/zeiterfassung", search: {} }),
     },
     {
       id: "nav:notifications",

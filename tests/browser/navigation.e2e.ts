@@ -37,7 +37,7 @@ test.beforeEach(async ({ page }) => {
 test("Hauptnavigation markiert die aktive Seite und führt zu den Jira-Tickets", async ({ page }) => {
   await open(page, "/");
   const nav = await showMainNav(page);
-  for (const name of ["Übersicht", "Arbeitsplatz", "Jira-Tickets", "Pull Requests", "Kalender", "Benachrichtigungen"]) {
+  for (const name of ["Übersicht", "Arbeitsplatz", "Jira-Tickets", "Pull Requests", "Kalender", "Zeiterfassung", "Benachrichtigungen"]) {
     await expect(nav.getByRole("link", { name, exact: true })).toHaveCount(1);
   }
   await expect(nav.getByRole("link", { name: "Einstellungen" })).toHaveCount(0);
@@ -54,6 +54,10 @@ test("Hauptnavigation markiert die aktive Seite und führt zu den Jira-Tickets",
   await page.keyboard.press("Enter");
   await expect(page).toHaveURL(/\/kalender$/);
   await expect(page.getByRole("heading", { name: "Kalender", exact: true })).toBeVisible();
+
+  await (await showMainNav(page)).getByRole("link", { name: "Zeiterfassung", exact: true }).click();
+  await expect(page).toHaveURL(/\/zeiterfassung$/);
+  await expect(page.getByRole("heading", { name: "Meine Zeiterfassung", exact: true })).toBeVisible();
 
   await page.getByRole("navigation", { name: "Werkzeuge" }).getByRole("link", { name: "Einstellungen", exact: true }).click();
   await expect(page).toHaveURL(/\/settings\/darstellung$/);
