@@ -3,7 +3,7 @@ import { EditorContent, NodeViewWrapper, ReactNodeViewRenderer, useEditor, useEd
 import { BoldIcon, CodeIcon, ItalicIcon, ListIcon, ListOrderedIcon, type LucideIcon } from "lucide-react";
 import { AdfContent, AdfNodeView } from "@/components/adf-content";
 import { Button } from "@/components/ui/button";
-import { AdfBlock, AdfInline, AdfMarks, AdfStarterKit, adfToEditor, editorToAdf, isAdfDoc, isEditableAdf, type AdfNode } from "@/lib/jira/adf";
+import { AdfBlock, AdfInline, AdfMarks, AdfMention, AdfStarterKit, adfToEditor, editorToAdf, isAdfDoc, isEditableAdf, type AdfNode } from "@/lib/jira/adf";
 import { cn } from "@/lib/utils";
 
 function PreservedNode({ node }: ReactNodeViewProps) {
@@ -24,6 +24,7 @@ const extensions = [
   AdfInline.extend({ addNodeView: () => ReactNodeViewRenderer(PreservedNode, { as: "span" }) }),
   AdfBlock.extend({ addNodeView: () => ReactNodeViewRenderer(PreservedNode) }),
   AdfMarks,
+  AdfMention,
 ];
 
 const tools: { label: string; icon: LucideIcon; name: string; run: (editor: Editor) => void }[] = [
