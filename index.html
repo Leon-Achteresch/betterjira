@@ -7,10 +7,9 @@
     <title>betterjira</title>
     <script>
       {
-        const scheme = matchMedia("(prefers-color-scheme: dark)");
-        const applyScheme = () => document.documentElement.classList.toggle("dark", scheme.matches);
-        applyScheme();
-        scheme.addEventListener("change", applyScheme);
+        const theme = localStorage.getItem("theme");
+        const dark = theme === "dark" || (theme !== "light" && matchMedia("(prefers-color-scheme: dark)").matches);
+        document.documentElement.classList.toggle("dark", dark);
       }
     </script>
   </head>

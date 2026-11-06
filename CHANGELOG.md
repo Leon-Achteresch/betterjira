@@ -1,5 +1,11 @@
 # Änderungen
 
+## 0.3.0 – 2026-11-06
+
+### Neu
+
+- Dark Mode: Über das neue Symbol oben rechts im Header wechselst du zwischen System, Hell und Dunkel. Die Auswahl bleibt nach einem Neustart erhalten.
+
 ## 0.2.1 – 2026-11-06
 
 ### Fehlerbehebung

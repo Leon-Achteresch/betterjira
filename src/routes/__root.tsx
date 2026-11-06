@@ -1,5 +1,6 @@
 import { Outlet, createRootRouteWithContext } from "@tanstack/react-router";
 import type { QueryClient } from "@tanstack/react-query";
+import { ThemeProvider } from "next-themes";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
 import { AppHeader } from "@/components/shell/app-header";
@@ -26,20 +27,22 @@ function AppUpdater() {
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   component: () => (
-    <TooltipProvider>
-      <SidebarProvider className="h-dvh min-h-0 flex-col">
-        <AppHeader />
-        <div className="flex min-h-0 flex-1">
-          <AppSidebar />
-          <SidebarInset className="min-h-0 overflow-auto">
-            <Outlet />
-          </SidebarInset>
-        </div>
-      </SidebarProvider>
-      <Toaster />
-      <NotificationPoller />
-      <AttentionScheduler />
-      <AppUpdater />
-    </TooltipProvider>
+    <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+      <TooltipProvider>
+        <SidebarProvider className="h-dvh min-h-0 flex-col">
+          <AppHeader />
+          <div className="flex min-h-0 flex-1">
+            <AppSidebar />
+            <SidebarInset className="min-h-0 overflow-auto">
+              <Outlet />
+            </SidebarInset>
+          </div>
+        </SidebarProvider>
+        <Toaster />
+        <NotificationPoller />
+        <AttentionScheduler />
+        <AppUpdater />
+      </TooltipProvider>
+    </ThemeProvider>
   ),
 });

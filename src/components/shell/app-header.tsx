@@ -3,6 +3,7 @@ import { Settings } from "lucide-react";
 import { Tooltip } from "@/components/motion/tooltip";
 import { AppCommandPalette } from "@/components/shell/app-command-palette";
 import { NotificationBell } from "@/components/shell/notification-bell";
+import { ThemeToggle } from "@/components/shell/theme-toggle";
 import { WorkQueue } from "@/components/shell/work-queue";
 import { WindowControls } from "@/components/shell/window-controls";
 import { SidebarTrigger } from "@/components/ui/sidebar";
@@ -34,6 +35,7 @@ export function AppHeader() {
       <nav className="ml-auto flex items-center gap-1 px-3" aria-label="Hauptnavigation">
         <WorkQueue />
         <NotificationBell />
+        <ThemeToggle />
         <Tooltip content="Einstellungen" side="bottom">
           <Link
             to="/settings"
