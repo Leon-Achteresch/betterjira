@@ -13,6 +13,40 @@ Die gesamte UI soll sich lebendig und hochwertig anfühlen: Setze überall viele
 - Listen gestaffelt einblenden (`staggerChildren` ca. 20–40 ms), aber nur beim ersten Erscheinen, nicht bei jedem Re-Render.
 - `prefers-reduced-motion` immer respektieren (`useReducedMotion`): dann nur Fades oder gar keine Bewegung.
 
+## UI-Design
+
+Minimalistisch, ruhig, hochwertig. Jede Fläche wirkt durchdacht, nichts ist Deko ohne Zweck.
+
+### Stil
+
+- Ecken: `rounded-xl` für Controls, Chips und Einträge, `rounded-2xl` für Karten, Panels, Popover und Dialoge. Keine eckigen oder gemischten Radien innerhalb einer Fläche.
+- Glassmorphism für schwebende Flächen (Popover, Tooltips, Dialoge, Toolbars, Sidebar-Overlays): halbtransparenter Hintergrund, `backdrop-blur`, feiner heller Rand, weicher Schatten. Lesbarkeit geht vor: Kontrast in Light und Dark Mode prüfen.
+- Viel Weißraum, wenige Farben, eine Akzentfarbe für die Hauptaktion. Zahlen in Tabellen, Statistiken und Zeiten mit `tabular-nums`. Überschriften mit `text-balance`.
+
+### Bedienelemente
+
+- Aktionen ohne Text sind Icon Buttons, und jeder Icon Button hat einen Tooltip (Bezeichnung plus Shortcut-Hinweis über `Kbd`, falls vorhanden). Kein Icon Button ohne Tooltip und `aria-label`.
+- Weitere Optionen liegen in Popovern statt in neuen Seiten oder Dialogen. Zweitrangige Aktionen sammelt ein 3-Punkte-Menü (`DropdownMenu`), damit die Fläche ruhig bleibt.
+- Previews statt Navigation: Verweise auf Issues, Personen, Links und Anhänge zeigen beim Hovern eine Vorschau (`HoverCard`, `IssuePreviewTooltip`).
+- Klickflächen großzügig: mindestens 32 px, kleine Icons bekommen unsichtbares Hit-Padding. Häufige Aktionen liegen nah am Inhalt, auf den sie wirken.
+- Untermenüs öffnen mit Toleranz, damit eine diagonale Mausbewegung zum Untermenü es nicht schließt (Safe-Triangle).
+
+### UX-Gesetze
+
+- Hick: wenige sichtbare Optionen. Alles Seltene ins 3-Punkte-Menü, Popover oder die Command-Palette.
+- Fitts: wichtige Ziele groß und nah, Hauptaktion dort, wo der Blick ohnehin ist.
+- Jakob: gewohnte Muster aus Jira, Linear und gängigen Desktop-Apps übernehmen, keine eigenen Bedienkonzepte erfinden.
+- Miller: höchstens 5–9 Elemente pro Gruppe. Längere Listen gruppieren, filtern oder einklappen.
+- Tesler: jede neue Option kostet Komplexität. Sinnvolle Defaults statt Einstellungen.
+
+### Muster
+
+- Laden: Skeletons in der Form des späteren Inhalts statt Spinnern. Gecachte Daten sofort zeigen und im Hintergrund aktualisieren (Stale-while-revalidate, Standard bei TanStack Query). Wahrscheinliche nächste Ansichten vorab laden (`prefetchQuery` beim Hovern).
+- Schreiben: optimistische Updates mit Rollback im Fehlerfall. Destruktive Aktionen sofort ausführen und per Toast mit „Rückgängig“ zurücknehmbar machen, statt vorher nachzufragen. Wiederholte Klicks dürfen eine Aktion nicht doppelt auslösen.
+- Tastatur: jede wichtige Aktion ist über die Command-Palette erreichbar, Shortcuts werden in Tooltips und Menüs angezeigt.
+- Übergänge: Ansichtswechsel animiert (View Transitions bzw. `layoutId`), Animationen jederzeit unterbrechbar. Sheets und Drawer lassen sich per Wischen schließen.
+- Bilder und Avatare: Platzhalter in Zielgröße, damit nichts springt.
+
 ## Frontend-Architektur (CleanCode)
 
 Gilt für neuen Code und für Dateien, die ohnehin angefasst werden. Bestehende Abweichungen, etwa Hooks in `src/lib/`, ziehen beim Anfassen um, nicht in einem Schwung.
