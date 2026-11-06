@@ -1,4 +1,4 @@
-import { Outlet, createRootRouteWithContext, useRouterState } from "@tanstack/react-router";
+import { Outlet, createRootRouteWithContext, useRouterState, type ErrorComponentProps } from "@tanstack/react-router";
 import type { QueryClient } from "@tanstack/react-query";
 import { ThemeProvider } from "next-themes";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -15,6 +15,9 @@ import { ShortcutHelp } from "@/components/shell/shortcut-help";
 import { UpdateCard } from "@/components/shell/update-card";
 import { useAppShortcuts } from "@/hooks/use-app-shortcuts";
 import { SHORTCUT_GROUPS } from "@/lib/shortcuts";
+import { RenderErrorBoundary } from "@/components/ui/render-error-boundary";
+import { RenderError } from "@/components/shell/render-error";
+import { useRenderRecovery } from "@/hooks/use-render-recovery";
 
 function NotificationPoller() {
   useNotificationPoller();
@@ -53,14 +56,31 @@ function Shortcuts() {
 
 function Page() {
   const id = useRouterState({ select: (state) => state.matches[1]?.pathname ?? "/" });
+  const recovery = useRenderRecovery();
   return (
     <PageTransition id={id}>
-      <Outlet />
+      <RenderErrorBoundary
+        resetKeys={[recovery.resetKey]}
+        onReset={recovery.invalidateFailed}
+        fallback={({ retries, reset }) => <RenderError scope="page" retries={retries} onRetry={reset} onReload={recovery.reload} />}
+      >
+        <Outlet />
+      </RenderErrorBoundary>
     </PageTransition>
   );
 }
 
+function RootError({ reset }: ErrorComponentProps) {
+  const recovery = useRenderRecovery();
+  const retry = () => {
+    recovery.invalidateFailed();
+    reset();
+  };
+  return <RenderError scope="app" onRetry={retry} onReload={recovery.reload} className="h-dvh bg-background" />;
+}
+
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
+  errorComponent: RootError,
   component: () => (
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
       <TooltipProvider>
