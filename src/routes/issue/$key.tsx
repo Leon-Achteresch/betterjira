@@ -5,12 +5,14 @@ import { useJiraSite } from "@/lib/jira/queries";
 import { LoginPrompt } from "@/components/shell/login-prompt";
 
 export const Route = createFileRoute("/issue/$key")({
+  validateSearch: (search: Record<string, unknown>): { bereich?: "zeit" } => (search.bereich === "zeit" ? { bereich: "zeit" } : {}),
   onEnter: ({ params }) => useIssueTabStore.getState().open(params.key),
   component: Issue,
 });
 
 function Issue() {
   const { key } = Route.useParams();
+  const { bereich } = Route.useSearch();
   const site = useJiraSite();
 
   return (
@@ -18,7 +20,7 @@ function Issue() {
       {!site.isPending && !site.data ? (
         <LoginPrompt description="Melde dich an, um Tickets zu sehen." />
       ) : (
-        <IssueView key={key} issueKey={key} />
+        <IssueView key={key} issueKey={key} initialTab={bereich === "zeit" ? "time" : undefined} />
       )}
     </div>
   );

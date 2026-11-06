@@ -7,10 +7,10 @@ import { rememberIssue, scopedFieldDraftKeys, togglePinnedIssue } from "@/lib/wo
 import type { JiraIssueDetail } from "@/lib/jira/queries";
 import type { IssueDrawerTab } from "@/components/issue-drawer";
 
-export function useIssueActions(issue: JiraIssueDetail | undefined, siteUrl?: string) {
+export function useIssueActions(issue: JiraIssueDetail | undefined, siteUrl?: string, initialTab?: IssueDrawerTab) {
   const { id, workspace, update, ready } = useWorkspace();
-  const [drawer, setDrawer] = useState(false);
-  const [tab, setTab] = useState<IssueDrawerTab>("details");
+  const [drawer, setDrawer] = useState(!!initialTab);
+  const [tab, setTab] = useState<IssueDrawerTab>(initialTab ?? "details");
   const detailsRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLButtonElement>(null);
   const returnFocus = useRef<HTMLButtonElement | null>(null);
