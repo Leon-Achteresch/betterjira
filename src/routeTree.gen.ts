@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ArbeitsplatzRouteImport } from './routes/arbeitsplatz'
 import { Route as KalenderRouteImport } from './routes/kalender'
+import { Route as PullRequestsRouteImport } from './routes/pull-requests'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SucheRouteImport } from './routes/suche'
 import { Route as TicketsRouteImport } from './routes/tickets'
@@ -37,6 +38,11 @@ const ArbeitsplatzRoute = ArbeitsplatzRouteImport.update({
 const KalenderRoute = KalenderRouteImport.update({
   id: '/kalender',
   path: '/kalender',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PullRequestsRoute = PullRequestsRouteImport.update({
+  id: '/pull-requests',
+  path: '/pull-requests',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SettingsRoute = SettingsRouteImport.update({
@@ -99,6 +105,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/arbeitsplatz': typeof ArbeitsplatzRoute
   '/kalender': typeof KalenderRoute
+  '/pull-requests': typeof PullRequestsRoute
   '/settings': typeof SettingsRouteWithChildren
   '/suche': typeof SucheRoute
   '/tickets': typeof TicketsRoute
@@ -115,6 +122,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/arbeitsplatz': typeof ArbeitsplatzRoute
   '/kalender': typeof KalenderRoute
+  '/pull-requests': typeof PullRequestsRoute
   '/suche': typeof SucheRoute
   '/tickets': typeof TicketsRoute
   '/bereiche/$key': typeof BereicheKeyRoute
@@ -131,6 +139,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/arbeitsplatz': typeof ArbeitsplatzRoute
   '/kalender': typeof KalenderRoute
+  '/pull-requests': typeof PullRequestsRoute
   '/settings': typeof SettingsRouteWithChildren
   '/suche': typeof SucheRoute
   '/tickets': typeof TicketsRoute
@@ -149,6 +158,7 @@ export interface FileRouteTypes {
     | '/'
     | '/arbeitsplatz'
     | '/kalender'
+    | '/pull-requests'
     | '/settings'
     | '/suche'
     | '/tickets'
@@ -165,6 +175,7 @@ export interface FileRouteTypes {
     | '/'
     | '/arbeitsplatz'
     | '/kalender'
+    | '/pull-requests'
     | '/suche'
     | '/tickets'
     | '/bereiche/$key'
@@ -180,6 +191,7 @@ export interface FileRouteTypes {
     | '/'
     | '/arbeitsplatz'
     | '/kalender'
+    | '/pull-requests'
     | '/settings'
     | '/suche'
     | '/tickets'
@@ -197,6 +209,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ArbeitsplatzRoute: typeof ArbeitsplatzRoute
   KalenderRoute: typeof KalenderRoute
+  PullRequestsRoute: typeof PullRequestsRoute
   SettingsRoute: typeof SettingsRouteWithChildren
   SucheRoute: typeof SucheRoute
   TicketsRoute: typeof TicketsRoute
@@ -226,6 +239,13 @@ declare module '@tanstack/react-router' {
       path: '/kalender'
       fullPath: '/kalender'
       preLoaderRoute: typeof KalenderRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pull-requests': {
+      id: '/pull-requests'
+      path: '/pull-requests'
+      fullPath: '/pull-requests'
+      preLoaderRoute: typeof PullRequestsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/settings': {
@@ -332,6 +352,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ArbeitsplatzRoute: ArbeitsplatzRoute,
   KalenderRoute: KalenderRoute,
+  PullRequestsRoute: PullRequestsRoute,
   SettingsRoute: SettingsRouteWithChildren,
   SucheRoute: SucheRoute,
   TicketsRoute: TicketsRoute,
