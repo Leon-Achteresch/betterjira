@@ -9,6 +9,7 @@ import { JiraUserAvatar } from "@/components/jira-user-avatar";
 import { ProjectAvatar } from "@/components/shell/project-avatar";
 import { IssueTable } from "@/components/issue-table";
 import { IssuePreviewTooltip } from "@/components/issues/issue-preview";
+import { BoardSkeleton } from "@/components/issues/board-skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -104,7 +105,7 @@ function Bereich() {
           onSprintChange={(sprint) => navigate({ search: (prev) => ({ ...prev, sprint }) })}
         />
       ) : boards.isPending ? (
-        <Spinner />
+        <BoardSkeleton />
       ) : (
         <p className="text-muted-foreground">Board nicht gefunden.</p>
       )}
@@ -436,7 +437,7 @@ function IssueCard({ issue, columns, dnd }: { issue: BoardCard; columns: BoardCo
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
-        <Link to="/issue/$key" params={{ key: issue.key }} draggable={false} className="line-clamp-3 outline-none after:absolute after:inset-0 after:rounded-[inherit] focus-visible:after:ring-2 focus-visible:after:ring-ring">
+        <Link to="/issue/$key" params={{ key: issue.key }} draggable={false} data-row-link className="line-clamp-3 outline-none after:absolute after:inset-0 after:rounded-[inherit] focus-visible:after:ring-2 focus-visible:after:ring-ring">
           {fields.summary}
         </Link>
         {fields.parent && (
@@ -575,7 +576,7 @@ function Board({
           {sprints.error.message}
         </p>
       ) : !sprints.data ? (
-        <Spinner />
+        <BoardSkeleton />
       ) : data.length === 0 ? (
         <p className="text-muted-foreground">{sprintId === undefined ? "Kein aktiver Sprint." : "Keine Vorgänge in diesem Sprint."}</p>
       ) : null}

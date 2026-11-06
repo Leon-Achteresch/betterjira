@@ -14,7 +14,7 @@ function Issue() {
   const site = useJiraSite();
 
   return (
-    <div className="mx-auto flex w-full max-w-4xl flex-col p-8">
+    <div className="@container mx-auto flex w-full max-w-6xl flex-col p-8">
       {!site.isPending && !site.data ? (
         <LoginPrompt description="Melde dich an, um Tickets zu sehen." />
       ) : (

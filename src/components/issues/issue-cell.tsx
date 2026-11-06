@@ -27,6 +27,7 @@ export function IssueCell({ issue, column }: { issue: SearchIssue; column: strin
       <Link
         to="/issue/$key"
         params={{ key: issue.key }}
+        data-row-link
         className="block max-w-[32rem] truncate outline-none after:absolute after:inset-0 focus-visible:underline"
       >
         {typeof value === "string" ? value : issue.key}
