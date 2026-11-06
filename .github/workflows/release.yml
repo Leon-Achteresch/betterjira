@@ -13,27 +13,37 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  check:
+  version:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     outputs:
-      released: ${{ steps.tag.outputs.released }}
+      version: ${{ steps.bump.outputs.version }}
+      sha: ${{ steps.bump.outputs.sha }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Version schon veröffentlicht?
-        id: tag
+      - name: Version aus Commits ableiten
+        id: bump
         run: |
-          version=$(jq -r .version src-tauri/tauri.conf.json)
-          if git ls-remote --exit-code --tags origin "refs/tags/v$version" >/dev/null; then
-            echo "released=true" >> "$GITHUB_OUTPUT"
-            echo "::notice::v$version existiert bereits, kein Release."
-          else
-            echo "released=false" >> "$GITHUB_OUTPUT"
+          version=$(.github/scripts/version-bump.sh)
+          if [ -z "$version" ]; then
+            echo "::notice::Keine feat/fix-Commits seit dem letzten Release, kein Release."
+            exit 0
           fi
+          if ! git diff --quiet; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit -am "chore(release): $version"
+            git push origin "HEAD:${{ github.ref_name }}"
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
   release:
-    needs: check
-    if: needs.check.outputs.released == 'false'
+    needs: version
+    if: needs.version.outputs.version != ''
     strategy:
       fail-fast: false
       matrix:
@@ -49,6 +59,8 @@ jobs:
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.version.outputs.sha }}
 
       - name: Linux-Abhängigkeiten
         if: matrix.platform == 'ubuntu-22.04'
@@ -77,6 +89,7 @@ jobs:
           VITE_ATLASSIAN_CLIENT_SECRET: ${{ secrets.VITE_ATLASSIAN_CLIENT_SECRET }}
         with:
           tagName: v__VERSION__
+          commitish: ${{ needs.version.outputs.sha }}
           releaseName: betterjira v__VERSION__
           releaseBody: Lade unten den Installer für dein System herunter.
           releaseDraft: true
@@ -85,10 +98,12 @@ jobs:
           args: ${{ matrix.args }}
 
   updater-manifest:
-    needs: release
+    needs: [version, release]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.version.outputs.sha }}
 
       - name: latest.json erzeugen
         env:
@@ -102,5 +117,5 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          version=$(jq -r .version src-tauri/tauri.conf.json)
-          gh release edit "v$version" --draft=false --latest --notes-file CHANGELOG.md
+          awk '/^## /{n++} n==1' CHANGELOG.md > notes.md
+          gh release edit "v${{ needs.version.outputs.version }}" --draft=false --latest --notes-file notes.md
