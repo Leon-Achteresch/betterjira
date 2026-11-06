@@ -19,7 +19,16 @@ declare global {
 
 const shots = process.env.CREATE_ISSUE_SHOTS;
 
-const open = (page: Page) => page.goto("/tests/browser/fixture.html?scenario=create&route=/neu");
+const open = async (page: Page) => {
+  await page.goto("/tests/browser/fixture.html?scenario=create&route=/neu");
+  if (shots) {
+    await expect(page.getByRole("heading", { name: "Ticket erstellen", exact: true })).toBeVisible();
+    expect(await page.evaluate(async () => {
+      await document.fonts.ready;
+      return document.fonts.check('14px "Geist Variable"');
+    })).toBe(true);
+  }
+};
 const main = (page: Page) => page.getByRole("main");
 const posts = (page: Page) =>
   page.evaluate(() => window.__qa.writes.filter((write) => write.path === "/issue" && write.method === "POST"));
