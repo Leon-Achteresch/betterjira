@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { Outlet, createRootRouteWithContext, useRouterState } from "@tanstack/react-router";
 import type { QueryClient } from "@tanstack/react-query";
 import { ThemeProvider } from "next-themes";
@@ -6,6 +7,8 @@ import { Toaster } from "@/components/ui/sonner";
 import { AppHeader } from "@/components/shell/app-header";
 import { AppSidebar } from "@/components/shell/app-sidebar";
 import { useNotificationPoller } from "@/lib/jira/notifications";
+import { AdfLinkContext } from "@/components/adf-content";
+import { useAppLinkHandler } from "@/hooks/use-app-link-handler";
 import { useAttentionScheduler } from "@/hooks/attention/use-attention-scheduler";
 import { useAppUpdate } from "@/hooks/use-app-update";
 import { useBackgroundTabClick } from "@/hooks/use-issue-tabs";
@@ -46,6 +49,11 @@ function BackgroundTabClick() {
   return null;
 }
 
+function AdfLinks({ children }: { children: ReactNode }) {
+  const openLink = useAppLinkHandler();
+  return <AdfLinkContext value={openLink}>{children}</AdfLinkContext>;
+}
+
 function Shortcuts() {
   const help = useAppShortcuts();
   return <ShortcutHelp open={help.open} onOpenChange={help.setOpen} groups={SHORTCUT_GROUPS} />;
@@ -64,21 +72,23 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   component: () => (
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
       <TooltipProvider>
-        <SidebarProvider className="h-dvh min-h-0 flex-col">
-          <AppHeader />
-          <div className="flex min-h-0 flex-1">
-            <AppSidebar />
-            <SidebarInset id="app-scroll" data-scroll-restoration-id="app-scroll" className="min-h-0 overflow-auto">
-              <Page />
-            </SidebarInset>
-          </div>
-        </SidebarProvider>
-        <Toaster />
-        <Shortcuts />
-        <NotificationPoller />
-        <AttentionScheduler />
-        <AppUpdater />
-        <BackgroundTabClick />
+        <AdfLinks>
+          <SidebarProvider className="h-dvh min-h-0 flex-col">
+            <AppHeader />
+            <div className="flex min-h-0 flex-1">
+              <AppSidebar />
+              <SidebarInset id="app-scroll" data-scroll-restoration-id="app-scroll" className="min-h-0 overflow-auto">
+                <Page />
+              </SidebarInset>
+            </div>
+          </SidebarProvider>
+          <Toaster />
+          <Shortcuts />
+          <NotificationPoller />
+          <AttentionScheduler />
+          <AppUpdater />
+          <BackgroundTabClick />
+        </AdfLinks>
       </TooltipProvider>
     </ThemeProvider>
   ),

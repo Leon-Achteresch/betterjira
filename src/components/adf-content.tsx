@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { createContext, use, type ReactNode } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { cn } from "@/lib/utils";
 
@@ -10,19 +10,42 @@ const isNode = (value: unknown): value is AdfNode =>
 
 export const safeUrl = (value: unknown) => (typeof value === "string" && /^https?:\/\//i.test(value) ? value : undefined);
 
-export function ExternalLink({ href, children, className }: { href: string; children: ReactNode; className?: string }) {
+const openInBrowser = (href: string) => void openUrl(href);
+
+export const AdfLinkContext = createContext<(href: string) => void>(openInBrowser);
+
+export function ExternalLink({
+  href,
+  children,
+  className,
+  onOpen = openInBrowser,
+}: {
+  href: string;
+  children: ReactNode;
+  className?: string;
+  onOpen?: (href: string) => void;
+}) {
   return (
     <a
       href={href}
       onClick={(event) => {
         event.preventDefault();
-        void openUrl(href);
+        onOpen(href);
       }}
       title={href}
       className={cn("text-info underline underline-offset-2", className)}
     >
       {children}
     </a>
+  );
+}
+
+function AdfLink({ href, children }: { href: string; children: ReactNode }) {
+  const open = use(AdfLinkContext);
+  return (
+    <ExternalLink href={href} onOpen={open}>
+      {children}
+    </ExternalLink>
   );
 }
 
@@ -41,7 +64,7 @@ function renderText(node: AdfNode, key: number) {
         return <code className="rounded bg-muted px-1 py-0.5 font-mono text-[0.9em]">{child}</code>;
       case "link": {
         const href = safeUrl(mark.attrs?.href);
-        return href ? <ExternalLink href={href}>{child}</ExternalLink> : child;
+        return href ? <AdfLink href={href}>{child}</AdfLink> : child;
       }
       default:
         return child;
@@ -112,7 +135,7 @@ function renderNode(node: AdfNode, key: number): ReactNode {
     case "inlineCard":
     case "blockCard": {
       const href = safeUrl(attrs.url);
-      return href ? <ExternalLink key={key} href={href}>{href}</ExternalLink> : null;
+      return href ? <AdfLink key={key} href={href}>{href}</AdfLink> : null;
     }
     case "table":
       return (
