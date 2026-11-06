@@ -86,7 +86,7 @@ test("Übersicht zeigt eigene und favorisierte Filter mit Suche, Ansicht und Ver
     await expect(sidebar(page).getByRole("link", { name: "Alle Filter" })).not.toHaveAttribute("data-active", "true");
   }
   await page.goBack();
-  await expect(page).toHaveURL(/\/filter\?ansicht=geteilt$/);
+  await expect(page).toHaveURL(/\/filter$/);
   await expect(views(page).getByRole("link", { name: /^Alle/ })).toHaveAttribute("aria-current", "page");
   await expect(rows(page)).toHaveCount(7);
 });
