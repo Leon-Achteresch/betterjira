@@ -32,6 +32,15 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
+test("Nichttextliche Suchparameter lassen die Filterübersicht nutzbar", async ({ page }) => {
+  for (const value of ["123", "false", '{"query":"support"}']) {
+    await open(page, `/filter?${new URLSearchParams({ q: value, ansicht: "geteilt" })}`);
+    await expect(search(page)).toHaveValue("");
+    await expect(rows(page)).toHaveCount(7);
+    await expect(views(page).getByRole("link", { name: "Alle 7" })).toHaveAttribute("aria-current", "page");
+  }
+});
+
 test("Übersicht zeigt eigene und favorisierte Filter mit Suche, Ansicht und Verlauf in der URL", async ({ page }) => {
   await open(page);
   await expect(views(page).getByRole("link", { name: "Alle 7" })).toHaveAttribute("aria-current", "page");

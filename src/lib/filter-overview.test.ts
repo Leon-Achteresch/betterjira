@@ -27,6 +27,8 @@ describe("parseFilterOverviewSearch", () => {
 
   it("verwirft unbekannte Ansichten und nicht-textuelle Suchen", () => {
     expect(parseFilterOverviewSearch({ ansicht: "geteilt", q: 42 })).toEqual({});
+    expect(parseFilterOverviewSearch({ q: 42 })).toHaveProperty("q", undefined);
+    expect(parseFilterOverviewSearch({ ansicht: "geteilt" })).toHaveProperty("ansicht", undefined);
   });
 
   it("baut Links für jede Ansicht mit der aktuellen Suche", () => {

@@ -17,8 +17,10 @@ export const filterOverviewSearch = (view: FilterOverviewView, query = ""): Filt
   ...(query && { q: query }),
 });
 
-export const parseFilterOverviewSearch = (search: Record<string, unknown>): FilterOverviewSearch =>
-  filterOverviewSearch(filterOverviewViewOf(search.ansicht), typeof search.q === "string" ? search.q : "");
+export const parseFilterOverviewSearch = (search: Record<string, unknown>): FilterOverviewSearch => {
+  const parsed = filterOverviewSearch(filterOverviewViewOf(search.ansicht), typeof search.q === "string" ? search.q : "");
+  return { ansicht: parsed.ansicht, q: parsed.q };
+};
 
 const inView = (filter: OverviewFilter, view: FilterOverviewView) => view === "alle" || !!filter.favourite;
 
