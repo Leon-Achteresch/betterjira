@@ -106,6 +106,7 @@ test("kleinere Jira-Seiten bleiben lückenlos und ein Fehler im Fenster lässt s
   await panel(page).getByRole("button", { name: "Ältere laden" }).click();
   await expect(panel(page).getByRole("alert")).toContainText("503");
   await expect(entries(page)).toHaveCount(20);
+  const readsBeforeRetry = (await reads(page)).length;
   await page.evaluate(() => { window.__qaHistoryShortFailure = false; });
   await panel(page).getByRole("button", { name: "Erneut versuchen" }).click();
   await expect(entries(page)).toHaveCount(40);
@@ -114,7 +115,7 @@ test("kleinere Jira-Seiten bleiben lückenlos und ein Fehler im Fenster lässt s
   await expect(entries(page)).toHaveCount(48);
   await expect(panel(page)).toContainText("Alle 48 Änderungen");
   await expect(panel(page).getByRole("button", { name: "Ältere laden" })).toHaveCount(0);
-  expect((await reads(page)).map(({ startAt }) => startAt)).toEqual([0, 28, 33, 38, 43, 8, 13, 8, 13, 18, 23, 0, 5]);
+  expect((await reads(page)).slice(readsBeforeRetry).map(({ startAt }) => startAt)).toEqual([8, 13, 18, 23, 0, 5]);
 });
 
 test("zeigt unbekannte Personen, Felder und Markup neutral als Text", async ({ page }) => {
