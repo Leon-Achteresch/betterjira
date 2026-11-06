@@ -7,7 +7,7 @@ import { ChevronRightIcon } from "lucide-react";
 import { CreateBranchDialog } from "@/components/development/create-branch-dialog";
 import { IssueDevelopment } from "@/components/development/issue-development";
 import { IssueComments } from "@/components/issue-comments";
-import { IssueDrawer } from "@/components/issue-drawer";
+import { IssueDrawer, type IssueDrawerTab } from "@/components/issue-drawer";
 import { EditableField, FieldValue, richFieldIds } from "@/components/issue-fields";
 import { IssueStatusMenu } from "@/components/issue-status-menu";
 import { JiraStatusBadge } from "@/components/jira-status-badge";
@@ -148,12 +148,12 @@ function IssueViewSkeleton() {
   );
 }
 
-export function IssueView({ issueKey }: { issueKey: string }) {
+export function IssueView({ issueKey, initialTab }: { issueKey: string; initialTab?: IssueDrawerTab }) {
   const site = useJiraSite();
   const issue = useJiraIssue(issueKey);
   const reduce = useReducedMotion();
   useIssueReadingPosition(issueKey, !!issue.data);
-  const actions = useIssueActions(issue.data, site.data?.siteUrl);
+  const actions = useIssueActions(issue.data, site.data?.siteUrl, initialTab);
   const links = useIssueLinks(issueKey);
   const development = useIssueDevelopmentPanel(
     issueKey,
