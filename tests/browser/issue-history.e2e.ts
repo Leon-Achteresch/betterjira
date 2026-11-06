@@ -1,7 +1,7 @@
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
 
 type HistoryRead = { key: string; startAt: number; maxResults: number; account: string };
-type HistoryRule = { delayMs?: number; status?: number; html?: boolean; values?: unknown[] };
+type HistoryRule = { delayMs?: number; status?: number; html?: boolean; values?: unknown[]; pageSize?: number };
 
 declare global {
   interface Window {
@@ -10,6 +10,7 @@ declare global {
     __qaHistoryStatus?: number;
     __qaHistoryFailBelow?: number;
     __qaHistoryXss?: boolean;
+    __qaHistoryShortFailure?: boolean;
   }
 }
 
@@ -87,6 +88,33 @@ test("lädt geschlossen nichts und zeigt nach dem Öffnen per Tastatur die neues
   await expect(toggle(page)).toHaveAttribute("aria-expanded", "false");
   await expect(entries(page)).toHaveCount(0);
   await expect(toggle(page)).toBeFocused();
+});
+
+test("kleinere Jira-Seiten bleiben lückenlos und ein Fehler im Fenster lässt sich wiederholen", async ({ page }) => {
+  await page.addInitScript(() => {
+    window.__qaHistoryRule = (_key, startAt) => ({
+      pageSize: 5,
+      ...(window.__qaHistoryShortFailure && startAt === 13 ? { status: 503 } : {}),
+    });
+  });
+  await openIssue(page);
+  await toggle(page).click();
+  await expect(entries(page)).toHaveCount(20);
+  expect((await reads(page)).map(({ startAt }) => startAt)).toEqual([0, 28, 33, 38, 43]);
+
+  await page.evaluate(() => { window.__qaHistoryShortFailure = true; });
+  await panel(page).getByRole("button", { name: "Ältere laden" }).click();
+  await expect(panel(page).getByRole("alert")).toContainText("503");
+  await expect(entries(page)).toHaveCount(20);
+  await page.evaluate(() => { window.__qaHistoryShortFailure = false; });
+  await panel(page).getByRole("button", { name: "Erneut versuchen" }).click();
+  await expect(entries(page)).toHaveCount(40);
+
+  await panel(page).getByRole("button", { name: "Ältere laden" }).click();
+  await expect(entries(page)).toHaveCount(48);
+  await expect(panel(page)).toContainText("Alle 48 Änderungen");
+  await expect(panel(page).getByRole("button", { name: "Ältere laden" })).toHaveCount(0);
+  expect((await reads(page)).map(({ startAt }) => startAt)).toEqual([0, 28, 33, 38, 43, 8, 13, 8, 13, 18, 23, 0, 5]);
 });
 
 test("zeigt unbekannte Personen, Felder und Markup neutral als Text", async ({ page }) => {

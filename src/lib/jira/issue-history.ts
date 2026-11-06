@@ -1,4 +1,4 @@
-import { Effect, Option, Schema } from "effect";
+import { Data, Effect, Option, Schema } from "effect";
 import { jira, JiraApiError, JiraAuthError } from "./client";
 import { jiraKeys } from "./queries";
 
@@ -196,12 +196,48 @@ const toPage = (page: typeof ChangelogPage.Type): HistoryPage => ({
   entries: page.values.flatMap((value) => toHistoryEntry(value) ?? []),
 });
 
+export class HistoryPagingError extends Data.TaggedError("HistoryPagingError")<{}> {
+  readonly message = "Jira hat nicht alle angefragten Änderungen geliefert. Bitte erneut versuchen.";
+}
+
+const readWindow = (
+  key: string,
+  param: NonNullable<HistoryPageParam>,
+  total: number,
+  seed?: typeof ChangelogPage.Type,
+) =>
+  Effect.gen(function* () {
+    const end = Math.min(total, param.startAt + Math.min(HISTORY_PAGE_SIZE, param.maxResults));
+    const values: unknown[] = [];
+    let cursor = param.startAt;
+    let next = seed;
+    while (cursor < end) {
+      const page = next ?? (yield* jira(changelogPath(key, { startAt: cursor, maxResults: end - cursor }), ChangelogPage));
+      next = undefined;
+      if (page.startAt !== cursor || page.values.length === 0) return yield* Effect.fail(new HistoryPagingError());
+      const chunk = page.values.slice(0, end - cursor);
+      values.push(...chunk);
+      cursor += chunk.length;
+    }
+    return toPage({ startAt: param.startAt, total, values });
+  });
+
 export const fetchIssueHistory = (key: string, param: HistoryPageParam) =>
   Effect.gen(function* () {
-    if (param) return toPage(yield* jira(changelogPath(key, param), ChangelogPage));
-    const first = yield* jira(changelogPath(key, { startAt: 0, maxResults: HISTORY_PAGE_SIZE }), ChangelogPage);
-    if (first.startAt + first.values.length >= first.total) return toPage(first);
-    return toPage(yield* jira(changelogPath(key, latestPageParam(first.total)), ChangelogPage));
+    const first = yield* jira(changelogPath(key, param ?? { startAt: 0, maxResults: HISTORY_PAGE_SIZE }), ChangelogPage);
+    if (!Number.isSafeInteger(first.total) || first.total < 0 || !Number.isSafeInteger(first.startAt) || first.startAt < 0)
+      return yield* Effect.fail(new HistoryPagingError());
+    if (param) return yield* readWindow(key, param, first.total, first);
+    if (first.total <= HISTORY_PAGE_SIZE)
+      return yield* readWindow(key, { startAt: 0, maxResults: HISTORY_PAGE_SIZE }, first.total, first);
+    const latest = latestPageParam(first.total);
+    if (first.startAt <= latest.startAt && first.startAt + first.values.length >= first.total)
+      return toPage({
+        startAt: latest.startAt,
+        total: first.total,
+        values: first.values.slice(latest.startAt - first.startAt, first.total - first.startAt),
+      });
+    return yield* readWindow(key, latest, first.total);
   });
 
 const ApiErrorBody = Schema.Struct({ errorMessages: Schema.optional(Schema.Array(Schema.String)) });
@@ -216,6 +252,7 @@ const parseJson = (text: string): unknown => {
 };
 
 export const historyErrorDetail = (error: unknown) => {
+  if (error instanceof HistoryPagingError) return error.message;
   if (error instanceof JiraApiError) {
     if (error.status === 404) return "Das Ticket wurde nicht gefunden oder du darfst seinen Verlauf nicht sehen.";
     const body = Option.getOrUndefined(decodeApiErrorBody(parseJson(error.body)));

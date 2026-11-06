@@ -553,7 +553,7 @@ const respondHistory = async (key, url) => {
   if (rule.status) return { status: rule.status, body: rule.html ? `<html><body>Fehler ${rule.status}</body></html>` : { errorMessages: [`Test: Jira antwortet mit ${rule.status}`] } };
   const all = rule.values ?? (key in history ? history[key] : undefined);
   if (!all) return { status: 404, body: { errorMessages: ["Issue does not exist or you do not have permission to see it."] } };
-  const values = all.slice(startAt, startAt + maxResults);
+  const values = all.slice(startAt, startAt + Math.min(maxResults, rule.pageSize ?? maxResults));
   return { body: { startAt, maxResults, total: all.length, isLast: startAt + values.length >= all.length, values } };
 };
 const respond = async (request) => {
