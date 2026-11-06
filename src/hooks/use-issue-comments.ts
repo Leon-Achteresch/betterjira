@@ -25,7 +25,7 @@ export function useIssueComments(issue: JiraIssueDetail) {
   const composer = useCommentComposer(!!draft || post.isPending);
   const comments = list.data ?? [];
   const setDraft = (value: AdfNode | undefined) => update((current) => setMainDraft(current, issueKey, value));
-  const listState: ListState = list.isPending || (list.isError && list.isFetching) ? "loading" : list.isError ? "error" : "ready";
+  const listState: ListState = list.data ? "ready" : list.isPending || list.isFetching ? "loading" : list.isError ? "error" : "ready";
 
   const submit = async (event?: FormEvent) => {
     event?.preventDefault();
@@ -58,6 +58,7 @@ export function useIssueComments(issue: JiraIssueDetail) {
     hasComments: comments.length > 0,
     listState,
     listError: list.error?.message,
+    refreshFailed: !!list.data && list.isError && !list.isFetching,
     reload: () => void list.refetch(),
     newestFirst: workspace.newestFirst,
     toggleOrder: () => update((current) => ({ ...current, newestFirst: !current.newestFirst })),

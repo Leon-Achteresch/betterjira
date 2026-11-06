@@ -143,7 +143,7 @@ export function IssueComments({ issue }: { issue: JiraIssueDetail }) {
       </form>
 
       {view.listState === "loading" && <CommentListSkeleton />}
-      {view.listState === "error" && (
+      {(view.listState === "error" || view.refreshFailed) && (
         <div role="alert" className="flex flex-wrap items-center gap-3 text-sm text-destructive">
           <span>{view.listError}</span>
           <Button type="button" variant="outline" size="sm" onClick={view.reload}>

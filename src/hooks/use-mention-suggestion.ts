@@ -46,7 +46,9 @@ export function useMentionSuggestion({
   const [debounced] = useDebouncedValue(query, { wait: SEARCH_DELAY_MS });
   const search = useMentionSearch(issueKey, current ? debounced : "");
   const open = current !== null && current.from !== dismissedAt;
-  const candidates = rankMentionCandidates(query, participants, search.data ?? []);
+  // Hits for an older query would rank people the current query does not match.
+  const fresh = debounced === query;
+  const candidates = rankMentionCandidates(query, participants, fresh ? (search.data ?? []) : []);
   const { activeValue, setActiveValue, moveActive } = useActiveOption({
     open,
     query,
@@ -111,7 +113,7 @@ export function useMentionSuggestion({
       activeValue,
       setActiveValue,
       select,
-      status: mentionStatus(search.isError, candidates.length === 0, query.length > 0 && (debounced !== query || search.isFetching)),
+      status: mentionStatus(fresh && search.isError, candidates.length === 0, query.length > 0 && (!fresh || search.isFetching)),
     },
   };
 }

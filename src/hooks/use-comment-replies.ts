@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useJiraPostReply } from "@/hooks/jira/use-issue-mutations";
 import { useWorkspace } from "@/hooks/use-workspace";
@@ -16,12 +16,16 @@ export function useCommentReplies(issue: JiraIssueDetail) {
   const { workspace, update, ready } = useWorkspace();
   const [open, setOpen] = useState<OpenReply | null>(null);
   const submitting = useRef(false);
+  const openThread = useRef<string | undefined>(undefined);
+  useLayoutEffect(() => {
+    openThread.current = open?.thread;
+  });
   const draft = open ? replyDraftOf(workspace, issueKey, open.thread) : undefined;
   const value = draft ?? open?.prefill;
 
   const start = (comment: IssueComment, root: IssueComment) => {
     const thread = threadKey(root);
-    reply.reset();
+    if (!reply.isPending) reply.reset();
     setOpen((current) => ({
       thread,
       prefill: replyDraftOf(workspace, issueKey, thread) ? undefined : replyPrefill(comment.author, myself.data?.accountId),
@@ -47,8 +51,12 @@ export function useCommentReplies(issue: JiraIssueDetail) {
       setOpen((current) => (current?.thread === thread ? null : current));
       if (created.parentId) toast.success("Antwort hinzugefügt");
       else toast.warning("Jira hat die Antwort als normalen Kommentar angelegt");
-    } catch {
-      return;
+    } catch (error) {
+      if (openThread.current === thread) return;
+      reply.reset();
+      toast.error("Antwort konnte nicht gesendet werden", {
+        description: `${error instanceof Error ? error.message : String(error)} Dein Entwurf bleibt erhalten.`,
+      });
     } finally {
       submitting.current = false;
     }

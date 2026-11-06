@@ -1,6 +1,6 @@
 import { Effect, Schema } from "effect";
 import type { AdfNode } from "./adf";
-import { JiraPerson } from "./people";
+import { isMentionable, JiraPerson } from "./people";
 
 export const COMMENT_PAGE_SIZE = 100;
 
@@ -57,13 +57,19 @@ const anchorOf = (comment: IssueComment, byId: ReadonlyMap<string, IssueComment>
 export const buildThreads = (comments: readonly IssueComment[], newestFirst: boolean): CommentThread[] => {
   const byId = new Map(comments.map((comment) => [comment.id, comment]));
   const sorted = [...comments].sort(byCreated);
+  // Replies whose parent is gone share their parentId as thread key, so they form one thread.
+  const keyOf = (comment: IssueComment) => {
+    const anchor = byId.get(anchorOf(comment, byId)) ?? comment;
+    return anchor.parentId && !byId.has(anchor.parentId) ? `parent:${anchor.parentId}` : anchor.id;
+  };
   const threads = new Map<string, CommentThread>();
   for (const comment of sorted) {
-    if (anchorOf(comment, byId) === comment.id) threads.set(comment.id, { root: comment, replies: [] });
+    const key = keyOf(comment);
+    if (anchorOf(comment, byId) === comment.id && !threads.has(key)) threads.set(key, { root: comment, replies: [] });
   }
   for (const comment of sorted) {
-    const anchor = anchorOf(comment, byId);
-    if (anchor !== comment.id) threads.get(anchor)?.replies.push(comment);
+    const thread = threads.get(keyOf(comment));
+    if (thread && thread.root !== comment) thread.replies.push(comment);
   }
   const ordered = [...threads.values()];
   return newestFirst ? ordered.reverse() : ordered;
@@ -77,7 +83,7 @@ export const commentCount = (
 export const replyPayload = (body: AdfNode, key: string) => ({ body, parentId: /^\d+$/.test(key) ? Number(key) : key });
 
 export const replyPrefill = (author: JiraPerson | undefined, myAccountId: string | undefined): AdfNode | undefined =>
-  author?.accountId && author.accountId !== myAccountId
+  author?.accountId && author.accountId !== myAccountId && isMentionable(author)
     ? {
         type: "doc",
         version: 1,

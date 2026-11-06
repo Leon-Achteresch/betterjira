@@ -134,4 +134,18 @@ describe("Antworten", () => {
     expect(replyPrefill({ displayName: "Anonym", avatarUrls: avatar }, "me")).toBeUndefined();
     expect(replyPrefill(undefined, "me")).toBeUndefined();
   });
+
+  it("belegt App-Konten und deaktivierte Autoren nicht vor", () => {
+    expect(replyPrefill({ accountId: "app", accountType: "app", displayName: "Automation", avatarUrls: avatar }, "me")).toBeUndefined();
+    expect(replyPrefill({ accountId: "old", active: false, displayName: "Ehemalig", avatarUrls: avatar }, "me")).toBeUndefined();
+  });
+
+  it("fasst verwaiste Antworten mit derselben parentId zu einem Thread zusammen", () => {
+    const threads = buildThreads([comment("1", "1"), comment("5", "3", "99"), comment("6", "4", "99"), comment("7", "5", "5")], false);
+    expect(threads.map((thread) => [thread.root.id, thread.replies.map((reply) => reply.id)])).toEqual([
+      ["1", []],
+      ["5", ["6", "7"]],
+    ]);
+    expect(new Set(threads.map((thread) => threadKey(thread.root))).size).toBe(threads.length);
+  });
 });

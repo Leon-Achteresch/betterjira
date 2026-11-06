@@ -26,8 +26,11 @@ export const toPeople = (values: readonly unknown[]): JiraPerson[] =>
     return person ? [person] : [];
   });
 
+export const isMentionable = (person: JiraPerson): person is JiraPerson & { accountId: string } =>
+  !!person.accountId && person.active !== false && !UNMENTIONABLE_ACCOUNT_TYPES.has(person.accountType ?? "");
+
 const toMentionCandidate = (person: JiraPerson): MentionCandidate | undefined =>
-  person.accountId && person.active !== false && !UNMENTIONABLE_ACCOUNT_TYPES.has(person.accountType ?? "")
+  isMentionable(person)
     ? { accountId: person.accountId, displayName: person.displayName, avatarUrls: { "48x48": person.avatarUrls["48x48"] } }
     : undefined;
 

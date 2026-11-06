@@ -597,7 +597,14 @@ export const useJiraTransition = () => {
       ),
     onSuccess: (_, { issueKey }) =>
       Promise.all(
-        [jiraKeys.issue(issueKey), jiraKeys.transitions(issueKey), jiraKeys.myWork, ["jira", "issues"], ["jira", "board"]].map(
+        [
+          jiraKeys.issue(issueKey),
+          jiraKeys.comments(issueKey),
+          jiraKeys.transitions(issueKey),
+          jiraKeys.myWork,
+          ["jira", "issues"],
+          ["jira", "board"],
+        ].map(
           (queryKey) => queryClient.invalidateQueries({ queryKey }),
         ),
       ),
