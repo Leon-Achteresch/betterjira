@@ -10,7 +10,10 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ArbeitsplatzRouteImport } from './routes/arbeitsplatz'
+import { Route as BenachrichtigungenRouteImport } from './routes/benachrichtigungen'
 import { Route as KalenderRouteImport } from './routes/kalender'
+import { Route as PullRequestsRouteImport } from './routes/pull-requests'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SucheRouteImport } from './routes/suche'
 import { Route as TicketsRouteImport } from './routes/tickets'
@@ -28,9 +31,24 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ArbeitsplatzRoute = ArbeitsplatzRouteImport.update({
+  id: '/arbeitsplatz',
+  path: '/arbeitsplatz',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BenachrichtigungenRoute = BenachrichtigungenRouteImport.update({
+  id: '/benachrichtigungen',
+  path: '/benachrichtigungen',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const KalenderRoute = KalenderRouteImport.update({
   id: '/kalender',
   path: '/kalender',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PullRequestsRoute = PullRequestsRouteImport.update({
+  id: '/pull-requests',
+  path: '/pull-requests',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SettingsRoute = SettingsRouteImport.update({
@@ -91,7 +109,10 @@ const SettingsDarstellungRoute = SettingsDarstellungRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/arbeitsplatz': typeof ArbeitsplatzRoute
+  '/benachrichtigungen': typeof BenachrichtigungenRoute
   '/kalender': typeof KalenderRoute
+  '/pull-requests': typeof PullRequestsRoute
   '/settings': typeof SettingsRouteWithChildren
   '/suche': typeof SucheRoute
   '/tickets': typeof TicketsRoute
@@ -106,7 +127,10 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/arbeitsplatz': typeof ArbeitsplatzRoute
+  '/benachrichtigungen': typeof BenachrichtigungenRoute
   '/kalender': typeof KalenderRoute
+  '/pull-requests': typeof PullRequestsRoute
   '/suche': typeof SucheRoute
   '/tickets': typeof TicketsRoute
   '/bereiche/$key': typeof BereicheKeyRoute
@@ -121,7 +145,10 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/arbeitsplatz': typeof ArbeitsplatzRoute
+  '/benachrichtigungen': typeof BenachrichtigungenRoute
   '/kalender': typeof KalenderRoute
+  '/pull-requests': typeof PullRequestsRoute
   '/settings': typeof SettingsRouteWithChildren
   '/suche': typeof SucheRoute
   '/tickets': typeof TicketsRoute
@@ -138,7 +165,10 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/arbeitsplatz'
+    | '/benachrichtigungen'
     | '/kalender'
+    | '/pull-requests'
     | '/settings'
     | '/suche'
     | '/tickets'
@@ -153,7 +183,10 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/arbeitsplatz'
+    | '/benachrichtigungen'
     | '/kalender'
+    | '/pull-requests'
     | '/suche'
     | '/tickets'
     | '/bereiche/$key'
@@ -167,7 +200,10 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/arbeitsplatz'
+    | '/benachrichtigungen'
     | '/kalender'
+    | '/pull-requests'
     | '/settings'
     | '/suche'
     | '/tickets'
@@ -183,7 +219,10 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ArbeitsplatzRoute: typeof ArbeitsplatzRoute
+  BenachrichtigungenRoute: typeof BenachrichtigungenRoute
   KalenderRoute: typeof KalenderRoute
+  PullRequestsRoute: typeof PullRequestsRoute
   SettingsRoute: typeof SettingsRouteWithChildren
   SucheRoute: typeof SucheRoute
   TicketsRoute: typeof TicketsRoute
@@ -201,11 +240,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/arbeitsplatz': {
+      id: '/arbeitsplatz'
+      path: '/arbeitsplatz'
+      fullPath: '/arbeitsplatz'
+      preLoaderRoute: typeof ArbeitsplatzRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/benachrichtigungen': {
+      id: '/benachrichtigungen'
+      path: '/benachrichtigungen'
+      fullPath: '/benachrichtigungen'
+      preLoaderRoute: typeof BenachrichtigungenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/kalender': {
       id: '/kalender'
       path: '/kalender'
       fullPath: '/kalender'
       preLoaderRoute: typeof KalenderRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pull-requests': {
+      id: '/pull-requests'
+      path: '/pull-requests'
+      fullPath: '/pull-requests'
+      preLoaderRoute: typeof PullRequestsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/settings': {
@@ -310,7 +370,10 @@ const SettingsRouteWithChildren = SettingsRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ArbeitsplatzRoute: ArbeitsplatzRoute,
+  BenachrichtigungenRoute: BenachrichtigungenRoute,
   KalenderRoute: KalenderRoute,
+  PullRequestsRoute: PullRequestsRoute,
   SettingsRoute: SettingsRouteWithChildren,
   SucheRoute: SucheRoute,
   TicketsRoute: TicketsRoute,
