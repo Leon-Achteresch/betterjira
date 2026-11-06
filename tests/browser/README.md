@@ -84,7 +84,7 @@ window.__qa.ignoreParentId = true;
 
 `commentPageSize` begrenzt die Einträge je Seite von `GET /comment`. `readDelayMs` verzögert `GET /comment`. `failCommentList` lässt `GET /comment` mit HTTP 503 scheitern, solange der Schalter an ist. `failUserSearch` lässt `GET /user/viewissue/search` scheitern. `rejectParentId` beantwortet ein `POST /comment` mit `parentId` mit HTTP 400. `ignoreParentId` legt die Antwort ohne `parentId` an, wie ein Jira, das das Feld still verwirft. Projekt vom Typ `service_desk`: `http://localhost:1420/tests/browser/fixture.html?scenario=jsm&route=/issue/DEMO-1`.
 
-Alten Textentwurf vorbereiten (Fixture vorher einmal geöffnet), dann die Fixture neu öffnen:
+Alten Textentwurf vorbereiten: Fixture einmal öffnen, dann `http://localhost:1420/logo.svg` öffnen und das Snippet dort in der Konsole ausführen, denn die laufende Fixture überschreibt den Eintrag beim Verlassen. Danach die Fixture neu öffnen:
 
 ```js
 const stored = JSON.parse(localStorage.getItem("betterjira-workspaces"));
