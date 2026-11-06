@@ -16,6 +16,19 @@ const author = {
   displayName: "Alex Beispiel",
   avatarUrls: { "48x48": "/logo.svg" },
 };
+const person = (accountId, displayName, extra = {}) => ({
+  accountId,
+  accountType: "atlassian",
+  active: true,
+  displayName,
+  avatarUrls: { "48x48": "/logo.svg" },
+  ...extra,
+});
+const lea = person("qa-lea", "Lea Muster");
+const automation = person("qa-app", "Automation für Jira", { accountType: "app" });
+const former = person("qa-former", "Ehemalige Kollegin", { active: false });
+const kim = person("qa-kim", "Kim Extern");
+const people = [author, lea, automation, former, kim];
 const status = {
   id: "3",
   name: "In Arbeit",
@@ -25,7 +38,7 @@ const project = {
   id: "1",
   key: "DEMO",
   name: "Produktentwicklung",
-  projectTypeKey: "software",
+  projectTypeKey: scenario === "jsm" ? "service_desk" : "software",
   avatarUrls: author.avatarUrls,
 };
 const paragraph = (text) => ({
@@ -69,7 +82,7 @@ const issues = Array.from({ length: scenario === "busy" ? 35 : scenario === "ai"
     status: { ...status },
     project,
     assignee: author,
-    reporter: author,
+    reporter: index === 0 ? former : author,
     priority: { name: "Mittel" },
     issuetype: { name: "Aufgabe" },
     created: "2026-11-01T09:00:00Z",
@@ -77,23 +90,6 @@ const issues = Array.from({ length: scenario === "busy" ? 35 : scenario === "ai"
     description: paragraph(
       "Wir möchten die täglichen Abläufe mit weniger Kontextwechseln erledigen und die Zusammenarbeit im Team vereinfachen.",
     ),
-    comment: {
-      total: 2,
-      comments: [
-        {
-          id: "c1",
-          author,
-          created: "2026-11-02T10:00:00Z",
-          body: paragraph("Die erste Fassung ist bereit. Bitte besonders den Wechsel zwischen Vorgängen prüfen."),
-        },
-        {
-          id: "c2",
-          author,
-          created: "2026-11-04T10:00:00Z",
-          body: paragraph("Der aktuelle Stand ist mit dem Team abgestimmt."),
-        },
-      ],
-    },
     attachment: [],
     subtasks: [],
     timetracking: {
@@ -104,6 +100,43 @@ const issues = Array.from({ length: scenario === "busy" ? 35 : scenario === "ai"
     worklog: { total: 0, worklogs: [] },
   },
 }));
+const entry = (id, who, created, text, parentId) => ({
+  id,
+  author: who,
+  created,
+  body: paragraph(text),
+  ...(parentId === undefined ? {} : { parentId }),
+});
+const comments = Object.fromEntries(
+  issues.map((issue, index) => [
+    issue.key,
+    index === 0
+      ? [
+          entry("10001", author, "2026-11-02T10:00:00Z", "Die erste Fassung ist bereit. Bitte besonders den Wechsel zwischen Vorgängen prüfen."),
+          entry("10002", lea, "2026-11-03T09:00:00Z", "Ich habe eine Rückfrage zur Reihenfolge der Schritte."),
+          entry("10003", author, "2026-11-03T11:00:00Z", "Die Reihenfolge folgt dem Ablauf im Team.", 10002),
+          entry("10004", automation, "2026-11-03T12:00:00Z", "Automatischer Hinweis: Fälligkeit in drei Tagen."),
+          entry("10005", lea, "2026-11-04T08:00:00Z", "Danke, dann passt es so.", "10002"),
+          entry("10006", lea, "2026-11-04T09:00:00Z", "Antwort auf einen Kommentar, der nicht mehr existiert.", 99999),
+          entry("10007", author, "2026-11-04T10:00:00Z", "Der aktuelle Stand ist mit dem Team abgestimmt."),
+        ]
+      : [
+          entry(String(20001 + index * 10), author, "2026-11-02T10:00:00Z", "Die erste Fassung ist bereit. Bitte besonders den Wechsel zwischen Vorgängen prüfen."),
+          entry(String(20002 + index * 10), author, "2026-11-04T10:00:00Z", "Der aktuelle Stand ist mit dem Team abgestimmt."),
+        ],
+  ]),
+);
+let nextCommentId = 30000;
+const withEmbeddedComments = (issue) => {
+  const list = comments[issue.key] ?? [];
+  return {
+    ...issue,
+    fields: {
+      ...issue.fields,
+      comment: { total: list.length, maxResults: 20, startAt: 0, comments: list.slice(0, 20).map(({ parentId, ...rest }) => rest) },
+    },
+  };
+};
 if (scenario === "busy") {
   issues[0].fields.description = {
     type: "doc",
@@ -208,7 +241,23 @@ let listenerId = 0;
 let callbackId = 0;
 const requests = new Map();
 let nextId = 0;
-window.__qa = { writes: [], failNextWrite: false, delayMs: 0, issues, wiki, briefing, briefingFailure: false };
+window.__qa = {
+  writes: [],
+  failNextWrite: false,
+  delayMs: 0,
+  issues,
+  wiki,
+  briefing,
+  briefingFailure: false,
+  comments,
+  people,
+  commentPageSize: 2,
+  readDelayMs: 0,
+  failCommentList: false,
+  failUserSearch: false,
+  rejectParentId: false,
+  ignoreParentId: false,
+};
 const respond = async (request) => {
   const url = new URL(request.url);
   const path = url.pathname.replace(/^.*\/rest\/(?:api\/[23]|agile\/1\.0)/, "");
@@ -224,15 +273,22 @@ const respond = async (request) => {
       };
     }
     const input = request.data ? JSON.parse(new TextDecoder().decode(new Uint8Array(request.data))) : {};
-    window.__qa.writes.push({ path, method: request.method, input });
     const issue = issues.find((issue) => path.startsWith(`/issue/${issue.key}/`) || path === `/issue/${issue.key}`);
-    if (path.endsWith("/comment") && issue)
-      issue.fields.comment.comments.push({
-        id: `new-${nextId}`,
+    if (path.endsWith("/comment") && issue && request.method === "POST") {
+      if (input.parentId !== undefined && window.__qa.rejectParentId)
+        return { status: 400, body: { errorMessages: ["Test: Jira lehnt parentId ab"] } };
+      window.__qa.writes.push({ path, method: request.method, input });
+      const created = {
+        id: String(++nextCommentId),
         author,
         created: new Date().toISOString(),
-        body: paragraph(input.body),
-      });
+        body: typeof input.body === "string" ? paragraph(input.body) : input.body,
+        ...(input.parentId !== undefined && !window.__qa.ignoreParentId ? { parentId: input.parentId } : {}),
+      };
+      comments[issue.key].push(created);
+      return { status: 201, body: created };
+    }
+    window.__qa.writes.push({ path, method: request.method, input });
     if (path.endsWith("/worklog") && issue) {
       issue.fields.worklog.worklogs.push({
         id: `work-${nextId}`,
@@ -272,13 +328,28 @@ const respond = async (request) => {
         clauseNames: [id],
       })),
     };
-  if (path.startsWith("/search/jql")) return { body: { issues, isLast: true } };
+  if (path.startsWith("/search/jql")) return { body: { issues: issues.map(withEmbeddedComments), isLast: true } };
   if (path.startsWith("/board")) return { body: { values: [] } };
   if (path.endsWith("/transitions")) return { body: { transitions } };
+  const commentPath = path.match(/^\/issue\/([^/]+)\/comment$/);
+  if (commentPath) {
+    if (window.__qa.readDelayMs) await new Promise((resolve) => setTimeout(resolve, window.__qa.readDelayMs));
+    if (window.__qa.failCommentList)
+      return { status: 503, body: { errorMessages: ["Test: Kommentare vorübergehend nicht abrufbar"] } };
+    const list = comments[decodeURIComponent(commentPath[1])] ?? [];
+    const startAt = Number(url.searchParams.get("startAt") ?? 0);
+    const size = Math.min(Number(url.searchParams.get("maxResults") ?? 100), window.__qa.commentPageSize);
+    return { body: { startAt, maxResults: size, total: list.length, comments: list.slice(startAt, startAt + size) } };
+  }
+  if (path.startsWith("/user/viewissue/search")) {
+    if (window.__qa.failUserSearch) return { status: 503, body: { errorMessages: ["Test: Personensuche nicht erreichbar"] } };
+    const query = (url.searchParams.get("query") ?? "").toLocaleLowerCase("de");
+    return { body: people.filter((candidate) => candidate.displayName.toLocaleLowerCase("de").includes(query)) };
+  }
   const issue = issues.find((issue) => path === `/issue/${issue.key}`);
   if (issue && url.pathname.includes("/api/2/") && url.searchParams.get("fields") === "description")
     return { body: { fields: { description: wiki[issue.key] } } };
-  if (issue) return { body: issue };
+  if (issue) return { body: withEmbeddedComments(issue) };
   return {
     status: 404,
     body: { errorMessages: [`Keine Testantwort für ${path}`] },
