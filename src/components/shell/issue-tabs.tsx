@@ -23,7 +23,7 @@ import { copyToClipboard } from "@/lib/clipboard";
 import { EASE_OUT, SPRING_LAYOUT } from "@/lib/ease";
 import { cn } from "@/lib/utils";
 
-type IssueTab = { key: string; title?: string; pinned: boolean; url?: string };
+export type IssueTab = { key: string; title?: string; pinned: boolean; url?: string };
 
 type IssueTabActions = {
   onClose: (key: string) => void;

@@ -95,6 +95,11 @@ export function AppHeader() {
           canGoBack={canGoBack}
           onBack={() => router.history.back()}
           onForward={() => router.history.forward()}
+          tabs={tabs}
+          activeKey={activeKey}
+          onOpenTab={openTab}
+          onCloseTab={closeTab}
+          onTogglePin={togglePin}
         />
       </nav>
       {USE_CUSTOM_WINDOW_CONTROLS ? <WindowControls /> : null}

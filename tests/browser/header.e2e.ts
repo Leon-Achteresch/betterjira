@@ -58,7 +58,7 @@ for (const width of WIDTHS) {
     await expect(tools(page).getByRole("button", { name: "Weiterarbeiten" })).toBeVisible();
     if (width >= 640) {
       await expect(page.getByRole("tablist", { name: "Geöffnete Tickets" }).getByRole("tab")).toHaveCount(12);
-      await expect(tools(page).getByRole("button", { name: /^Design:/ })).toBeVisible();
+      await expect(tools(page).getByRole("button", { name: /Design verwenden$/ })).toBeVisible();
     }
   });
 }
@@ -69,7 +69,7 @@ test("Suche öffnet die Command Palette und findet Befehle", async ({ page }) =>
     await header(page).getByRole("button", { name: "Suchen" }).click();
     const palette = page.getByRole("dialog", { name: "Command palette" });
     await palette.getByRole("combobox").fill("Jira-Tickets");
-    await expect(palette.getByRole("option", { name: /DEMO-1/ })).toHaveCount(0);
+    await expect(palette.getByRole("option", { name: /DEMO-1\b/ })).toHaveCount(0);
     await palette.getByRole("option", { name: /Jira-Tickets/ }).click();
     await expect(page).toHaveURL(/\/tickets$/);
   }
@@ -97,12 +97,78 @@ test("Weitere Aktionen ersetzen Zurück, Vorwärts und Design bei 390 px", async
   await expect(page).toHaveURL(/\/tickets$/);
 
   await more.click();
-  const theme = page.getByRole("menuitem", { name: /^Design:/ });
+  const theme = page.getByRole("menuitem", { name: /Design verwenden$/ });
   const before = await theme.textContent();
   await theme.click();
   await more.click();
-  await expect(page.getByRole("menuitem", { name: /^Design:/ })).not.toHaveText(before ?? "");
+  await expect(page.getByRole("menuitem", { name: /Design verwenden$/ })).not.toHaveText(before ?? "");
   await page.keyboard.press("Escape");
+});
+
+test("Weitere Aktionen verwalten geöffnete Tickets bei 390 px ohne Tastenkürzel", async ({ page }) => {
+  await openBusy(page, 390);
+  const more = tools(page).getByRole("button", { name: "Weitere Aktionen" });
+  const ticket = (key: string) => page.getByRole("menuitemradio", { name: new RegExp(`^${key} `) });
+
+  await more.click();
+  await expect(page.getByRole("group", { name: "Geöffnete Tickets" }).getByRole("menuitemradio")).toHaveCount(12);
+  await expect(ticket("DEMO-1")).toHaveAttribute("aria-checked", "true");
+  await expect(ticket("DEMO-2")).toHaveAccessibleName(/angeheftet/);
+  await ticket("DEMO-3").click();
+  await expect(page).toHaveURL(/\/issue\/DEMO-3$/);
+
+  await more.click();
+  await expect(ticket("DEMO-3")).toHaveAttribute("aria-checked", "true");
+  await page.getByRole("menuitem", { name: "DEMO-3 anheften" }).click();
+  await more.click();
+  await expect(ticket("DEMO-3")).toHaveAccessibleName(/angeheftet/);
+  await expect(page.getByRole("menuitem", { name: "Angeheftet, zum Schließen lösen" })).toBeDisabled();
+  await page.getByRole("menuitem", { name: "DEMO-3 lösen" }).click();
+
+  await more.click();
+  await expect(ticket("DEMO-3")).not.toHaveAccessibleName(/angeheftet/);
+  await page.getByRole("menuitem", { name: /^DEMO-3 schließen/ }).click();
+  await expect(page).toHaveURL(/\/issue\/DEMO-4$/);
+  await more.click();
+  await expect(page.getByRole("menuitemradio")).toHaveCount(11);
+  await expect(ticket("DEMO-3")).toHaveCount(0);
+  await expect(ticket("DEMO-4")).toHaveAttribute("aria-checked", "true");
+  await page.keyboard.press("Escape");
+
+  await header(page).getByRole("link", { name: "betterjira" }).click();
+  await expect(page).not.toHaveURL(/\/issue\//);
+  await more.click();
+  await expect(page.getByRole("menuitemradio", { checked: true })).toHaveCount(0);
+  await expect(page.getByRole("menuitem", { name: /anheften|lösen|schließen/ })).toHaveCount(0);
+  await ticket("DEMO-5").click();
+  await expect(page).toHaveURL(/\/issue\/DEMO-5$/);
+});
+
+test("Geöffnete Tickets im Menü sind per Tastatur bedienbar", async ({ page }) => {
+  await openBusy(page, 390);
+  const more = tools(page).getByRole("button", { name: "Weitere Aktionen" });
+  await more.focus();
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("menu")).toBeVisible();
+  if (await page.evaluate(() => matchMedia("(prefers-reduced-motion: reduce)").matches)) {
+    expect(await page.getByRole("menu").evaluate((menu) => getComputedStyle(menu).animationName)).toBe("none");
+  }
+  for (let step = 0; step < 20; step++) {
+    const name = await page.evaluate(() => document.activeElement?.textContent ?? "");
+    if (name.startsWith("DEMO-6")) break;
+    await page.keyboard.press("ArrowDown");
+  }
+  await expect(page.getByRole("menuitemradio", { name: /^DEMO-6 / })).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(page).toHaveURL(/\/issue\/DEMO-6$/);
+  await expect(page.getByRole("menu")).toBeHidden();
+  await expect(more).toBeFocused();
+
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("menu")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("menu")).toBeHidden();
+  await expect(more).toBeFocused();
 });
 
 test("Seitenleiste lässt sich aus der Kopfleiste öffnen und schließen", async ({ page }) => {
