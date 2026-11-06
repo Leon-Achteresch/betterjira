@@ -275,7 +275,7 @@ export function IssueToolbar({
           </InputGroupAddon>
           <InputGroupInput
             type="search"
-            placeholder="In Ergebnissen suchen"
+            placeholder={table.textPlaceholder}
             aria-label="Volltextsuche"
             value={table.text}
             onChange={(event) => table.setText(event.target.value)}

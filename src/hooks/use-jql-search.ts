@@ -5,17 +5,22 @@ import { useCreateFilter } from "@/hooks/jira/use-jira-filter";
 import { useJqlValidation } from "@/hooks/jira/use-jql-validation";
 import { jiraErrors } from "@/lib/jira/field-values";
 
-export function useJqlSearch(jql: string, onSearch: (jql: string) => void) {
+export function useJqlSearch(jql: string, active: boolean, onSearch: (jql: string) => void) {
   const [draft, setDraft] = useState<string>();
-  const value = draft ?? jql;
-  const validation = useJqlValidation(value);
+  const [seen, setSeen] = useState(jql);
+  if (seen !== jql) {
+    setSeen(jql);
+    setDraft(undefined);
+  }
+  const value = seen === jql ? (draft ?? jql) : jql;
+  const validation = useJqlValidation(active ? value : "");
   const create = useCreateFilter();
   const navigate = useNavigate();
 
   return {
     value,
     setValue: setDraft,
-    errors: value.trim() ? (validation.data ?? []) : [],
+    errors: active && value.trim() ? (validation.data ?? []) : [],
     validating: validation.isFetching,
     search: () => {
       setDraft(undefined);
@@ -36,3 +41,5 @@ export function useJqlSearch(jql: string, onSearch: (jql: string) => void) {
     resetCreate: create.reset,
   };
 }
+
+export type JqlSearchState = ReturnType<typeof useJqlSearch>;
