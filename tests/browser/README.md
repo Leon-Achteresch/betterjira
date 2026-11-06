@@ -13,6 +13,10 @@ bun run test
 bun run build
 ```
 
+Browser-Tests: `bun run test:e2e`. Läuft parallel schon ein anderer Devserver auf Port 1420, `E2E_PORT` setzen (z. B. `E2E_PORT=1437`), sonst verwendet Playwright den fremden Server weiter.
+
+`render-recovery.e2e.ts` injiziert Renderfehler ausschließlich im Test: Es fängt das von Vite ausgelieferte Komponentenmodul ab und schaltet den Fehler über `window.__qaRenderFault`. Geprüft werden Seiten-Fallback mit nutzbarer Shell, Retry, dauerhafter Fehler, Routenwechsel, Root-Fallback, Tastatur und reduzierte Bewegung. Mit `RENDER_RECOVERY_SHOTS=<Ordner>` speichert der Test zusätzlich Screenshots.
+
 Am 04.11.2026: 103 Tests in 13 Dateien erfolgreich. Zusätzlich sind Feldentwürfe, Wiederaufnahme, begrenzte Kontextspeicherung und KI-Zustände abgedeckt. TypeScript und Produktionsbuild erfolgreich. Der Build meldet weiterhin einen großen Haupt-Chunk; der Effect-Sprachdienst gibt einen nicht blockierenden Hinweis zu einer bereits vorhandenen `Effect.succeed(undefined)`-Stelle aus.
 
 ## Im Browser geprüft
