@@ -48,7 +48,7 @@ export const SHORTCUTS: Shortcut[] = [
   shortcut("forward", IS_MAC ? "Mod+]" : "Alt+ArrowRight", "Vor", "Navigation"),
   shortcut("home", ["G", "H"], "Übersicht", "Navigation"),
   shortcut("tickets", ["G", "T"], "Jira-Tickets", "Navigation"),
-  shortcut("search", ["G", "S"], "JQL-Suche", "Navigation"),
+  shortcut("search", ["G", "S"], "Ticketsuche", "Navigation"),
   shortcut("settings", "Mod+,", "Einstellungen", "Navigation"),
   shortcut("nextTab", "Control+Tab", "Nächster Ticket-Tab", "Ticket-Tabs"),
   shortcut("prevTab", "Control+Shift+Tab", "Vorheriger Ticket-Tab", "Ticket-Tabs"),

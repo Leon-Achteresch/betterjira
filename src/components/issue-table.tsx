@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
-import { useIssueTable } from "@/hooks/use-issue-table";
+import { type IssueTableText, useIssueTable } from "@/hooks/use-issue-table";
 import { EASE_OUT, SPRING_LAYOUT } from "@/lib/ease";
 import { jiraErrors } from "@/lib/jira/field-values";
 import { useJiraSite } from "@/lib/jira/queries";
@@ -65,13 +65,15 @@ export function IssueTable({
   scope = jql,
   openSearch = true,
   onAdoptJql,
+  text,
 }: {
   jql: string;
   scope?: string;
   openSearch?: boolean;
   onAdoptJql?: (jql: string) => void;
+  text?: IssueTableText;
 }) {
-  const table = useIssueTable(scope, jql);
+  const table = useIssueTable(scope, jql, text);
   const reduce = useReducedMotion();
   const site = useJiraSite();
   const navigate = useNavigate();

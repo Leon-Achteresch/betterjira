@@ -30,7 +30,9 @@ const NO_SAVED_VIEWS: SavedIssueView[] = [];
 
 export type ExportFormat = "tsv" | "markdown" | "keys" | "jql";
 
-export function useIssueTable(scope: string, baseJql: string) {
+export type IssueTableText = { value: string; onChange: (text: string) => void; placeholder: string };
+
+export function useIssueTable(scope: string, baseJql: string, externalText?: IssueTableText) {
   const stored = useIssueViews((state) => state.views[scope]);
   const savedViews = useIssueViews((state) => state.saved[scope]) ?? NO_SAVED_VIEWS;
   const update = useIssueViews((state) => state.update);
@@ -40,8 +42,10 @@ export function useIssueTable(scope: string, baseJql: string) {
   const view = { ...DEFAULT_VIEW, ...stored };
   const quick = view.quick.filter((key) => key in QUICK_FILTERS);
 
-  const [text, setText] = useState("");
-  const [debouncedText] = useDebouncedValue(text.trim(), { wait: 300 });
+  const [localText, setLocalText] = useState("");
+  const text = externalText?.value ?? localText;
+  const setText = externalText?.onChange ?? setLocalText;
+  const [debouncedText] = useDebouncedValue(externalText ? "" : localText.trim(), { wait: 300 });
 
   const clauses = [
     ...quick.map((key) => QUICK_FILTERS[key].jql),
@@ -117,6 +121,7 @@ export function useIssueTable(scope: string, baseJql: string) {
     quick,
     facets,
     text,
+    textPlaceholder: externalText?.placeholder ?? "In Ergebnissen suchen",
     filterCount,
     savedViews,
     availableFields: pickableFields(catalog.data ?? []),
