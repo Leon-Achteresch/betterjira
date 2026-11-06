@@ -261,6 +261,10 @@ if (scenario === "busy") {
   };
   stored.state.workspaces[id] = current;
   localStorage.setItem("betterjira-workspaces", JSON.stringify(stored));
+  if (!localStorage.getItem("betterjira-issue-tabs")) {
+    const keys = issues.slice(0, 12).map((issue) => issue.key);
+    localStorage.setItem("betterjira-issue-tabs", JSON.stringify({ state: { keys, pinned: [keys[1]] }, version: 0 }));
+  }
 }
 const callbacks = new Map();
 const listeners = new Map();
