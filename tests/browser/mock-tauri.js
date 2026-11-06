@@ -617,7 +617,7 @@ const respond = async (request) => {
   }
   if (path.startsWith("/project/search")) {
     if (window.__qaProjectFailure) return { status: 503, body: { errorMessages: ["Test: Projekte konnten nicht geladen werden"] } };
-    return { body: { isLast: true, values: scenario === "create" ? createProjects : [project] } };
+    return { body: { isLast: true, values: window.__qaProjects ?? (scenario === "create" ? createProjects : [project]) } };
   }
   if (path === "/mypermissions") {
     const allowed = url.searchParams.get("projectId") !== "3";
