@@ -1,6 +1,9 @@
 import { Effect, Option, Schema } from "effect";
 import { jira } from "./client";
 import { jiraKeys } from "./queries";
+import { openableUrl } from "../external-links/client";
+
+export { openableUrl } from "../external-links/client";
 
 const Text = Schema.optional(Schema.NullOr(Schema.String));
 
@@ -41,19 +44,6 @@ const decodeLink = Schema.decodeUnknownOption(RemoteIssueLink);
 const textOf = (value: string | null | undefined) => {
   const text = value?.trim();
   return text ? text : undefined;
-};
-
-export const openableUrl = (value: string | null | undefined) => {
-  const raw = value?.trim();
-  if (!raw) return undefined;
-  try {
-    const url = new URL(raw);
-    if (url.protocol !== "http:" && url.protocol !== "https:") return undefined;
-    if (!url.hostname || url.username || url.password) return undefined;
-    return { href: url.href, host: url.host };
-  } catch {
-    return undefined;
-  }
 };
 
 const rowOf = (link: typeof RemoteIssueLink.Type, index: number): RemoteLinkRow => {

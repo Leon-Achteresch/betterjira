@@ -1,19 +1,18 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { openUrl } from "@tauri-apps/plugin-opener";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Effect } from "effect";
 import { toast } from "sonner";
-import { fetchRemoteLinks, openableUrl, remoteLinkKeys } from "@/lib/jira/remote-links";
+import { fetchRemoteLinks, remoteLinkKeys } from "@/lib/jira/remote-links";
 import { useJiraMyself, useJiraSite } from "@/lib/jira/queries";
-
-const openLink = (href: string) => {
-  const target = openableUrl(href);
-  if (target) openUrl(target.href).catch(() => toast.error("Link konnte nicht geöffnet werden"));
-};
+import { openExternalLink } from "@/lib/external-links/client";
 
 export function useRemoteLinks(issueKey: string) {
   const site = useJiraSite();
   const myself = useJiraMyself();
+  const opener = useMutation({
+    mutationFn: (href: string) => Effect.runPromise(openExternalLink(href)),
+    onError: () => toast.error("Link konnte nicht geöffnet werden"),
+  });
   const [openKey, setOpenKey] = useState<string | null>(null);
   const [shownKey, setShownKey] = useState(issueKey);
   if (shownKey !== issueKey) {
@@ -38,7 +37,7 @@ export function useRemoteLinks(issueKey: string) {
     refreshError: query.data && query.isRefetchError ? query.error : null,
     retrying: query.isFetching || myself.isFetching,
     onRetry: () => void (accountError ? myself.refetch() : query.refetch({ cancelRefetch: false })),
-    onOpenLink: openLink,
+    onOpenLink: (href: string) => opener.mutate(href),
   };
 }
 
