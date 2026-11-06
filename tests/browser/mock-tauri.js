@@ -324,7 +324,7 @@ const respond = async (request) => {
     return { status: 204 };
   }
   if (path === "/myself") return { body: author };
-  if (path.startsWith("/project/search")) return { body: { isLast: true, values: [project] } };
+  if (path.startsWith("/project/search")) return { body: { isLast: true, values: window.__qaProjects ?? [project] } };
   if (path.startsWith("/filter/my")) return { body: [] };
   if (path === "/field")
     return {
