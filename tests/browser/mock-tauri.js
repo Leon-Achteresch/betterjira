@@ -39,7 +39,7 @@ const titles = [
   "Tastaturbedienung im Editor verbessern",
   "Übergabe an das Team vorbereiten",
 ];
-const issues = Array.from({ length: scenario === "busy" ? 35 : scenario === "workspace" ? 12 : scenario === "ai" ? 8 : 3 }, (_, index) => ({
+const issues = Array.from({ length: scenario === "busy" ? 35 : scenario === "workspace" || scenario === "subtasks" ? 12 : scenario === "ai" ? 8 : 3 }, (_, index) => ({
   id: String(index + 1),
   key: `DEMO-${index + 1}`,
   names: {
@@ -122,6 +122,23 @@ if (scenario === "busy") {
       },
     ]).flat(),
   };
+}
+if (scenario === "subtasks") {
+  const subtaskStatuses = [
+    { id: "11", name: "Zu erledigen", statusCategory: { key: "new", colorName: "blue-gray" } },
+    { id: "3", name: "In Arbeit", statusCategory: { key: "indeterminate", colorName: "yellow" } },
+    { id: "4", name: "Erledigt", statusCategory: { key: "done", colorName: "green" } },
+    { id: "99", name: "Erledigt (Import)", statusCategory: { key: "undefined", colorName: "medium-gray" } },
+  ];
+  const subtaskOf = (issue, statusIndex) => {
+    issue.fields.status = subtaskStatuses[statusIndex];
+    return { id: issue.id, key: issue.key, fields: { summary: issue.fields.summary, status: issue.fields.status } };
+  };
+  issues.slice(2, 11).forEach((issue, index) => {
+    issue.fields.summary = `Teilschritt ${index + 3} umsetzen`;
+  });
+  issues[0].fields.subtasks = [1, 2, 0, 2, 3, 1, 2, 0, 2, 2].map((statusIndex, index) => subtaskOf(issues[index + 1], statusIndex));
+  issues[1].fields.subtasks = [subtaskOf(issues[11], 2)];
 }
 const boardStatuses = [
   { id: "10", name: "Triage", statusCategory: { key: "new", colorName: "blue-gray" } },

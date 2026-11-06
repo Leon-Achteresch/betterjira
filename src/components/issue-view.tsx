@@ -10,11 +10,10 @@ import { IssueComments } from "@/components/issue-comments";
 import { IssueDrawer, type IssueDrawerTab } from "@/components/issue-drawer";
 import { EditableField, FieldValue, richFieldIds } from "@/components/issue-fields";
 import { IssueStatusMenu } from "@/components/issue-status-menu";
-import { JiraStatusBadge } from "@/components/jira-status-badge";
-import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { IssueActions } from "@/components/issues/issue-actions";
 import { IssueLinksPanel } from "@/components/issues/issue-links-panel";
+import { IssueSubtasks } from "@/components/issues/issue-subtasks";
 import { useIssueReadingPosition } from "@/hooks/use-issue-reading-position";
 import { useIssueActions } from "@/hooks/use-issue-actions";
 import { useIssueDevelopmentPanel } from "@/hooks/scm/use-issue-development-panel";
@@ -77,38 +76,6 @@ function Vitals({ issue }: { issue: JiraIssueDetail }) {
         {new Date(issue.fields.created).toLocaleDateString("de-DE", { dateStyle: "medium" })}
       </Property>
     </dl>
-  );
-}
-
-function Subtasks({ subtasks }: { subtasks: NonNullable<JiraIssueDetail["fields"]["subtasks"]> }) {
-  const done = subtasks.filter((subtask) => subtask.fields.status.statusCategory.key === "done").length;
-  return (
-    <Section
-      title="Unteraufgaben"
-      aside={
-        <span className="flex flex-1 items-center gap-3 text-xs text-muted-foreground tabular-nums">
-          {done}/{subtasks.length}
-          <Progress value={(done / subtasks.length) * 100} className="h-1 max-w-32" />
-        </span>
-      }
-    >
-      <ul className="-mx-2 flex flex-col">
-        {subtasks.map((subtask) => (
-          <li key={subtask.id}>
-            <Link
-              to="/issue/$key"
-              params={{ key: subtask.key }}
-              data-row-link
-              className="grid grid-cols-[5.5rem_minmax(0,1fr)_auto] items-center gap-4 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted"
-            >
-              <span className="font-mono text-xs text-muted-foreground">{subtask.key}</span>
-              <span className="truncate">{subtask.fields.summary}</span>
-              <JiraStatusBadge status={subtask.fields.status} />
-            </Link>
-          </li>
-        ))}
-      </ul>
-    </Section>
   );
 }
 
@@ -234,7 +201,11 @@ export function IssueView({ issueKey, initialTab }: { issueKey: string; initialT
           </EditableField>
         </Section>
 
-        {subtasks.length > 0 && <Subtasks subtasks={subtasks} />}
+        {subtasks.length > 0 && (
+          <Section title="Unteraufgaben">
+            <IssueSubtasks key={issue.data.key} subtasks={subtasks} />
+          </Section>
+        )}
 
         <Section title={links.summary ? `Verknüpfungen · ${links.summary.total}` : "Verknüpfungen"}>
           <IssueLinksPanel
