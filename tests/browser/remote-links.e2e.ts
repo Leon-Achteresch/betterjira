@@ -23,6 +23,7 @@ const shot = async (page: Page, testInfo: TestInfo, name: string) => {
   const dir = process.env.REMOTE_LINKS_SHOTS;
   if (!dir) return;
   await page.evaluate(() => document.fonts.ready);
+  expect(await page.evaluate(() => document.fonts.check("16px 'Geist Variable'"))).toBe(true);
   await section(page).scrollIntoViewIfNeeded();
   await page.screenshot({ path: `${dir}/${testInfo.project.name}-${name}.png` });
 };
