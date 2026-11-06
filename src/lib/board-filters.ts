@@ -34,3 +34,14 @@ export const boardScopes = <T>(record: Record<string, T>, board: string) =>
 
 export const otherScopes = <T>(record: Record<string, T>, board: string) =>
   Object.fromEntries(Object.entries(record).filter(([scope]) => !inBoard(scope, board)));
+
+export const columnMatches = (
+  filters: Record<string, BoardFilter>,
+  ignoreBoard: Record<string, boolean>,
+  board: number,
+  column: string,
+  values: FilterValues,
+) => {
+  const scope = `${board}:${column}`;
+  return (ignoreBoard[scope] || matchesFilter(filters[board] ?? EMPTY_FILTER, values)) && matchesFilter(filters[scope] ?? EMPTY_FILTER, values);
+};

@@ -50,14 +50,31 @@ export function BarListChart({
   );
 }
 
-export function ColumnChart({ data, config, stacked = false, className }: SeriesChartProps & { stacked?: boolean }) {
+const TICK_LENGTH = 10;
+
+const shortTick = (value: string) => (value.length > TICK_LENGTH ? `${value.slice(0, TICK_LENGTH - 1)}…` : value);
+
+export function ColumnChart({
+  data,
+  config,
+  stacked = false,
+  allTicks = false,
+  className,
+}: SeriesChartProps & { stacked?: boolean; allTicks?: boolean }) {
   const reduce = useReducedMotion();
   const keys = seriesKeys(config);
   return (
     <ChartContainer config={config} className={cn("aspect-auto h-64 w-full", className)}>
       <BarChart data={[...data]} barGap={2}>
         <CartesianGrid vertical={false} />
-        <XAxis dataKey="name" tickLine={false} axisLine={false} tickMargin={8} minTickGap={8} />
+        <XAxis
+          dataKey="name"
+          tickLine={false}
+          axisLine={false}
+          tickMargin={8}
+          minTickGap={8}
+          {...(allTicks && { interval: 0, tickFormatter: shortTick, fontSize: 11 })}
+        />
         <YAxis tickLine={false} axisLine={false} width={32} allowDecimals={false} />
         <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
         {keys.length > 1 && <ChartLegend content={<ChartLegendContent />} />}
@@ -67,6 +84,7 @@ export function ColumnChart({ data, config, stacked = false, className }: Series
             dataKey={key}
             fill={`var(--color-${key})`}
             stackId={stacked ? "stack" : undefined}
+            maxBarSize={48}
             radius={stacked ? (index === keys.length - 1 ? [BAR_RADIUS, BAR_RADIUS, 0, 0] : 0) : [BAR_RADIUS, BAR_RADIUS, 0, 0]}
             isAnimationActive={!reduce}
           />
