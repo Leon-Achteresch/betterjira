@@ -18,6 +18,8 @@ import { SHORTCUT_GROUPS } from "@/lib/shortcuts";
 import { RenderErrorBoundary } from "@/components/ui/render-error-boundary";
 import { RenderError } from "@/components/shell/render-error";
 import { useRenderRecovery } from "@/hooks/use-render-recovery";
+import { OfflineNotice } from "@/components/connections/offline-notice";
+import { useDeviceOnline } from "@/hooks/connections/use-device-online";
 
 function NotificationPoller() {
   useNotificationPoller();
@@ -52,6 +54,10 @@ function BackgroundTabClick() {
 function Shortcuts() {
   const help = useAppShortcuts();
   return <ShortcutHelp open={help.open} onOpenChange={help.setOpen} groups={SHORTCUT_GROUPS} />;
+}
+
+function DeviceOfflineNotice() {
+  return <OfflineNotice visible={!useDeviceOnline()} />;
 }
 
 function Page() {
@@ -89,6 +95,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           <div className="flex min-h-0 flex-1">
             <AppSidebar />
             <SidebarInset id="app-scroll" data-scroll-restoration-id="app-scroll" className="min-h-0 overflow-auto">
+              <DeviceOfflineNotice />
               <Page />
             </SidebarInset>
           </div>
