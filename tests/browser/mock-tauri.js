@@ -465,13 +465,36 @@ if (scenario === "workspace") {
     );
   }
 }
+const qaFilter = (id, name, owner, favourite, account = "qa-user") => ({
+  id,
+  name,
+  jql: "project = DEMO ORDER BY updated DESC",
+  favourite,
+  owner: { accountId: owner, displayName: owner },
+  account,
+});
+const qaFilters =
+  scenario === "filters"
+    ? [
+        qaFilter("101", "Offene Bugs Team", "qa-user", true),
+        qaFilter("102", "Sprint-Review Vorbereitung", "qa-user", false),
+        qaFilter("103", "Rollouts diese Woche", "qa-user", true),
+        qaFilter("104", "Support-Eskalationen", "qa-colleague", true),
+        qaFilter("105", "Meine Rückfragen", "qa-user", false),
+        qaFilter("106", "Release 2026.11 Abnahme", "qa-user", false),
+        qaFilter("107", "Kundenfeedback Q4", "qa-user", false),
+        qaFilter("201", "Backlog des Kollegen", "qa-colleague", true, "qa-colleague"),
+      ]
+    : [];
+const visibleQaFilters = () =>
+  qaFilters.filter((filter) => filter.account === accountId && (filter.owner.accountId === accountId || filter.favourite));
 const callbacks = new Map();
 const listeners = new Map();
 let listenerId = 0;
 let callbackId = 0;
 const requests = new Map();
 let nextId = 0;
-window.__qa = { writes: [], failNextWrite: false, delayMs: 0, issues, wiki, briefing, briefingFailure: false, searches: [], searchDelayMs: 0, failSearch: false, emptySearch: false, sessionFailure: scenario === "session-error", sessionDelayMs: scenario === "session-slow" ? 1500 : 0 };
+window.__qa = { filters: qaFilters, filterRequests: 0, failFilters: new URLSearchParams(location.search).get("fail") === "filters", writes: [], failNextWrite: false, delayMs: 0, issues, wiki, briefing, briefingFailure: false, searches: [], searchDelayMs: 0, failSearch: false, emptySearch: false, sessionFailure: scenario === "session-error", sessionDelayMs: scenario === "session-slow" ? 1500 : 0 };
 window.__qa.outlook = {
   calls: [],
   failNext: false,
@@ -494,6 +517,8 @@ const respond = async (request) => {
     }
     const input = request.data ? JSON.parse(new TextDecoder().decode(new Uint8Array(request.data))) : {};
     window.__qa.writes.push({ path, method: request.method, input });
+    const favourite = qaFilters.find((filter) => path === `/filter/${filter.id}/favourite`);
+    if (favourite) favourite.favourite = request.method === "PUT";
     const issue = issues.find((issue) => path.startsWith(`/issue/${issue.key}/`) || path === `/issue/${issue.key}`);
     if (path.endsWith("/comment") && issue)
       issue.fields.comment.comments.push({
@@ -524,7 +549,13 @@ const respond = async (request) => {
   }
   if (path === "/myself") return { body: { ...author, accountId } };
   if (path.startsWith("/project/search")) return { body: { isLast: true, values: [project] } };
-  if (path.startsWith("/filter/my")) return { body: [] };
+  if (path.startsWith("/filter/my")) {
+    window.__qa.filterRequests++;
+    if (window.__qa.failFilters) return { status: 503, body: { errorMessages: ["Test: Filter vorübergehend nicht erreichbar"] } };
+    return { body: visibleQaFilters() };
+  }
+  const filter = qaFilters.find((entry) => path === `/filter/${entry.id}`);
+  if (filter) return { body: filter };
   if (path === "/field")
     return {
       body: ["summary", "status", "assignee", "priority", "updated", "issuetype"].map((id) => ({

@@ -3,10 +3,8 @@ import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { useCreateFilter, useDeleteFilter, useFilterFavourite, useJiraFilter, useUpdateFilter } from "@/hooks/jira/use-jira-filter";
 import { useJqlValidation } from "@/hooks/jira/use-jql-validation";
-import { jiraErrors } from "@/lib/jira/field-values";
+import { jiraErrorText } from "@/lib/jira/field-values";
 import { useJiraMyself } from "@/lib/jira/queries";
-
-const errorText = (error: unknown) => jiraErrors(error).messages.concat(Object.values(jiraErrors(error).fields)).join(" ");
 
 export function useFilterEditor(id: string) {
   const filter = useJiraFilter(id);
@@ -14,7 +12,7 @@ export function useFilterEditor(id: string) {
   const update = useUpdateFilter(id);
   const create = useCreateFilter();
   const remove = useDeleteFilter(id);
-  const favourite = useFilterFavourite(id);
+  const favourite = useFilterFavourite();
   const navigate = useNavigate();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<string>();
@@ -37,7 +35,7 @@ export function useFilterEditor(id: string) {
           reset();
           toast.success(success);
         },
-        onError: (error) => toast.error("Filter konnte nicht gespeichert werden", { description: errorText(error) }),
+        onError: (error) => toast.error("Filter konnte nicht gespeichert werden", { description: jiraErrorText(error) }),
       },
     );
   };
@@ -76,12 +74,12 @@ export function useFilterEditor(id: string) {
         },
       ),
     creating: create.isPending,
-    createError: create.error ? errorText(create.error) : undefined,
+    createError: create.error ? jiraErrorText(create.error) : undefined,
     resetCreate: create.reset,
     favourite: !!filter.data?.favourite,
     toggleFavourite: () =>
-      favourite.mutate(!filter.data?.favourite, {
-        onError: (error) => toast.error("Favorit konnte nicht geändert werden", { description: errorText(error) }),
+      favourite.mutate({ id, favourite: !filter.data?.favourite }, {
+        onError: (error) => toast.error("Favorit konnte nicht geändert werden", { description: jiraErrorText(error) }),
       }),
     togglingFavourite: favourite.isPending,
     remove: () =>
@@ -90,7 +88,7 @@ export function useFilterEditor(id: string) {
           toast.success("Filter gelöscht");
           void navigate({ to: "/" });
         },
-        onError: (error) => toast.error("Filter konnte nicht gelöscht werden", { description: errorText(error) }),
+        onError: (error) => toast.error("Filter konnte nicht gelöscht werden", { description: jiraErrorText(error) }),
       }),
     removing: remove.isPending,
   };

@@ -12,6 +12,7 @@ import {
   HomeIcon,
   KeyboardIcon,
   LayersIcon,
+  ListFilterIcon,
   SparklesIcon,
   LogInIcon,
   LogOutIcon,
@@ -243,6 +244,14 @@ export function useAppCommandPalette() {
       keywords: ["jql", "suche", "query"],
       hint: shortcutHint("search"),
       onSelect: () => void navigate({ to: "/suche", search: {} }),
+    },
+    {
+      id: "nav:filters",
+      label: "Alle Filter",
+      group: "Navigation",
+      icon: ListFilterIcon,
+      keywords: ["filter", "favoriten", "gespeicherte suchen", "übersicht"],
+      onSelect: () => void navigate({ to: "/filter", search: {} }),
     },
     {
       id: "nav:settings",

@@ -108,3 +108,11 @@ Der vollständige Ablaufbericht einschließlich Vielnutzer, sorgfältigem Leser,
 - Zweites Konto derselben Instanz: `&account=qa-colleague`. Es sieht nur seinen eigenen QA-Kontext; die Daten von `qa-user` bleiben unverändert im lokalen Speicher.
 - Abmelden simuliert `session_delete`; danach meldet die Sitzung bis zum erneuten Öffnen der Fixture „Nicht angemeldet“.
 - Automatisch: `bunx playwright test tests/browser/workspace-page.e2e.ts --workers=1`. Mit `WORKSPACE_SHOTS=<Ordner>` speichert der Test Screenshots.
+
+## Filterübersicht
+
+- Eigene und favorisierte QA-Filter: `...fixture.html?scenario=filters&route=/filter` (sieben Filter, davon drei Favoriten, einer gehört einem anderen Konto). Ansicht über `?ansicht=favoriten`, Suche über `q`.
+- Erster Ladefehler: `&fail=filters`; `window.__qa.failFilters` schaltet Fehler von `/filter/my` zur Laufzeit, `window.__qa.filterRequests` zählt die Abrufe.
+- Favoriten-Schreibzugriffe (`PUT`/`DELETE /filter/{id}/favourite`) bleiben in der Simulation und stehen in `window.__qa.writes`; `failNextWrite` und `delayMs` wirken auch hier.
+- Zweites Konto: `&account=qa-colleague` sieht nur seinen eigenen Filter.
+- Automatisch: `bunx playwright test tests/browser/filter-overview.e2e.ts --workers=1`. Mit `FILTER_SHOTS=<Ordner>` speichert der Test Screenshots und prüft, dass die Schrift geladen ist.

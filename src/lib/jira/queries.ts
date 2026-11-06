@@ -17,6 +17,7 @@ export const jiraKeys = {
   issueCount: (jql: string) => ["jira", "issues", "count", jql] as const,
   fieldCatalog: ["jira", "field-catalog"] as const,
   filter: (id: string) => ["jira", "filter", id] as const,
+  filterFavourite: ["jira", "filter-favourite"] as const,
   jqlValidation: (jql: string) => ["jira", "jql-validation", jql] as const,
   issue: (key: string) => ["jira", "issue", key] as const,
   transitions: (key: string) => ["jira", "transitions", key] as const,

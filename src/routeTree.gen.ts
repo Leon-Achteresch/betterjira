@@ -18,6 +18,7 @@ import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SucheRouteImport } from './routes/suche'
 import { Route as TicketsRouteImport } from './routes/tickets'
 import { Route as BereicheKeyRouteImport } from './routes/bereiche/$key'
+import { Route as FilterIndexRouteImport } from './routes/filter/index'
 import { Route as FilterIdRouteImport } from './routes/filter/$id'
 import { Route as IssueKeyRouteImport } from './routes/issue/$key'
 import { Route as SettingsIndexRouteImport } from './routes/settings/index'
@@ -69,6 +70,11 @@ const TicketsRoute = TicketsRouteImport.update({
 const BereicheKeyRoute = BereicheKeyRouteImport.update({
   id: '/bereiche/$key',
   path: '/bereiche/$key',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FilterIndexRoute = FilterIndexRouteImport.update({
+  id: '/filter/',
+  path: '/filter/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FilterIdRoute = FilterIdRouteImport.update({
@@ -123,6 +129,7 @@ export interface FileRoutesByFullPath {
   '/settings/briefing': typeof SettingsBriefingRoute
   '/settings/code-hosting': typeof SettingsCodeHostingRoute
   '/settings/darstellung': typeof SettingsDarstellungRoute
+  '/filter/': typeof FilterIndexRoute
   '/settings/': typeof SettingsIndexRoute
 }
 export interface FileRoutesByTo {
@@ -140,6 +147,7 @@ export interface FileRoutesByTo {
   '/settings/briefing': typeof SettingsBriefingRoute
   '/settings/code-hosting': typeof SettingsCodeHostingRoute
   '/settings/darstellung': typeof SettingsDarstellungRoute
+  '/filter': typeof FilterIndexRoute
   '/settings': typeof SettingsIndexRoute
 }
 export interface FileRoutesById {
@@ -159,6 +167,7 @@ export interface FileRoutesById {
   '/settings/briefing': typeof SettingsBriefingRoute
   '/settings/code-hosting': typeof SettingsCodeHostingRoute
   '/settings/darstellung': typeof SettingsDarstellungRoute
+  '/filter/': typeof FilterIndexRoute
   '/settings/': typeof SettingsIndexRoute
 }
 export interface FileRouteTypes {
@@ -179,6 +188,7 @@ export interface FileRouteTypes {
     | '/settings/briefing'
     | '/settings/code-hosting'
     | '/settings/darstellung'
+    | '/filter/'
     | '/settings/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -196,6 +206,7 @@ export interface FileRouteTypes {
     | '/settings/briefing'
     | '/settings/code-hosting'
     | '/settings/darstellung'
+    | '/filter'
     | '/settings'
   id:
     | '__root__'
@@ -214,6 +225,7 @@ export interface FileRouteTypes {
     | '/settings/briefing'
     | '/settings/code-hosting'
     | '/settings/darstellung'
+    | '/filter/'
     | '/settings/'
   fileRoutesById: FileRoutesById
 }
@@ -229,6 +241,7 @@ export interface RootRouteChildren {
   BereicheKeyRoute: typeof BereicheKeyRoute
   FilterIdRoute: typeof FilterIdRoute
   IssueKeyRoute: typeof IssueKeyRoute
+  FilterIndexRoute: typeof FilterIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -294,6 +307,13 @@ declare module '@tanstack/react-router' {
       path: '/bereiche/$key'
       fullPath: '/bereiche/$key'
       preLoaderRoute: typeof BereicheKeyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/filter/': {
+      id: '/filter/'
+      path: '/filter'
+      fullPath: '/filter/'
+      preLoaderRoute: typeof FilterIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/filter/$id': {
@@ -380,6 +400,7 @@ const rootRouteChildren: RootRouteChildren = {
   BereicheKeyRoute: BereicheKeyRoute,
   FilterIdRoute: FilterIdRoute,
   IssueKeyRoute: IssueKeyRoute,
+  FilterIndexRoute: FilterIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
