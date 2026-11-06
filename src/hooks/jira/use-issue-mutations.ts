@@ -9,7 +9,8 @@ import {
   wikiField,
 } from "@/lib/jira/issue";
 import type { AdfNode } from "@/lib/jira/adf";
-import { postComment, postReply } from "@/lib/jira/comments";
+import { postComment, postReply, updateComment } from "@/lib/jira/comments";
+import type { CommentEditPayload } from "@/lib/jira/comment-thread";
 import { jiraKeys, useJiraSite } from "@/lib/jira/queries";
 
 const useIssueMutation = <A, B>(
@@ -41,6 +42,13 @@ export const useJiraPostReply = (key: string) =>
   useIssueMutation(
     key,
     ({ body, threadKey }: { body: AdfNode; threadKey: string }) => postReply(key, body, threadKey),
+    [jiraKeys.comments(key)],
+  );
+
+export const useJiraUpdateComment = (key: string) =>
+  useIssueMutation(
+    key,
+    ({ id, payload }: { id: string; payload: CommentEditPayload }) => updateComment(key, id, payload),
     [jiraKeys.comments(key)],
   );
 

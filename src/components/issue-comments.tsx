@@ -1,5 +1,5 @@
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { ArrowDownWideNarrowIcon, CheckIcon, ChevronDownIcon, FileTextIcon, InfoIcon, RotateCwIcon, Trash2Icon } from "lucide-react";
+import { ArrowDownWideNarrowIcon, CheckIcon, ChevronDownIcon, FileTextIcon, InfoIcon, RotateCwIcon, Trash2Icon, Undo2Icon } from "lucide-react";
 import { CommentActionsMenu } from "@/components/comment-actions-menu";
 import { CommentEditorBox } from "@/components/comment-editor-box";
 import { CommentThreadView } from "@/components/comment-thread";
@@ -10,6 +10,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { useCommentActions } from "@/hooks/use-comment-actions";
+import { useCommentEdits } from "@/hooks/use-comment-edits";
 import { useCommentReplies } from "@/hooks/use-comment-replies";
 import { useIssueComments } from "@/hooks/use-issue-comments";
 import { EASE_OUT } from "@/lib/ease";
@@ -40,6 +41,7 @@ export function IssueComments({ issue }: { issue: JiraIssueDetail }) {
   const view = useIssueComments(issue);
   const replies = useCommentReplies(issue);
   const actions = useCommentActions(issue);
+  const edits = useCommentEdits(issue.key);
   const reduce = useReducedMotion();
 
   return (
@@ -181,10 +183,49 @@ export function IssueComments({ issue }: { issue: JiraIssueDetail }) {
                 >
                   <CommentThreadView
                     thread={thread}
-                    viewFor={(comment) => ({
-                      menu: <CommentActionsMenu onCopyLink={() => actions.copyLink(comment)} />,
-                      editedNote: actions.editedNote(comment),
-                    })}
+                    viewFor={(comment) => {
+                      const allowed = actions.allowedFor(comment);
+                      return {
+                        menu: (
+                          <CommentActionsMenu
+                            onCopyLink={() => actions.copyLink(comment)}
+                            edit={
+                              allowed.canEdit
+                                ? { label: edits.editLabel(comment), disabledReason: edits.blockReason(comment), onSelect: () => edits.start(comment) }
+                                : undefined
+                            }
+                          />
+                        ),
+                        editedNote: actions.editedNote(comment),
+                        onResumeEdit: allowed.canEdit && edits.hasDraft(comment) ? () => edits.start(comment) : undefined,
+                        editor: edits.isOpenFor(comment) ? (
+                          <CommentEditorBox
+                            key={edits.boxKey}
+                            id={`edit-${issue.key}-${comment.id}`}
+                            label="Kommentar bearbeiten"
+                            submitLabel="Speichern"
+                            issueKey={issue.key}
+                            participants={view.participants}
+                            value={edits.value}
+                            onChange={edits.setValue}
+                            onSubmit={() => void edits.save()}
+                            onCancel={edits.close}
+                            pending={edits.pending}
+                            canSend={edits.canSave}
+                            disabled={!edits.ready}
+                            error={edits.error}
+                            extraAction={
+                              edits.hasDraft(comment) ? (
+                                <Button type="button" variant="ghost" size="sm" onClick={edits.discardChanges}>
+                                  <Undo2Icon />
+                                  Änderungen verwerfen
+                                </Button>
+                              ) : null
+                            }
+                          />
+                        ) : null,
+                      };
+                    }}
                     replyLabel={replies.labelFor(thread.root)}
                     onReply={replies.canReply ? (comment) => replies.start(comment, thread.root) : undefined}
                     replyBox={

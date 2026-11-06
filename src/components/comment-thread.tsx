@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { formatDistanceToNowStrict } from "date-fns";
 import { de } from "date-fns/locale";
-import { ReplyIcon } from "lucide-react";
+import { PencilLineIcon, ReplyIcon } from "lucide-react";
 import { AdfContent } from "@/components/adf-content";
 import { JiraUserLabel } from "@/components/jira-user-avatar";
 import { Tooltip } from "@/components/motion/tooltip";
@@ -13,6 +13,8 @@ import type { CommentThread, IssueComment } from "@/lib/jira/comment-thread";
 export type CommentEntryView = {
   menu: ReactNode;
   editedNote?: string;
+  editor: ReactNode;
+  onResumeEdit?: () => void;
 };
 
 function CommentEntry({
@@ -26,6 +28,7 @@ function CommentEntry({
   replyLabel?: string;
   onReply?: (comment: IssueComment) => void;
 }) {
+  const editing = !!view.editor;
   return (
     <article className="group/comment relative flex flex-col gap-2">
       <div className="flex items-center gap-2 text-sm">
@@ -40,15 +43,38 @@ function CommentEntry({
             </span>
           </Tooltip>
         )}
-        <div className="ml-auto">{view.menu}</div>
+        {view.onResumeEdit && !editing && (
+          <Button type="button" variant="ghost" size="xs" className="text-muted-foreground" onClick={view.onResumeEdit}>
+            <PencilLineIcon />
+            Entwurf
+          </Button>
+        )}
+        {!editing && <div className="ml-auto">{view.menu}</div>}
       </div>
-      <AdfContent doc={comment.body} className="pl-8" />
-      {onReply && replyLabel && (
-        <Button type="button" variant="ghost" size="xs" className="ml-6 self-start text-muted-foreground" onClick={() => onReply(comment)}>
-          <ReplyIcon />
-          {replyLabel}
-        </Button>
-      )}
+      <AnimatePresence mode="wait" initial={false}>
+        {editing ? (
+          <motion.div key="editor" exit={{ opacity: 0, transition: { duration: 0.12, ease: EASE_OUT } }} className="pl-8">
+            {view.editor}
+          </motion.div>
+        ) : (
+          <motion.div
+            key="content"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0, transition: { duration: 0.12, ease: EASE_OUT } }}
+            transition={{ duration: 0.18, ease: EASE_OUT }}
+            className="flex flex-col gap-2"
+          >
+            <AdfContent doc={comment.body} className="pl-8" />
+            {onReply && replyLabel && (
+              <Button type="button" variant="ghost" size="xs" className="ml-6 self-start text-muted-foreground" onClick={() => onReply(comment)}>
+                <ReplyIcon />
+                {replyLabel}
+              </Button>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </article>
   );
 }
