@@ -88,6 +88,10 @@ Der vollständige Ablaufbericht einschließlich Vielnutzer, sorgfältigem Leser,
 - Übersicht und Seitenleiste zeigen einen Lesefehler der Sitzung ebenfalls als „Anmeldung konnte nicht geprüft werden“ mit Retry statt als Abmeldung. Der simulierte Login (`oauth_login`) bricht immer mit „Test: Anmeldung abgebrochen“ ab.
 - Automatisch: `bunx playwright test tests/browser/navigation.e2e.ts tests/browser/session.e2e.ts --workers=1`.
 
+## Verknüpfte Tickets
+
+`DEMO-1` hat lokale Testverknüpfungen in beide Richtungen (`blocks`, `is blocked by`, `relates to`), ein Ticket ohne Felder (`OPS-7`), einen doppelten Eintrag und eine unlesbare Verknüpfung. `window.__qaIssueLinksRule = (key) => ({ delayMs, status, issuelinks })` steuert die Abfrage `GET /issue/{key}?fields=issuelinks`; `window.__qa.issueReads` protokolliert alle gelesenen Ticketpfade. Automatisch: `bunx playwright test tests/browser/issue-links.e2e.ts --workers=1` (mit `ISSUE_LINKS_SHOTS=<Ordner>` zusätzlich Screenshots).
+
 ## Ticketsuche
 
 - Einfache Suche: `...fixture.html?route=/suche` (alle Projekte), `?route=/suche?projekt=DEMO&q=Übergabe` (Projekt und Text aus der URL), JQL-Modus: `?route=/suche?modus=jql` oder alte Links `?route=/suche?jql=...`.
