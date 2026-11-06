@@ -37,7 +37,8 @@ test.beforeEach(async ({ page }) => {
 test("Hauptnavigation markiert die aktive Seite und führt zu den Jira-Tickets", async ({ page }) => {
   await open(page, "/");
   const nav = await showMainNav(page);
-  await expect(nav.getByRole("link")).toHaveText(["Übersicht", "Jira-Tickets", "Kalender"]);
+  for (const name of ["Übersicht", "Arbeitsplatz", "Jira-Tickets", "Kalender"])
+    await expect(nav.getByRole("link", { name, exact: true })).toBeVisible();
   await expect(nav.getByRole("link", { name: "Einstellungen" })).toHaveCount(0);
   await expect(nav.getByRole("link", { name: "Übersicht", exact: true })).toHaveAttribute("aria-current", "page");
 
