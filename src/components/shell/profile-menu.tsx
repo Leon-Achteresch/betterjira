@@ -42,7 +42,6 @@ function SessionRetryButton({ profile: { session } }: { profile: ProfileMenuStat
     <SidebarMenuButton
       size="lg"
       variant="outline"
-      aria-label="Anmeldung erneut prüfen"
       tooltip="Anmeldung konnte nicht geprüft werden – erneut prüfen"
       onClick={session.retry}
       disabled={session.retrying}

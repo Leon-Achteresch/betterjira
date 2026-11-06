@@ -53,7 +53,7 @@ test("Ein Lesefehler ist auf Übersicht und Seitenleiste keine Abmeldung, Retry 
   await expect(page.getByRole("button", { name: "Mit Atlassian verbinden" })).toHaveCount(0);
 
   const footer = await sidebarFooter(page);
-  const retry = footer.getByRole("button", { name: "Anmeldung erneut prüfen" });
+  const retry = footer.getByRole("button", { name: "Anmeldung nicht geprüft Erneut prüfen", exact: true });
   await expect(retry).toBeVisible();
   await expect(footer.getByRole("button", { name: "Mit Atlassian verbinden" })).toHaveCount(0);
 
