@@ -33,6 +33,8 @@ export const postReply = (key: string, body: AdfNode, threadKey: string) =>
 export const updateComment = (key: string, id: string, payload: CommentEditPayload) =>
   jiraSend(commentItemPath(key, id), { method: "PUT", body: JSON.stringify(payload) });
 
+export const deleteComment = (key: string, id: string) => jiraSend(commentItemPath(key, id), { method: "DELETE" });
+
 export const mentionSearch = (issueKey: string, query: string) =>
   jira(`/user/viewissue/search?${new URLSearchParams({ issueKey, query, maxResults: MENTION_SEARCH_RESULTS })}`, SearchResult).pipe(
     Effect.map(toPeople),

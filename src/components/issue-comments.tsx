@@ -1,6 +1,7 @@
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { ArrowDownWideNarrowIcon, CheckIcon, ChevronDownIcon, FileTextIcon, InfoIcon, RotateCwIcon, Trash2Icon, Undo2Icon } from "lucide-react";
 import { CommentActionsMenu } from "@/components/comment-actions-menu";
+import { CommentDeleteDialog } from "@/components/comment-delete-dialog";
 import { CommentEditorBox } from "@/components/comment-editor-box";
 import { CommentThreadView } from "@/components/comment-thread";
 import { MentionEditor } from "@/components/mention-editor";
@@ -10,6 +11,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { useCommentActions } from "@/hooks/use-comment-actions";
+import { useCommentDeletion } from "@/hooks/use-comment-deletion";
 import { useCommentEdits } from "@/hooks/use-comment-edits";
 import { useCommentReplies } from "@/hooks/use-comment-replies";
 import { useIssueComments } from "@/hooks/use-issue-comments";
@@ -42,6 +44,7 @@ export function IssueComments({ issue }: { issue: JiraIssueDetail }) {
   const replies = useCommentReplies(issue);
   const actions = useCommentActions(issue);
   const edits = useCommentEdits(issue.key);
+  const deletion = useCommentDeletion(issue.key, edits.closeFor);
   const reduce = useReducedMotion();
 
   return (
@@ -194,6 +197,7 @@ export function IssueComments({ issue }: { issue: JiraIssueDetail }) {
                                 ? { label: edits.editLabel(comment), disabledReason: edits.blockReason(comment), onSelect: () => edits.start(comment) }
                                 : undefined
                             }
+                            onDelete={allowed.canDelete ? () => deletion.request(thread, comment) : undefined}
                           />
                         ),
                         editedNote: actions.editedNote(comment),
@@ -255,6 +259,7 @@ export function IssueComments({ issue }: { issue: JiraIssueDetail }) {
           </ol>
         </div>
       )}
+      <CommentDeleteDialog {...deletion.dialog} />
     </div>
   );
 }

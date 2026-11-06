@@ -9,7 +9,7 @@ import {
   wikiField,
 } from "@/lib/jira/issue";
 import type { AdfNode } from "@/lib/jira/adf";
-import { postComment, postReply, updateComment } from "@/lib/jira/comments";
+import { deleteComment, postComment, postReply, updateComment } from "@/lib/jira/comments";
 import type { CommentEditPayload } from "@/lib/jira/comment-thread";
 import { jiraKeys, useJiraSite } from "@/lib/jira/queries";
 
@@ -51,6 +51,9 @@ export const useJiraUpdateComment = (key: string) =>
     ({ id, payload }: { id: string; payload: CommentEditPayload }) => updateComment(key, id, payload),
     [jiraKeys.comments(key)],
   );
+
+export const useJiraDeleteComment = (key: string) =>
+  useIssueMutation(key, (id: string) => deleteComment(key, id), [jiraKeys.comments(key)]);
 
 export const useJiraAddWorklog = (key: string) =>
   useIssueMutation(
