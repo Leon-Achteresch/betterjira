@@ -109,6 +109,25 @@ test("Lädt mit Skeleton und aktualisiert auf Wunsch", async ({ page }) => {
   await expect(titles(page)).toHaveCount(4);
 });
 
+test("Ein fehlgeschlagener Refresh behält die Pull Requests und zeigt den Repository-Fehler", async ({ page }) => {
+  await open(page, "/pull-requests");
+  await expect(titles(page)).toHaveCount(4);
+  await page.evaluate(() => {
+    window.__qaScm.failRepos = ["qa-team/api"];
+  });
+  await page.getByRole("button", { name: "Aktualisieren" }).click();
+  const notice = page.getByRole("alert").filter({ hasText: "qa-team/api" });
+  await expect(notice).toContainText("Test: Bitbucket antwortet nicht");
+  await expect(titles(page)).toHaveCount(4);
+
+  await page.evaluate(() => {
+    window.__qaScm.failRepos = [];
+  });
+  await notice.getByRole("button", { name: "Erneut versuchen" }).click();
+  await expect(notice).toHaveCount(0);
+  await expect(titles(page)).toHaveCount(4);
+});
+
 test("Ohne Code-Hosting erklärt die Seite die Einrichtung", async ({ page }, testInfo) => {
   await open(page, "/pull-requests", "scm-empty");
   await expect(page.getByText("Kein Code-Hosting verbunden")).toBeVisible();

@@ -26,7 +26,7 @@ const fade = (reduce: boolean | null) => ({
 
 export function PullRequestList({ pullRequests, repos, filterLabel, query, onOpen }: PullRequestListProps) {
   const reduce = useReducedMotion();
-  const failed = repos.filter((repo) => repo.status === "error");
+  const failed = repos.filter((repo) => repo.error !== null);
   const truncated = repos.flatMap(({ id, repo, truncated, browseUrl }) => (truncated && browseUrl ? [{ id, repo, browseUrl }] : []));
   const waiting = repos.some((repo) => repo.status === "loading");
 
