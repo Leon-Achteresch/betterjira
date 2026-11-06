@@ -3,6 +3,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { useDebouncedValue } from "@tanstack/react-pacer";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import {
+  BriefcaseIcon,
   ExternalLinkIcon,
   FileTextIcon,
   FolderKanbanIcon,
@@ -198,6 +199,14 @@ export function useAppCommandPalette() {
       keywords: ["home", "dashboard", "startseite"],
       hint: shortcutHint("home"),
       onSelect: () => void navigate({ to: "/" }),
+    },
+    {
+      id: "nav:workspace",
+      label: "Arbeitsplatz",
+      group: "Navigation",
+      icon: BriefcaseIcon,
+      keywords: ["weiterarbeiten", "entwürfe", "notizen", "angeheftet", "zuletzt"],
+      onSelect: () => void navigate({ to: "/arbeitsplatz" }),
     },
     {
       id: "nav:tickets",
