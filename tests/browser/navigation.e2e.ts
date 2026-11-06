@@ -37,8 +37,8 @@ test.beforeEach(async ({ page }) => {
 test("Hauptnavigation markiert die aktive Seite und führt zu den Jira-Tickets", async ({ page }) => {
   await open(page, "/");
   const nav = await showMainNav(page);
-  for (const label of ["Übersicht", "Jira-Tickets", "Kalender", "Einstellungen"])
-    await expect(nav.getByRole("link", { name: label, exact: true })).toBeVisible();
+  await expect(nav.getByRole("link")).toHaveText(["Übersicht", "Jira-Tickets", "Kalender"]);
+  await expect(nav.getByRole("link", { name: "Einstellungen" })).toHaveCount(0);
   await expect(nav.getByRole("link", { name: "Übersicht", exact: true })).toHaveAttribute("aria-current", "page");
 
   await nav.getByRole("link", { name: "Jira-Tickets", exact: true }).click();
@@ -52,6 +52,9 @@ test("Hauptnavigation markiert die aktive Seite und führt zu den Jira-Tickets",
   await page.keyboard.press("Enter");
   await expect(page).toHaveURL(/\/kalender$/);
   await expect(page.getByRole("heading", { name: "Kalender", exact: true })).toBeVisible();
+
+  await page.getByRole("navigation", { name: "Werkzeuge" }).getByRole("link", { name: "Einstellungen", exact: true }).click();
+  await expect(page).toHaveURL(/\/settings\/darstellung$/);
 });
 
 test("Ticket-Ansichten kommen aus der URL und folgen Zurück und Vorwärts", async ({ page }) => {
