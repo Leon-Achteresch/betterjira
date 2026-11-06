@@ -93,3 +93,24 @@ Der vollständige Ablaufbericht einschließlich Vielnutzer, sorgfältigem Leser,
 - Lokale Testbuchungen: `...fixture.html?scenario=time-tracking&route=/zeiterfassung` (eigene Buchungen in der Woche ab 02.11.2026, eine fremde Buchung, eine aus der Vorwoche).
 - `window.__qaWorklogRule = (key) => ({ status, delayMs, pageSize })` lässt Worklog-Abrufe einzelner Tickets scheitern, verzögern oder in kleinen Seiten antworten.
 - Automatisch: `bunx playwright test tests/browser/time-tracking.e2e.ts --workers=1`; `TIME_TRACKING_SHOTS=<Ordner>` speichert Screenshots.
+
+## Benachrichtigungen
+
+- Inbox mit lokal gespeicherten QA-Benachrichtigungen: `...fixture.html?scenario=notifications&route=/benachrichtigungen` (Filter über `?ansicht=beobachtet`, `?nur=ungelesen`, `?suche=`). Die Einträge sind reine Testdaten im lokalen Speicher, es werden keine Jira-Benachrichtigungen erzeugt.
+- Fremdes Konto im lokalen Speicher: `scenario=notifications-foreign`. Die Seite zeigt keine Einträge des anderen Kontos.
+- Automatisch: `bunx playwright test tests/browser/notifications.e2e.ts --workers=1`.
+
+## Pull Requests
+
+- Seite mit GitHub (lokal simulierte `gh`-Anmeldung) und Bitbucket Cloud: `...fixture.html?scenario=scm&route=/pull-requests`. Alle Repositories und Pull Requests sind ausschließlich lokale QA-Daten (`qa/web-app`, `qa/design-system`, `qa-team/api`); `scm_request` verlässt die Simulation nie.
+- Teilfehler: `scenario=scm-partial` (Bitbucket antwortet mit 503, ein Link zeigt auf eine fehlende Verbindung). `window.__qaScm.failRepos = []` und „Erneut versuchen“ lädt das Repository nach.
+- `scenario=scm-slow` verzögert jede Antwort um 1,2 s, `scenario=scm-empty` zeigt die Einrichtung ohne Verbindung, `scenario=scm-offline` prüft die Seite ohne Jira-Sitzung.
+- `window.__qaScm.requests` enthält die gesendeten SCM-URLs, `window.__qaScm.opened` die im Browser geöffneten Links.
+- Automatisch: `bunx playwright test tests/browser/pull-requests.e2e.ts --workers=1`; mit `PULL_REQUEST_SHOTS=<Ordner>` entstehen Screenshots.
+
+## Arbeitsplatz
+
+- Seite mit lokalen QA-Kontexten (10 zuletzt geöffnete Tickets, zwei Pins, ein Kommentarentwurf, eine Notiz, zwei Feldentwürfe, davon einer ohne bekannte Details): `...fixture.html?scenario=workspace&route=/arbeitsplatz`. Filter über `?art=angeheftet|entwuerfe|notizen|zuletzt`, Suche über `q`.
+- Zweites Konto derselben Instanz: `&account=qa-colleague`. Es sieht nur seinen eigenen QA-Kontext; die Daten von `qa-user` bleiben unverändert im lokalen Speicher.
+- Abmelden simuliert `session_delete`; danach meldet die Sitzung bis zum erneuten Öffnen der Fixture „Nicht angemeldet“.
+- Automatisch: `bunx playwright test tests/browser/workspace-page.e2e.ts --workers=1`. Mit `WORKSPACE_SHOTS=<Ordner>` speichert der Test Screenshots.
