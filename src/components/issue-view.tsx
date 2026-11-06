@@ -14,9 +14,11 @@ import { JiraStatusBadge } from "@/components/jira-status-badge";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { IssueActions } from "@/components/issues/issue-actions";
+import { IssueLinksPanel } from "@/components/issues/issue-links-panel";
 import { useIssueReadingPosition } from "@/hooks/use-issue-reading-position";
 import { useIssueActions } from "@/hooks/use-issue-actions";
 import { useIssueDevelopmentPanel } from "@/hooks/scm/use-issue-development-panel";
+import { useIssueLinks } from "@/hooks/jira/use-issue-links";
 import { EASE_OUT } from "@/lib/ease";
 import { useJiraIssue, useJiraSite, type JiraIssueDetail } from "@/lib/jira/queries";
 import { cn } from "@/lib/utils";
@@ -152,6 +154,7 @@ export function IssueView({ issueKey }: { issueKey: string }) {
   const reduce = useReducedMotion();
   useIssueReadingPosition(issueKey, !!issue.data);
   const actions = useIssueActions(issue.data, site.data?.siteUrl);
+  const links = useIssueLinks(issueKey);
   const development = useIssueDevelopmentPanel(
     issueKey,
     issue.data && { projectKey: issue.data.fields.project.key, summary: issue.data.fields.summary },
@@ -232,6 +235,16 @@ export function IssueView({ issueKey }: { issueKey: string }) {
         </Section>
 
         {subtasks.length > 0 && <Subtasks subtasks={subtasks} />}
+
+        <Section title={links.summary ? `Verknüpfungen · ${links.summary.total}` : "Verknüpfungen"}>
+          <IssueLinksPanel
+            summary={links.summary}
+            error={links.error}
+            refreshError={links.refreshError}
+            retrying={links.retrying}
+            onRetry={links.retry}
+          />
+        </Section>
 
         <Section title={`Kommentare · ${comments.length}`}>
           <IssueComments key={issue.data.key} issueKey={issue.data.key} comments={comments} />
