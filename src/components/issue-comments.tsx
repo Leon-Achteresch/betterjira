@@ -1,7 +1,7 @@
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { ArrowDownWideNarrowIcon, CheckIcon, ChevronDownIcon, FileTextIcon, InfoIcon, RotateCwIcon, Trash2Icon } from "lucide-react";
 import { CommentActionsMenu } from "@/components/comment-actions-menu";
-import { CommentReplyBox } from "@/components/comment-reply-box";
+import { CommentEditorBox } from "@/components/comment-editor-box";
 import { CommentThreadView } from "@/components/comment-thread";
 import { MentionEditor } from "@/components/mention-editor";
 import { Tooltip } from "@/components/motion/tooltip";
@@ -189,9 +189,11 @@ export function IssueComments({ issue }: { issue: JiraIssueDetail }) {
                     onReply={replies.canReply ? (comment) => replies.start(comment, thread.root) : undefined}
                     replyBox={
                       replies.isOpenFor(thread.root) ? (
-                        <CommentReplyBox
+                        <CommentEditorBox
                           key={replies.boxKey}
                           id={`reply-${issue.key}-${replies.openThread}`}
+                          label="Antwort"
+                          submitLabel="Antwort senden"
                           issueKey={issue.key}
                           participants={view.participants}
                           value={replies.value}

@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import { MentionEditor } from "@/components/mention-editor";
 import { Button } from "@/components/ui/button";
@@ -6,8 +7,11 @@ import { EASE_OUT } from "@/lib/ease";
 import type { AdfNode } from "@/lib/jira/adf";
 import type { MentionCandidate } from "@/lib/jira/people";
 
-export function CommentReplyBox({
+export function CommentEditorBox({
   id,
+  label,
+  submitLabel,
+  extraAction,
   issueKey,
   participants,
   value,
@@ -20,6 +24,9 @@ export function CommentReplyBox({
   error,
 }: {
   id: string;
+  label: string;
+  submitLabel: string;
+  extraAction?: ReactNode;
   issueKey: string;
   participants: readonly MentionCandidate[];
   value: AdfNode | undefined;
@@ -46,7 +53,7 @@ export function CommentReplyBox({
     >
       <MentionEditor
         id={id}
-        label="Antwort"
+        label={label}
         value={value}
         onChange={onChange}
         disabled={disabled}
@@ -56,14 +63,15 @@ export function CommentReplyBox({
         onSubmitShortcut={onSubmit}
         onEscape={onCancel}
       />
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <Button type="submit" size="sm" disabled={!canSend}>
           {pending && <Spinner />}
-          Antwort senden
+          {submitLabel}
         </Button>
         <Button type="button" variant="ghost" size="sm" onClick={onCancel}>
           Abbrechen
         </Button>
+        {extraAction && <div className="ml-auto">{extraAction}</div>}
       </div>
       {error && (
         <p role="alert" className="text-sm text-destructive">
