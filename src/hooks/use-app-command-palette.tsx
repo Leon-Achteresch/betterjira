@@ -3,6 +3,8 @@ import { useNavigate } from "@tanstack/react-router";
 import { useDebouncedValue } from "@tanstack/react-pacer";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import {
+  BellIcon,
+  BriefcaseIcon,
   ExternalLinkIcon,
   FileTextIcon,
   FolderKanbanIcon,
@@ -21,6 +23,7 @@ import {
   SunIcon,
   TerminalSquareIcon,
   TicketIcon,
+  GitPullRequestIcon,
   PinIcon,
   HistoryIcon,
 } from "lucide-react";
@@ -200,6 +203,14 @@ export function useAppCommandPalette() {
       onSelect: () => void navigate({ to: "/" }),
     },
     {
+      id: "nav:workspace",
+      label: "Arbeitsplatz",
+      group: "Navigation",
+      icon: BriefcaseIcon,
+      keywords: ["weiterarbeiten", "entwürfe", "notizen", "angeheftet", "zuletzt"],
+      onSelect: () => void navigate({ to: "/arbeitsplatz" }),
+    },
+    {
       id: "nav:tickets",
       label: "Jira-Tickets",
       group: "Navigation",
@@ -207,6 +218,22 @@ export function useAppCommandPalette() {
       keywords: ["tickets", "vorgänge", "meine", "beobachtet"],
       hint: shortcutHint("tickets"),
       onSelect: () => void navigate({ to: "/tickets" }),
+    },
+    {
+      id: "nav:notifications",
+      label: "Benachrichtigungen",
+      group: "Navigation",
+      icon: BellIcon,
+      keywords: ["inbox", "ungelesen", "erwähnungen", "aktivität"],
+      onSelect: () => void navigate({ to: "/benachrichtigungen" }),
+    },
+    {
+      id: "nav:pull-requests",
+      label: "Pull Requests",
+      group: "Navigation",
+      icon: GitPullRequestIcon,
+      keywords: ["pr", "pull requests", "review", "github", "bitbucket"],
+      onSelect: () => void navigate({ to: "/pull-requests" }),
     },
     {
       id: "nav:search",
