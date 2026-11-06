@@ -8,6 +8,7 @@ import { AppSidebar } from "@/components/shell/app-sidebar";
 import { useNotificationPoller } from "@/lib/jira/notifications";
 import { useAttentionScheduler } from "@/hooks/attention/use-attention-scheduler";
 import { useAppUpdate } from "@/hooks/use-app-update";
+import { useBackgroundTabClick } from "@/hooks/use-issue-tabs";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 
 function NotificationPoller() {
@@ -22,6 +23,11 @@ function AttentionScheduler() {
 
 function AppUpdater() {
   useAppUpdate();
+  return null;
+}
+
+function BackgroundTabClick() {
+  useBackgroundTabClick();
   return null;
 }
 
@@ -42,6 +48,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         <NotificationPoller />
         <AttentionScheduler />
         <AppUpdater />
+        <BackgroundTabClick />
       </TooltipProvider>
     </ThemeProvider>
   ),

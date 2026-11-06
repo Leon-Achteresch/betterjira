@@ -2,15 +2,19 @@ import { Link } from "@tanstack/react-router";
 import { Settings } from "lucide-react";
 import { Tooltip } from "@/components/motion/tooltip";
 import { AppCommandPalette } from "@/components/shell/app-command-palette";
+import { IssueTabs } from "@/components/shell/issue-tabs";
 import { NotificationBell } from "@/components/shell/notification-bell";
 import { ThemeToggle } from "@/components/shell/theme-toggle";
 import { WorkQueue } from "@/components/shell/work-queue";
 import { WindowControls } from "@/components/shell/window-controls";
 import { SidebarTrigger } from "@/components/ui/sidebar";
+import { useIssueTabs } from "@/hooks/use-issue-tabs";
 import { IS_MAC, USE_CUSTOM_WINDOW_CONTROLS } from "@/lib/platform";
 import { cn } from "@/lib/utils";
 
 export function AppHeader() {
+  const { tabs, activeKey, closeTab, togglePin, closeOthers, closeRight } = useIssueTabs();
+
   return (
     <header
       data-tauri-drag-region="deep"
@@ -29,7 +33,17 @@ export function AppHeader() {
         <img src="/logo.svg" alt="" className="size-5" />
         betterjira
       </Link>
-      <div data-tauri-drag-region="deep" className="flex min-w-0 flex-1 justify-center">
+      <div data-tauri-drag-region="deep" className="flex h-full min-w-0 flex-1">
+        <IssueTabs
+          tabs={tabs}
+          activeKey={activeKey}
+          onClose={closeTab}
+          onTogglePin={togglePin}
+          onCloseOthers={closeOthers}
+          onCloseRight={closeRight}
+        />
+      </div>
+      <div className="flex w-72 shrink-0">
         <AppCommandPalette />
       </div>
       <nav className="ml-auto flex items-center gap-1 px-3" aria-label="Hauptnavigation">

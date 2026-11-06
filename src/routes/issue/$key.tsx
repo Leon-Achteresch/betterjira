@@ -1,8 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { IssueView } from "@/components/issue-view";
+import { useIssueTabStore } from "@/hooks/use-issue-tabs";
 import { useJiraSite } from "@/lib/jira/queries";
 
 export const Route = createFileRoute("/issue/$key")({
+  onEnter: ({ params }) => useIssueTabStore.getState().open(params.key),
   component: Issue,
 });
 
