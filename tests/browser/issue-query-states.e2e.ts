@@ -143,6 +143,27 @@ test("Erster Ladefehler zeigt den Fehler ohne Tabelle und Retry lädt", async ({
   await expect(error).toHaveCount(0);
 });
 
+test("Eine leere Ergebnisliste zeigt einen späteren Refreshfehler und erlaubt Retry", async ({ page }) => {
+  await page.addInitScript(() => {
+    window.__qaSearchRule = () => ({ keys: [] });
+  });
+  await page.goto(TABLE);
+  await expect(page.getByText("Keine Vorgänge", { exact: true })).toBeVisible();
+  await setRule(page, `return { status: 503 };`);
+
+  await page.getByRole("button", { name: "Aktualisieren" }).click();
+  const notice = warning(page, "zuletzt geladene Stand");
+  await expect(notice).toContainText("Test: Jira antwortet mit 503");
+  await expect(page.getByText("Keine Vorgänge", { exact: true })).toBeVisible();
+  await expect(page.getByRole("table")).toHaveCount(0);
+
+  await setRule(page, `return { keys: ["DEMO-1"] };`);
+  await notice.getByRole("button", { name: "Erneut versuchen" }).click();
+  await expect(row(page, "DEMO-1")).toBeVisible();
+  await expect(notice).toHaveCount(0);
+  await expect(page.getByText("Keine Vorgänge", { exact: true })).toHaveCount(0);
+});
+
 test("Fehler beim Weiterladen verdrängt die geladenen Seiten nicht", async ({ page }, testInfo) => {
   await page.addInitScript(() => {
     window.__qaSearchRule = (_, token) =>

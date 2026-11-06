@@ -35,12 +35,14 @@ function FailedNotice({
   error,
   retryLabel,
   retrying,
+  disabled = false,
   onRetry,
 }: {
   title: string;
   error: unknown;
   retryLabel: string;
   retrying: boolean;
+  disabled?: boolean;
   onRetry: () => void;
 }) {
   return (
@@ -49,7 +51,7 @@ function FailedNotice({
       <AlertTitle>{title}</AlertTitle>
       <AlertDescription>{jiraErrors(error).messages.join(" ")}</AlertDescription>
       <AlertAction>
-        <Button variant="outline" size="xs" onClick={onRetry} disabled={retrying}>
+        <Button variant="outline" size="xs" onClick={onRetry} disabled={disabled || retrying}>
           {retrying && <Spinner aria-hidden />}
           {retryLabel}
         </Button>
@@ -91,6 +93,29 @@ export function IssueTable({
         onCopyMarkdown={() => void table.exportAs("markdown", true)}
         onClear={table.selection.clear}
       />
+      <AnimatePresence initial={false}>
+        {table.isPlaceholder ? (
+          <Notice key="placeholder">
+            <Alert role="status" className="rounded-xl text-muted-foreground">
+              <Spinner aria-hidden />
+              <AlertDescription>
+                Ergebnisse für die geänderte Abfrage werden geladen. Bis dahin sind Auswahl, Export und Weiterladen
+                gesperrt.
+              </AlertDescription>
+            </Alert>
+          </Notice>
+        ) : table.refreshError ? (
+          <Notice key="refresh">
+            <FailedNotice
+              title="Aktualisierung fehlgeschlagen. Angezeigt wird der zuletzt geladene Stand."
+              error={table.refreshError}
+              retryLabel="Erneut versuchen"
+              retrying={table.isFetching}
+              onRetry={table.refresh}
+            />
+          </Notice>
+        ) : null}
+      </AnimatePresence>
       {table.error ? (
         <div
           role="alert"
@@ -131,29 +156,6 @@ export function IssueTable({
         </Empty>
       ) : (
         <>
-          <AnimatePresence initial={false}>
-            {table.isPlaceholder ? (
-              <Notice key="placeholder">
-                <Alert role="status" className="rounded-xl text-muted-foreground">
-                  <Spinner aria-hidden />
-                  <AlertDescription>
-                    Ergebnisse für die geänderte Abfrage werden geladen. Bis dahin sind Auswahl, Export und Weiterladen
-                    gesperrt.
-                  </AlertDescription>
-                </Alert>
-              </Notice>
-            ) : table.refreshError ? (
-              <Notice key="refresh">
-                <FailedNotice
-                  title="Aktualisierung fehlgeschlagen. Angezeigt wird der zuletzt geladene Stand."
-                  error={table.refreshError}
-                  retryLabel="Erneut versuchen"
-                  retrying={table.isFetching}
-                  onRetry={table.refresh}
-                />
-              </Notice>
-            ) : null}
-          </AnimatePresence>
           <motion.div
             layout={reduce ? false : "position"}
             aria-busy={table.isPlaceholder || undefined}
@@ -184,6 +186,7 @@ export function IssueTable({
                     error={table.loadMoreError}
                     retryLabel="Erneut laden"
                     retrying={table.isLoadingMore}
+                    disabled={!table.canLoadMore}
                     onRetry={table.loadMore}
                   />
                 </Notice>
