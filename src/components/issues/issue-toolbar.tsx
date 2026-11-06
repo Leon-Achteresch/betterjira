@@ -6,7 +6,10 @@ import {
   ChevronDownIcon,
   ClipboardCopyIcon,
   CodeIcon,
+  DownloadIcon,
   EllipsisIcon,
+  FileSpreadsheetIcon,
+  FileTextIcon,
   RefreshCwIcon,
   RotateCcwIcon,
   Rows3Icon,
@@ -90,6 +93,7 @@ function ViewMenu({
   onOpenSearch?: (jql: string) => void;
 }) {
   const [saving, setSaving] = useState(false);
+  const canDownload = !table.isPlaceholder && table.issues.length > 0;
   return (
     <>
       <DropdownMenu>
@@ -125,6 +129,26 @@ function ViewMenu({
                 Schlüsselliste
               </DropdownMenuItem>
               <DropdownMenuItem onSelect={() => void table.exportAs("jql")}>JQL</DropdownMenuItem>
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger>
+              <DownloadIcon />
+              Datei herunterladen
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent>
+              <DropdownMenuLabel className="tabular-nums">
+                Geladene Tickets: {table.issues.length}
+                {table.total !== undefined && table.total > table.issues.length && ` von ${table.total}`}
+              </DropdownMenuLabel>
+              <DropdownMenuItem disabled={!canDownload} onSelect={() => table.downloadAs("csv")}>
+                <FileSpreadsheetIcon />
+                CSV-Datei herunterladen
+              </DropdownMenuItem>
+              <DropdownMenuItem disabled={!canDownload} onSelect={() => table.downloadAs("tsv")}>
+                <FileTextIcon />
+                TSV-Datei herunterladen
+              </DropdownMenuItem>
             </DropdownMenuSubContent>
           </DropdownMenuSub>
           {(onAdoptJql || onOpenSearch) && <DropdownMenuSeparator />}

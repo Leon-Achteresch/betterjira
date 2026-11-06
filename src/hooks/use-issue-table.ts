@@ -1,11 +1,14 @@
 import { useState } from "react";
 import { useDebouncedValue } from "@tanstack/react-pacer";
+import { toast } from "sonner";
 import { useFieldCatalog } from "@/hooks/jira/use-field-catalog";
 import { useIssueCount } from "@/hooks/jira/use-issue-count";
 import { useIssueSearch } from "@/hooks/jira/use-issue-search";
 import { useIssueSelection } from "@/hooks/use-issue-selection";
 import { type SavedIssueView, useIssueViews } from "@/hooks/use-issue-views";
 import { copyToClipboard } from "@/lib/clipboard";
+import { DELIMITED_MIME, type DelimitedFormat, delimitedFileName, toDelimitedFile } from "@/lib/delimited-file";
+import { downloadFile } from "@/lib/download-file";
 import { fieldText } from "@/lib/jira/field-text";
 import {
   DEFAULT_VIEW,
@@ -86,15 +89,29 @@ export function useIssueTable(scope: string, baseJql: string) {
   const cellText = (issue: (typeof issues)[number], column: string) =>
     column === KEY_COLUMN ? issue.key : fieldText(issue.fields[column]);
 
+  const tableOf = (exported: typeof issues) => ({
+    header: columns.map((column) => column.label),
+    rows: exported.map((issue) => view.columns.map((column) => cellText(issue, column))),
+  });
+
   const exportAs = async (format: ExportFormat, selectedOnly = false) => {
     const exported = selectedOnly ? selection.selected : issues;
     if (format === "jql") return copyToClipboard(jql, "JQL kopiert");
     if (isPlaceholder) return;
     if (format === "keys") return copyToClipboard(exported.map((issue) => issue.key).join(", "), `${exported.length} Schlüssel kopiert`);
-    const header = columns.map((column) => column.label);
-    const rows = exported.map((issue) => view.columns.map((column) => cellText(issue, column)));
+    const { header, rows } = tableOf(exported);
     const content = format === "tsv" ? toTsv(header, rows) : toMarkdown(header, rows);
     return copyToClipboard(content, `${exported.length} Zeilen kopiert`);
+  };
+
+  const downloadAs = (format: DelimitedFormat, selectedOnly = false) => {
+    const exported = selectedOnly ? selection.selected : issues;
+    if (isPlaceholder || exported.length === 0) return;
+    const { header, rows } = tableOf(exported);
+    downloadFile(toDelimitedFile(format, header, rows), delimitedFileName(format, new Date(), selectedOnly), DELIMITED_MIME[format]);
+    toast.success(`${format.toUpperCase()}-Datei heruntergeladen`, {
+      description: `${selectedOnly ? "Ausgewählte" : "Geladene"} Tickets: ${exported.length}`,
+    });
   };
 
   const filterCount = quick.length + facetCount(view.facets);
@@ -161,6 +178,7 @@ export function useIssueTable(scope: string, baseJql: string) {
     applyView: ({ name: _, ...saved }: SavedIssueView) => update(scope, () => saved),
     removeView: (name: string) => remove(scope, name),
     exportAs,
+    downloadAs,
   };
 }
 

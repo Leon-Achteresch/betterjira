@@ -1,6 +1,13 @@
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { ClipboardCopyIcon, CodeIcon, TableIcon, XIcon } from "lucide-react";
+import { ChevronDownIcon, ClipboardCopyIcon, CodeIcon, DownloadIcon, FileSpreadsheetIcon, FileTextIcon, TableIcon, XIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { EASE_OUT } from "@/lib/ease";
 
 export function SelectionToolbar({
@@ -10,6 +17,8 @@ export function SelectionToolbar({
   onCopyKeys,
   onCopyTable,
   onCopyMarkdown,
+  onDownloadCsv,
+  onDownloadTsv,
   onClear,
 }: {
   count: number;
@@ -18,6 +27,8 @@ export function SelectionToolbar({
   onCopyKeys: () => void;
   onCopyTable: () => void;
   onCopyMarkdown: () => void;
+  onDownloadCsv: () => void;
+  onDownloadTsv: () => void;
   onClear: () => void;
 }) {
   const reduce = useReducedMotion();
@@ -51,6 +62,26 @@ export function SelectionToolbar({
             <CodeIcon />
             Markdown
           </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm" disabled={disabled}>
+                <DownloadIcon />
+                Datei
+                <ChevronDownIcon />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="min-w-56">
+              <DropdownMenuLabel className="tabular-nums">Ausgewählte Tickets: {count}</DropdownMenuLabel>
+              <DropdownMenuItem disabled={disabled} onSelect={onDownloadCsv}>
+                <FileSpreadsheetIcon />
+                CSV-Datei herunterladen
+              </DropdownMenuItem>
+              <DropdownMenuItem disabled={disabled} onSelect={onDownloadTsv}>
+                <FileTextIcon />
+                TSV-Datei herunterladen
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button
             variant="ghost"
             size="icon-sm"

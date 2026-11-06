@@ -91,6 +91,8 @@ export function IssueTable({
         onCopyKeys={() => void table.exportAs("keys", true)}
         onCopyTable={() => void table.exportAs("tsv", true)}
         onCopyMarkdown={() => void table.exportAs("markdown", true)}
+        onDownloadCsv={() => table.downloadAs("csv", true)}
+        onDownloadTsv={() => table.downloadAs("tsv", true)}
         onClear={table.selection.clear}
       />
       <AnimatePresence initial={false}>
