@@ -180,6 +180,7 @@ export function IssueGrid({
   dense,
   selectedKeys,
   allSelected,
+  selectionDisabled = false,
   onToggleSelection,
   onToggleAll,
   siteUrl,
@@ -193,6 +194,7 @@ export function IssueGrid({
   dense: boolean;
   selectedKeys: ReadonlySet<string>;
   allSelected: boolean;
+  selectionDisabled?: boolean;
   onToggleSelection: (key: string) => void;
   onToggleAll: () => void;
   siteUrl?: string;
@@ -214,6 +216,7 @@ export function IssueGrid({
               aria-label="Alle geladenen Vorgänge auswählen"
               checked={allSelected}
               indeterminate={selectedKeys.size > 0 && !allSelected}
+              disabled={selectionDisabled}
               onCheckedChange={onToggleAll}
             />
           </TableHead>
@@ -262,6 +265,7 @@ export function IssueGrid({
                         <Checkbox
                           aria-label={`${issue.key} auswählen`}
                           checked={selectedKeys.has(issue.key)}
+                          disabled={selectionDisabled}
                           onCheckedChange={() => onToggleSelection(issue.key)}
                         />
                       </TableCell>

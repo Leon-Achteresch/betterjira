@@ -58,7 +58,9 @@ export function useIssueTable(scope: string, baseJql: string) {
   const facetSource = useIssueSearch(composeJql(baseJql, []), FACET_KEYS, 100);
 
   const issues = search.data?.pages.flatMap((page) => page.issues) ?? [];
+  const isPlaceholder = search.isPlaceholderData;
   const selection = useIssueSelection(JSON.stringify([scope, jql]), issues);
+  const canLoadMore = search.hasNextPage && !isPlaceholder && !search.isFetching;
   const facetIssues = facetSource.data?.pages[0]?.issues ?? [];
 
   const columns = view.columns.map((id) => {
@@ -84,9 +86,10 @@ export function useIssueTable(scope: string, baseJql: string) {
   const cellText = (issue: (typeof issues)[number], column: string) =>
     column === KEY_COLUMN ? issue.key : fieldText(issue.fields[column]);
 
-  const exportAs = (format: ExportFormat, selectedOnly = false) => {
+  const exportAs = async (format: ExportFormat, selectedOnly = false) => {
     const exported = selectedOnly ? selection.selected : issues;
     if (format === "jql") return copyToClipboard(jql, "JQL kopiert");
+    if (isPlaceholder) return;
     if (format === "keys") return copyToClipboard(exported.map((issue) => issue.key).join(", "), `${exported.length} Schlüssel kopiert`);
     const header = columns.map((column) => column.label);
     const rows = exported.map((issue) => view.columns.map((column) => cellText(issue, column)));
@@ -98,7 +101,15 @@ export function useIssueTable(scope: string, baseJql: string) {
 
   return {
     scope,
-    selection,
+    selection: {
+      ...selection,
+      toggle: (key: string) => {
+        if (!isPlaceholder) selection.toggle(key);
+      },
+      toggleAll: () => {
+        if (!isPlaceholder) selection.toggleAll();
+      },
+    },
     jql,
     issues,
     columns,
@@ -111,12 +122,18 @@ export function useIssueTable(scope: string, baseJql: string) {
     availableFields: pickableFields(catalog.data ?? []),
     columnIds: view.columns,
     total: count.data?.count,
-    error: search.error,
+    error: search.data ? null : search.error,
+    refreshError: search.isRefetchError ? search.error : null,
+    loadMoreError: search.isFetchNextPageError ? search.error : null,
+    isPlaceholder,
     isPending: search.isPending,
     isFetching: search.isFetching && !search.isFetchingNextPage,
     hasMore: search.hasNextPage,
+    canLoadMore,
     isLoadingMore: search.isFetchingNextPage,
-    loadMore: () => void search.fetchNextPage(),
+    loadMore: () => {
+      if (canLoadMore) void search.fetchNextPage();
+    },
     refresh: () => void Promise.all([search.refetch(), count.refetch()]),
     setText,
     toggleSort: (column: string, additive: boolean) => {

@@ -113,15 +113,17 @@ function ViewMenu({
               Kopieren als
             </DropdownMenuSubTrigger>
             <DropdownMenuSubContent className="min-w-52">
-              <DropdownMenuItem onSelect={() => void table.exportAs("tsv")}>
+              <DropdownMenuItem disabled={table.isPlaceholder} onSelect={() => void table.exportAs("tsv")}>
                 <TableIcon />
                 Tabelle (Excel, Numbers)
               </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => void table.exportAs("markdown")}>
+              <DropdownMenuItem disabled={table.isPlaceholder} onSelect={() => void table.exportAs("markdown")}>
                 <CodeIcon />
                 Markdown
               </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => void table.exportAs("keys")}>Schlüsselliste</DropdownMenuItem>
+              <DropdownMenuItem disabled={table.isPlaceholder} onSelect={() => void table.exportAs("keys")}>
+                Schlüsselliste
+              </DropdownMenuItem>
               <DropdownMenuItem onSelect={() => void table.exportAs("jql")}>JQL</DropdownMenuItem>
             </DropdownMenuSubContent>
           </DropdownMenuSub>
