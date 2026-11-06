@@ -131,3 +131,10 @@ Der vollständige Ablaufbericht einschließlich Vielnutzer, sorgfältigem Leser,
 - Zweites Konto derselben Instanz: `&account=qa-colleague`. Es sieht nur seinen eigenen QA-Kontext; die Daten von `qa-user` bleiben unverändert im lokalen Speicher.
 - Abmelden simuliert `session_delete`; danach meldet die Sitzung bis zum erneuten Öffnen der Fixture „Nicht angemeldet“.
 - Automatisch: `bunx playwright test tests/browser/workspace-page.e2e.ts --workers=1`. Mit `WORKSPACE_SHOTS=<Ordner>` speichert der Test Screenshots.
+
+## Projektfavoriten je Konto
+
+- Favoriten und ausgeblendete Bereiche gelten je Jira-Instanz und Konto (`cloudId` + `accountId`). Zweites Konto: `&account=qa-colleague`, zweite Instanz: `&cloud=other-cloud`.
+- Einstellungen: `...fixture.html?route=/settings/bereiche`. Alte globale Daten (`betterjira-favorites` mit `projectIds`/`hiddenProjectIds`) erscheinen dort als einmaliges Angebot „Übernehmen“/„Verwerfen“ (mit Rückgängig) und werden nie automatisch einem Konto zugeordnet.
+- `window.__qaMyselfDelayMs` und `window.__qaFailMyself` (per `addInitScript`) verzögern bzw. scheitern die erste Kontoprüfung (`/myself`).
+- Automatisch: `bunx playwright test tests/browser/project-prefs.e2e.ts --workers=1`; mit `PROJECT_PREFS_SHOTS=<Ordner>` zusätzlich Screenshots.

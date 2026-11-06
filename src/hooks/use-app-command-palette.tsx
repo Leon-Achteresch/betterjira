@@ -42,7 +42,7 @@ import {
   useJiraSite,
 } from "@/lib/jira/queries";
 import { IS_MAC } from "@/lib/platform";
-import { useProjectPrefs } from "@/lib/project-prefs";
+import { useProjectPrefs } from "@/hooks/use-project-prefs";
 import { shortcutHint } from "@/lib/shortcuts";
 import { useShortcutHelp } from "@/hooks/use-app-shortcuts";
 import { type ThemePreference, useTheme } from "@/hooks/use-theme";
@@ -69,8 +69,7 @@ export function useAppCommandPalette() {
   const myWork = useJiraMyWork();
   const login = useJiraLogin();
   const logout = useJiraLogout();
-  const hiddenIds = useProjectPrefs((state) => state.hiddenProjectIds);
-  const favoriteIds = useProjectPrefs((state) => state.projectIds);
+  const { hiddenIds, favoriteIds } = useProjectPrefs();
   const { theme, setTheme } = useTheme();
   const openShortcutHelp = useShortcutHelp((state) => state.setOpen);
 

@@ -8,6 +8,7 @@ if (new URLSearchParams(location.search).get("reduce") === "1") {
 }
 const scenario = new URLSearchParams(location.search).get("scenario");
 const accountId = new URLSearchParams(location.search).get("account") || "qa-user";
+const cloudId = new URLSearchParams(location.search).get("cloud") || "qa-cloud";
 const scheme = matchMedia("(prefers-color-scheme: dark)");
 const applyScheme = () => document.documentElement.classList.toggle("dark", scheme.matches);
 applyScheme();
@@ -519,7 +520,7 @@ let listenerId = 0;
 let callbackId = 0;
 const requests = new Map();
 let nextId = 0;
-window.__qa = { writes: [], issueReads: [], failNextWrite: false, delayMs: 0, issues, wiki, briefing, briefingFailure: false, searches: [], searchDelayMs: 0, failSearch: false, emptySearch: false, sessionFailure: scenario === "session-error", sessionDelayMs: scenario === "session-slow" ? 1500 : 0, commands: [], myselfDelayMs: 0, failMyself: false, myselfCalls: 0 };
+window.__qa = { writes: [], issueReads: [], failNextWrite: false, delayMs: 0, issues, wiki, briefing, briefingFailure: false, searches: [], searchDelayMs: 0, failSearch: false, emptySearch: false, sessionFailure: scenario === "session-error", sessionDelayMs: scenario === "session-slow" ? 1500 : 0, commands: [], myselfDelayMs: window.__qaMyselfDelayMs ?? 0, failMyself: window.__qaFailMyself ?? false, myselfCalls: 0 };
 window.__qa.outlook = {
   calls: [],
   failNext: false,
@@ -722,7 +723,7 @@ window.__TAURI_INTERNALS__ = {
         accessToken: "local-test",
         refreshToken: "local-test",
         expiresAt: Date.now() + 3600000,
-        cloudId: "qa-cloud",
+        cloudId,
         siteUrl: "https://example.atlassian.net",
         siteName: "Lokale UI-Testdaten",
       });

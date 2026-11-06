@@ -1,13 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { StarIcon } from "lucide-react";
-import { ProjectAvatar } from "@/components/shell/project-avatar";
-import { Button } from "@/components/ui/button";
-import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemMedia, ItemTitle } from "@/components/ui/item";
-import { Spinner } from "@/components/ui/spinner";
-import { Switch } from "@/components/ui/switch";
-import { useJiraProjects, useJiraSite } from "@/lib/jira/queries";
-import { useProjectPrefs } from "@/lib/project-prefs";
+import { LegacyProjectPrefsNotice, ProjectPrefsList } from "@/components/settings/project-prefs-settings";
 import { LoginPrompt } from "@/components/shell/login-prompt";
+import { Spinner } from "@/components/ui/spinner";
+import { useLegacyProjectPrefs, useProjectPrefs } from "@/hooks/use-project-prefs";
+import { useJiraMyself, useJiraProjects, useJiraSite } from "@/lib/jira/queries";
 
 export const Route = createFileRoute("/settings/bereiche")({
   component: BereicheSettings,
@@ -15,8 +11,10 @@ export const Route = createFileRoute("/settings/bereiche")({
 
 function BereicheSettings() {
   const site = useJiraSite();
+  const myself = useJiraMyself();
   const projects = useJiraProjects();
-  const { projectIds: favoriteIds, hiddenProjectIds, toggleProject, toggleHidden } = useProjectPrefs();
+  const prefs = useProjectPrefs();
+  const legacy = useLegacyProjectPrefs();
 
   return (
     <section className="flex w-full flex-col gap-4">
@@ -26,7 +24,7 @@ function BereicheSettings() {
       </div>
       {!site.isPending && !site.data ? (
         <LoginPrompt description="Melde dich an, um Bereiche zu verwalten." />
-      ) : projects.isPending ? (
+      ) : projects.isPending || prefs.pending ? (
         <Spinner />
       ) : projects.error ? (
         <p role="alert" className="text-sm text-destructive">
@@ -35,39 +33,22 @@ function BereicheSettings() {
       ) : projects.data.length === 0 ? (
         <p className="text-muted-foreground">Keine Bereiche gefunden</p>
       ) : (
-        <ItemGroup className="max-w-xl">
-          {projects.data.map((project) => {
-            const favorite = favoriteIds.includes(project.id);
-            const shown = !hiddenProjectIds.includes(project.id);
-            return (
-              <Item key={project.id} variant="outline" size="sm">
-                <ItemMedia>
-                  <ProjectAvatar project={project} />
-                </ItemMedia>
-                <ItemContent>
-                  <ItemTitle>{project.name}</ItemTitle>
-                  <ItemDescription>{project.key}</ItemDescription>
-                </ItemContent>
-                <ItemActions>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-pressed={favorite}
-                    aria-label={favorite ? `${project.name} aus Favoriten entfernen` : `${project.name} favorisieren`}
-                    onClick={() => toggleProject(project.id)}
-                  >
-                    <StarIcon className={favorite ? "fill-current text-amber-500" : "text-muted-foreground"} />
-                  </Button>
-                  <Switch
-                    checked={shown}
-                    onCheckedChange={() => toggleHidden(project.id)}
-                    aria-label={`${project.name} in Sidebar anzeigen`}
-                  />
-                </ItemActions>
-              </Item>
-            );
-          })}
-        </ItemGroup>
+        <>
+          <LegacyProjectPrefsNotice
+            legacy={legacy.legacy}
+            accountLabel={`${myself.data?.displayName ?? "dieses Konto"} (${site.data?.siteName ?? "Jira"})`}
+            onAdopt={legacy.adopt}
+            onDiscard={legacy.discard}
+          />
+          <ProjectPrefsList
+            projects={projects.data}
+            favoriteIds={prefs.favoriteIds}
+            hiddenIds={prefs.hiddenIds}
+            disabled={!prefs.ready}
+            onToggleFavorite={prefs.toggleFavorite}
+            onToggleHidden={prefs.toggleHidden}
+          />
+        </>
       )}
     </section>
   );
