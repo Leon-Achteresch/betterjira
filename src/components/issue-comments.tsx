@@ -1,5 +1,6 @@
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { ArrowDownWideNarrowIcon, CheckIcon, ChevronDownIcon, FileTextIcon, InfoIcon, RotateCwIcon, Trash2Icon } from "lucide-react";
+import { CommentReplyBox } from "@/components/comment-reply-box";
 import { CommentThreadView } from "@/components/comment-thread";
 import { MentionEditor } from "@/components/mention-editor";
 import { Tooltip } from "@/components/motion/tooltip";
@@ -7,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
+import { useCommentReplies } from "@/hooks/use-comment-replies";
 import { useIssueComments } from "@/hooks/use-issue-comments";
 import { EASE_OUT } from "@/lib/ease";
 import { IS_MAC } from "@/lib/platform";
@@ -34,6 +36,7 @@ function CommentListSkeleton() {
 
 export function IssueComments({ issue }: { issue: JiraIssueDetail }) {
   const view = useIssueComments(issue);
+  const replies = useCommentReplies(issue);
   const reduce = useReducedMotion();
 
   return (
@@ -173,7 +176,29 @@ export function IssueComments({ issue }: { issue: JiraIssueDetail }) {
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.18, ease: EASE_OUT }}
                 >
-                  <CommentThreadView thread={thread} />
+                  <CommentThreadView
+                    thread={thread}
+                    replyLabel={replies.labelFor(thread.root)}
+                    onReply={replies.canReply ? (comment) => replies.start(comment, thread.root) : undefined}
+                    replyBox={
+                      replies.isOpenFor(thread.root) ? (
+                        <CommentReplyBox
+                          key={replies.boxKey}
+                          id={`reply-${issue.key}-${replies.openThread}`}
+                          issueKey={issue.key}
+                          participants={view.participants}
+                          value={replies.value}
+                          onChange={replies.setDraft}
+                          onSubmit={() => void replies.submit()}
+                          onCancel={replies.close}
+                          pending={replies.pending}
+                          canSend={replies.canSend}
+                          disabled={!replies.ready}
+                          error={replies.error}
+                        />
+                      ) : null
+                    }
+                  />
                 </motion.li>
               ))}
             </AnimatePresence>
