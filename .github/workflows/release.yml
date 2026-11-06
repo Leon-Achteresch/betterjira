@@ -69,7 +69,8 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           version=$(jq -r .version src-tauri/tauri.conf.json)
-          .github/scripts/updater-manifest.sh "${{ github.repository }}" "v$version" "Lade unten den Installer für dein System herunter."
+          notes=$(awk -v v="$version" '$0 ~ "^## "v" " {f=1; next} /^## / {f=0} f' CHANGELOG.md)
+          .github/scripts/updater-manifest.sh "${{ github.repository }}" "v$version" "$notes"
 
       - name: Release veröffentlichen
         env:

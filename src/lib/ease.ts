@@ -66,3 +66,10 @@ export const SPRING_CURSOR = {
   stiffness: 480,
   damping: 38,
 } as const;
+
+export const SPRING_CARD = {
+  type: "spring",
+  stiffness: 420,
+  damping: 30,
+  mass: 0.8,
+} as const;

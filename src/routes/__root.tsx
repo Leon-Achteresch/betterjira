@@ -12,6 +12,7 @@ import { useBackgroundTabClick } from "@/hooks/use-issue-tabs";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { PageTransition } from "@/components/motion/page-transition";
 import { ShortcutHelp } from "@/components/shell/shortcut-help";
+import { UpdateCard } from "@/components/shell/update-card";
 import { useAppShortcuts } from "@/hooks/use-app-shortcuts";
 import { SHORTCUT_GROUPS } from "@/lib/shortcuts";
 
@@ -26,8 +27,18 @@ function AttentionScheduler() {
 }
 
 function AppUpdater() {
-  useAppUpdate();
-  return null;
+  const app = useAppUpdate();
+  return (
+    <UpdateCard
+      update={app.update}
+      percent={app.percent}
+      failed={app.failed}
+      onInstall={app.install}
+      onDismiss={app.dismiss}
+      onSkip={app.skip}
+      onReleaseNotes={app.openReleaseNotes}
+    />
+  );
 }
 
 function BackgroundTabClick() {
