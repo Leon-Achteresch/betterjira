@@ -266,6 +266,33 @@ if (scenario === "busy") {
     localStorage.setItem("betterjira-issue-tabs", JSON.stringify({ state: { keys, pinned: [keys[1]] }, version: 0 }));
   }
 }
+if (scenario === "notifications" || scenario === "notifications-foreign") {
+  const minutes = (count) => Date.now() - count * 60000;
+  const qaPeople = ["Sam Muster", "Kim Probe", "Jo Test"].map((displayName) => ({ displayName, avatarUrls: author.avatarUrls }));
+  const entry = (id, issueKey, kind, created, title, body, actor, read = false) => ({
+    id,
+    issueKey,
+    summary: issues.find((issue) => issue.key === issueKey)?.fields.summary ?? `QA-Testticket ${issueKey}`,
+    kind,
+    created,
+    title,
+    body,
+    actor: qaPeople[actor],
+    read,
+  });
+  const items = [
+    entry("qa:1", "DEMO-1", "direct", minutes(5), "hat dich in einem Kommentar erwähnt", "Kannst du die Übergabe bis morgen prüfen?", 0),
+    entry("qa:2", "DEMO-1", "direct", minutes(40), "hat den Status geändert", "Zu erledigen → In Arbeit", 1),
+    entry("qa:3", "DEMO-2", "direct", minutes(90), "hat dir ein Ticket zugewiesen", "", 2),
+    entry("qa:4", "DEMO-3", "direct", minutes(26 * 60), "hat einen Kommentar hinzugefügt", "Der Entwurf liegt im Team-Ordner.", 1, true),
+    ...Array.from({ length: 9 }, (_, index) =>
+      entry(`qa:w${index}`, `DEMO-${index + 4}`, "watching", minutes(15 + index * 20), "hat die Priorität geändert", "Hoch", index % 3, index > 5),
+    ),
+  ];
+  const owner = JSON.stringify(scenario === "notifications" ? ["qa-cloud", "qa-user"] : ["other-cloud", "other-user"]);
+  if (scenario === "notifications-foreign" || !localStorage.getItem("betterjira-notifications"))
+    localStorage.setItem("betterjira-notifications", JSON.stringify({ state: { owner, items, checkedAt: minutes(1) }, version: 2 }));
+}
 const callbacks = new Map();
 const listeners = new Map();
 let listenerId = 0;

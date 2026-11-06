@@ -3,6 +3,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { useDebouncedValue } from "@tanstack/react-pacer";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import {
+  BellIcon,
   ExternalLinkIcon,
   FileTextIcon,
   FolderKanbanIcon,
@@ -207,6 +208,14 @@ export function useAppCommandPalette() {
       keywords: ["tickets", "vorgänge", "meine", "beobachtet"],
       hint: shortcutHint("tickets"),
       onSelect: () => void navigate({ to: "/tickets" }),
+    },
+    {
+      id: "nav:notifications",
+      label: "Benachrichtigungen",
+      group: "Navigation",
+      icon: BellIcon,
+      keywords: ["inbox", "ungelesen", "erwähnungen", "aktivität"],
+      onSelect: () => void navigate({ to: "/benachrichtigungen" }),
     },
     {
       id: "nav:search",

@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { CalendarDaysIcon, HouseIcon, TicketIcon } from "lucide-react";
+import { BellIcon, CalendarDaysIcon, HouseIcon, TicketIcon } from "lucide-react";
 import { LayoutGroup, motion, useReducedMotion } from "motion/react";
 import { SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from "@/components/ui/sidebar";
 import { SPRING_LAYOUT } from "@/lib/ease";
@@ -8,6 +8,7 @@ const ITEMS = [
   { to: "/", label: "Übersicht", icon: HouseIcon, activeOptions: { exact: true } },
   { to: "/tickets", label: "Jira-Tickets", icon: TicketIcon, activeOptions: { includeSearch: false } },
   { to: "/kalender", label: "Kalender", icon: CalendarDaysIcon, activeOptions: {} },
+  { to: "/benachrichtigungen", label: "Benachrichtigungen", icon: BellIcon, activeOptions: { includeSearch: false } },
 ] as const;
 
 export function PrimaryNav() {

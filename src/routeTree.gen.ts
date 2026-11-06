@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as BenachrichtigungenRouteImport } from './routes/benachrichtigungen'
 import { Route as KalenderRouteImport } from './routes/kalender'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SucheRouteImport } from './routes/suche'
@@ -26,6 +27,11 @@ import { Route as SettingsDarstellungRouteImport } from './routes/settings/darst
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BenachrichtigungenRoute = BenachrichtigungenRouteImport.update({
+  id: '/benachrichtigungen',
+  path: '/benachrichtigungen',
   getParentRoute: () => rootRouteImport,
 } as any)
 const KalenderRoute = KalenderRouteImport.update({
@@ -91,6 +97,7 @@ const SettingsDarstellungRoute = SettingsDarstellungRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/benachrichtigungen': typeof BenachrichtigungenRoute
   '/kalender': typeof KalenderRoute
   '/settings': typeof SettingsRouteWithChildren
   '/suche': typeof SucheRoute
@@ -106,6 +113,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/benachrichtigungen': typeof BenachrichtigungenRoute
   '/kalender': typeof KalenderRoute
   '/suche': typeof SucheRoute
   '/tickets': typeof TicketsRoute
@@ -121,6 +129,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/benachrichtigungen': typeof BenachrichtigungenRoute
   '/kalender': typeof KalenderRoute
   '/settings': typeof SettingsRouteWithChildren
   '/suche': typeof SucheRoute
@@ -138,6 +147,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/benachrichtigungen'
     | '/kalender'
     | '/settings'
     | '/suche'
@@ -153,6 +163,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/benachrichtigungen'
     | '/kalender'
     | '/suche'
     | '/tickets'
@@ -167,6 +178,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/benachrichtigungen'
     | '/kalender'
     | '/settings'
     | '/suche'
@@ -183,6 +195,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  BenachrichtigungenRoute: typeof BenachrichtigungenRoute
   KalenderRoute: typeof KalenderRoute
   SettingsRoute: typeof SettingsRouteWithChildren
   SucheRoute: typeof SucheRoute
@@ -199,6 +212,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/benachrichtigungen': {
+      id: '/benachrichtigungen'
+      path: '/benachrichtigungen'
+      fullPath: '/benachrichtigungen'
+      preLoaderRoute: typeof BenachrichtigungenRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/kalender': {
@@ -310,6 +330,7 @@ const SettingsRouteWithChildren = SettingsRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  BenachrichtigungenRoute: BenachrichtigungenRoute,
   KalenderRoute: KalenderRoute,
   SettingsRoute: SettingsRouteWithChildren,
   SucheRoute: SucheRoute,

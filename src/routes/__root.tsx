@@ -5,7 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
 import { AppHeader } from "@/components/shell/app-header";
 import { AppSidebar } from "@/components/shell/app-sidebar";
-import { useNotificationPoller } from "@/lib/jira/notifications";
+import { useNotificationPoller } from "@/hooks/notifications/use-notification-poller";
 import { useAttentionScheduler } from "@/hooks/attention/use-attention-scheduler";
 import { useAppUpdate } from "@/hooks/use-app-update";
 import { useBackgroundTabClick } from "@/hooks/use-issue-tabs";
