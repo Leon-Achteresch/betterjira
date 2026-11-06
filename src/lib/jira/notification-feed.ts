@@ -67,3 +67,5 @@ export const groupByIssue = <T extends FeedItem>(items: T[]): FeedGroup<T>[] => 
 
 export const filterFeed = <T extends FeedItem>(items: T[], kind: NotificationKind, unreadOnly: boolean) =>
   items.filter((item) => item.kind === kind && (!unreadOnly || !item.read));
+
+export const commentIdOfNotification = (id: string) => /^c:(\d+)$/.exec(id)?.[1];

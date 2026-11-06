@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { describeChanges, filterFeed, groupByIssue, type FeedItem } from "./notification-feed";
+import { commentIdOfNotification, describeChanges, filterFeed, groupByIssue, type FeedItem } from "./notification-feed";
 
 const item = (id: string, issueKey: string, created: number, extra: Partial<FeedItem> = {}): FeedItem => ({
   id,
@@ -42,5 +42,13 @@ describe("filterFeed", () => {
     const items = [item("a", "X-1", 1, { kind: "direct" }), item("b", "X-1", 2, { kind: "direct", read: true }), item("c", "X-2", 3)];
     expect(filterFeed(items, "direct", false).map((entry) => entry.id)).toEqual(["a", "b"]);
     expect(filterFeed(items, "direct", true).map((entry) => entry.id)).toEqual(["a"]);
+  });
+});
+
+describe("Benachrichtigung über einen Kommentar", () => {
+  it("liest die Kommentar-ID nur aus c:{id}", () => {
+    expect(commentIdOfNotification("c:10002")).toBe("10002");
+    expect(commentIdOfNotification("h:5")).toBeUndefined();
+    expect(commentIdOfNotification("DEMO-1:created")).toBeUndefined();
   });
 });

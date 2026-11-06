@@ -1,15 +1,10 @@
-import { useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
-import { getCurrentWindow } from "@tauri-apps/api/window";
 import { isPermissionGranted, requestPermission, sendNotification } from "@tauri-apps/plugin-notification";
 import { Effect, Schema } from "effect";
 import { toast } from "sonner";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { jira } from "./client";
-import { describeChanges, type FeedItem } from "./notification-feed";
-import { jiraKeys, useJiraMyself, useJiraSite } from "./queries";
+import { commentIdOfNotification, describeChanges, type FeedItem } from "./notification-feed";
 
 export type JiraNotification = FeedItem & {
   title: string;
@@ -121,14 +116,18 @@ const BASE_INTERVAL = 30_000;
 const MAX_INTERVAL = 5 * 60_000;
 let quietPolls = 0;
 
-const pollInterval = () => (document.hasFocus() ? BASE_INTERVAL : Math.min(BASE_INTERVAL * 2 ** quietPolls, MAX_INTERVAL));
+export const pollInterval = () => (document.hasFocus() ? BASE_INTERVAL : Math.min(BASE_INTERVAL * 2 ** quietPolls, MAX_INTERVAL));
+
+export const recordPoll = (freshCount: number) => {
+  quietPolls = freshCount > 0 ? 0 : quietPolls + 1;
+};
 
 const MAX_LOOKBACK_MINUTES = 3 * 24 * 60;
 const CLOCK_SKEW_MS = 60_000;
 
 const Probe = Schema.Struct({ issues: Schema.Array(Schema.Struct({ id: Schema.String })) });
 
-const fetchActivity = (me: string, since: number) =>
+export const fetchActivity = (me: string, since: number) =>
   Effect.gen(function* () {
     const minutes = Math.min(Math.ceil((Date.now() - since) / 60_000) + 2, MAX_LOOKBACK_MINUTES);
     const jql = `(assignee = currentUser() OR reporter = currentUser() OR watcher = currentUser()) AND updated >= -${minutes}m ORDER BY updated DESC`;
@@ -181,13 +180,13 @@ const notifyNative = async (fresh: JiraNotification[]) => {
   }
 };
 
-export const openNotification = (item: JiraNotification, openIssue: (key: string) => void) => {
+export const openNotification = (item: JiraNotification, openIssue: (key: string, commentId?: string) => void) => {
   const { items, setRead } = useNotifications.getState();
   setRead(items.filter((entry) => entry.issueKey === item.issueKey).map((entry) => entry.id), true);
-  openIssue(item.issueKey);
+  openIssue(item.issueKey, commentIdOfNotification(item.id));
 };
 
-const deliver = (fresh: JiraNotification[], openIssue: (key: string) => void) => {
+export const deliver = (fresh: JiraNotification[], openIssue: (key: string, commentId?: string) => void) => {
   if (fresh.length === 0) return;
   if (!document.hasFocus()) return void notifyNative(fresh).catch(() => undefined);
   for (const item of fresh.slice(0, MAX_NATIVE)) {
@@ -196,41 +195,4 @@ const deliver = (fresh: JiraNotification[], openIssue: (key: string) => void) =>
       action: { label: "Öffnen", onClick: () => openNotification(item, openIssue) },
     });
   }
-};
-
-export const useNotificationPoller = () => {
-  const site = useJiraSite();
-  const myself = useJiraMyself();
-  const me = myself.data?.accountId;
-  const siteUrl = site.data?.siteUrl;
-  const navigate = useNavigate();
-  const openIssue = (key: string) => void navigate({ to: "/issue/$key", params: { key } });
-
-  useQuery({
-    queryKey: [...jiraKeys.all, "notifications", me],
-    queryFn: async ({ signal }) => {
-      const startedAt = Date.now();
-      const { checkedAt, receive } = useNotifications.getState();
-      if (checkedAt === null) {
-        receive([], startedAt);
-        return startedAt;
-      }
-      const activity = await Effect.runPromise(fetchActivity(me!, checkedAt), { signal });
-      const fresh = receive(activity, startedAt);
-      quietPolls = fresh.length > 0 ? 0 : quietPolls + 1;
-      deliver(fresh, openIssue);
-      return startedAt;
-    },
-    enabled: !!me && !!siteUrl,
-    refetchInterval: pollInterval,
-    refetchIntervalInBackground: true,
-    refetchOnWindowFocus: "always",
-    staleTime: 0,
-    gcTime: 0,
-  });
-
-  const unread = useNotifications(selectUnread);
-  useEffect(() => {
-    void getCurrentWindow().setBadgeCount(unread || undefined).catch(() => undefined);
-  }, [unread]);
 };

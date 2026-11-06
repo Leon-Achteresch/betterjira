@@ -6,7 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
 import { AppHeader } from "@/components/shell/app-header";
 import { AppSidebar } from "@/components/shell/app-sidebar";
-import { useNotificationPoller } from "@/lib/jira/notifications";
+import { useNotificationPoller } from "@/hooks/use-notification-poller";
 import { AdfLinkContext } from "@/components/adf-content";
 import { useAppLinkHandler } from "@/hooks/use-app-link-handler";
 import { useAttentionScheduler } from "@/hooks/attention/use-attention-scheduler";
