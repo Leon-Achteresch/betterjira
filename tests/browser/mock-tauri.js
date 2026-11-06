@@ -29,6 +29,20 @@ const project = {
   projectTypeKey: "software",
   avatarUrls: author.avatarUrls,
 };
+const projects =
+  scenario === "projects"
+    ? [
+        ["1", "DEMO", "Produktentwicklung"],
+        ["2", "OPS", "Betrieb"],
+        ["3", "OLD", "Archiv 2024"],
+        ["4", "MOB", "Mobile App"],
+        ["5", "WEB", "Webauftritt"],
+        ["6", "SEC", "Sicherheit"],
+        ["7", "DATA", "Datenplattform"],
+      ].map(([id, key, name]) => ({ ...project, id, key, name }))
+    : [project];
+if (scenario === "projects" && !localStorage.getItem("betterjira-favorites"))
+  localStorage.setItem("betterjira-favorites", JSON.stringify({ state: { projectIds: ["2"], hiddenProjectIds: ["3"] }, version: 0 }));
 const paragraph = (text) => ({
   type: "doc",
   version: 1,
@@ -495,8 +509,14 @@ const respond = async (request) => {
     }
     return { status: 204 };
   }
+  window.__qaReads?.push(path);
   if (path === "/myself") return { body: { ...author, accountId } };
-  if (path.startsWith("/project/search")) return { body: { isLast: true, values: [project] } };
+  if (path.startsWith("/project/search")) {
+    const rule = window.__qaProjectRule?.() ?? {};
+    if (rule.delayMs) await new Promise((resolve) => setTimeout(resolve, rule.delayMs));
+    if (rule.status) return { status: rule.status, body: { errorMessages: [`Test: Jira antwortet mit ${rule.status}`] } };
+    return { body: { isLast: true, values: rule.values ?? projects } };
+  }
   if (path.startsWith("/filter/my")) return { body: [] };
   if (path === "/field")
     return {

@@ -11,6 +11,7 @@ import {
   HomeIcon,
   KeyboardIcon,
   LayersIcon,
+  LayoutGridIcon,
   SparklesIcon,
   LogInIcon,
   LogOutIcon,
@@ -242,6 +243,14 @@ export function useAppCommandPalette() {
       icon: SettingsIcon,
       hint: shortcutHint("settings"),
       onSelect: () => void navigate({ to: "/settings" }),
+    },
+    {
+      id: "nav:projects",
+      label: "Alle Bereiche",
+      group: "Navigation",
+      icon: LayoutGridIcon,
+      keywords: ["bereiche", "projekte", "projects", "übersicht", "favoriten"],
+      onSelect: () => void navigate({ to: "/bereiche", search: {} }),
     },
     {
       id: "nav:areas",
