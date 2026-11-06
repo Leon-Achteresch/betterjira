@@ -20,6 +20,7 @@ import {
   StarIcon,
   SunIcon,
   TerminalSquareIcon,
+  TicketIcon,
   PinIcon,
   HistoryIcon,
 } from "lucide-react";
@@ -191,12 +192,21 @@ export function useAppCommandPalette() {
       })),
     {
       id: "nav:home",
-      label: "Startseite",
+      label: "Übersicht",
       group: "Navigation",
       icon: HomeIcon,
-      keywords: ["home", "dashboard"],
+      keywords: ["home", "dashboard", "startseite"],
       hint: shortcutHint("home"),
       onSelect: () => void navigate({ to: "/" }),
+    },
+    {
+      id: "nav:tickets",
+      label: "Jira-Tickets",
+      group: "Navigation",
+      icon: TicketIcon,
+      keywords: ["tickets", "vorgänge", "meine", "beobachtet"],
+      hint: shortcutHint("tickets"),
+      onSelect: () => void navigate({ to: "/tickets" }),
     },
     {
       id: "nav:search",

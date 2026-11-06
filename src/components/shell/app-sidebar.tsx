@@ -2,7 +2,6 @@ import { useState, type ReactNode } from "react";
 import { Link, useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import {
-  CalendarDaysIcon,
   ChartColumnIcon,
   ChevronRightIcon,
   ChevronsUpDownIcon,
@@ -19,6 +18,7 @@ import {
   TerminalSquareIcon,
 } from "lucide-react";
 import { ProjectStatsDialog } from "@/components/project-stats/project-stats-dialog";
+import { PrimaryNav } from "@/components/shell/primary-nav";
 import { ProjectAvatar } from "@/components/shell/project-avatar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -58,16 +58,15 @@ import {
 } from "@/components/ui/sidebar";
 import { Spinner } from "@/components/ui/spinner";
 import {
-  useJiraFilters,
   useJiraLogin,
   useJiraLogout,
   useJiraMyself,
   useJiraProjectBoards,
-  useJiraProjects,
   useJiraSite,
   type JiraProject,
 } from "@/lib/jira/queries";
 import { useProjectStats } from "@/hooks/jira/use-project-stats";
+import { useSidebarSearch } from "@/hooks/use-sidebar-search";
 import { useProjectPrefs } from "@/lib/project-prefs";
 
 function ProjectBoards({ projectKey }: { projectKey: string }) {
@@ -284,28 +283,14 @@ function ProfileMenu() {
 
 export function AppSidebar() {
   const site = useJiraSite();
-  const projects = useJiraProjects();
-  const favoriteIds = useProjectPrefs((state) => state.projectIds);
-  const hiddenIds = useProjectPrefs((state) => state.hiddenProjectIds);
-  const [query, setQuery] = useState("");
-  const needle = query.trim().toLowerCase();
-  const visible =
-    projects.data?.filter(
-      (project) =>
-        !hiddenIds.includes(project.id) &&
-        (project.name.toLowerCase().includes(needle) || project.key.toLowerCase().includes(needle)),
-    ) ?? [];
-  const favorites = visible.filter((project) => favoriteIds.includes(project.id));
-  const others = visible.filter((project) => !favoriteIds.includes(project.id));
-  const filters = useJiraFilters();
-  const visibleFilters = (filters.data ?? [])
-    .filter((filter) => filter.name.toLowerCase().includes(needle))
-    .sort((a, b) => Number(!!b.favourite) - Number(!!a.favourite));
+  const search = useSidebarSearch();
+  const { projects, filters } = search;
 
   return (
     <Sidebar className="top-(--app-header-height) h-[calc(100svh-var(--app-header-height))] border-r-sidebar-border/60">
-      {site.data && (
-        <SidebarHeader className="pt-3">
+      <SidebarHeader className="gap-3 pt-3">
+        <PrimaryNav />
+        {site.data && (
           <div className="relative">
             <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
             <SidebarInput
@@ -313,42 +298,30 @@ export function AppSidebar() {
               placeholder="Suchen"
               aria-label="Bereiche und Filter suchen"
               className="rounded-lg border-transparent bg-sidebar-accent/60 pl-8 focus-visible:bg-background"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
+              value={search.query}
+              onChange={(event) => search.setQuery(event.target.value)}
             />
           </div>
-        </SidebarHeader>
-      )}
+        )}
+      </SidebarHeader>
       <SidebarContent>
-        <SidebarGroup className="pb-0">
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton asChild tooltip="Kalender">
-                <Link to="/kalender" activeProps={{ "data-active": true }}>
-                  <CalendarDaysIcon className="text-muted-foreground" />
-                  <span>Kalender</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
-        </SidebarGroup>
         {site.data && (
           <>
-            {favorites.length > 0 && (
+            {projects.favorites.length > 0 && (
               <Section label="Favoriten">
-                <ProjectMenu projects={favorites} />
+                <ProjectMenu projects={projects.favorites} />
               </Section>
             )}
-            <Section label="Bereiche" count={projects.data ? others.length : undefined}>
+            <Section label="Bereiche" count={projects.loaded ? projects.others.length : undefined}>
               {projects.isPending ? (
                 <MenuSkeleton />
-              ) : needle && visible.length === 0 ? (
+              ) : search.searching && projects.visible.length === 0 ? (
                 <p className="px-2 py-1 text-sm text-muted-foreground">Keine Treffer</p>
               ) : (
-                <ProjectMenu projects={others} />
+                <ProjectMenu projects={projects.others} />
               )}
             </Section>
-            <Section label="Filter" count={filters.data ? visibleFilters.length : undefined}>
+            <Section label="Filter" count={filters.loaded ? filters.items.length : undefined}>
               <SidebarMenu>
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild tooltip="JQL-Suche">
@@ -365,11 +338,11 @@ export function AppSidebar() {
                 <p role="alert" className="px-2 py-1 text-sm text-destructive">
                   Filter konnten nicht geladen werden
                 </p>
-              ) : visibleFilters.length === 0 ? (
-                <p className="px-2 py-1 text-sm text-muted-foreground">{needle ? "Keine Treffer" : "Keine Filter"}</p>
+              ) : filters.items.length === 0 ? (
+                <p className="px-2 py-1 text-sm text-muted-foreground">{search.searching ? "Keine Treffer" : "Keine Filter"}</p>
               ) : (
                 <SidebarMenu>
-                  {visibleFilters.map((filter) => (
+                  {filters.items.map((filter) => (
                     <SidebarMenuItem key={filter.id}>
                       <SidebarMenuButton asChild tooltip={filter.name}>
                         <Link to="/filter/$id" params={{ id: filter.id }} activeProps={{ "data-active": true }}>
