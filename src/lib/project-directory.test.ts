@@ -34,6 +34,8 @@ describe("projectDirectorySearch", () => {
   it("lässt Standardwerte weg und verwirft ungültige Werte", () => {
     expect(projectDirectorySearch({ q: "  ", ansicht: "alle" })).toEqual({});
     expect(projectDirectorySearch({ q: 42, ansicht: "geheim" })).toEqual({});
+    expect(projectDirectorySearch({ q: 42 })).toHaveProperty("q", undefined);
+    expect(projectDirectorySearch({ ansicht: "geheim" })).toHaveProperty("ansicht", undefined);
     expect(projectDirectorySearch({ q: "ops ", ansicht: "favoriten" })).toEqual({ q: "ops ", ansicht: "favoriten" });
     expect(projectDirectorySearch({ q: "x".repeat(300) }).q).toHaveLength(200);
   });

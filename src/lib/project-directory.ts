@@ -22,8 +22,8 @@ export const projectDirectorySearch = ({ q, ansicht }: { q?: unknown; ansicht?: 
   const view = projectViewOf(ansicht);
   const query = typeof q === "string" ? q.slice(0, MAX_QUERY_LENGTH) : "";
   return {
-    ...(query.trim() !== "" && { q: query }),
-    ...(view !== DEFAULT_PROJECT_VIEW && { ansicht: view }),
+    q: query.trim() !== "" ? query : undefined,
+    ansicht: view !== DEFAULT_PROJECT_VIEW ? view : undefined,
   };
 };
 

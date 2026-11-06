@@ -47,6 +47,15 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
+test("Nichttextliche URL-Suchwerte fallen sicher auf eine leere Suche zurück", async ({ page }) => {
+  for (const value of ["123", "false", '{"query":"ops"}']) {
+    await open(page, `/bereiche?${new URLSearchParams({ q: value, ansicht: "unbekannt" })}`);
+    await expect(search(page)).toHaveValue("");
+    await expect(list(page).getByRole("listitem")).toHaveCount(7);
+    await expect(views(page).getByRole("link", { name: /Alle/ })).toHaveAttribute("aria-current", "page");
+  }
+});
+
 test("Suche und Ansicht stehen in der URL und folgen Zurück und Vorwärts", async ({ page }) => {
   await open(page, "/bereiche?ansicht=unbekannt&q=");
   await expect(views(page).getByRole("link", { name: /Alle/ })).toHaveAttribute("aria-current", "page");
