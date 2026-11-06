@@ -92,6 +92,13 @@ Der vollständige Ablaufbericht einschließlich Vielnutzer, sorgfältigem Leser,
 
 `DEMO-1` hat lokale Testverknüpfungen in beide Richtungen (`blocks`, `is blocked by`, `relates to`), ein Ticket ohne Felder (`OPS-7`), einen doppelten Eintrag und eine unlesbare Verknüpfung. `window.__qaIssueLinksRule = (key) => ({ delayMs, status, issuelinks })` steuert die Abfrage `GET /issue/{key}?fields=issuelinks`; `window.__qa.issueReads` protokolliert alle gelesenen Ticketpfade. Automatisch: `bunx playwright test tests/browser/issue-links.e2e.ts --workers=1` (mit `ISSUE_LINKS_SHOTS=<Ordner>` zusätzlich Screenshots).
 
+## Verbindungen und Offline-Hinweis
+
+- Übersicht: `http://localhost:1420/tests/browser/fixture.html?route=/settings/verbindungen` (abgemeldet mit `scenario=calendar-offline`, Lesefehler mit `scenario=session-error`).
+- `window.__qa.failMyself`, `window.__qa.myselfDelayMs` und `window.__qa.myselfCalls` steuern bzw. zählen die Jira-Prüfung (`/myself`). `window.__qaGhHosts` (per `addInitScript`) liefert die Antwort von `gh auth status`. `window.__qa.commands` listet alle simulierten Tauri-Kommandos.
+- Automatisch: `bunx playwright test tests/browser/connections.e2e.ts --workers=1`. Mit `CONNECTIONS_SHOTS=<Ordner>` speichert der Test Screenshots.
+- Offline wird nur im Browser simuliert: Der Test überschreibt `navigator.onLine` und löst `offline`/`online` aus. Das ersetzt keine native Netzprüfung; ob Atlassian, GitHub oder Bitbucket tatsächlich erreichbar sind, zeigt nur die jeweilige Prüfung. In der Simulation pausiert TanStack Query wie im echten Offline-Fall, auch für die lokalen Abfragen von GitHub CLI und Outlook.
+
 ## Meine Zeiterfassung
 
 - Lokale Testbuchungen: `...fixture.html?scenario=time-tracking&route=/zeiterfassung` (eigene Buchungen in der Woche ab 02.11.2026, eine fremde Buchung, eine aus der Vorwoche).

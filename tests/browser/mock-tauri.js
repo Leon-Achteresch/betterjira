@@ -519,7 +519,7 @@ let listenerId = 0;
 let callbackId = 0;
 const requests = new Map();
 let nextId = 0;
-window.__qa = { writes: [], issueReads: [], failNextWrite: false, delayMs: 0, issues, wiki, briefing, briefingFailure: false, searches: [], searchDelayMs: 0, failSearch: false, emptySearch: false, sessionFailure: scenario === "session-error", sessionDelayMs: scenario === "session-slow" ? 1500 : 0 };
+window.__qa = { writes: [], issueReads: [], failNextWrite: false, delayMs: 0, issues, wiki, briefing, briefingFailure: false, searches: [], searchDelayMs: 0, failSearch: false, emptySearch: false, sessionFailure: scenario === "session-error", sessionDelayMs: scenario === "session-slow" ? 1500 : 0, commands: [], myselfDelayMs: 0, failMyself: false, myselfCalls: 0 };
 window.__qa.outlook = {
   calls: [],
   failNext: false,
@@ -570,7 +570,12 @@ const respond = async (request) => {
     }
     return { status: 204 };
   }
-  if (path === "/myself") return { body: { ...author, accountId } };
+  if (path === "/myself") {
+    window.__qa.myselfCalls++;
+    if (window.__qa.myselfDelayMs) await new Promise((resolve) => setTimeout(resolve, window.__qa.myselfDelayMs));
+    if (window.__qa.failMyself) return { status: 503, body: { errorMessages: ["Test: Jira vorübergehend nicht erreichbar"] } };
+    return { body: { ...author, accountId } };
+  }
   if (path.startsWith("/project/search")) return { body: { isLast: true, values: [project] } };
   if (path.startsWith("/filter/my")) return { body: [] };
   if (path === "/field")
@@ -669,6 +674,7 @@ window.__TAURI_INTERNALS__ = {
   },
   unregisterCallback: () => {},
   invoke: async (command, args = {}) => {
+    window.__qa.commands.push(command);
     if (command === "session_get" && scenario === "scm-offline") return null;
     if (command === "scm_gh_hosts" && scmScenario) return JSON.stringify(window.__qaScm.hosts);
     if (command === "scm_request" && scmScenario) return scmRespond(args);
@@ -722,7 +728,7 @@ window.__TAURI_INTERNALS__ = {
       });
     if (command === "oauth_login") throw "Test: Anmeldung abgebrochen";
     if (command === "oauth_cancel") return null;
-    if (command === "scm_gh_hosts") return JSON.stringify([]);
+    if (command === "scm_gh_hosts") return JSON.stringify(window.__qaGhHosts ?? []);
     if (command === "attention_read") return scenario === "ai" ? JSON.stringify(window.__qa.briefing) : null;
     if (command === "attention_serve") return 8743;
     if (command === "attention_trigger") {
