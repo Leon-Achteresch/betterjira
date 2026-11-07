@@ -137,3 +137,9 @@ Der vollständige Ablaufbericht einschließlich Vielnutzer, sorgfältigem Leser,
 - Sieben Testbereiche, ein Favorit (Betrieb) und ein in der Seitenleiste ausgeblendeter Bereich (Archiv 2024): `...fixture.html?scenario=projects&route=/bereiche`.
 - `window.__qaProjectRule = () => ({ delayMs, status, values })` steuert die Projektabfrage (verzögern, mit HTTP-Status scheitern, andere Bereiche liefern, etwa für einen Kontowechsel). `window.__qaReads`, per `addInitScript` als Array gesetzt, sammelt alle gelesenen Pfade.
 - Automatisch: `bunx playwright test tests/browser/projects.e2e.ts --workers=1` prüft Suche und Ansicht in der URL mit Zurück/Vorwärts, Favoriten synchron mit der Seitenleiste, ausgeblendete Bereiche, Ladefehler und fehlgeschlagene Aktualisierung mit Retry, Abmelden und Kontowechsel, Tastatur und Command Palette sowie Desktop hell und 390 px dunkel. Mit `PROJECTS_SHOTS=<Ordner>` speichert der Test Screenshots.
+
+## Geöffnete Tickets durchsuchen
+
+- `...fixture.html?scenario=busy` (12 offene Tabs, `DEMO-2` angeheftet). Bei schmalem Fenster über „Weitere Aktionen“ → „Geöffnete Tickets durchsuchen“, auf dem Desktop über die Command Palette (`Strg K`, „Geöffnete Tickets durchsuchen“).
+- Der Dialog filtert nur die bereits geladenen Tabs nach Schlüssel und bekanntem Titel; er lädt nichts aus Jira nach, schließt keine Tabs und ändert keine Pins. Tabs ohne geladenen Titel erscheinen mit „Titel nicht geladen“ und sind über den Schlüssel auffindbar.
+- Automatisch: `bunx playwright test tests/browser/open-tab-search.e2e.ts --workers=1` prüft Reihenfolge, aktiven und angehefteten Tab, Suche ohne zusätzliche `GET /issue`-Anfragen, keinen Treffer mit Zurücksetzen, Tastatur und Maus mit erhaltenem Kommentarentwurf, unbekannte Titel, Wiederöffnen, Abmelden, Escape mit Fokusrückgabe sowie 390 px dunkel mit reduzierter Bewegung. Mit `OPEN_TAB_SEARCH_SHOTS=<Ordner>` speichert der Test Screenshots.

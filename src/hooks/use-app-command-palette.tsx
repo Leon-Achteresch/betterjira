@@ -46,6 +46,8 @@ import { IS_MAC } from "@/lib/platform";
 import { useProjectPrefs } from "@/lib/project-prefs";
 import { shortcutHint } from "@/lib/shortcuts";
 import { useShortcutHelp } from "@/hooks/use-app-shortcuts";
+import { useIssueTabStore } from "@/hooks/use-issue-tabs";
+import { useOpenTabSearchDialog } from "@/hooks/use-open-tab-search";
 import { type ThemePreference, useTheme } from "@/hooks/use-theme";
 import { useWorkspace } from "@/hooks/use-workspace";
 
@@ -74,6 +76,8 @@ export function useAppCommandPalette() {
   const favoriteIds = useProjectPrefs((state) => state.projectIds);
   const { theme, setTheme } = useTheme();
   const openShortcutHelp = useShortcutHelp((state) => state.setOpen);
+  const hasTabs = useIssueTabStore((state) => state.keys.length > 0);
+  const openTabSearch = useOpenTabSearchDialog((state) => state.setOpen);
 
   const text = debounced.replace(/[\\"]/g, "\\$&");
   const search = useJiraIssues(`text ~ "${text}*" ORDER BY updated DESC`, open && debounced.length >= 2);
@@ -293,6 +297,18 @@ export function useAppCommandPalette() {
       icon: SparklesIcon,
       onSelect: () => void navigate({ to: "/settings/briefing" }),
     },
+    ...(hasTabs
+      ? [
+          {
+            id: "action:open-tabs",
+            label: "Geöffnete Tickets durchsuchen",
+            group: "Aktionen",
+            icon: SearchIcon,
+            keywords: ["tabs", "reiter", "offen", "wechseln"],
+            onSelect: () => openTabSearch(true),
+          },
+        ]
+      : []),
     {
       id: "action:sidebar",
       label: "Seitenleiste ein-/ausblenden",

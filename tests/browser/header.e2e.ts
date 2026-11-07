@@ -153,10 +153,12 @@ test("Geöffnete Tickets im Menü sind per Tastatur bedienbar", async ({ page })
   if (await page.evaluate(() => matchMedia("(prefers-reduced-motion: reduce)").matches)) {
     expect(await page.getByRole("menu").evaluate((menu) => getComputedStyle(menu).animationName)).toBe("none");
   }
+  const focusedText = () => page.evaluate(() => document.activeElement?.textContent ?? "");
   for (let step = 0; step < 20; step++) {
-    const name = await page.evaluate(() => document.activeElement?.textContent ?? "");
+    const name = await focusedText();
     if (name.startsWith("DEMO-6")) break;
     await page.keyboard.press("ArrowDown");
+    await expect.poll(focusedText).not.toBe(name);
   }
   await expect(page.getByRole("menuitemradio", { name: /^DEMO-6 / })).toBeFocused();
   await page.keyboard.press("Enter");

@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, EllipsisIcon, PinIcon, PinOffIcon, XIcon } from "lucide-react";
+import { ChevronLeft, ChevronRight, EllipsisIcon, PinIcon, PinOffIcon, SearchIcon, XIcon } from "lucide-react";
 import { Tooltip } from "@/components/motion/tooltip";
 import type { IssueTab } from "@/components/shell/issue-tabs";
 import { Button } from "@/components/ui/button";
@@ -27,6 +27,7 @@ type HeaderMoreMenuProps = {
   onOpenTab: (key: string) => void;
   onCloseTab: (key: string) => void;
   onTogglePin: (key: string) => void;
+  onSearchTabs: () => void;
   className?: string;
 };
 
@@ -41,6 +42,7 @@ export function HeaderMoreMenu({
   onOpenTab,
   onCloseTab,
   onTogglePin,
+  onSearchTabs,
   className,
 }: HeaderMoreMenuProps) {
   const theme = useThemeCycle();
@@ -83,6 +85,10 @@ export function HeaderMoreMenu({
                 Geöffnete Tickets
                 <span className="ml-auto tabular-nums">{tabs.length}</span>
               </DropdownMenuLabel>
+              <DropdownMenuItem onSelect={onSearchTabs}>
+                <SearchIcon />
+                Geöffnete Tickets durchsuchen
+              </DropdownMenuItem>
               <DropdownMenuRadioGroup
                 value={activeKey ?? ""}
                 onValueChange={onOpenTab}
