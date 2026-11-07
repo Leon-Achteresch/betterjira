@@ -66,7 +66,6 @@ window.__qa.writes;
 
 Pins, Verlauf und Entwürfe verwenden in dieser Simulation den separaten Arbeitsbereich `qa-cloud` / `qa-user` im lokalen Speicher. Die App speichert diese Daten bewusst je Jira-Konto und Instanz.
 
-
 ## Ticketlisten-Abfragen
 
 `window.__qaSearchRule = (jql, pageToken) => ({ delayMs, status, keys, nextPageToken })` steuert einzelne Suchanfragen: verzögern, mit HTTP-Status scheitern lassen, Treffer auf Schlüssel begrenzen oder eine Folgeseite ankündigen. Per `addInitScript` gesetzt wirkt die Regel schon auf die erste Anfrage. `issue-query-states.e2e.ts` prüft damit Platzhalter nach Abfragewechsel, schnelle Wechsel, fehlgeschlagene Aktualisierung, ersten Ladefehler und fehlgeschlagenes Weiterladen. Mit `ISSUE_QUERY_SHOTS=<Ordner>` speichert der Test Screenshots.
@@ -211,3 +210,9 @@ Der vollständige Ablaufbericht einschließlich Vielnutzer, sorgfältigem Leser,
 
 - Direktlink auf eine nicht vorhandene Ansicht: `...fixture.html?route=/gibt-es-nicht?token=test`. Kopfzeile und Seitenleiste bleiben, die Seite zeigt weder Pfad noch Parameter, die URL bleibt unverändert. „Zurück“ erscheint nur nach einer Navigation innerhalb der App.
 - Automatisch: `bunx playwright test tests/browser/not-found.e2e.ts --workers=1`; mit `NOT_FOUND_SHOTS=<Ordner>` zusätzlich Screenshots.
+
+## Tastaturzugang zum Hauptinhalt
+
+- Beim ersten Tab erscheint „Zum Inhalt“; Enter fokussiert den benannten Hauptbereich (`main` „Hauptinhalt“) ohne Hash, Verlaufseintrag oder Scrollsprung.
+- Nach einem Seitenwechsel wird der Hauptbereich nur fokussiert, wenn der Fokus durch den Wechsel verloren ging (z. B. Link im Inhalt, Zurück/Vorwärts). Fokus in Seitenleiste, Kopfzeile, Dialogen oder auf „Erneut versuchen“ bleibt stehen, ebenso bei Query-Wechsel und Aktualisieren.
+- Automatisch: `bunx playwright test tests/browser/main-content-focus.e2e.ts --workers=1`.
