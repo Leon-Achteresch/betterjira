@@ -1,5 +1,11 @@
 # Änderungen
 
+## 0.7.0 – 2026-11-06
+
+### Neu
+
+- Hauptnavigation und persönliche Jira-Tickets (#2)
+
 ## 0.6.0 – 2026-11-06
 
 ### Neu
