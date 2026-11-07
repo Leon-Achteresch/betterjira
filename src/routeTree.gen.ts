@@ -18,6 +18,7 @@ import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SucheRouteImport } from './routes/suche'
 import { Route as TicketsRouteImport } from './routes/tickets'
 import { Route as ZeiterfassungRouteImport } from './routes/zeiterfassung'
+import { Route as BereicheIndexRouteImport } from './routes/bereiche/index'
 import { Route as BereicheKeyRouteImport } from './routes/bereiche/$key'
 import { Route as FilterIdRouteImport } from './routes/filter/$id'
 import { Route as IssueKeyRouteImport } from './routes/issue/$key'
@@ -71,6 +72,11 @@ const TicketsRoute = TicketsRouteImport.update({
 const ZeiterfassungRoute = ZeiterfassungRouteImport.update({
   id: '/zeiterfassung',
   path: '/zeiterfassung',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BereicheIndexRoute = BereicheIndexRouteImport.update({
+  id: '/bereiche/',
+  path: '/bereiche/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const BereicheKeyRoute = BereicheKeyRouteImport.update({
@@ -137,6 +143,7 @@ export interface FileRoutesByFullPath {
   '/settings/code-hosting': typeof SettingsCodeHostingRoute
   '/settings/darstellung': typeof SettingsDarstellungRoute
   '/settings/verbindungen': typeof SettingsVerbindungenRoute
+  '/bereiche/': typeof BereicheIndexRoute
   '/settings/': typeof SettingsIndexRoute
 }
 export interface FileRoutesByTo {
@@ -156,6 +163,7 @@ export interface FileRoutesByTo {
   '/settings/code-hosting': typeof SettingsCodeHostingRoute
   '/settings/darstellung': typeof SettingsDarstellungRoute
   '/settings/verbindungen': typeof SettingsVerbindungenRoute
+  '/bereiche': typeof BereicheIndexRoute
   '/settings': typeof SettingsIndexRoute
 }
 export interface FileRoutesById {
@@ -177,6 +185,7 @@ export interface FileRoutesById {
   '/settings/code-hosting': typeof SettingsCodeHostingRoute
   '/settings/darstellung': typeof SettingsDarstellungRoute
   '/settings/verbindungen': typeof SettingsVerbindungenRoute
+  '/bereiche/': typeof BereicheIndexRoute
   '/settings/': typeof SettingsIndexRoute
 }
 export interface FileRouteTypes {
@@ -199,6 +208,7 @@ export interface FileRouteTypes {
     | '/settings/code-hosting'
     | '/settings/darstellung'
     | '/settings/verbindungen'
+    | '/bereiche/'
     | '/settings/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -218,6 +228,7 @@ export interface FileRouteTypes {
     | '/settings/code-hosting'
     | '/settings/darstellung'
     | '/settings/verbindungen'
+    | '/bereiche'
     | '/settings'
   id:
     | '__root__'
@@ -238,6 +249,7 @@ export interface FileRouteTypes {
     | '/settings/code-hosting'
     | '/settings/darstellung'
     | '/settings/verbindungen'
+    | '/bereiche/'
     | '/settings/'
   fileRoutesById: FileRoutesById
 }
@@ -254,6 +266,7 @@ export interface RootRouteChildren {
   BereicheKeyRoute: typeof BereicheKeyRoute
   FilterIdRoute: typeof FilterIdRoute
   IssueKeyRoute: typeof IssueKeyRoute
+  BereicheIndexRoute: typeof BereicheIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -319,6 +332,13 @@ declare module '@tanstack/react-router' {
       path: '/zeiterfassung'
       fullPath: '/zeiterfassung'
       preLoaderRoute: typeof ZeiterfassungRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/bereiche/': {
+      id: '/bereiche/'
+      path: '/bereiche'
+      fullPath: '/bereiche/'
+      preLoaderRoute: typeof BereicheIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/bereiche/$key': {
@@ -422,6 +442,7 @@ const rootRouteChildren: RootRouteChildren = {
   BereicheKeyRoute: BereicheKeyRoute,
   FilterIdRoute: FilterIdRoute,
   IssueKeyRoute: IssueKeyRoute,
+  BereicheIndexRoute: BereicheIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

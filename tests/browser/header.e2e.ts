@@ -147,16 +147,20 @@ test("Weitere Aktionen verwalten geöffnete Tickets bei 390 px ohne Tastenkürze
 test("Geöffnete Tickets im Menü sind per Tastatur bedienbar", async ({ page }) => {
   await openBusy(page, 390);
   const more = tools(page).getByRole("button", { name: "Weitere Aktionen" });
+  const menuItems = page.getByRole("menu").locator('[role^="menuitem"]:not([aria-disabled="true"])');
   await more.focus();
   await page.keyboard.press("Enter");
   await expect(page.getByRole("menu")).toBeVisible();
+  await expect(menuItems.first()).toBeFocused();
   if (await page.evaluate(() => matchMedia("(prefers-reduced-motion: reduce)").matches)) {
     expect(await page.getByRole("menu").evaluate((menu) => getComputedStyle(menu).animationName)).toBe("none");
   }
-  for (let step = 0; step < 20; step++) {
-    const name = await page.evaluate(() => document.activeElement?.textContent ?? "");
-    if (name.startsWith("DEMO-6")) break;
+  const count = await menuItems.count();
+  for (let step = 1; step <= count; step++) {
+    const next = menuItems.nth(step % count);
     await page.keyboard.press("ArrowDown");
+    await expect(next).toBeFocused();
+    if ((await next.textContent())?.startsWith("DEMO-6")) break;
   }
   await expect(page.getByRole("menuitemradio", { name: /^DEMO-6 / })).toBeFocused();
   await page.keyboard.press("Enter");
@@ -166,6 +170,7 @@ test("Geöffnete Tickets im Menü sind per Tastatur bedienbar", async ({ page })
 
   await page.keyboard.press("Enter");
   await expect(page.getByRole("menu")).toBeVisible();
+  await expect(menuItems.first()).toBeFocused();
   await page.keyboard.press("Escape");
   await expect(page.getByRole("menu")).toBeHidden();
   await expect(more).toBeFocused();

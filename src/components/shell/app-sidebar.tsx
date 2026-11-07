@@ -7,12 +7,14 @@ import {
   EyeOffIcon,
   ExternalLinkIcon,
   FunnelIcon,
+  LayoutGridIcon,
   ListIcon,
   SearchIcon,
   SquareKanbanIcon,
   StarIcon,
   StarOffIcon,
 } from "lucide-react";
+import { Tooltip } from "@/components/motion/tooltip";
 import { ProjectStatsDialog } from "@/components/project-stats/project-stats-dialog";
 import { PrimaryNav } from "@/components/shell/primary-nav";
 import { ProfileMenu } from "@/components/shell/profile-menu";
@@ -30,6 +32,7 @@ import {
   SidebarContent,
   SidebarFooter,
   SidebarGroup,
+  SidebarGroupAction,
   SidebarGroupContent,
   SidebarGroupLabel,
   SidebarHeader,
@@ -43,12 +46,14 @@ import {
   SidebarMenuSubItem,
   SidebarMenuBadge,
   SidebarMenuSkeleton,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import { useJiraProjectBoards, useJiraSite, type JiraProject } from "@/lib/jira/queries";
 import { useProfileMenu } from "@/hooks/jira/use-profile-menu";
 import { useProjectStats } from "@/hooks/jira/use-project-stats";
 import { useSidebarSearch } from "@/hooks/use-sidebar-search";
 import { useProjectPrefs } from "@/lib/project-prefs";
+import { cn } from "@/lib/utils";
 
 function ProjectBoards({ projectKey }: { projectKey: string }) {
   const boards = useJiraProjectBoards(projectKey);
@@ -173,17 +178,18 @@ function ProjectMenu({ projects }: { projects: JiraProject[] }) {
   );
 }
 
-function Section({ label, count, children }: { label: string; count?: number; children: ReactNode }) {
+function Section({ label, count, action, children }: { label: string; count?: number; action?: ReactNode; children: ReactNode }) {
   return (
     <Collapsible defaultOpen className="group/collapsible">
       <SidebarGroup className="py-1">
         <SidebarGroupLabel asChild>
-          <CollapsibleTrigger className="gap-1 uppercase tracking-wider hover:text-sidebar-foreground">
+          <CollapsibleTrigger className={cn("gap-1 uppercase tracking-wider hover:text-sidebar-foreground", action && "pr-9")}>
             <ChevronRightIcon className="transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
             {label}
             {count !== undefined && <span className="ml-auto font-normal tabular-nums">{count}</span>}
           </CollapsibleTrigger>
         </SidebarGroupLabel>
+        {action}
         <CollapsibleContent>
           <SidebarGroupContent>{children}</SidebarGroupContent>
         </CollapsibleContent>
@@ -209,6 +215,7 @@ export function AppSidebar() {
   const search = useSidebarSearch();
   const profile = useProfileMenu();
   const { projects, filters } = search;
+  const { isMobile, setOpenMobile } = useSidebar();
 
   return (
     <Sidebar className="top-(--app-header-height) h-[calc(100svh-var(--app-header-height))] border-r-sidebar-border/60">
@@ -236,7 +243,19 @@ export function AppSidebar() {
                 <ProjectMenu projects={projects.favorites} />
               </Section>
             )}
-            <Section label="Bereiche" count={projects.loaded ? projects.others.length : undefined}>
+            <Section
+              label="Bereiche"
+              count={projects.loaded ? projects.others.length : undefined}
+              action={
+                <Tooltip content="Alle Bereiche" side="right">
+                  <SidebarGroupAction asChild className="top-1 right-1 size-8">
+                    <Link to="/bereiche" search={{}} aria-label="Alle Bereiche" onClick={() => isMobile && setOpenMobile(false)}>
+                      <LayoutGridIcon />
+                    </Link>
+                  </SidebarGroupAction>
+                </Tooltip>
+              }
+            >
               {projects.isPending ? (
                 <MenuSkeleton />
               ) : search.searching && projects.visible.length === 0 ? (
