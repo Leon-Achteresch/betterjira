@@ -1,8 +1,9 @@
 import { useMemo } from "react";
-import { useQueries, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueries, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { openUrl } from "@tauri-apps/plugin-opener";
 import { Effect } from "effect";
+import { toast } from "sonner";
+import { openExternalLink } from "@/lib/external-links/client";
 import { scmKeys } from "@/lib/scm/client";
 import { providerFor } from "@/lib/scm/provider";
 import { pullRequestsEmptyText } from "@/lib/scm/pull-request-empty";
@@ -34,6 +35,10 @@ type PullRequestsPageStatus = "loading" | "unconfigured" | "unlinked" | "ready";
 export const usePullRequestsPage = (search: PullRequestsSearch) => {
   const navigate = useNavigate({ from: "/pull-requests" });
   const queryClient = useQueryClient();
+  const opener = useMutation({
+    mutationFn: (url: string) => Effect.runPromise(openExternalLink(url)),
+    onError: () => toast.error("Link konnte nicht geöffnet werden."),
+  });
   const { connections, gh } = useScmConnections();
   const repoLinks = useScmSettings((state) => state.repoLinks);
   const targets = useMemo(() => pullRequestTargets(repoLinks, connections), [repoLinks, connections]);
@@ -129,6 +134,6 @@ export const usePullRequestsPage = (search: PullRequestsSearch) => {
     },
     onChecksReset: () => setSearch({ checks: undefined }, false),
     onRefresh: () => void queryClient.invalidateQueries({ queryKey: scmKeys.pullRequestsAll }),
-    onOpen: (url: string) => void openUrl(url),
+    onOpen: (url: string) => opener.mutate(url),
   };
 };
