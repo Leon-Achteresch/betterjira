@@ -120,6 +120,13 @@ const ENTRY_ORDERS: Record<WorkspacePageSort, EntryOrder> = {
 export const sortWorkspaceEntries = (entries: readonly WorkspaceEntry[], sort: WorkspacePageSort): WorkspaceEntry[] =>
   [...entries].sort(ENTRY_ORDERS[sort]);
 
+export const visibleWorkspaceEntries = (
+  entries: readonly WorkspaceEntry[],
+  filter: WorkspacePageFilter,
+  query: string,
+  sort: WorkspacePageSort,
+) => sortWorkspaceEntries(filterWorkspaceEntries(entries, filter, query), sort);
+
 const EMPTY_STATES: Record<WorkspacePageFilter, { title: string; description: string }> = {
   alle: {
     title: "Noch kein Arbeitskontext",
