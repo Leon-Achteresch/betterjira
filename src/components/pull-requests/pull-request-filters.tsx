@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { format } from "date-fns";
-import { RefreshCwIcon, SearchIcon, XIcon } from "lucide-react";
+import { ArrowDownUpIcon, RefreshCwIcon, SearchIcon, XIcon } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { NAV_TAB_CLASS, NavTabIndicator, NavTabs } from "@/components/motion/nav-tabs";
 import { Tooltip } from "@/components/motion/tooltip";
@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "@/components/ui/input-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { EASE_OUT } from "@/lib/ease";
+import { PULL_REQUEST_SORTS, PULL_REQUEST_SORT_LABELS, type PullRequestSort } from "@/lib/scm/pull-request-sort";
 import { PULL_REQUEST_STATUSES, PULL_REQUEST_STATUS_LABELS, type PullRequestStatus } from "@/lib/scm/pull-requests";
 import { cn } from "@/lib/utils";
 
@@ -16,6 +17,7 @@ const ALL_REPOS = "all";
 type PullRequestFiltersProps = {
   filter: PullRequestStatus;
   query: string;
+  sort: PullRequestSort;
   repo: string;
   repoOptions: Array<{ value: string; label: string }>;
   count: number;
@@ -24,6 +26,7 @@ type PullRequestFiltersProps = {
   updatedAt: Date | null;
   onQueryChange: (query: string) => void;
   onRepoChange: (repo: string) => void;
+  onSortChange: (sort: string) => void;
   onRefresh: () => void;
 };
 
@@ -90,6 +93,19 @@ export function PullRequestFilters(props: PullRequestFiltersProps) {
             {props.repoOptions.map((option) => (
               <SelectItem key={option.value} value={option.value}>
                 {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={props.sort} onValueChange={props.onSortChange}>
+          <SelectTrigger aria-label="Sortieren" className="h-8 max-w-64 min-w-40 rounded-xl *:data-[slot=select-value]:flex-1">
+            <ArrowDownUpIcon className="text-muted-foreground" />
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {PULL_REQUEST_SORTS.map((sort) => (
+              <SelectItem key={sort} value={sort}>
+                {PULL_REQUEST_SORT_LABELS[sort]}
               </SelectItem>
             ))}
           </SelectContent>

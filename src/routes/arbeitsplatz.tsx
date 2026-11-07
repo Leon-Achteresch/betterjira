@@ -36,6 +36,7 @@ function Arbeitsplatz() {
           ready={page.ready}
           filter={page.filter}
           query={page.query}
+          sort={page.sort}
           total={page.total}
           counts={page.counts}
           entries={page.entries}
@@ -43,6 +44,7 @@ function Arbeitsplatz() {
           recentLimit={page.recentLimit}
           searchFor={page.searchFor}
           onQueryChange={page.changeQuery}
+          onSortChange={page.changeSort}
           onTogglePin={page.togglePin}
         />
       </SessionGate>

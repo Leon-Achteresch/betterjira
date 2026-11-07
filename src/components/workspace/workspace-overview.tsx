@@ -1,25 +1,29 @@
 import { Link } from "@tanstack/react-router";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { InboxIcon, SearchIcon } from "lucide-react";
+import { ArrowDownUpIcon, InboxIcon, SearchIcon } from "lucide-react";
 import { NAV_TAB_CLASS, NavTabIndicator, NavTabs } from "@/components/motion/nav-tabs";
 import { Stagger, StaggerItem } from "@/components/motion/stagger";
 import { WorkspaceEntryRow } from "@/components/workspace/workspace-entry-row";
 import { Button } from "@/components/ui/button";
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EASE_OUT, SPRING_LAYOUT } from "@/lib/ease";
 import {
   WORKSPACE_PAGE_FILTERS,
+  WORKSPACE_PAGE_SORTS,
   type WorkspaceEntry,
   type WorkspacePageFilter,
   type WorkspacePageSearch,
+  type WorkspacePageSort,
 } from "@/lib/workspace-page";
 
 type WorkspaceOverviewProps = {
   ready: boolean;
   filter: WorkspacePageFilter;
   query: string;
+  sort: WorkspacePageSort;
   total: number;
   counts: Record<WorkspacePageFilter, number>;
   entries: readonly WorkspaceEntry[];
@@ -27,6 +31,7 @@ type WorkspaceOverviewProps = {
   recentLimit: number;
   searchFor: (filter: WorkspacePageFilter) => WorkspacePageSearch;
   onQueryChange: (value: string) => void;
+  onSortChange: (value: string) => void;
   onTogglePin: (entry: WorkspaceEntry) => void;
 };
 
@@ -34,7 +39,7 @@ export function WorkspaceOverview(props: WorkspaceOverviewProps) {
   const reduce = useReducedMotion();
   return (
     <div className="flex flex-col gap-5">
-      <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+      <div className="flex flex-col gap-3">
         <NavTabs id="workspace-filters" label="Arbeitskontexte filtern" className="md:border-b-0">
           {WORKSPACE_PAGE_FILTERS.map(({ id, label }) => (
             <Link
@@ -50,18 +55,33 @@ export function WorkspaceOverview(props: WorkspaceOverviewProps) {
             </Link>
           ))}
         </NavTabs>
-        <InputGroup className="md:max-w-72">
-          <InputGroupAddon>
-            <SearchIcon />
-          </InputGroupAddon>
-          <InputGroupInput
-            type="search"
-            aria-label="Arbeitsplatz durchsuchen"
-            placeholder="Ticket, Notiz oder Entwurf …"
-            value={props.query}
-            onChange={(event) => props.onQueryChange(event.target.value)}
-          />
-        </InputGroup>
+        <div className="flex w-full max-w-md min-w-0 gap-2">
+          <InputGroup className="flex-1">
+            <InputGroupAddon>
+              <SearchIcon />
+            </InputGroupAddon>
+            <InputGroupInput
+              type="search"
+              aria-label="Arbeitsplatz durchsuchen"
+              placeholder="Ticket, Notiz oder Entwurf …"
+              value={props.query}
+              onChange={(event) => props.onQueryChange(event.target.value)}
+            />
+          </InputGroup>
+          <Select value={props.sort} onValueChange={props.onSortChange}>
+            <SelectTrigger aria-label="Sortierung" className="shrink-0 rounded-xl">
+              <ArrowDownUpIcon className="text-muted-foreground" />
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent position="popper" align="end" className="motion-reduce:animate-none!">
+              {WORKSPACE_PAGE_SORTS.map(({ id, label }) => (
+                <SelectItem key={id} value={id} className="min-h-8">
+                  {label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
       <p aria-live="polite" className="sr-only">
         {props.ready ? `${props.entries.length} Arbeitskontexte` : ""}
