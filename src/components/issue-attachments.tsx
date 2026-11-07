@@ -1,10 +1,11 @@
 import { useRef, useState } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { FileIcon, PaperclipIcon, SearchXIcon } from "lucide-react";
+import { ArrowDownUpIcon, FileIcon, PaperclipIcon, SearchXIcon } from "lucide-react";
 import { SearchField } from "@/components/motion/search-field";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
@@ -12,6 +13,7 @@ import { useAttachmentFilter } from "@/hooks/use-attachment-filter";
 import { useJiraAttachmentImage, useJiraUploadAttachments } from "@/hooks/jira/use-issue-mutations";
 import { ATTACHMENT_KINDS, type AttachmentKind, attachmentName } from "@/lib/attachment-filter";
 import { EASE_OUT, SPRING_LAYOUT } from "@/lib/ease";
+import { useAttachmentSort } from "@/hooks/use-attachment-sort";
 import { type JiraIssueDetail, useJiraSite } from "@/lib/jira/queries";
 
 type Attachment = NonNullable<JiraIssueDetail["fields"]["attachment"]>[number];
@@ -138,6 +140,7 @@ export function IssueAttachments({ issueKey, attachments }: { issueKey: string; 
   const input = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<Attachment>();
   const filter = useAttachmentFilter(attachments);
+  const sort = useAttachmentSort(issueKey, attachments);
   const reduce = useReducedMotion();
 
   const open = (attachment: Attachment) => {
@@ -159,9 +162,26 @@ export function IssueAttachments({ issueKey, attachments }: { issueKey: string; 
           onReset={filter.reset}
         />
       )}
+      {attachments.length > 1 && (
+        <div className="flex justify-end">
+          <Select value={sort.mode} onValueChange={sort.select}>
+            <SelectTrigger aria-label="Anhänge sortieren" className="max-w-full rounded-xl">
+              <ArrowDownUpIcon className="text-muted-foreground" />
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent position="popper" align="end" className="rounded-2xl motion-reduce:animate-none!">
+              {sort.options.map((option) => (
+                <SelectItem key={option.value} value={option.value} className="min-h-8 rounded-xl">
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
       {attachments.length > 0 && (
         <ul aria-label="Anhänge" className="grid grid-cols-[repeat(auto-fill,minmax(9rem,1fr))] gap-3">
-          {attachments.map((attachment) => (
+          {sort.sorted.map((attachment) => (
             <motion.li
               key={attachment.id}
               layout={!reduce}
