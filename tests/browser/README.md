@@ -116,6 +116,7 @@ Der vollständige Ablaufbericht einschließlich Vielnutzer, sorgfältigem Leser,
 - Inbox mit lokal gespeicherten QA-Benachrichtigungen: `...fixture.html?scenario=notifications&route=/benachrichtigungen` (Filter über `?ansicht=beobachtet`, `?nur=ungelesen`, `?suche=`). Die Einträge sind reine Testdaten im lokalen Speicher, es werden keine Jira-Benachrichtigungen erzeugt.
 - Fremdes Konto im lokalen Speicher: `scenario=notifications-foreign`. Die Seite zeigt keine Einträge des anderen Kontos.
 - Automatisch: `bunx playwright test tests/browser/notifications.e2e.ts --workers=1`.
+- „Jetzt prüfen“: `window.__qaSearchRule` darf zusätzlich `issues` zurückgeben; die Suche antwortet dann mit genau diesen Test-Tickets, etwa einem frischen Kommentar als neue Aktivität. `notification-refresh.e2e.ts` prüft damit manuellen Abruf, letzten erfolgreichen Stand, keinen doppelten Abruf bei Doppelklick oder gleichzeitigem Poll, Fehler mit Retry bei erhaltenen Filtern, Offline/pausiert, Abmeldung, Tastatur und 390 px dunkel. Mit `NOTIFICATION_REFRESH_SHOTS=<Ordner>` entstehen Screenshots.
 
 ## Pull Requests
 

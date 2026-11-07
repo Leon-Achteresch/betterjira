@@ -1,7 +1,7 @@
-import { formatDistanceToNow } from "date-fns";
+import { format, formatDistanceToNow } from "date-fns";
 import { de } from "date-fns/locale";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { BellIcon, CheckCheck, SearchXIcon } from "lucide-react";
+import { BellIcon, CheckCheck, RefreshCwIcon, SearchXIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { SearchField } from "@/components/motion/search-field";
 import { Stagger, StaggerItem } from "@/components/motion/stagger";
@@ -11,11 +11,14 @@ import { UnreadCount } from "@/components/notifications/unread-count";
 import { Alert, AlertAction, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
+import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { KIND_LABELS, type FeedGroup, type FeedSection, type NotificationKind } from "@/lib/jira/notification-feed";
 import type { JiraNotification } from "@/lib/jira/notifications";
+import type { NotificationSyncPhase } from "@/lib/jira/notification-sync";
 import { EASE_OUT } from "@/lib/ease";
+import { cn } from "@/lib/utils";
 
 type Props = {
   kind: NotificationKind;
@@ -23,7 +26,7 @@ type Props = {
   query: string;
   hasItems: boolean;
   checkedAt: number | null;
-  sync: { failed: boolean; errorMessage: string; checking: boolean; retry: () => void };
+  sync: { phase: NotificationSyncPhase; failed: boolean; errorMessage: string; checking: boolean; retry: () => void };
   unreadByKind: Record<NotificationKind, number>;
   sections: FeedSection<JiraNotification>[];
   scopeUnread: number;
@@ -35,6 +38,13 @@ type Props = {
   toggleGroupRead: (group: FeedGroup<JiraNotification>) => void;
   openItem: (item: JiraNotification) => void;
   openExternal: (issueKey: string) => void;
+};
+
+const SYNC_STATUS: Record<NotificationSyncPhase, string> = {
+  ready: "",
+  checking: "Prüft auf neue Aktivität …",
+  offline: "Offline, Prüfung wartet auf Verbindung",
+  unavailable: "Keine aktive Jira-Sitzung",
 };
 
 const EMPTY_KIND: Record<NotificationKind, string> = {
@@ -162,10 +172,57 @@ export function NotificationInbox(props: Props) {
           </Button>
         </Tooltip>
       </div>
-      <p className="text-xs text-muted-foreground">
-        Lokal erfasste Aktivität auf diesem Gerät, keine vollständige Jira-Inbox
-        {props.checkedAt !== null && ` · zuletzt geprüft ${formatDistanceToNow(props.checkedAt, { addSuffix: true, locale: de })}`}
-      </p>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+        <p className="min-w-0 flex-1 basis-64 text-xs text-muted-foreground">
+          Lokal erfasste Aktivität auf diesem Gerät, keine vollständige Jira-Inbox
+          {props.checkedAt !== null && (
+            <>
+              {" · zuletzt erfolgreich geprüft "}
+              <time
+                dateTime={new Date(props.checkedAt).toISOString()}
+                title={format(props.checkedAt, "dd.MM.yyyy, HH:mm:ss")}
+                className="tabular-nums"
+              >
+                {formatDistanceToNow(props.checkedAt, { addSuffix: true, locale: de })}
+              </time>
+            </>
+          )}
+        </p>
+        <div className="ml-auto flex min-w-0 items-center gap-2">
+          <span role="status" className="min-w-0 text-right text-xs text-muted-foreground">
+            <AnimatePresence mode="wait" initial={false}>
+              {SYNC_STATUS[props.sync.phase] && (
+                <motion.span
+                  key={props.sync.phase}
+                  className="block"
+                  initial={{ opacity: 0, y: reduce ? 0 : 4 }}
+                  animate={{ opacity: 1, y: 0, transition: { duration: 0.16, ease: EASE_OUT } }}
+                  exit={{ opacity: 0, transition: { duration: 0.1, ease: EASE_OUT } }}
+                >
+                  {SYNC_STATUS[props.sync.phase]}
+                </motion.span>
+              )}
+            </AnimatePresence>
+          </span>
+          <Tooltip content={SYNC_STATUS[props.sync.phase] || "Jira jetzt auf neue Aktivität prüfen"} side="bottom">
+            <Button
+              variant="outline"
+              size="sm"
+              className={cn("h-8 rounded-xl", (props.sync.phase === "offline" || props.sync.phase === "unavailable") && "opacity-50")}
+              aria-disabled={props.sync.phase !== "ready"}
+              aria-busy={props.sync.checking}
+              onClick={props.sync.retry}
+            >
+              {props.sync.checking ? (
+                <Spinner role={undefined} aria-label={undefined} aria-hidden className="motion-reduce:animate-none" />
+              ) : (
+                <RefreshCwIcon />
+              )}
+              Jetzt prüfen
+            </Button>
+          </Tooltip>
+        </div>
+      </div>
       <AnimatePresence initial={false}>
         {props.sync.failed && (
           <motion.div

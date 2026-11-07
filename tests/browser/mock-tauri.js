@@ -618,11 +618,12 @@ const respond = async (request) => {
     const qa = window.__qa;
     qa.searches.push(url.searchParams.get("jql"));
     const rule = window.__qaSearchRule?.(url.searchParams.get("jql") ?? "", url.searchParams.get("nextPageToken")) ?? {};
+    await rule.waitFor;
     const delayMs = rule.delayMs ?? qa.searchDelayMs;
     if (delayMs) await new Promise((resolve) => setTimeout(resolve, delayMs));
     if (rule.status) return { status: rule.status, body: { errorMessages: [`Test: Jira antwortet mit ${rule.status}`] } };
     if (qa.failSearch) return { status: 400, body: { errorMessages: ["Test: Abfrage nicht möglich"] } };
-    const found = rule.keys ? issues.filter((issue) => rule.keys.includes(issue.key)) : issues;
+    const found = rule.issues ?? (rule.keys ? issues.filter((issue) => rule.keys.includes(issue.key)) : issues);
     return { body: { issues: qa.emptySearch ? [] : found, isLast: !rule.nextPageToken, nextPageToken: rule.nextPageToken } };
   }
   if (scenario === "board" && /^\/board\/\d+\/configuration/.test(path))
