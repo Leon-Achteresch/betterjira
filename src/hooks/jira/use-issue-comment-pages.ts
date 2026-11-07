@@ -5,7 +5,6 @@ import {
   commentPageKeys,
   fetchCommentPage,
   initialCommentPosition,
-  nextCommentPosition,
   summarizeCommentThread,
   type CommentPage,
   type JiraComment,
@@ -32,13 +31,15 @@ export function useIssueCommentPages(issueKey: string, comments: readonly JiraCo
   currentScope.current = scopeKey;
   const statusRef = useRef<HTMLParagraphElement>(null);
   const first: CommentPage = { ...paging, comments, requestedAt: 0 };
+  const currentFirst = useRef(first);
+  currentFirst.current = first;
   const start = initialCommentPosition(first);
 
   const query = useInfiniteQuery({
     queryKey,
     queryFn: ({ pageParam, signal }) => Effect.runPromise(withJiraQueryScope(queryClient, scope, fetchCommentPage(issueKey, pageParam)), { signal }),
     initialPageParam: start ?? 0,
-    getNextPageParam: nextCommentPosition,
+    getNextPageParam: (_last, pages) => summarizeCommentThread(first, pages).next,
     enabled: !!cloudId && !!accountId && requested,
     staleTime: Infinity,
     refetchOnMount: false,
@@ -60,8 +61,8 @@ export function useIssueCommentPages(issueKey: string, comments: readonly JiraCo
       : query.fetchNextPage({ cancelRefetch: false });
     setRequest({ scope: scopeKey, requested: true });
     const result = await pending;
-    const last = result.data?.pages.at(-1);
-    if (hadFocus && currentScope.current === scopeKey && last && nextCommentPosition(last) === undefined && !result.isError)
+    if (hadFocus && currentScope.current === scopeKey && result.data && !result.isError
+      && summarizeCommentThread(currentFirst.current, result.data.pages).next === undefined)
       statusRef.current?.focus();
   };
 

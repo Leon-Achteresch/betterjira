@@ -268,6 +268,31 @@ test("fehlgeschlagene Aktualisierung nach dem Senden bleibt sichtbar und Retry l
   expect((await qa(page)).writes.filter((write) => write.path.endsWith("/comment"))).toHaveLength(1);
 });
 
+test("nach Rückkehr laden zuvor vollständige Cache-Seiten neue Kommentare ohne automatischen Seitenabruf nach", async ({ page }) => {
+  await page.goto(ISSUE("DEMO-1"));
+  await more(page).click();
+  await expect(items(page)).toHaveCount(7);
+  await page.locator("section").filter({ has: page.getByRole("heading", { name: /^Verknüpfungen/ }) })
+    .getByRole("group", { name: "blocks", exact: true })
+    .getByRole("link", { name: /DEMO-2/ }).click();
+  await expect(page).toHaveURL(/\/issue\/DEMO-2$/);
+  await page.goBack();
+  await expect(page).toHaveURL(/\/issue\/DEMO-1$/);
+  await expect(items(page)).toHaveCount(7);
+  expect(await startsOf(page)).toEqual([2]);
+  await editor(page).fill("QA: Neuer Kommentar nach Rückkehr");
+  await editor(page).focus();
+  await page.keyboard.press("Control+Enter");
+  await expect(editor(page)).toHaveValue("");
+  await expect(progress(page)).toHaveText("7 von 8 Kommentaren geladen");
+  await expect(more(page)).toBeVisible();
+  expect(await startsOf(page)).toEqual([2]);
+  await more(page).click();
+  await expect(items(page)).toHaveCount(8);
+  await expect(progress(page)).toHaveText("Alle 8 Kommentare geladen");
+  expect(await startsOf(page)).toEqual([2, 7]);
+});
+
 test("Tastatur und 390 px dunkel ohne Seitenüberlauf", async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.emulateMedia({ colorScheme: "dark", reducedMotion: "reduce" });

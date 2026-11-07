@@ -49,7 +49,7 @@ export const summarizeCommentThread = (first: CommentPage, pages: readonly Comme
   }, undefined);
   const loaded = byId.size;
   const total = reported === undefined ? undefined : Math.max(reported, loaded);
-  const next = last ? nextCommentPosition(last) : initialCommentPosition(first);
+  const next = last ? nextCommentPosition({ ...last, total: reported }) : initialCommentPosition(first);
   return {
     comments: [...byId.values()],
     loaded,

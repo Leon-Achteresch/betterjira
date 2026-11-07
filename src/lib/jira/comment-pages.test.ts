@@ -77,6 +77,14 @@ describe("summarizeCommentThread", () => {
     expect(commentProgressLabel(thread)).toBe("2 von 7 Kommentaren geladen · Jira liefert keine weiteren");
   });
 
+  it("setzt nach einer inzwischen gewachsenen Gesamtzahl hinter zuvor vollständigen Cache-Seiten fort", () => {
+    const cached = page(2, ["c3", "c4", "c5", "c6", "c7"], { startAt: 2, total: 7 });
+    const current = page(0, ["c1", "c2"], { startAt: 0, total: 8 });
+    expect(summarizeCommentThread(current, [cached])).toMatchObject({ loaded: 7, total: 8, next: 7, incomplete: false });
+    expect(summarizeCommentThread(current, [cached, page(7, ["c8"], { startAt: 7, total: 8 })]))
+      .toMatchObject({ loaded: 8, total: 8, next: undefined, incomplete: false });
+  });
+
   it("bewahrt die höchste bekannte Gesamtzahl, aber nie weniger als geladen", () => {
     const detail = page(0, ["c1", "c2"], { total: 3 });
     expect(summarizeCommentThread(detail, [page(2, ["c3"], { total: 9 })]).total).toBe(9);
