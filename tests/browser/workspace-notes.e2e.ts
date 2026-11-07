@@ -185,6 +185,24 @@ test("Leeren entfernt nur die Notiz, Fokus folgt dem Filter und Rückgängig ste
   expect(await jiraWrites(page)).toBe(0);
 });
 
+test("Änderung im zweiten Fenster erscheint schon vor dem Öffnen des Editors", async ({ page, context }) => {
+  await open(page);
+  const other = await context.newPage();
+  await other.clock.setFixedTime(new Date("2026-11-06T12:00:00.000Z"));
+  await open(other);
+  await startEditing(other, "DEMO-4", "bearbeiten");
+  await field(other).fill("Vor dem Öffnen geändert");
+  await saveShortcut(other);
+  await expect(dialog(other)).toBeHidden();
+  await other.close();
+  await expect(row(page, "DEMO-4")).toContainText("Vor dem Öffnen geändert");
+  await startEditing(page, "DEMO-4", "bearbeiten");
+  await expect(field(page)).toHaveValue("Vor dem Öffnen geändert");
+  await expect(dialog(page).getByRole("alert")).toHaveCount(0);
+  await page.keyboard.press("Escape");
+  expect(await jiraWrites(page)).toBe(0);
+});
+
 test("Änderung an anderer Stelle wird angeboten statt still überschrieben", async ({ page, context }) => {
   await open(page);
   await startEditing(page, "DEMO-4", "bearbeiten");

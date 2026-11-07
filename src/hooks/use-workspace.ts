@@ -44,7 +44,7 @@ export function useWorkspace() {
   const site = useJiraSite();
   const myself = useJiraMyself();
   const id =
-    site.data && myself.data
+    site.isSuccess && myself.isSuccess && site.data && myself.data
       ? workspaceId(site.data.cloudId, myself.data.accountId)
       : undefined;
   const workspace = useWorkspaceStore((state) =>
@@ -68,6 +68,7 @@ export function useWorkspaceStorageSync(active: boolean) {
       if (event.key === WORKSPACE_STORAGE_KEY) void useWorkspaceStore.persist.rehydrate();
     };
     window.addEventListener("storage", sync);
+    void useWorkspaceStore.persist.rehydrate();
     return () => window.removeEventListener("storage", sync);
   }, [active]);
 }

@@ -21,16 +21,18 @@ export function useWorkspaceNoteEditor(visible: readonly WorkspaceEntry[]) {
   const updateScope = useWorkspaceStore((state) => state.update);
   const [edit, setEdit] = useState<NoteEdit | null>(null);
   const [draft, setDraft] = useState("");
+  const currentScope = useRef(id);
+  currentScope.current = id;
   const returnTo = useRef<{ key: string; order: readonly string[] } | null>(null);
   if (edit && edit.scope !== id) setEdit(null);
   const session = activeNoteEdit(edit, id);
   const stored = session ? storedNote(workspace, session.key) : "";
   const conflict = session ? noteConflict(session.base, stored, draft) : null;
-  useWorkspaceStorageSync(!!session);
+  useWorkspaceStorageSync(!!id);
   const close = () => setEdit((current) => current && { ...current, closed: true });
 
   const save = () => {
-    if (!session) return;
+    if (!session || session.scope !== currentScope.current) return;
     const { scope, key, base } = session;
     const previous = storedNote(useWorkspaceStore.getState().workspaces[scope] ?? EMPTY_WORKSPACE, key);
     if (noteConflict(base, previous, draft) !== null) return;
@@ -57,7 +59,7 @@ export function useWorkspaceNoteEditor(visible: readonly WorkspaceEntry[]) {
     dirty: !!session && draft !== session.base,
     setDraft,
     start: (entry: WorkspaceEntry) => {
-      if (!id) return;
+      if (!id || id !== currentScope.current) return;
       const base = storedNote(workspace, entry.key);
       returnTo.current = { key: entry.key, order: visible.map((item) => item.key) };
       setDraft(base);

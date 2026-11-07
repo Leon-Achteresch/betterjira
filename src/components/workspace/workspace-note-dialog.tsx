@@ -81,10 +81,10 @@ export function WorkspaceNoteDialog(props: WorkspaceNoteDialogProps) {
                       {props.conflict || "Notiz wurde entfernt."}
                     </span>
                     <span className="flex flex-wrap gap-2">
-                      <Button type="button" variant="outline" size="sm" onClick={props.onTakeLatest}>
+                      <Button type="button" variant="outline" size="sm" className="min-h-8" onClick={props.onTakeLatest}>
                         Aktuellen Stand übernehmen
                       </Button>
-                      <Button type="button" variant="ghost" size="sm" onClick={props.onKeepMine}>
+                      <Button type="button" variant="ghost" size="sm" className="min-h-8" onClick={props.onKeepMine}>
                         Meinen Entwurf behalten
                       </Button>
                     </span>
