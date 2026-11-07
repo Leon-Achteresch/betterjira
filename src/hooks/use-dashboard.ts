@@ -1,5 +1,7 @@
 import { useAttentionStatus } from "@/hooks/attention/use-attention-status";
+import { useDeviceOnline } from "@/hooks/connections/use-device-online";
 import { useJiraSession } from "@/hooks/jira/use-jira-session";
+import { dashboardFreshness, freshnessSource } from "@/lib/dashboard-freshness";
 import {
   useJiraLogin,
   useJiraMyWork,
@@ -18,6 +20,8 @@ export function useDashboard() {
   const login = useJiraLogin();
   const attention = useAttentionStatus();
   const { favoriteIds } = useProjectPrefs();
+  const online = useDeviceOnline();
+  const showsFavorites = favoriteIds.length > 0;
   const now = new Date();
   const firstName = myself.data?.displayName.split(" ")[0];
   const issues = work.data?.issues ?? [];
@@ -39,11 +43,24 @@ export function useDashboard() {
         fraction: activeCount / group.length,
       };
     });
+  const freshness = dashboardFreshness({
+    primary: freshnessSource("Tickets", work),
+    secondary: [freshnessSource("Profil", myself), ...(showsFavorites ? [freshnessSource("Favoriten", projects)] : [])],
+    online,
+  });
+  const refresh = () => {
+    if (session.status !== "connected" || (freshness.kind === "ready" && freshness.refreshing)) return;
+    void work.refetch({ cancelRefetch: false });
+    void myself.refetch({ cancelRefetch: false });
+    if (showsFavorites) void projects.refetch({ cancelRefetch: false });
+  };
   return {
     session,
     login,
     attention,
-    work,
+    freshness,
+    refresh,
+    now,
     active,
     next,
     done,

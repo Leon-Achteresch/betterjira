@@ -247,3 +247,9 @@ Der vollständige Ablaufbericht einschließlich Vielnutzer, sorgfältigem Leser,
 ## Bereiche sortieren
 
 `http://localhost:1420/tests/browser/fixture.html?scenario=projects&route=/bereiche?sort=name` öffnet die Bereichsübersicht direkt mit Sortierung. Gültige Werte für `sort`: `name`, `schluessel`, `favoriten`; ohne Parameter oder bei unbekanntem Wert gilt die geladene Reihenfolge. `projects.e2e.ts` prüft Reihenfolge je Sortierung, Tastaturbedienung, URL mit Suche und Ansicht, Zurück/Vorwärts, Direktlink, dass Zeilen beim Umordnen nicht neu eingehängt werden und dass keine zusätzlichen Projekt-, Board- oder Ticketanfragen entstehen. Die Fixture-Daten bleiben unverändert.
+
+## Übersicht aktualisieren
+
+- Übersicht: `...fixture.html?route=/`. Der Knopf neben dem Stand lädt Tickets und Profil (bei Favoriten auch die Bereiche) erneut; während des Abrufs löst ein weiterer Klick keinen zweiten Abruf aus.
+- `window.__qaSearchRule = (jql) => jql.includes("resolved >= -7d") ? { status: 400 } : {}` lässt nur die Arbeitsliste scheitern (Teilfehler), zusammen mit `window.__qa.failMyself = true` scheitern alle Abfragen. Geladene Tickets bleiben sichtbar, der Stand bleibt beim letzten erfolgreichen Abruf.
+- Automatisch: `bunx playwright test tests/browser/dashboard-refresh.e2e.ts --workers=1` prüft initiales Laden, Initialfehler mit Retry, Aktualisieren und Doppelklick, vollständigen und teilweisen Refreshfehler mit Retry, leere Liste mit Fehler, offline/online sowie Tastatur und 390 px. `DASHBOARD_SHOTS=<Ordner>` speichert Screenshots.
