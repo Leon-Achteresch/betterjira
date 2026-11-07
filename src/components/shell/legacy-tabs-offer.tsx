@@ -1,6 +1,5 @@
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { ArchiveRestoreIcon, PinIcon } from "lucide-react";
-import { useState } from "react";
 import { Tooltip } from "@/components/motion/tooltip";
 import { Button } from "@/components/ui/button";
 import {
@@ -23,6 +22,8 @@ export type LegacyTabsOfferData = {
   siteName: string;
   onAdopt: () => void;
   onDiscard: () => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 };
 
 type LegacyTabsOfferProps = {
@@ -34,11 +35,6 @@ const MotionButton = motion.create(Button);
 
 export function LegacyTabsOffer({ offer, className }: LegacyTabsOfferProps) {
   const reduce = useReducedMotion();
-  const [open, setOpen] = useState(false);
-  const run = (action: () => void) => {
-    setOpen(false);
-    action();
-  };
 
   return (
     <AnimatePresence initial={false}>
@@ -51,7 +47,7 @@ export function LegacyTabsOffer({ offer, className }: LegacyTabsOfferProps) {
           exit={{ opacity: 0, transition: { duration: 0.12, ease: EASE_OUT } }}
           className={cn("flex shrink-0 items-center px-1", className)}
         >
-          <Popover open={open} onOpenChange={setOpen}>
+          <Popover open={offer.open} onOpenChange={offer.onOpenChange}>
             <Tooltip content="Tabs aus früherer Version übernehmen oder verwerfen" side="bottom">
               <PopoverTrigger asChild>
                 <MotionButton
@@ -90,10 +86,10 @@ export function LegacyTabsOffer({ offer, className }: LegacyTabsOfferProps) {
                 ) : null}
               </ul>
               <div className="flex justify-end gap-2">
-                <Button variant="ghost" size="sm" className="h-8 rounded-xl" onClick={() => run(offer.onDiscard)}>
+                <Button variant="ghost" size="sm" className="h-8 rounded-xl" onClick={offer.onDiscard}>
                   Verwerfen
                 </Button>
-                <Button size="sm" className="h-8 rounded-xl" onClick={() => run(offer.onAdopt)}>
+                <Button size="sm" className="h-8 rounded-xl" onClick={offer.onAdopt}>
                   Übernehmen
                 </Button>
               </div>

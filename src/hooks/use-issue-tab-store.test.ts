@@ -3,7 +3,7 @@ import { adoptLegacyTabs, undoLegacyAdoption, withKeys } from "@/lib/issue-tab-s
 
 const STORAGE_KEY = "betterjira-issue-tabs";
 const A = JSON.stringify(["cloud-a", "user-a"]);
-const B = JSON.stringify(["cloud-b", "user-a"]);
+const B = JSON.stringify(["cloud-a", "user-b"]);
 const LEGACY = { keys: ["DEMO-3", "DEMO-1", "DEMO-2"], pinned: ["DEMO-1"] };
 
 let storage = new Map<string, string>();
@@ -12,14 +12,16 @@ let writes = 0;
 const load = async (raw?: string) => {
   storage = new Map(raw === undefined ? [] : [[STORAGE_KEY, raw]]);
   writes = 0;
-  vi.stubGlobal("localStorage", {
+  const localStorage = {
     getItem: (key: string) => storage.get(key) ?? null,
     setItem: (key: string, value: string) => {
       writes++;
       storage.set(key, value);
     },
     removeItem: (key: string) => storage.delete(key),
-  });
+  };
+  vi.stubGlobal("localStorage", localStorage);
+  vi.stubGlobal("window", { localStorage });
   vi.resetModules();
   const { useIssueTabStore } = await import("./use-issue-tab-store");
   return useIssueTabStore;
@@ -112,13 +114,32 @@ describe("useIssueTabStore", () => {
   it("remembers a loaded issue only in the given confirmed scope, once", async () => {
     const store = await load();
     store.getState().remember(A, "DEMO-3");
+    expect(writes).toBe(0);
+    expect(store.getState().workspaces[A]).toBeUndefined();
+    store.getState().setScope(A);
+    store.getState().remember(A, "DEMO-3");
     const count = writes;
     store.getState().remember(A, "DEMO-3");
     expect(writes).toBe(count);
-    expect(store.getState().keys).toEqual([]);
     expect(store.getState().workspaces[B]).toBeUndefined();
-    store.getState().setScope(A);
     expect(store.getState().keys).toEqual(["DEMO-3"]);
+  });
+
+  it("ignores compatibility actions captured before an account switch", async () => {
+    const store = await load();
+    store.getState().setScope(A);
+    store.getState().open("DEMO-1");
+    const old = store.getState();
+    store.getState().setScope(B);
+    store.getState().open("DEMO-5");
+    const before = storage.get(STORAGE_KEY);
+    old.open("DEMO-2");
+    old.close("DEMO-5");
+    old.togglePin("DEMO-5");
+    old.setKeys([]);
+    old.remember(A, "DEMO-3");
+    expect(storage.get(STORAGE_KEY)).toBe(before);
+    expect(store.getState().keys).toEqual(["DEMO-5"]);
   });
 
   it("adopts legacy tabs with order and pins, undo restores the quarantine", async () => {

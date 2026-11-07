@@ -74,7 +74,7 @@ export function AppHeader() {
           onCloseOthers={closeOthers}
           onCloseRight={closeRight}
         />
-        <LegacyTabsOffer offer={legacyTabs} />
+        <LegacyTabsOffer offer={legacyTabs} className="max-sm:hidden" />
       </div>
       <div className="flex shrink-0 lg:w-72">
         <AppCommandPalette />
@@ -103,6 +103,7 @@ export function AppHeader() {
           onOpenTab={openTab}
           onCloseTab={closeTab}
           onTogglePin={togglePin}
+          legacy={legacyTabs}
         />
       </nav>
       {USE_CUSTOM_WINDOW_CONTROLS ? <WindowControls /> : null}

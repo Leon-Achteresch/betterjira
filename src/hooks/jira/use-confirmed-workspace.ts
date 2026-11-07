@@ -8,6 +8,5 @@ export function useConfirmedWorkspace() {
   return {
     id: workspaceId(site.data.cloudId, myself.data.accountId),
     siteName: site.data.siteName,
-    confirmedAt: site.dataUpdatedAt,
   };
 }

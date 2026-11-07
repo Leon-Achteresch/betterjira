@@ -589,6 +589,7 @@ const respond = async (request) => {
   }
   window.__qaReads?.push(path);
   if (path === "/myself") {
+    if (window.__qaMyselfGate) await window.__qaMyselfGate;
     window.__qa.myselfCalls++;
     if (window.__qa.myselfDelayMs) await new Promise((resolve) => setTimeout(resolve, window.__qa.myselfDelayMs));
     if (window.__qa.failMyself) return { status: 503, body: { errorMessages: ["Test: Jira vorübergehend nicht erreichbar"] } };

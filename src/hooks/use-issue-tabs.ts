@@ -1,6 +1,6 @@
-import { useQueries } from "@tanstack/react-query";
+import { useQueries, useQueryClient } from "@tanstack/react-query";
 import { useMatch, useNavigate } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useConfirmedWorkspace } from "@/hooks/jira/use-confirmed-workspace";
 import { useIssueTabStore } from "@/hooks/use-issue-tab-store";
@@ -8,7 +8,6 @@ import {
   EMPTY_TAB_SET,
   adoptLegacyTabs,
   discardLegacyTabs,
-  issueLoadedInScope,
   legacyTabsLabel,
   restoreLegacyTabs,
   tabsOf,
@@ -18,7 +17,9 @@ import {
   withPinToggled,
 } from "@/lib/issue-tab-scopes";
 import { issueKeyFromHref, keepOthers, keepUntil, neighborTab, orderTabs } from "@/lib/issue-tabs";
-import { issueQuery, useJiraIssue, useJiraSite } from "@/lib/jira/queries";
+import { issueQuery, useJiraSite } from "@/lib/jira/queries";
+import { useJiraIssue } from "@/hooks/jira/use-jira-issue";
+import { useJiraQueryScope } from "@/hooks/jira/use-jira-query-scope";
 
 export { useIssueTabStore } from "@/hooks/use-issue-tab-store";
 
@@ -31,8 +32,10 @@ export const useIssueTabs = () => {
   const activeKey = useMatch({ from: "/issue/$key", shouldThrow: false })?.params.key;
   const navigate = useNavigate();
   const site = useJiraSite();
+  const { scope } = useJiraQueryScope();
+  const queryClient = useQueryClient();
   const ordered = orderTabs(keys, pinned);
-  const issues = useQueries({ queries: ordered.map((key) => ({ ...issueQuery(key), enabled: !!site.data })) });
+  const issues = useQueries({ queries: ordered.map((key) => issueQuery(key, scope, queryClient)) });
 
   const tabs = ordered.map((key, index) => ({
     key,
@@ -86,9 +89,8 @@ export const useRememberIssueTab = (key: string) => {
   const workspace = useConfirmedWorkspace();
   const issue = useJiraIssue(key);
   const id = workspace?.id;
-  const loaded =
-    !!workspace &&
-    issueLoadedInScope({ loaded: issue.isSuccess, loadedAt: issue.dataUpdatedAt, confirmedAt: workspace.confirmedAt });
+  const current = useIssueTabStore((state) => state.scope);
+  const loaded = !!id && current === id && !!issue.data;
 
   useEffect(() => {
     if (id && loaded) useIssueTabStore.getState().remember(id, key);
@@ -97,11 +99,15 @@ export const useRememberIssueTab = (key: string) => {
 
 export const useLegacyIssueTabs = () => {
   const workspace = useConfirmedWorkspace();
+  const [dialog, setDialog] = useState({ scope: workspace?.id, open: false });
+  if (dialog.scope !== workspace?.id) setDialog({ scope: workspace?.id, open: false });
+  const setOpen = (open: boolean) => setDialog({ scope: workspace?.id, open });
   const legacy = useIssueTabStore((state) => (workspace && state.scope === workspace.id ? state.legacy : undefined));
   if (!workspace || !legacy) return undefined;
   const { id } = workspace;
 
   const adopt = () => {
+    setOpen(false);
     const store = useIssueTabStore.getState();
     const taken = store.legacy;
     if (!store.isCurrent(id) || !taken) return;
@@ -116,6 +122,7 @@ export const useLegacyIssueTabs = () => {
   };
 
   const discard = () => {
+    setOpen(false);
     const store = useIssueTabStore.getState();
     const taken = store.legacy;
     if (!store.isCurrent(id) || !taken) return;
@@ -133,6 +140,8 @@ export const useLegacyIssueTabs = () => {
     pinned: legacy.pinned,
     label: legacyTabsLabel(legacy.keys.length),
     siteName: workspace.siteName,
+    open: dialog.scope === id && dialog.open,
+    onOpenChange: setOpen,
     onAdopt: adopt,
     onDiscard: discard,
   };

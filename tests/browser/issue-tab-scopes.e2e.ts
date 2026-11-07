@@ -2,6 +2,9 @@ import { expect, test, type Page, type TestInfo } from "@playwright/test";
 
 declare global {
   interface Window {
+    __qaMyselfGate?: Promise<void>;
+    __qaReleaseMyselfGate?: () => void;
+    __qaSearchRule?: (jql: string) => { keys?: string[] };
     __qaMyselfRule?: () => { delayMs?: number; status?: number };
     __qaIssueRule?: (key: string) => { delayMs?: number; status?: number };
   }
@@ -51,11 +54,14 @@ const logout = async (page: Page) => {
 const shot = async (page: Page, testInfo: TestInfo, name: string) => {
   const dir = process.env.ISSUE_TAB_SCOPE_SHOTS;
   if (!dir) return;
-  await page.evaluate(() => document.fonts.ready);
-  expect(await page.evaluate(() => document.fonts.check('12px "Geist Variable"'))).toBe(true);
-  await page.waitForFunction(() => document.getAnimations().every((animation) => animation.playState !== "running"));
+  expect(await page.evaluate(async () => {
+    await document.fonts.load('12px "Geist Variable"');
+    await document.fonts.ready;
+    return [...document.fonts].some((face) => face.family.includes("Geist") && face.status === "loaded");
+  })).toBe(true);
+  await page.waitForFunction(() => document.getAnimations().filter((animation) => animation.effect?.getTiming().iterations !== Infinity).every((animation) => animation.playState !== "running"));
   await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
-  await page.screenshot({ path: `${dir}/${testInfo.project.name}-${name}.png` });
+  await page.screenshot({ path: `${dir}/${testInfo.project.name}-${name}.png`, animations: "disabled" });
 };
 
 test.beforeEach(async ({ page }) => {
@@ -83,18 +89,38 @@ test("A, B und zurück zu A: Tabs bleiben je Konto und Instanz getrennt, gleiche
   expect((await stored(page)).workspaces[A]).toEqual({ keys: ["DEMO-1", "DEMO-2"], pinned: ["DEMO-2"] });
 });
 
+test("Zwei Konten derselben Instanz übernehmen weder Tabs noch Pins voneinander", async ({ page }) => {
+  const colleague = scope("qa-cloud", "qa-colleague");
+  await open(page);
+  await expect(tabs(page)).toHaveCount(1);
+  await tabs(page).first().click({ button: "right" });
+  await page.getByRole("menuitem", { name: "Anheften" }).click();
+  expect((await stored(page)).workspaces[A].pinned).toEqual(["DEMO-1"]);
+  await open(page, { route: "/", account: "qa-colleague" });
+  await expect(header(page).getByRole("button", { name: "Suchen" })).toBeVisible();
+  await expect(tabs(page)).toHaveCount(0);
+  await open(page, { account: "qa-colleague" });
+  await expect(tabs(page)).toHaveText([/^DEMO-1/]);
+  expect((await stored(page)).workspaces[colleague]).toEqual({ keys: ["DEMO-1"], pinned: [] });
+  await open(page, { route: "/" });
+  await expect(tabs(page)).toHaveText([/^DEMO-1$/]);
+  expect((await stored(page)).workspaces[A]).toEqual({ keys: ["DEMO-1"], pinned: ["DEMO-1"] });
+});
+
 test("Langsame Kontoprüfung zeigt keine Tabs und schreibt nichts, bis das Konto bestätigt ist", async ({ page }, testInfo) => {
   await seed(page, { [A]: { keys: ["DEMO-2", "DEMO-3"], pinned: [] } });
   await page.addInitScript(() => {
-    window.__qaMyselfRule = () => ({ delayMs: 2500 });
+    window.__qaMyselfGate = new Promise<void>((resolve) => { window.__qaReleaseMyselfGate = resolve; });
   });
   await open(page);
-  await expect(issueTitle(page, "Suche für den Arbeitsalltag vereinfachen")).toBeVisible();
+  await expect(page.getByLabel("Ticket wird geladen")).toBeVisible();
+  await expect(issueTitle(page, "Suche für den Arbeitsalltag vereinfachen")).toHaveCount(0);
   const before = await raw(page);
   await expect(tabs(page)).toHaveCount(0);
   await shot(page, testInfo, "pruefung-laeuft");
   expect(await raw(page)).toBe(before);
 
+  await page.evaluate(() => window.__qaReleaseMyselfGate?.());
   await expect(tabs(page)).toHaveText([/^DEMO-2/, /^DEMO-3/, /^DEMO-1/]);
 });
 
@@ -104,7 +130,7 @@ test("Fehlgeschlagene Kontoprüfung zeigt keine Tabs und schreibt nichts", async
     window.__qaMyselfRule = () => ({ status: 403 });
   });
   await open(page);
-  await expect(issueTitle(page, "Suche für den Arbeitsalltag vereinfachen")).toBeVisible();
+  await expect(page.getByRole("main").getByText("Die Kontoprüfung für dieses Ticket ist fehlgeschlagen.")).toBeVisible();
   const before = await raw(page);
   await page.keyboard.press("Control+1");
   await expect(tabs(page)).toHaveCount(0);
@@ -190,11 +216,14 @@ test("Alte globale Tabs bleiben in Quarantäne: übernehmen und verwerfen mit R�
 });
 
 test("Übernahme per Tastatur über die Command Palette", async ({ page }) => {
+  await page.addInitScript(() => { window.__qaSearchRule = () => ({ keys: [] }); });
   await open(page, { route: "/", scenario: "tabs-legacy" });
   await expect(offer(page)).toBeVisible();
   await page.keyboard.press("Control+k");
   await page.keyboard.type("frühere Tabs übernehmen");
-  await expect(page.getByRole("option", { name: /3 frühere Tabs übernehmen/ })).toBeVisible();
+  const option = page.getByRole("option", { name: /3 frühere Tabs übernehmen/ });
+  await expect(option).toBeVisible();
+  await expect(option).toHaveAttribute("aria-selected", "true");
   await page.keyboard.press("Enter");
   await expect(tabs(page)).toHaveText([/^DEMO-1$/, /^DEMO-3/, /^DEMO-2/]);
   await page.keyboard.press("Control+2");
@@ -204,25 +233,27 @@ test("Übernahme per Tastatur über die Command Palette", async ({ page }) => {
 test("390 px: Übernahme erreichbar, per Tastatur bedienbar, ohne Überdeckung", async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await open(page, { route: "/", scenario: "tabs-legacy" });
-  await expect(offer(page)).toBeVisible();
-  const box = await offer(page).boundingBox();
-  const search = await header(page).getByRole("button", { name: "Suchen" }).boundingBox();
-  expect(box!.width).toBeGreaterThanOrEqual(32);
-  expect(box!.x + box!.width).toBeLessThanOrEqual(search!.x + 1);
-  expect(box!.x + box!.width).toBeLessThanOrEqual(390);
-
-  await offer(page).focus();
+  await expect(offer(page)).toBeHidden();
+  const more = header(page).getByRole("button", { name: "Weitere Aktionen" });
+  await more.focus();
   await page.keyboard.press("Enter");
-  const popover = page.getByRole("dialog");
-  await expect(popover).toBeVisible();
-  const panel = await popover.boundingBox();
+  const menu = page.getByRole("menu");
+  const adopt = menu.getByRole("menuitem", { name: "3 frühere Tabs übernehmen", exact: true });
+  await expect(adopt).toBeVisible();
+  await expect.poll(async () => (await adopt.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(32);
+  const panel = await menu.boundingBox();
   expect(panel!.x).toBeGreaterThanOrEqual(0);
   expect(panel!.x + panel!.width).toBeLessThanOrEqual(390);
+  expect(await adopt.evaluate((element) => {
+    const box = element.getBoundingClientRect();
+    return element.contains(document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2));
+  })).toBe(true);
   await shot(page, testInfo, "390-uebernahme");
-  await popover.getByRole("button", { name: "Übernehmen" }).focus();
+  await adopt.focus();
   await page.keyboard.press("Enter");
-  await expect(offer(page)).toHaveCount(0);
+  await expect(menu).toHaveCount(0);
+  await expect(more).toBeFocused();
 
-  await header(page).getByRole("button", { name: "Weitere Aktionen" }).click();
+  await more.click();
   await expect(page.getByRole("group", { name: "Geöffnete Tickets" }).getByRole("menuitemradio")).toHaveCount(3);
 });

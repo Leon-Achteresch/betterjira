@@ -10,7 +10,8 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EASE_OUT } from "@/lib/ease";
 import { fieldText } from "@/lib/jira/field-text";
-import { type JiraIssueDetail, useJiraIssue } from "@/lib/jira/queries";
+import { type JiraIssueDetail } from "@/lib/jira/queries";
+import { useJiraIssue } from "@/hooks/jira/use-jira-issue";
 
 type PreviewUser = { displayName: string; avatarUrls: { "48x48": string } };
 
@@ -137,6 +138,7 @@ function PreviewBody({ issue }: { issue: JiraIssueDetail }) {
 
 function IssuePreview({ issueKey }: { issueKey: string }) {
   const issue = useJiraIssue(issueKey);
+  if (issue.scopeError) return <p className="text-sm text-muted-foreground">Die Kontoprüfung für die Ticketvorschau ist fehlgeschlagen.</p>;
 
   return (
     <span className="flex w-[28rem] max-w-full flex-col py-1 text-left">

@@ -3,7 +3,6 @@ import {
   EMPTY_TAB_SET,
   adoptLegacyTabs,
   discardLegacyTabs,
-  issueLoadedInScope,
   legacyTabsLabel,
   parseStoredIssueTabs,
   restoreLegacyTabs,
@@ -93,14 +92,5 @@ describe("legacy quarantine", () => {
   it("labels the count", () => {
     expect(legacyTabsLabel(1)).toBe("1 früherer Tab");
     expect(legacyTabsLabel(3)).toBe("3 frühere Tabs");
-  });
-});
-
-describe("issueLoadedInScope", () => {
-  it("counts only a successful load at or after the confirmed session", () => {
-    expect(issueLoadedInScope({ loaded: true, loadedAt: 20, confirmedAt: 10 })).toBe(true);
-    expect(issueLoadedInScope({ loaded: true, loadedAt: 10, confirmedAt: 10 })).toBe(true);
-    expect(issueLoadedInScope({ loaded: true, loadedAt: 5, confirmedAt: 10 })).toBe(false);
-    expect(issueLoadedInScope({ loaded: false, loadedAt: 20, confirmedAt: 10 })).toBe(false);
   });
 });

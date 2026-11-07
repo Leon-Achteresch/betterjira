@@ -115,13 +115,3 @@ export const restoreLegacyTabs = (stored: StoredIssueTabs, legacy: IssueTabSet):
 });
 
 export const legacyTabsLabel = (count: number) => `${count} ${count === 1 ? "früherer Tab" : "frühere Tabs"}`;
-
-export const issueLoadedInScope = ({
-  loaded,
-  loadedAt,
-  confirmedAt,
-}: {
-  loaded: boolean;
-  loadedAt: number;
-  confirmedAt: number;
-}) => loaded && loadedAt >= confirmedAt;

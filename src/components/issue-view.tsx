@@ -20,7 +20,9 @@ import { useIssueActions } from "@/hooks/use-issue-actions";
 import { useIssueDevelopmentPanel } from "@/hooks/scm/use-issue-development-panel";
 import { useIssueLinks } from "@/hooks/jira/use-issue-links";
 import { EASE_OUT } from "@/lib/ease";
-import { useJiraIssue, useJiraSite, type JiraIssueDetail } from "@/lib/jira/queries";
+import { useJiraSite, type JiraIssueDetail } from "@/lib/jira/queries";
+import { useJiraIssue } from "@/hooks/jira/use-jira-issue";
+import { SessionError } from "@/components/shell/session-error";
 import { cn } from "@/lib/utils";
 
 const VITALS = ["assignee", "reporter", "priority", "duedate", "labels"];
@@ -160,6 +162,7 @@ export function IssueView({ issueKey, initialTab }: { issueKey: string; initialT
     issue.data && { projectKey: issue.data.fields.project.key, summary: issue.data.fields.summary },
   );
 
+  if (issue.scopeError) return <SessionError message="Die Kontoprüfung für dieses Ticket ist fehlgeschlagen." retrying={issue.scopeFetching} onRetry={issue.retryScope} />;
   if (issue.error) {
     return (
       <p role="alert" className="text-sm text-destructive">

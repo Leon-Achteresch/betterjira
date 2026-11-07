@@ -44,26 +44,29 @@ export const useIssueTabStore = create<IssueTabsState>()(
       const editTabs = (scope: string | undefined, transform: (tabs: IssueTabSet) => IssueTabSet) => {
         if (isCurrent(scope)) set((state) => withView({ ...state, ...updateScopeTabs(state, scope, transform) }));
       };
-      const editCurrent = (transform: (tabs: IssueTabSet) => IssueTabSet) => editTabs(get().scope, transform);
+      const actionsFor = (scope: string | undefined) => ({
+        open: (key: string) => editTabs(scope, (tabs) => withTab(tabs, key)),
+        close: (key: string) => editTabs(scope, (tabs) => withoutTab(tabs, key)),
+        togglePin: (key: string) => editTabs(scope, (tabs) => withPinToggled(tabs, key)),
+        setKeys: (keys: readonly string[]) => editTabs(scope, (tabs) => withKeys(tabs, keys)),
+      });
       return {
         ...EMPTY_STORED_TABS,
         keys: [],
         pinned: [],
         scope: undefined,
         setScope: (scope) => {
-          if (get().scope !== scope) set((state) => withView({ ...state, scope }));
+          if (get().scope !== scope) set((state) => withView({ ...state, scope, ...actionsFor(scope) }));
         },
         isCurrent,
         edit,
         editTabs,
         remember: (scope, key) => {
+          if (!isCurrent(scope)) return;
           if (tabsOf(get(), scope).keys.includes(key)) return;
           set((state) => withView({ ...state, ...updateScopeTabs(state, scope, (tabs) => withTab(tabs, key)) }));
         },
-        open: (key) => editCurrent((tabs) => withTab(tabs, key)),
-        close: (key) => editCurrent((tabs) => withoutTab(tabs, key)),
-        togglePin: (key) => editCurrent((tabs) => withPinToggled(tabs, key)),
-        setKeys: (keys) => editCurrent((tabs) => withKeys(tabs, keys)),
+        ...actionsFor(undefined),
       };
     },
     {
