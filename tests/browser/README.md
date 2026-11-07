@@ -138,3 +138,9 @@ Der vollständige Ablaufbericht einschließlich Vielnutzer, sorgfältigem Leser,
 - Einstellungen: `...fixture.html?route=/settings/bereiche`. Alte globale Daten (`betterjira-favorites` mit `projectIds`/`hiddenProjectIds`) erscheinen dort als einmaliges Angebot „Übernehmen“/„Verwerfen“ (mit Rückgängig) und werden nie automatisch einem Konto zugeordnet.
 - `window.__qaMyselfDelayMs` und `window.__qaFailMyself` (per `addInitScript`) verzögern bzw. scheitern die erste Kontoprüfung (`/myself`).
 - Automatisch: `bunx playwright test tests/browser/project-prefs.e2e.ts --workers=1`; mit `PROJECT_PREFS_SHOTS=<Ordner>` zusätzlich Screenshots.
+
+## Bereichsübersicht
+
+- Sieben Testbereiche, ein Favorit (Betrieb) und ein in der Seitenleiste ausgeblendeter Bereich (Archiv 2024): `...fixture.html?scenario=projects&route=/bereiche`.
+- `window.__qaProjectRule = () => ({ delayMs, status, values })` steuert die Projektabfrage (verzögern, mit HTTP-Status scheitern, andere Bereiche liefern, etwa für einen Kontowechsel). `window.__qaReads`, per `addInitScript` als Array gesetzt, sammelt alle gelesenen Pfade.
+- Automatisch: `bunx playwright test tests/browser/projects.e2e.ts --workers=1` prüft Suche und Ansicht in der URL mit Zurück/Vorwärts, Favoriten synchron mit der Seitenleiste, ausgeblendete Bereiche, Ladefehler und fehlgeschlagene Aktualisierung mit Retry, Abmelden und Kontowechsel, Tastatur und Command Palette sowie Desktop hell und 390 px dunkel. Mit `PROJECTS_SHOTS=<Ordner>` speichert der Test Screenshots.

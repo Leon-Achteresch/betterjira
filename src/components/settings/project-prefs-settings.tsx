@@ -1,6 +1,6 @@
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { HistoryIcon, StarIcon } from "lucide-react";
-import { Tooltip } from "@/components/motion/tooltip";
+import { HistoryIcon } from "lucide-react";
+import { FavoriteButton } from "@/components/projects/favorite-button";
 import { ProjectAvatar } from "@/components/shell/project-avatar";
 import { Button } from "@/components/ui/button";
 import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemMedia, ItemTitle } from "@/components/ui/item";
@@ -86,18 +86,12 @@ export function ProjectPrefsList({
               <ItemDescription>{project.key}</ItemDescription>
             </ItemContent>
             <ItemActions>
-              <Tooltip content={favorite ? "Aus Favoriten entfernen" : "Favorisieren"}>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  disabled={disabled}
-                  aria-pressed={favorite}
-                  aria-label={favorite ? `${project.name} aus Favoriten entfernen` : `${project.name} favorisieren`}
-                  onClick={() => onToggleFavorite(project.id)}
-                >
-                  <StarIcon className={favorite ? "fill-current text-amber-500" : "text-muted-foreground"} />
-                </Button>
-              </Tooltip>
+              <FavoriteButton
+                name={project.name}
+                favorite={favorite}
+                disabled={disabled}
+                onToggle={() => onToggleFavorite(project.id)}
+              />
               <Switch
                 checked={shown}
                 disabled={disabled}
