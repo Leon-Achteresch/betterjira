@@ -15,10 +15,12 @@ import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { IssueActions } from "@/components/issues/issue-actions";
 import { IssueLinksPanel } from "@/components/issues/issue-links-panel";
+import { RemoteLinksPanel } from "@/components/issues/remote-links-panel";
 import { useIssueReadingPosition } from "@/hooks/use-issue-reading-position";
 import { useIssueActions } from "@/hooks/use-issue-actions";
 import { useIssueDevelopmentPanel } from "@/hooks/scm/use-issue-development-panel";
 import { useIssueLinks } from "@/hooks/jira/use-issue-links";
+import { useRemoteLinks } from "@/hooks/jira/use-remote-links";
 import { EASE_OUT } from "@/lib/ease";
 import { useJiraIssue, useJiraSite, type JiraIssueDetail } from "@/lib/jira/queries";
 import { cn } from "@/lib/utils";
@@ -155,6 +157,7 @@ export function IssueView({ issueKey, initialTab }: { issueKey: string; initialT
   useIssueReadingPosition(issueKey, !!issue.data);
   const actions = useIssueActions(issue.data, site.data?.siteUrl, initialTab);
   const links = useIssueLinks(issueKey);
+  const remoteLinks = useRemoteLinks(issueKey);
   const development = useIssueDevelopmentPanel(
     issueKey,
     issue.data && { projectKey: issue.data.fields.project.key, summary: issue.data.fields.summary },
@@ -245,6 +248,10 @@ export function IssueView({ issueKey, initialTab }: { issueKey: string; initialT
             onRetry={links.retry}
           />
         </Section>
+
+        <motion.div variants={reveal(reduce)}>
+          <RemoteLinksPanel {...remoteLinks} />
+        </motion.div>
 
         <Section title={`Kommentare · ${comments.length}`}>
           <IssueComments key={issue.data.key} issueKey={issue.data.key} comments={comments} />

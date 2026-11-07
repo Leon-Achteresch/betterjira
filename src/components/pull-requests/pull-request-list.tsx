@@ -1,40 +1,23 @@
-import { CircleAlertIcon, ExternalLinkIcon, GitPullRequestIcon, RotateCwIcon } from "lucide-react";
+import { CircleAlertIcon, ExternalLinkIcon, RotateCwIcon } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { Stagger, StaggerItem } from "@/components/motion/stagger";
 import { PullRequestRow } from "@/components/development/pull-request-row";
 import { Button } from "@/components/ui/button";
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { Skeleton } from "@/components/ui/skeleton";
-import { EASE_OUT } from "@/lib/ease";
+import { EASE_OUT, SPRING_LAYOUT } from "@/lib/ease";
+import { fadeProps } from "@/lib/motion/fade-props";
 import { PULL_REQUEST_LIST_LIMIT } from "@/lib/scm/model";
-import type { ListedPullRequest, PullRequestRepoState } from "@/lib/scm/pull-requests";
+import type { PullRequestListProps } from "@/types/pull-requests";
+import { PullRequestsEmpty } from "./pull-requests-empty";
 
-type PullRequestListProps = {
-  pullRequests: ListedPullRequest[];
-  repos: PullRequestRepoState[];
-  filterLabel: string;
-  query: string;
-  onOpen: (url: string) => void;
-};
-
-const fade = (reduce: boolean | null) => ({
-  initial: { opacity: 0, y: reduce ? 0 : 4 },
-  animate: { opacity: 1, y: 0 },
-  exit: { opacity: 0, transition: { duration: 0.12 } },
-  transition: { duration: 0.2, ease: EASE_OUT },
-});
-
-export function PullRequestList({ pullRequests, repos, filterLabel, query, onOpen }: PullRequestListProps) {
+export function PullRequestList({ pullRequests, failedRepos: failed, truncatedRepos: truncated, waiting, empty, emptyText, onOpen, onChecksReset }: PullRequestListProps) {
   const reduce = useReducedMotion();
-  const failed = repos.filter((repo) => repo.error !== null);
-  const truncated = repos.flatMap(({ id, repo, truncated, browseUrl }) => (truncated && browseUrl ? [{ id, repo, browseUrl }] : []));
-  const waiting = repos.some((repo) => repo.status === "loading");
 
   return (
     <div className="flex flex-col gap-3">
       <AnimatePresence initial={false}>
         {failed.map((repo) => (
-          <motion.div key={`error:${repo.id}`} layout={!reduce} {...fade(reduce)}>
+          <motion.div key={`error:${repo.id}`} layout={!reduce} {...fadeProps(reduce)}>
             <div role="alert" className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-destructive/20 bg-destructive/10 px-3 py-2 text-sm">
               <CircleAlertIcon className="size-4 shrink-0 text-destructive" />
               <span className="min-w-0 flex-1 text-destructive">
@@ -51,7 +34,7 @@ export function PullRequestList({ pullRequests, repos, filterLabel, query, onOpe
 
       <AnimatePresence mode="wait" initial={false}>
         {pullRequests.length === 0 && waiting ? (
-          <motion.div key="loading" aria-busy="true" aria-label="Pull Requests werden geladen" className="flex flex-col gap-2" {...fade(reduce)}>
+          <motion.div key="loading" aria-busy="true" aria-label="Pull Requests werden geladen" className="flex flex-col gap-2" {...fadeProps(reduce)}>
             {[0, 1, 2, 3].map((index) => (
               <div key={index} className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 px-2 py-2">
                 <Skeleton className="size-4 rounded-full" />
@@ -64,27 +47,25 @@ export function PullRequestList({ pullRequests, repos, filterLabel, query, onOpe
             ))}
           </motion.div>
         ) : pullRequests.length === 0 ? (
-          <motion.div key="empty" {...fade(reduce)}>
-            <Empty className="rounded-2xl border border-dashed py-10">
-              <EmptyHeader>
-                <EmptyMedia variant="icon">
-                  <GitPullRequestIcon />
-                </EmptyMedia>
-                <EmptyTitle className="text-balance">
-                  {query ? `Keine Treffer für „${query}“` : `Keine Pull Requests mit Status „${filterLabel}“`}
-                </EmptyTitle>
-                <EmptyDescription>
-                  {failed.length > 0 ? "Einige Repositories konnten nicht geladen werden." : "Durchsucht werden alle verknüpften Repositories."}
-                </EmptyDescription>
-              </EmptyHeader>
-            </Empty>
+          <motion.div key={`empty:${empty ?? "status"}`} {...fadeProps(reduce)}>
+            <PullRequestsEmpty
+              title={emptyText.title}
+              description={emptyText.description}
+              onChecksReset={empty === "checks" ? onChecksReset : undefined}
+            />
           </motion.div>
         ) : (
-          <motion.div key="list" {...fade(reduce)}>
+          <motion.div key="list" {...fadeProps(reduce)}>
             <Stagger role="list" aria-busy={waiting || undefined} className="-mx-2 flex flex-col">
               <AnimatePresence initial={false}>
                 {pullRequests.map((entry) => (
-                  <StaggerItem key={entry.pr.url} role="listitem" layout={!reduce} exit={{ opacity: 0, transition: { duration: 0.12 } }}>
+                  <StaggerItem
+                    key={entry.pr.url}
+                    role="listitem"
+                    layout={!reduce}
+                    transition={{ layout: SPRING_LAYOUT }}
+                    exit={{ opacity: 0, transition: { duration: 0.12, ease: EASE_OUT } }}
+                  >
                     <PullRequestRow pr={entry.pr} repo={entry.repo} onOpen={onOpen} />
                   </StaggerItem>
                 ))}
@@ -96,8 +77,8 @@ export function PullRequestList({ pullRequests, repos, filterLabel, query, onOpe
 
       <AnimatePresence initial={false}>
         {truncated.length > 0 && (
-          <motion.div key="truncated" layout={!reduce} {...fade(reduce)} className="flex flex-col gap-1 rounded-xl bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
-            <p>Je Repository und Status werden die {PULL_REQUEST_LIST_LIMIT} zuletzt aktualisierten Pull Requests geladen. Weitere gibt es in:</p>
+          <motion.div key="truncated" layout={!reduce} {...fadeProps(reduce)} className="flex flex-col gap-1 rounded-xl bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
+            <p>Je Repository und Status werden die {PULL_REQUEST_LIST_LIMIT} zuletzt aktualisierten Pull Requests geladen; Suche, Prüfstatus und Sortierung gelten nur für diese. Weitere gibt es in:</p>
             <ul className="flex flex-wrap gap-1">
               {truncated.map((repo) => (
                 <li key={repo.id}>

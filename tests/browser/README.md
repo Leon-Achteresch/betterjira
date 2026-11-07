@@ -92,11 +92,27 @@ Der vollständige Ablaufbericht einschließlich Vielnutzer, sorgfältigem Leser,
 
 `DEMO-1` hat lokale Testverknüpfungen in beide Richtungen (`blocks`, `is blocked by`, `relates to`), ein Ticket ohne Felder (`OPS-7`), einen doppelten Eintrag und eine unlesbare Verknüpfung. `window.__qaIssueLinksRule = (key) => ({ delayMs, status, issuelinks })` steuert die Abfrage `GET /issue/{key}?fields=issuelinks`; `window.__qa.issueReads` protokolliert alle gelesenen Ticketpfade. Automatisch: `bunx playwright test tests/browser/issue-links.e2e.ts --workers=1` (mit `ISSUE_LINKS_SHOTS=<Ordner>` zusätzlich Screenshots).
 
+## Externe Links
+
+`DEMO-1` hat lokale Test-Remote-Links (`GET /issue/{key}/remotelink`): eine Confluence-Seite, eine erledigte Spezifikation mit langem Titel und HTML-Text, ein `javascript:`-Ziel, ein fehlendes Ziel, ein Ziel mit Zugangsdaten und einen unlesbaren Eintrag. `DEMO-2` hat keine. Der Abschnitt ist eingeklappt und fragt erst beim Aufklappen an. `window.__qaRemoteLinksRule = (key) => ({ delayMs, status, links })` steuert die Abfrage, `window.__qa.opened` enthält die per Opener geöffneten Ziele; es wird keine echte Seite geöffnet. Automatisch: `bunx playwright test tests/browser/remote-links.e2e.ts --workers=1` (mit `REMOTE_LINKS_SHOTS=<Ordner>` zusätzlich Screenshots).
+
 ## Ticketsuche
 
 - Einfache Suche: `...fixture.html?route=/suche` (alle Projekte), `?route=/suche?projekt=DEMO&q=Übergabe` (Projekt und Text aus der URL), JQL-Modus: `?route=/suche?modus=jql` oder alte Links `?route=/suche?jql=...`.
 - `window.__qaProjects` (per `addInitScript`) ersetzt die simulierte Projektliste, z. B. für die Projektwahl mit mehreren Projekten.
 - Automatisch: `bunx playwright test tests/browser/simple-search.e2e.ts --workers=1`; mit `SIMPLE_SEARCH_SHOTS=<Ordner>` zusätzlich Screenshots.
+
+## Suche in geladenen Rollouts
+
+- Kalender mit lokalen QA-Rollouts: `...fixture.html?scenario=rollout-search&route=/kalender` (Produktion Release 2.4 mit `DEMO-1`, Datenbank Migration im Dezember mit `OPS-7`, Wartungsfenster mit Sonderzeichen, zehn Hotfix-Releases im Oktober). Die Rollouts werden nur angelegt, wenn der lokale Speicher noch keine Rollouts enthält; sie sind reine Testdaten und werden nicht nach Outlook oder Jira geschrieben.
+- Suchtext aus der URL: `?route=/kalender?q=Migration`. Die Suche durchsucht nur die bereits geladenen Rollouts nach Titel, Notiz und Ticket-Schlüssel, keine Outlook-Termine und kein Jira.
+- Automatisch: `bunx playwright test tests/browser/rollout-search.e2e.ts --workers=1` prüft Trefferliste ohne Änderung an Kalender und Tagesagenda, mehrere Wörter, Groß/Klein und Sonderzeichen, Tageswahl in anderen Monaten, „Weitere anzeigen“ mit Zurücksetzen bei neuer Suche, keine zusätzlichen Lese- oder Schreibzugriffe durch Eingabe, URL mit Zurück/Vorwärts und Zurücksetzen, Ladefehler, Tastatur sowie 390 px hell und dunkel. Mit `ROLLOUT_SEARCH_SHOTS=<Ordner>` speichert der Test Screenshots.
+
+## Rollout als Vorlage duplizieren
+
+- Kalender mit zwei lokalen QA-Rollouts: `...fixture.html?scenario=rollout-duplicate&route=/kalender`. „Produktion Release 2.4“ ist mit dem simulierten Outlook-Kalender verknüpft (`DEMO-1`, Notiz, Erinnerung 1 Stunde), „Partner-Rollout“ gehört zu einer fremden Jira-Site (`EXT-4`). Das Szenario legt die Daten nur an, wenn der lokale Speicher noch keine Rollouts enthält; es sind reine Testdaten ohne Outlook- oder Jira-Schreibzugriff.
+- „Weitere Aktionen“ am Rollout → „Als Vorlage duplizieren“ öffnet den bekannten Dialog mit „(Kopie)“ im Titel und übernommenem Inhalt. Erst „Anlegen“ speichert einen neuen lokalen Rollout mit neuer ID und ohne Outlook-Verknüpfung; „Abbrechen“ und Escape schreiben nichts.
+- Automatisch: `bunx playwright test tests/browser/rollout-duplicate.e2e.ts --workers=1` prüft vorbefüllte Werte, keine Schreibzugriffe vor dem Speichern oder beim Abbrechen, genau einen neuen Eintrag bei doppeltem Absenden, unverändertes Original, keine Outlook- und Jira-Schreibaufrufe, ehrliche Anzeige der fremden Site ohne zusätzliche Ticketsuche, Tastatur, Tooltip, 32 px Trefferfläche sowie Desktop hell und 390 px hell und dunkel. Mit `ROLLOUT_DUPLICATE_SHOTS=<Ordner>` speichert der Test Screenshots.
 
 ## Verbindungen und Offline-Hinweis
 
@@ -110,6 +126,7 @@ Der vollständige Ablaufbericht einschließlich Vielnutzer, sorgfältigem Leser,
 - Lokale Testbuchungen: `...fixture.html?scenario=time-tracking&route=/zeiterfassung` (eigene Buchungen in der Woche ab 02.11.2026, eine fremde Buchung, eine aus der Vorwoche).
 - `window.__qaWorklogRule = (key) => ({ status, delayMs, pageSize })` lässt Worklog-Abrufe einzelner Tickets scheitern, verzögern oder in kleinen Seiten antworten.
 - Automatisch: `bunx playwright test tests/browser/time-tracking.e2e.ts --workers=1`; `TIME_TRACKING_SHOTS=<Ordner>` speichert Screenshots.
+- Suche in eigenen Buchungen: `...fixture.html?scenario=time-tracking&route=/zeiterfassung?q=Review`. Gefiltert wird nur lokal in den bereits geladenen eigenen Buchungen (Ticketschlüssel, Titel, Kommentar); `window.__qaReads`, per `addInitScript` als Array gesetzt, bleibt beim Tippen unverändert. „Summe Woche“ zeigt weiter die ganze Woche, „Summe Treffer“ nur die Treffer. Die Tests unter „Suche in eigenen Buchungen“ prüfen außerdem URL-Verlauf, Tastatur, Sonderzeichen, Teilfehler sowie Desktop hell und 390 px dunkel mit reduzierter Bewegung.
 
 ## Benachrichtigungen
 
@@ -123,6 +140,8 @@ Der vollständige Ablaufbericht einschließlich Vielnutzer, sorgfältigem Leser,
 - Teilfehler: `scenario=scm-partial` (Bitbucket antwortet mit 503, ein Link zeigt auf eine fehlende Verbindung). `window.__qaScm.failRepos = []` und „Erneut versuchen“ lädt das Repository nach.
 - `scenario=scm-slow` verzögert jede Antwort um 1,2 s, `scenario=scm-empty` zeigt die Einrichtung ohne Verbindung, `scenario=scm-offline` prüft die Seite ohne Jira-Sitzung.
 - `window.__qaScm.requests` enthält die gesendeten SCM-URLs, `window.__qaScm.opened` die im Browser geöffneten Links.
+- Sortierung: `...fixture.html?scenario=scm&route=/pull-requests?sort=title` (`updated-asc`, `title`, `repo`; ohne `sort` oder bei ungültigem Wert „Zuletzt aktualisiert“). Sortiert werden nur die bereits geladenen Pull Requests; `window.__qaScm.requests` bleibt beim Sortieren unverändert. Jeder Sortierwechsel ist ein eigener Verlaufseintrag, Sucheingaben ersetzen den aktuellen.
+- Prüfstatus: `scenario=scm-checks` ergänzt in `qa/design-system` drei offene Pull Requests ohne verwertbare Prüfdaten (#14 ohne Rollup, #15 mit unbekanntem Rollup-Zustand `QA_UNBEKANNT`, #16 ohne Commit). Filter über `...&route=/pull-requests?checks=failure` (`failure`, `pending`, `success`, `unknown` = „Keine Angabe“; ohne `checks` oder bei ungültigem Wert „Alle Prüfstatus“). Gefiltert werden nur die bereits geladenen Pull Requests vor der Sortierung; `window.__qaScm.requests` bleibt unverändert. Jeder Wechsel und „Prüfstatus zurücksetzen“ ist ein eigener Verlaufseintrag. Mit `scenario=scm-partial&route=/pull-requests?checks=pending` erscheinen Teilfehler, Grenzhinweis und der leere Prüfstatus gemeinsam.
 - Automatisch: `bunx playwright test tests/browser/pull-requests.e2e.ts --workers=1`; mit `PULL_REQUEST_SHOTS=<Ordner>` entstehen Screenshots.
 
 ## Arbeitsplatz
@@ -131,6 +150,40 @@ Der vollständige Ablaufbericht einschließlich Vielnutzer, sorgfältigem Leser,
 - Zweites Konto derselben Instanz: `&account=qa-colleague`. Es sieht nur seinen eigenen QA-Kontext; die Daten von `qa-user` bleiben unverändert im lokalen Speicher.
 - Abmelden simuliert `session_delete`; danach meldet die Sitzung bis zum erneuten Öffnen der Fixture „Nicht angemeldet“.
 - Automatisch: `bunx playwright test tests/browser/workspace-page.e2e.ts --workers=1`. Mit `WORKSPACE_SHOTS=<Ordner>` speichert der Test Screenshots.
+- Sortierung über `?sort=geoeffnet|schluessel|titel` (ohne Parameter oder bei unbekanntem Wert: Standard), kombinierbar mit `art` und `q`. Im Szenario `workspace` zeigt vor allem „Titel“ eine sichtbar andere Reihenfolge. Die Sortiertests legen per `addInitScript` einen eigenen, gemischten QA-Kontext an (`DEMO-10`, `DEMO-2`, `DEMO-9` im Verlauf mit unterschiedlichen Öffnungszeiten, `DEMO-11` nur angeheftet, `DEMO-1` nur als Entwurf ohne Details) und prüfen Reihenfolge, Verlauf, Filter, DOM-Erhalt und dass keine `/search`- oder `/issue`-Abfragen entstehen.
+- Aus Zuletzt entfernen: Die X-Aktion („`<Schlüssel>` aus Zuletzt entfernen“) erscheint nur bei Einträgen im Verlauf. Im Szenario `workspace` bleiben `DEMO-2` (Pin, Feldentwurf), `DEMO-3` (Kommentarentwurf) und `DEMO-4` (Notiz) nach dem Entfernen unter „Alle“ sichtbar, `DEMO-1` verschwindet samt Zeile; seine Lesestelle bleibt im lokalen Speicher. Die Tests prüfen Filterzähler, unveränderte Notizen, Entwürfe, Feldentwürfe und Pins, Fokus auf den Nachbarn in sortierter Reihenfolge bzw. die Suche, Rückgängig an der ursprünglichen Stelle auch nach erneutem Öffnen eines anderen Tickets, Rückgängig nach Abmelden nur ins Ursprungskonto, Tastatur sowie 390 px hell und dunkel (`WORKSPACE_SHOTS`: `*-remove-recent-390-light|dark.png`).
+
+## Dropdown-Untermenüs
+
+- Tabelle: `...fixture.html?route=/bereiche/DEMO`, dort „Ansicht und Export“ → „Kopieren als“ sowie „Filter“ → „Status“.
+- Untermenüs werden in einem eigenen Portal gerendert. Vorher lagen sie im Hauptmenü: Dessen `backdrop-filter` machte es zum Bezugsrahmen der Positionierung, und `overflow-x-hidden` schnitt das Untermenü ab. Passt ein Untermenü auf keiner Seite neben das Hauptmenü (z. B. bei 390 px), überlappt es das Hauptmenü und bleibt 8 px vom Fensterrand entfernt.
+- Automatisch: `bunx playwright test tests/browser/dropdown-submenus.e2e.ts --workers=1` (Projektbreite und 390 px; Mausklick mit Zwischenablage, Mauswechsel zwischen Haupt- und Untermenü, Pfeiltasten/Enter/Escape mit Fokusrückgabe, Statusfilter). Jeder Eintrag muss im Fenster liegen und an seinem Mittelpunkt und beiden Rändern selbst getroffen werden. Mit `DROPDOWN_SUBMENU_SHOTS=<Ordner>` speichert der Test Screenshots.
+- Am 07.11.2026 gegen den gebauten Stand (`vite preview`) geprüft: mit der Korrektur 16 von 16 Tests erfolgreich, mit dem alten `dropdown-menu.tsx` 16 von 16 rot. Auf Desktop war das Untermenü vollständig abgeschnitten, bei 390 px lag es bei x = −74 bzw. reichte bis 436 px. `issue-query-states.e2e.ts` und `header.e2e.ts` laufen weiter durch. Ausnahme ist „Geöffnete Tickets im Menü sind per Tastatur bedienbar“ (390 px, reduziert): Der Test scheitert gelegentlich, weil die Schleife ArrowDown drückt, ohne auf den Fokus zu warten. Für dieses Menü ändert die Korrektur kein CSS.
+- Mausbewegungen im Test laufen schrittweise. Radix erkennt die Richtung zum Untermenü aus aufeinanderfolgenden `pointermove`-Ereignissen; ein einzelner Sprung über das Hauptmenü hinweg schließt ein links liegendes Untermenü, wie bei echter Maus ein abrupter Sprung auch.
+
+## Bereichsübersicht
+
+- Sieben Testbereiche, ein Favorit (Betrieb) und ein in der Seitenleiste ausgeblendeter Bereich (Archiv 2024): `...fixture.html?scenario=projects&route=/bereiche`.
+- `window.__qaProjectRule = () => ({ delayMs, status, values })` steuert die Projektabfrage (verzögern, mit HTTP-Status scheitern, andere Bereiche liefern, etwa für einen Kontowechsel). `window.__qaReads`, per `addInitScript` als Array gesetzt, sammelt alle gelesenen Pfade.
+- Automatisch: `bunx playwright test tests/browser/projects.e2e.ts --workers=1` prüft Suche und Ansicht in der URL mit Zurück/Vorwärts, Favoriten synchron mit der Seitenleiste, ausgeblendete Bereiche, Ladefehler und fehlgeschlagene Aktualisierung mit Retry, Abmelden und Kontowechsel, Tastatur und Command Palette sowie Desktop hell und 390 px dunkel. Mit `PROJECTS_SHOTS=<Ordner>` speichert der Test Screenshots.
+
+## Einstellungen › Bereiche: Suche
+
+- Lokale Suche nach Name oder Schlüssel der bereits geladenen Bereiche: `...fixture.html?scenario=projects&route=/settings/bereiche` (Direktlink mit Suche: `route=/settings/bereiche?q=ops`). Die Suche sendet keine zusätzliche Jira-Anfrage und schreibt keine Bereichs-Einstellungen; Stern und Schalter nutzen dieselben Aktionen wie Seitenleiste und Bereichsübersicht.
+- Leere Bereichsliste: `window.__qaProjectRuleValue = { values: [] }` per `addInitScript` (zusammen mit `__qaProjectRule` wie in `projects.e2e.ts`). Lesefehler der Sitzung: `scenario=session-error`, abgemeldet: `scenario=calendar-offline`.
+- Automatisch: `bunx playwright test tests/browser/project-settings.e2e.ts --workers=1` prüft Direktlink und ungültige `q`-Werte, URL mit Zurück/Vorwärts, keine zusätzlichen GET-Anfragen oder Einstellungs-Schreibzugriffe beim Suchen, Stern und Sichtbarkeit synchron mit der Seitenleiste, Tastatur, Laden, leere Liste, Lade- und Aktualisierungsfehler mit Retry, Sitzungsfehler und Abmeldung sowie Desktop hell und 390 px dunkel. Mit `PROJECT_SETTINGS_SHOTS=<Ordner>` speichert der Test Screenshots.
+
+## Beschreibung kopieren
+
+- `window.__qaDescriptions = { "DEMO-1": adf, "DEMO-2": null }` (per `addInitScript`) ersetzt die gespeicherte Beschreibung einzelner Testtickets vor dem Laden, etwa für reichhaltiges ADF, eine fehlende oder eine leere Beschreibung.
+- „Weitere Ticketaktionen“ → „Beschreibung kopieren“ schreibt den bereits geladenen gespeicherten Stand als Klartext in die Zwischenablage, ohne weitere Jira-Anfrage; ein offener Editorentwurf wird nicht verwendet.
+- Automatisch: `bunx playwright test tests/browser/description-copy.e2e.ts --workers=1` liest die echte Zwischenablage byteweise zurück, prüft `window.__qa.issueReads` und `window.__qa.writes` auf zusätzliche Jira-Zugriffe, deaktivierte Aktion mit Erklärung, Doppelauslösung, Fehler der Zwischenablage sowie Desktop hell und 390 px dunkel. Mit `DESCRIPTION_COPY_SHOTS=<Ordner>` speichert der Test Screenshots.
+
+## Spalten-Picker
+
+- Tabelle öffnen: `...fixture.html?route=/bereiche/DEMO`, dann „Spalten“. Jede angezeigte Spalte hat bei Hover oder Fokus „nach oben/unten verschieben“; an den Enden sind die Aktionen deaktiviert (`aria-disabled`), der Fokus bleibt auf der gedrückten Aktion.
+- Die Reihenfolge landet im lokalen Speicher `betterjira-issue-views` (derselbe Pfad wie beim Ziehen) und bleibt nach erneutem Öffnen der Fixture erhalten. Es entstehen keine Jira-Schreibzugriffe (`window.__qa.writes` bleibt leer).
+- Automatisch: `bunx playwright test tests/browser/column-picker.e2e.ts --workers=1` prüft Tastatur, Maus, Ziehen, Feld hinzufügen/entfernen, Tabellenspalten, Neuladen sowie 390 px dunkel mit reduzierter Bewegung. Mit `COLUMN_PICKER_SHOTS=<Ordner>` speichert der Test Screenshots.
 
 ## Unbekannte Routen
 

@@ -1,3 +1,4 @@
+import type { Ref } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { CalendarCheckIcon, CalendarPlusIcon, PlusIcon } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -7,7 +8,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import type { OutlookAccount, OutlookCalendarEvent, Rollout } from "@/lib/calendar/model";
 import { dayKey, dayTitle, errorMessage } from "@/lib/calendar/presentation";
 import { EASE_OUT } from "@/lib/ease";
-import { RolloutList, type RolloutActions } from "./rollout-list";
+import type { RolloutActions } from "@/types/calendar";
+import { RolloutList } from "./rollout-list";
 
 type DayAgendaProps = RolloutActions & {
   day: Date;
@@ -19,13 +21,14 @@ type DayAgendaProps = RolloutActions & {
   account: OutlookAccount | null;
   syncingId: string | null | undefined;
   onCreate: () => void;
+  ref?: Ref<HTMLElement>;
 };
 
-export function DayAgenda({ day, rollouts, events, pending, eventsPending, eventsError, onCreate, ...list }: DayAgendaProps) {
+export function DayAgenda({ ref, day, rollouts, events, pending, eventsPending, eventsError, onCreate, ...list }: DayAgendaProps) {
   const reduce = useReducedMotion();
   const empty = !pending && rollouts.length === 0 && events.length === 0;
   return (
-    <section className="flex flex-col gap-3 rounded-xl border bg-card p-4" aria-label="Tagesagenda">
+    <section ref={ref} className="flex scroll-mt-4 flex-col gap-3 rounded-xl border bg-card p-4" aria-label="Tagesagenda">
       <div className="flex items-center gap-2">
         <div className="relative min-w-0 flex-1">
           <AnimatePresence mode="wait" initial={false}>
