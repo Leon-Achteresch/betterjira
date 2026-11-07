@@ -131,6 +131,7 @@ Der vollständige Ablaufbericht einschließlich Vielnutzer, sorgfältigem Leser,
 - Zweites Konto derselben Instanz: `&account=qa-colleague`. Es sieht nur seinen eigenen QA-Kontext; die Daten von `qa-user` bleiben unverändert im lokalen Speicher.
 - Abmelden simuliert `session_delete`; danach meldet die Sitzung bis zum erneuten Öffnen der Fixture „Nicht angemeldet“.
 - Automatisch: `bunx playwright test tests/browser/workspace-page.e2e.ts --workers=1`. Mit `WORKSPACE_SHOTS=<Ordner>` speichert der Test Screenshots.
+- Sortierung über `?sort=geoeffnet|schluessel|titel` (ohne Parameter oder bei unbekanntem Wert: Standard), kombinierbar mit `art` und `q`. Im Szenario `workspace` zeigt vor allem „Titel“ eine sichtbar andere Reihenfolge. Die Sortiertests legen per `addInitScript` einen eigenen, gemischten QA-Kontext an (`DEMO-10`, `DEMO-2`, `DEMO-9` im Verlauf mit unterschiedlichen Öffnungszeiten, `DEMO-11` nur angeheftet, `DEMO-1` nur als Entwurf ohne Details) und prüfen Reihenfolge, Verlauf, Filter, DOM-Erhalt und dass keine `/search`- oder `/issue`-Abfragen entstehen.
 
 ## Bereichsübersicht
 
