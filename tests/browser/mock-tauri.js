@@ -570,8 +570,18 @@ window.__qa.outlook = {
   account: { id: "ABC123", displayName: "Lokaler Outlook-Testkalender", email: "outlook@example.com" },
   events: [{ id: "AAAA", title: "Externer Outlook-Termin", start: "2026-11-06T10:00:00.000Z", end: "2026-11-06T11:00:00.000Z", webLink: "", isAllDay: false }],
 };
+window.__qaUpdates = {
+  installed: [],
+  restarts: 0,
+  releases: [
+    { tag_name: "v0.7.0", published_at: "2026-11-06T18:14:30Z", draft: false, prerelease: false },
+    { tag_name: "v0.6.0", published_at: "2026-11-06T17:18:31Z", draft: false, prerelease: false },
+    { tag_name: "v0.5.0", published_at: "2026-11-06T12:49:31Z", draft: false, prerelease: false },
+  ],
+};
 const respond = async (request) => {
   const url = new URL(request.url);
+  if (url.hostname === "api.github.com") return { body: window.__qaUpdates.releases };
   const path = url.pathname.replace(/^.*\/rest\/(?:api\/[23]|agile\/1\.0)/, "");
   if (request.method !== "GET") {
     if (path.endsWith("approximate-count")) return { body: { count: issues.length } };
@@ -805,6 +815,16 @@ window.__TAURI_INTERNALS__ = {
       return id;
     }
     if (command === "plugin:window|is_focused") return true;
+    if (command === "plugin:app|version") return "0.7.0";
+    if (command === "plugin:updater|check") return null;
+    if (command === "update_install_version") {
+      window.__qaUpdates.installed.push(args.version);
+      return null;
+    }
+    if (command === "plugin:process|restart") {
+      window.__qaUpdates.restarts++;
+      return null;
+    }
     if (command === "plugin:http|fetch") {
       const id = ++nextId;
       requests.set(id, { request: args.clientConfig, sent: false });
