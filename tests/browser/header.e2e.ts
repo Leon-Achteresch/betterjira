@@ -10,6 +10,8 @@ const openBusy = async (page: Page, width: number) => {
 
 const header = (page: Page) => page.locator("header").first();
 const tools = (page: Page) => page.getByRole("navigation", { name: "Werkzeuge" });
+const issueTab = (page: Page, key: string) =>
+  page.getByRole("tablist", { name: "Geöffnete Tickets" }).getByRole("tab", { name: new RegExp(`^${key}(?!\\d)`) });
 
 const headerCollisions = (page: Page) =>
   page.evaluate(() => {
@@ -233,4 +235,32 @@ test("Ticket-Tabs bleiben bei 390 px per Tastatur wechselbar", async ({ page }) 
   await page.keyboard.press("Control+Tab");
   await expect(page).not.toHaveURL(/\/issue\/DEMO-1$/);
   await expect(page).toHaveURL(/\/issue\/DEMO-/);
+});
+
+test("Mittelklick schließt Ticket-Tab ohne neues Fenster", async ({ page }) => {
+  await openBusy(page, 1440);
+  const popups: string[] = [];
+  page.context().on("page", (popup) => popups.push(popup.url()));
+
+  await issueTab(page, "DEMO-8").click({ button: "middle" });
+  await expect(issueTab(page, "DEMO-8")).toHaveCount(0);
+  await issueTab(page, "DEMO-2").click({ button: "middle" });
+  await page.waitForTimeout(300);
+  await expect(issueTab(page, "DEMO-2")).toHaveCount(1);
+  await expect(page).toHaveURL(/\/issue\/DEMO-1$/);
+  expect(popups).toEqual([]);
+});
+
+test("Wechsel von Ticket zu Ticket öffnet einen Tab", async ({ page }) => {
+  await openBusy(page, 1440);
+  await expect(page).toHaveURL(/\/issue\/DEMO-1$/);
+  await page.getByRole("button", { name: "DEMO-5 schließen" }).click({ force: true });
+  await expect(issueTab(page, "DEMO-5")).toHaveCount(0);
+
+  await page.keyboard.press("Control+k");
+  const palette = page.getByRole("dialog", { name: "Command palette" });
+  await palette.getByRole("combobox").fill("DEMO-5");
+  await palette.getByRole("option", { name: /DEMO-5(?!\d)/ }).first().click();
+  await expect(page).toHaveURL(/\/issue\/DEMO-5$/);
+  await expect(issueTab(page, "DEMO-5")).toHaveAttribute("aria-selected", "true");
 });
