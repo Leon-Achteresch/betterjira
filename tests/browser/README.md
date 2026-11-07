@@ -131,3 +131,11 @@ Der vollständige Ablaufbericht einschließlich Vielnutzer, sorgfältigem Leser,
 - Zweites Konto derselben Instanz: `&account=qa-colleague`. Es sieht nur seinen eigenen QA-Kontext; die Daten von `qa-user` bleiben unverändert im lokalen Speicher.
 - Abmelden simuliert `session_delete`; danach meldet die Sitzung bis zum erneuten Öffnen der Fixture „Nicht angemeldet“.
 - Automatisch: `bunx playwright test tests/browser/workspace-page.e2e.ts --workers=1`. Mit `WORKSPACE_SHOTS=<Ordner>` speichert der Test Screenshots.
+
+## Jira-Aktivitätshinweise
+
+- Einstellung: `...fixture.html?scenario=notifications&route=/settings/benachrichtigungen`. Beide Schalter gelten nur auf diesem Gerät (`localStorage`-Schlüssel `betterjira-activity-alerts`).
+- Die Fixture ersetzt `window.Notification` durch einen Stub. Es öffnet sich nie ein echter Systemhinweis oder Berechtigungsdialog. `window.__qa.notification` steuert und protokolliert: `permission` (`granted`/`denied`/`default`, Standard `denied`), `answer` (Antwort auf die Anfrage), `checkDelayMs`, `failCheck`, `requestDelayMs`, `failRequest`, `checks`, `requests`, `sent`. Per `addInitScript` gesetztes `window.__qaNotificationInit` wirkt schon auf den ersten Abruf.
+- `window.__qaSearchRule` darf zusätzlich `issues` liefern, um lokale Testaktivität (z. B. einen neuen Kommentar) zu simulieren.
+- Automatisch: `bunx playwright test tests/browser/activity-alerts.e2e.ts --workers=1`; mit `ACTIVITY_ALERTS_SHOTS=<Ordner>` entstehen Screenshots.
+- Grenzen: Ob das Betriebssystem einen Hinweis tatsächlich anzeigt, prüft nur ein nativer Tauri-Build. Auf dem Desktop meldet das Tauri-Plugin (2.8.0) die Berechtigung immer als erteilt; „blockiert“ und „noch nicht erlaubt“ kommen nur auf Mobilplattformen bzw. im Stub vor.

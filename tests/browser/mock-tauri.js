@@ -520,6 +520,23 @@ let callbackId = 0;
 const requests = new Map();
 let nextId = 0;
 window.__qa = { writes: [], issueReads: [], failNextWrite: false, delayMs: 0, issues, wiki, briefing, briefingFailure: false, searches: [], searchDelayMs: 0, failSearch: false, emptySearch: false, sessionFailure: scenario === "session-error", sessionDelayMs: scenario === "session-slow" ? 1500 : 0, commands: [], myselfDelayMs: 0, failMyself: false, myselfCalls: 0 };
+window.__qa.notification = { permission: "denied", answer: "granted", checkDelayMs: 0, failCheck: false, requestDelayMs: 0, failRequest: false, checks: 0, requests: 0, sent: [], ...window.__qaNotificationInit };
+window.Notification = class QaNotification {
+  static get permission() {
+    return "default";
+  }
+  static async requestPermission() {
+    const state = window.__qa.notification;
+    state.requests++;
+    if (state.requestDelayMs) await new Promise((resolve) => setTimeout(resolve, state.requestDelayMs));
+    if (state.failRequest) throw new Error("Test: Systemdialog nicht verfügbar");
+    state.permission = state.answer;
+    return state.answer;
+  }
+  constructor(title, options = {}) {
+    window.__qa.notification.sent.push({ title, body: options.body });
+  }
+};
 window.__qa.outlook = {
   calls: [],
   failNext: false,
@@ -601,6 +618,7 @@ const respond = async (request) => {
     const delayMs = rule.delayMs ?? qa.searchDelayMs;
     if (delayMs) await new Promise((resolve) => setTimeout(resolve, delayMs));
     if (rule.status) return { status: rule.status, body: { errorMessages: [`Test: Jira antwortet mit ${rule.status}`] } };
+    if (rule.issues) return { body: { issues: rule.issues, isLast: true } };
     if (qa.failSearch) return { status: 400, body: { errorMessages: ["Test: Abfrage nicht möglich"] } };
     const found = rule.keys ? issues.filter((issue) => rule.keys.includes(issue.key)) : issues;
     return { body: { issues: qa.emptySearch ? [] : found, isLast: !rule.nextPageToken, nextPageToken: rule.nextPageToken } };
@@ -786,7 +804,13 @@ window.__TAURI_INTERNALS__ = {
       return;
     }
     if (command.startsWith("plugin:event|")) return;
-    if (command === "plugin:notification|is_permission_granted") return false;
+    if (command === "plugin:notification|is_permission_granted") {
+      const state = window.__qa.notification;
+      state.checks++;
+      if (state.checkDelayMs) await new Promise((resolve) => setTimeout(resolve, state.checkDelayMs));
+      if (state.failCheck) throw "Test: Berechtigung nicht lesbar";
+      return state.permission === "default" ? null : state.permission === "granted";
+    }
     throw new Error(`Nicht simuliertes Tauri-Kommando: ${command}`);
   },
 };

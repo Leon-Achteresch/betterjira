@@ -285,6 +285,14 @@ export function useAppCommandPalette() {
       onSelect: () => void navigate({ to: "/settings/briefing" }),
     },
     {
+      id: "nav:activity-alerts",
+      label: "Hinweise zu Jira-Aktivität einstellen",
+      group: "Navigation",
+      icon: BellIcon,
+      keywords: ["benachrichtigungen", "popup", "systemhinweis", "stumm", "toast"],
+      onSelect: () => void navigate({ to: "/settings/benachrichtigungen" }),
+    },
+    {
       id: "action:sidebar",
       label: "Seitenleiste ein-/ausblenden",
       group: "Aktionen",
