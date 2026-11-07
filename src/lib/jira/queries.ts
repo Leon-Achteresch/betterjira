@@ -454,6 +454,13 @@ const IssueUser = Schema.Struct({
   avatarUrls: Schema.Struct({ "48x48": Schema.String }),
 });
 
+export const IssueComment = Schema.Struct({
+  id: Schema.String,
+  author: Schema.optional(IssueUser),
+  body: Schema.Unknown,
+  created: Schema.String,
+});
+
 const IssueDetail = Schema.Struct({
   id: Schema.String,
   key: Schema.String,
@@ -474,9 +481,10 @@ const IssueDetail = Schema.Struct({
       ),
       comment: Schema.optional(
         Schema.Struct({
-          comments: Schema.Array(
-            Schema.Struct({ id: Schema.String, author: Schema.optional(IssueUser), body: Schema.Unknown, created: Schema.String }),
-          ),
+          startAt: Schema.optional(Schema.Number),
+          maxResults: Schema.optional(Schema.Number),
+          total: Schema.optional(Schema.Number),
+          comments: Schema.Array(IssueComment),
         }),
       ),
       attachment: Schema.optional(

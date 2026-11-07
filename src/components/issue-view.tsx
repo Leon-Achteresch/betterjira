@@ -22,6 +22,7 @@ import { useIssueDevelopmentPanel } from "@/hooks/scm/use-issue-development-pane
 import { useIssueHistory } from "@/hooks/jira/use-issue-history";
 import { useIssueLinks } from "@/hooks/jira/use-issue-links";
 import { useRemoteLinks } from "@/hooks/jira/use-remote-links";
+import { useIssueCommentPages } from "@/hooks/jira/use-issue-comment-pages";
 import { EASE_OUT } from "@/lib/ease";
 import { useJiraIssue, useJiraSite, type JiraIssueDetail } from "@/lib/jira/queries";
 import { cn } from "@/lib/utils";
@@ -128,6 +129,11 @@ export function IssueView({ issueKey, initialTab }: { issueKey: string; initialT
   const history = useIssueHistory(issueKey);
   const links = useIssueLinks(issueKey);
   const remoteLinks = useRemoteLinks(issueKey);
+  const commentPages = useIssueCommentPages(
+    issue.data?.key ?? issueKey,
+    issue.data?.fields.comment?.comments ?? [],
+    issue.data?.fields.comment,
+  );
   const development = useIssueDevelopmentPanel(
     issueKey,
     issue.data && { projectKey: issue.data.fields.project.key, summary: issue.data.fields.summary },
@@ -143,7 +149,6 @@ export function IssueView({ issueKey, initialTab }: { issueKey: string; initialT
   if (!issue.data) return <IssueViewSkeleton />;
   const { fields } = issue.data;
   const subtasks = fields.subtasks ?? [];
-  const comments = fields.comment?.comments ?? [];
 
   return (
     <motion.article variants={container} initial="hidden" animate="show" className={LAYOUT.article}>
@@ -227,8 +232,8 @@ export function IssueView({ issueKey, initialTab }: { issueKey: string; initialT
           <RemoteLinksPanel {...remoteLinks} />
         </motion.div>
 
-        <Section title={`Kommentare · ${comments.length}`}>
-          <IssueComments key={issue.data.key} issueKey={issue.data.key} comments={comments} />
+        <Section title={`Kommentare · ${commentPages.total ?? commentPages.loaded}`}>
+          <IssueComments key={issue.data.key} issueKey={issue.data.key} pages={commentPages} />
         </Section>
 
         <motion.div variants={reveal(reduce)}>

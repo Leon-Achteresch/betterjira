@@ -230,6 +230,22 @@ if (scenario === "time-tracking") {
     issues[index].fields.worklog.total++;
   }
 }
+if (scenario === "comment-pages") {
+  for (let index = 3; index <= 7; index++)
+    issues[0].fields.comment.comments.push({
+      id: `c${index}`,
+      author,
+      created: `2026-11-05T1${index}:00:00Z`,
+      body: paragraph(`Verlaufseintrag ${index}: nachgeladener Testkommentar.`),
+    });
+}
+const sortedComments = (issue) =>
+  [...issue.fields.comment.comments].sort((a, b) => Date.parse(a.created) - Date.parse(b.created));
+const commentWindow = (issue) => {
+  const all = sortedComments(issue);
+  const limit = window.__qa.commentDetailLimit;
+  return { startAt: 0, maxResults: limit, total: all.length, comments: all.slice(0, limit) };
+};
 const wiki = Object.fromEntries(
   issues.map((issue) => [issue.key, "h2. Beschreibung\n\nVorhandener Text für die Bearbeitung."]),
 );
@@ -731,6 +747,8 @@ window.__qa.filters = /^\/filter\/(100|200)/.test(new URLSearchParams(location.s
   { id: "200", name: "Team-Rückstand", jql: "project = DEMO ORDER BY created DESC", favourite: false, owner: author },
 ] : qaFilters;
 window.__qa.filterReads = [];
+window.__qa.commentPageReads = [];
+window.__qa.commentDetailLimit = scenario === "comment-pages" ? 2 : undefined;
 window.__qa.outlook = {
   calls: [],
   failNext: false,
@@ -1026,6 +1044,23 @@ const respond = async (request) => {
       .map((entry) => ({ ...entry, timeSpentSeconds: entry.timeSpentSeconds ?? seconds(entry.timeSpent) }));
     return { body: { startAt, maxResults, total: all.length, worklogs: all.slice(startAt, startAt + maxResults) } };
   }
+  const commentPath = path.match(/^\/issue\/([^/]+)\/comment$/);
+  if (commentPath) {
+    const target = issues.find((issue) => issue.id === commentPath[1] || issue.key === commentPath[1]);
+    const key = target?.key ?? commentPath[1];
+    const startAt = Number(url.searchParams.get("startAt") ?? 0);
+    const maxResults = Number(url.searchParams.get("maxResults") ?? 100);
+    window.__qa.commentPageReads.push({ key, startAt, maxResults, orderBy: url.searchParams.get("orderBy") });
+    const rule = window.__qaCommentPagesRule?.(key, startAt) ?? {};
+    if (rule.delayMs) await new Promise((resolve) => setTimeout(resolve, rule.delayMs));
+    if (rule.status) return { status: rule.status, body: { errorMessages: [`Test: Jira antwortet mit ${rule.status}`] } };
+    if (!target) return { status: 404, body: { errorMessages: [`Test: ${key} nicht gefunden`] } };
+    const all = sortedComments(target);
+    const from = rule.startAt ?? startAt;
+    const size = Math.min(rule.pageSize ?? maxResults, maxResults);
+    const total = rule.total === null ? undefined : (rule.total ?? all.length);
+    return { body: { startAt: from, maxResults: rule.maxResults ?? size, total, comments: rule.omitComments ? undefined : (rule.comments ?? all.slice(from, from + size)) } };
+  }
   const issue = issues.find((issue) => path === `/issue/${issue.key}`);
   if (issue && url.searchParams.get("fields") === "issuelinks") {
     const rule = window.__qaIssueLinksRule?.(issue.key) ?? {};
@@ -1035,6 +1070,8 @@ const respond = async (request) => {
   }
   if (issue && url.pathname.includes("/api/2/") && url.searchParams.get("fields") === "description")
     return { body: { fields: { description: wiki[issue.key] } } };
+  if (issue && window.__qa.commentDetailLimit !== undefined)
+    return { body: { ...issue, fields: { ...issue.fields, comment: commentWindow(issue) } } };
   if (issue) return { body: issue };
   return {
     status: 404,

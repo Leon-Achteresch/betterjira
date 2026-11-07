@@ -259,3 +259,10 @@ Der vollständige Ablaufbericht einschließlich Vielnutzer, sorgfältigem Leser,
 - `...fixture.html?route=/issue/DEMO-1`, unten „Änderungsverlauf“ aufklappen. DEMO-1 hat 48 lokale Testeinträge (u. a. mehrere Felder in einer Änderung, gelöschte und unbekannte Person, rohe Feld-ID, Beschreibung mit Markup als Text), DEMO-2 keinen, DEMO-3 drei. Eingeklappt wird nichts abgerufen.
 - `window.__qaHistory.reads` enthält die gesendeten Changelog-Anfragen (`startAt`, `maxResults`, Konto). `window.__qaHistoryRule = (key, startAt, account) => ({ delayMs, status, html, values })` verzögert, lässt einzelne Seiten scheitern oder ersetzt die Einträge.
 - Automatisch: `bunx playwright test tests/browser/issue-history.e2e.ts --workers=1`; mit `ISSUE_HISTORY_SHOTS=<Ordner>` entstehen Screenshots.
+
+## Kommentare nachladen
+
+- Ticket mit 7 lokalen Testkommentaren, von denen die Detailabfrage nur 2 liefert: `...fixture.html?scenario=comment-pages&route=/issue/DEMO-1`. „Weitere Kommentare laden“ ruft `GET /issue/{key}/comment?startAt=…&maxResults=50&orderBy=created` ab, erst nach Klick.
+- `window.__qa.commentDetailLimit` begrenzt die Kommentare der Detailantwort (Szenario: 2), `window.__qa.commentPageReads` protokolliert jede Seitenabfrage (`key`, `startAt`, `maxResults`, `orderBy`).
+- `window.__qaCommentPagesRule = (key, startAt) => ({ delayMs, status, pageSize, startAt, total, comments })` steuert einzelne Seiten: verzögern, mit HTTP-Status scheitern, kürzere Seiten, abweichend bestätigtes `startAt` (Duplikate), `total: null` (Gesamtzahl unbekannt) oder eine leere Seite.
+- Automatisch: `bunx playwright test tests/browser/comment-pages.e2e.ts --workers=1`; mit `COMMENT_PAGES_SHOTS=<Ordner>` zusätzlich Screenshots.
