@@ -9,6 +9,7 @@ declare global {
     __qaHoldFilterWrite?: boolean;
     __qaFilterWriteWaiting?: boolean;
     __qaReleaseFilterWrite?: () => void;
+    __qaFilterListReads?: number;
     __qa: { sessionFailure: boolean; searches: string[]; writes: Write[]; filterReads: string[]; commands: string[] };
   }
 }
@@ -34,13 +35,18 @@ const setRule = (page: Page, source: string) =>
 
 const shot = async (page: Page, testInfo: TestInfo, name: string) => {
   const dir = process.env.FILTER_RECOVERY_SHOTS;
-  if (dir) await page.screenshot({ path: `${dir}/${testInfo.project.name}-${name}.png` });
+  if (dir) {
+    await page.evaluate(() => document.fonts.ready);
+    expect(await page.evaluate(() => document.fonts.check('14px "Geist Variable"'))).toBe(true);
+    await page.screenshot({ path: `${dir}/${testInfo.project.name}-${name}.png` });
+  }
 };
 
 const openSidebarLink = async (page: Page, name: string) => {
   const link = page.getByRole("link", { name, exact: true });
-  const collapsed = !(await link.isVisible());
+  const collapsed = (page.viewportSize()?.width ?? 1440) < 768;
   if (collapsed) await page.getByRole("button", { name: "Toggle Sidebar", exact: true }).click();
+  await expect(link).toBeVisible();
   await link.click();
   if (collapsed) await page.keyboard.press("Escape");
 };
@@ -52,7 +58,7 @@ const editDraft = async (page: Page, text: string) => {
 };
 
 for (const action of ["speichern", "löschen", "kopieren"] as const) {
-  test(`laufende Aktion ${action} für A lässt Filter B samt Entwurf stehen`, async ({ page }) => {
+  test(`laufende Aktion ${action} für A lässt Filter B samt Entwurf stehen`, async ({ page }, testInfo) => {
     await open(page, "/filter/100");
     await expect(heading(page)).toHaveText("Offene Testtickets");
     await page.evaluate(() => { window.__qaHoldFilterWrite = true; });
@@ -80,15 +86,15 @@ for (const action of ["speichern", "löschen", "kopieren"] as const) {
     const readsBeforeCompletion = (await qa(page)).filterReads.filter((id) => id === "200").length;
     const draft = "project = DEMO AND text ~ eigenerEntwurfB";
     await editDraft(page, draft);
-    await page.evaluate(() => window.__qaReleaseFilterWrite?.());
-    const success = action === "speichern" ? "Filter gespeichert" : action === "löschen" ? "Filter gelöscht" : "Filter „Kopie aus A“ angelegt";
-    await expect(page.getByText(success, { exact: true })).toBeVisible();
+    await page.evaluate(() => { window.__qaFilterListReads = 0; window.__qaReleaseFilterWrite?.(); });
+    await expect.poll(() => page.evaluate(() => window.__qaFilterListReads ?? 0)).toBeGreaterThan(0);
 
     await expect(page).toHaveURL(/\/filter\/200$/);
     await expect(heading(page)).toHaveText("Team-Rückstand");
     await expect(jql(page)).toHaveValue(draft);
     expect((await qa(page)).filterReads.filter((id) => id === "200")).toHaveLength(readsBeforeCompletion);
     expect((await qa(page)).writes.some((write) => write.path === "/filter/200")).toBe(false);
+    if (action === "löschen") await shot(page, testInfo, "pending-delete");
   });
 }
 

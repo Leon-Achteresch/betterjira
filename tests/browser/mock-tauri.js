@@ -604,7 +604,10 @@ const respond = async (request) => {
     return { body: { ...author, accountId } };
   }
   if (path.startsWith("/project/search")) return { body: { isLast: true, values: window.__qaProjects ?? [project] } };
-  if (path.startsWith("/filter/my")) return { body: (scenario === "filters" ? window.__qa.filters : []).map(({ id, name, favourite }) => ({ id, name, favourite })) };
+  if (path.startsWith("/filter/my")) {
+    window.__qaFilterListReads = (window.__qaFilterListReads ?? 0) + 1;
+    return { body: (scenario === "filters" ? window.__qa.filters : []).map(({ id, name, favourite }) => ({ id, name, favourite })) };
+  }
   const filterId = path.match(/^\/filter\/([^/]+)$/)?.[1];
   if (filterId) {
     window.__qa.filterReads.push(filterId);
