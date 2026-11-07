@@ -71,6 +71,8 @@ Pins, Verlauf und Entwürfe verwenden in dieser Simulation den separaten Arbeits
 
 `window.__qaSearchRule = (jql, pageToken) => ({ delayMs, status, keys, nextPageToken })` steuert einzelne Suchanfragen: verzögern, mit HTTP-Status scheitern lassen, Treffer auf Schlüssel begrenzen oder eine Folgeseite ankündigen. Per `addInitScript` gesetzt wirkt die Regel schon auf die erste Anfrage. `issue-query-states.e2e.ts` prüft damit Platzhalter nach Abfragewechsel, schnelle Wechsel, fehlgeschlagene Aktualisierung, ersten Ladefehler und fehlgeschlagenes Weiterladen. Mit `ISSUE_QUERY_SHOTS=<Ordner>` speichert der Test Screenshots.
 
+Mit `headers` liefert eine scheiternde Suchregel zusätzlich Antwort-Header, z. B. `{ status: 429, headers: { "retry-after": "120" } }`. `rate-limit.e2e.ts` prüft damit die Drosselung durch Jira: verständliche Meldung mit frühestem Zeitpunkt, keine automatischen Sofort-Wiederholungen, keine Abmeldung, erhaltene Zeilen beim Aktualisieren und Erholung über „Erneut versuchen“. Mit `RATE_LIMIT_SHOTS=<Ordner>` speichert der Test Screenshots (schmales Profil in 390 px).
+
 ## UX-Szenarien
 
 - Board mit 64 Tickets, sechs Spalten und Insights: `http://localhost:1420/tests/browser/fixture.html?scenario=board&route=/bereiche/DEMO?board=1`. Geprüft am 06.11.2026: Insights öffnen und schließen, Messgröße/Gruppierung/Segment wechseln, Story-Point-Summe, Zeilenklick filtert das Board, Anzeige-Eigenschaften ein- und ausblenden, Ticket über das Status-Icon verschieben (Zahlen im Panel ziehen mit), hell/dunkel, 390 px, reduzierte Bewegung.

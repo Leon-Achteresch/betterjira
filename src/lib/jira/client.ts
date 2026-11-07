@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { fetch } from "@tauri-apps/plugin-http";
 import { Data, Effect, Fiber, Schema, Semaphore } from "effect";
+import { rateLimitMessage, retryAtFrom } from "./retry-after";
 
 const CLIENT_ID: string | undefined = import.meta.env.VITE_ATLASSIAN_CLIENT_ID;
 const CLIENT_SECRET: string | undefined = import.meta.env.VITE_ATLASSIAN_CLIENT_SECRET;
@@ -13,8 +14,9 @@ const SCOPES =
 
 export class JiraAuthError extends Data.TaggedError("JiraAuthError")<{ message: string; cause?: unknown }> {}
 export class NotAuthenticated extends Data.TaggedError("NotAuthenticated")<{}> {}
-export class JiraApiError extends Data.TaggedError("JiraApiError")<{ status: number; body: string }> {
+export class JiraApiError extends Data.TaggedError("JiraApiError")<{ status: number; body: string; retryAt?: number }> {
   override get message() {
+    if (this.status === 429) return rateLimitMessage(this.retryAt, Date.now());
     return `Jira antwortet mit ${this.status}${this.body ? `: ${this.body.slice(0, 300)}` : ""}`;
   }
 }
@@ -47,11 +49,14 @@ const send = (url: string, init?: RequestInit) =>
     catch: authError("Atlassian ist nicht erreichbar"),
   });
 
+const apiError = (response: Response, body: string) =>
+  new JiraApiError({ status: response.status, body, retryAt: retryAtFrom(response.headers.get("retry-after"), Date.now()) });
+
 const decode = <S extends Schema.Decoder<unknown>>(schema: S) =>
   Effect.fnUntraced(function* (response: Response) {
     if (!response.ok) {
       const body = yield* Effect.promise(() => response.text());
-      return yield* new JiraApiError({ status: response.status, body });
+      return yield* apiError(response, body);
     }
     const json = yield* Effect.tryPromise({ try: () => response.json(), catch: authError("Ungültige Antwort von Atlassian") });
     return yield* Schema.decodeUnknownEffect(schema)(json);
@@ -221,7 +226,7 @@ export const jiraSend = (path: string, init: RequestInit, api: ApiVersion = "api
     const response = yield* authedFetch(`${api}${path}`, init);
     if (response.ok) return;
     const body = yield* Effect.promise(() => response.text());
-    return yield* new JiraApiError({ status: response.status, body });
+    return yield* apiError(response, body);
   });
 
 export const jiraAgile = <S extends Schema.Decoder<unknown>>(path: string, schema: S) =>
@@ -230,7 +235,7 @@ export const jiraAgile = <S extends Schema.Decoder<unknown>>(path: string, schem
 export const jiraImage = (path: string) =>
   Effect.gen(function* () {
     const response = yield* authedFetch(`api/3${path}`, { headers: { Accept: "image/*" } });
-    if (!response.ok) return yield* new JiraApiError({ status: response.status, body: "" });
+    if (!response.ok) return yield* apiError(response, "");
     const blob = yield* Effect.tryPromise({ try: () => response.blob(), catch: authError("Bild konnte nicht geladen werden") });
     return yield* Effect.tryPromise({
       try: () =>
