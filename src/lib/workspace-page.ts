@@ -32,9 +32,9 @@ export const workspacePageSearch = (
   query = "",
   sort: WorkspacePageSort = "standard",
 ): WorkspacePageSearch => ({
-  ...(filter !== "alle" && { art: filter }),
-  ...(query && { q: query }),
-  ...(sort !== "standard" && { sort }),
+  art: filter !== "alle" ? filter : undefined,
+  q: query || undefined,
+  sort: sort !== "standard" ? sort : undefined,
 });
 
 export const parseWorkspacePageSearch = (search: Record<string, unknown>): WorkspacePageSearch =>

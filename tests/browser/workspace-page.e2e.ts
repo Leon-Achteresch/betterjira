@@ -37,6 +37,9 @@ test("Überblick zählt Arten getrennt und zeigt unbekannte Tickets nur mit Schl
   for (const name of ["Angeheftet 2", "Entwürfe 3", "Notizen 1", "Zuletzt 10"])
     await expect(filters(page).getByRole("link", { name })).toBeVisible();
   await expect(rows(page)).toHaveCount(11);
+  if ((page.viewportSize()?.width ?? 0) >= 768)
+    for (const link of await filters(page).getByRole("link").all())
+      await expect(link).toBeInViewport({ ratio: 1 });
   await expect(list(page).getByRole("link", { name: "OPS-7", exact: true })).toBeVisible();
   await expect(list(page).getByText("QA-Notiz eines anderen Kontos")).toHaveCount(0);
   await expect(list(page).getByText("DEMO-12")).toHaveCount(0);
@@ -45,6 +48,12 @@ test("Überblick zählt Arten getrennt und zeigt unbekannte Tickets nur mit Schl
   await expect(rows(page).filter({ hasText: "DEMO-1" }).first().getByText("Lesestelle gemerkt")).toBeVisible();
   await expect(search(page)).not.toBeFocused();
   if (shots) await page.screenshot({ path: `${shots}/${test.info().project.name}-overview.png` });
+  for (const width of [1024, 760]) {
+    await page.setViewportSize({ width, height: 900 });
+    for (const link of await filters(page).getByRole("link").all())
+      await expect(link).toBeInViewport({ ratio: 1 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  }
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(rows(page)).toHaveCount(11);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
@@ -331,7 +340,9 @@ test("Sortierung ist per Tastatur und bei 390 px in hell und dunkel bedienbar", 
   await expect(current).toHaveAttribute("aria-selected", "true");
   await expect(current).toBeFocused();
   for (const option of await page.getByRole("option").all())
-    expect((await option.boundingBox())?.height).toBeGreaterThanOrEqual(32);
+    await expect.poll(async () => (await option.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(32);
+  if (await page.evaluate(() => matchMedia("(prefers-reduced-motion: reduce)").matches))
+    await expect(page.locator('[data-slot="select-content"]')).toHaveCSS("animation-name", "none");
   await page.keyboard.press("ArrowDown");
   await expect(page.getByRole("option", { name: "Zuletzt geöffnet" })).toBeFocused();
   await page.keyboard.press("Enter");

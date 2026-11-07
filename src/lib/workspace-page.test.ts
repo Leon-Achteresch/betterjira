@@ -182,6 +182,7 @@ describe("Arbeitsplatz-Sortierung", () => {
     expect(parseWorkspacePageSearch({ sort: "standard" })).toEqual({});
     expect(parseWorkspacePageSearch({ sort: "unbekannt" })).toEqual({});
     expect(parseWorkspacePageSearch({ sort: ["titel"] })).toEqual({});
+    expect(parseWorkspacePageSearch({ sort: ["titel"] })).toHaveProperty("sort", undefined);
     expect(workspacePageSearch("entwuerfe", "", "geoeffnet")).toEqual({ art: "entwuerfe", sort: "geoeffnet" });
   });
 });

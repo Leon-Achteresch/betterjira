@@ -39,7 +39,7 @@ export function WorkspaceOverview(props: WorkspaceOverviewProps) {
   const reduce = useReducedMotion();
   return (
     <div className="flex flex-col gap-5">
-      <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+      <div className="flex flex-col gap-3">
         <NavTabs id="workspace-filters" label="Arbeitskontexte filtern" className="md:border-b-0">
           {WORKSPACE_PAGE_FILTERS.map(({ id, label }) => (
             <Link
@@ -55,7 +55,7 @@ export function WorkspaceOverview(props: WorkspaceOverviewProps) {
             </Link>
           ))}
         </NavTabs>
-        <div className="flex w-full min-w-0 gap-2 md:max-w-md">
+        <div className="flex w-full max-w-md min-w-0 gap-2">
           <InputGroup className="flex-1">
             <InputGroupAddon>
               <SearchIcon />
@@ -73,7 +73,7 @@ export function WorkspaceOverview(props: WorkspaceOverviewProps) {
               <ArrowDownUpIcon className="text-muted-foreground" />
               <SelectValue />
             </SelectTrigger>
-            <SelectContent position="popper" align="end">
+            <SelectContent position="popper" align="end" className="motion-reduce:animate-none!">
               {WORKSPACE_PAGE_SORTS.map(({ id, label }) => (
                 <SelectItem key={id} value={id} className="min-h-8">
                   {label}
