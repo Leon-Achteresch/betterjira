@@ -6,6 +6,12 @@ Für die Tabelle: `http://localhost:1420/tests/browser/fixture.html?route=/berei
 
 Zum Neuladen immer die Fixture-URL öffnen. Die App ersetzt anschließend die Adresse durch ihre normale Route. Ein direktes Neuladen dieser normalen Route lädt die App ohne Tauri-Simulation. Auch ein vollständiger Vite-Neustart durch HMR kann deshalb ein erneutes Öffnen der Fixture erfordern.
 
+## Tastenkürzel-Hilfe
+
+- `...fixture.html?route=/settings/darstellung` und „Übersicht öffnen“ oder <kbd>?</kbd> drücken. Das Suchfeld findet Aktionen („Zurück“), Bereiche („Navigation“) und angezeigte Tasten, auch über übliche Namen wie „Strg“, „Cmd“, „Option“ oder „Enter“. Einzelne Zeichen gelten als Taste oder Wortanfang, damit „g h“ genau die Tastenfolge findet.
+- <kbd>Esc</kbd> leert zuerst die Suche und schließt erst danach den Dialog.
+- Automatisch: `bunx playwright test tests/browser/shortcut-help.e2e.ts --workers=1`; mit `SHORTCUT_HELP_SHOTS=<Ordner>` zusätzlich Screenshots.
+
 ## Automatische Prüfung
 
 ```sh
@@ -190,9 +196,3 @@ Der vollständige Ablaufbericht einschließlich Vielnutzer, sorgfältigem Leser,
 - `alert-actions.e2e.ts` prüft die echten Hinweise mit Wiederholaktion: fehlgeschlagene Tabellenaktualisierung (simulierter HTTP 503), „Jira konnte zuletzt nicht geprüft werden“ in den Benachrichtigungen (ohne Icon) und „Projekt „NOPE“ ist nicht verfügbar“ in der Suche (lange Beschriftung). Gemessen werden Textzeilen, Icon und Aktion gegeneinander sowie der Treffer der Aktion per `elementFromPoint`; dazu Tastaturfokus aus dem Text und Retry per Enter bzw. Maus.
 - Desktop hell (1440 px): Aktion kompakt rechts neben dem Text. 390 px dunkel mit reduzierter Bewegung, auch mit Textgröße „Sehr groß“: Aktion unter dem Text, ohne Seitenüberlauf. Aktionen sind mindestens 32 px hoch.
 - Automatisch: `bunx playwright test tests/browser/alert-actions.e2e.ts --project=desktop --workers=1`; mit `ALERT_ACTIONS_SHOTS=<Ordner>` zusätzlich Screenshots (erst nach `document.fonts.ready` und geladener Geist-Schrift).
-
-## Tastenkürzel-Hilfe
-
-- `...fixture.html?route=/settings/darstellung` und „Übersicht öffnen“ oder <kbd>?</kbd> drücken. Das Suchfeld findet Aktionen („Zurück“), Bereiche („Navigation“) und angezeigte Tasten, auch über übliche Namen wie „Strg“, „Cmd“, „Option“ oder „Enter“. Einzelne Zeichen gelten als Taste oder Wortanfang, damit „g h“ genau die Tastenfolge findet.
-- <kbd>Esc</kbd> leert zuerst die Suche und schließt erst danach den Dialog.
-- Automatisch: `bunx playwright test tests/browser/shortcut-help.e2e.ts --workers=1`; mit `SHORTCUT_HELP_SHOTS=<Ordner>` zusätzlich Screenshots.
