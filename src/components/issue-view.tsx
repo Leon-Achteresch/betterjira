@@ -15,9 +15,11 @@ import { IssueActions } from "@/components/issues/issue-actions";
 import { IssueLinksPanel } from "@/components/issues/issue-links-panel";
 import { RemoteLinksPanel } from "@/components/issues/remote-links-panel";
 import { IssueSubtasks } from "@/components/issues/issue-subtasks";
+import { IssueHistoryPanel } from "@/components/issues/issue-history-panel";
 import { useIssueReadingPosition } from "@/hooks/use-issue-reading-position";
 import { useIssueActions } from "@/hooks/use-issue-actions";
 import { useIssueDevelopmentPanel } from "@/hooks/scm/use-issue-development-panel";
+import { useIssueHistory } from "@/hooks/jira/use-issue-history";
 import { useIssueLinks } from "@/hooks/jira/use-issue-links";
 import { useRemoteLinks } from "@/hooks/jira/use-remote-links";
 import { EASE_OUT } from "@/lib/ease";
@@ -123,6 +125,7 @@ export function IssueView({ issueKey, initialTab }: { issueKey: string; initialT
   const reduce = useReducedMotion();
   useIssueReadingPosition(issueKey, !!issue.data);
   const actions = useIssueActions(issue.data, site.data?.siteUrl, initialTab);
+  const history = useIssueHistory(issueKey);
   const links = useIssueLinks(issueKey);
   const remoteLinks = useRemoteLinks(issueKey);
   const development = useIssueDevelopmentPanel(
@@ -227,6 +230,10 @@ export function IssueView({ issueKey, initialTab }: { issueKey: string; initialT
         <Section title={`Kommentare · ${comments.length}`}>
           <IssueComments key={issue.data.key} issueKey={issue.data.key} comments={comments} />
         </Section>
+
+        <motion.div variants={reveal(reduce)}>
+          <IssueHistoryPanel {...history} />
+        </motion.div>
       </div>
 
       <IssueDrawer

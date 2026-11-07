@@ -253,3 +253,9 @@ Der vollständige Ablaufbericht einschließlich Vielnutzer, sorgfältigem Leser,
 - Übersicht: `...fixture.html?route=/`. Der Knopf neben dem Stand lädt Tickets und Profil (bei Favoriten auch die Bereiche) erneut; während des Abrufs löst ein weiterer Klick keinen zweiten Abruf aus.
 - `window.__qaSearchRule = (jql) => jql.includes("resolved >= -7d") ? { status: 400 } : {}` lässt nur die Arbeitsliste scheitern (Teilfehler), zusammen mit `window.__qa.failMyself = true` scheitern alle Abfragen. Geladene Tickets bleiben sichtbar, der Stand bleibt beim letzten erfolgreichen Abruf.
 - Automatisch: `bunx playwright test tests/browser/dashboard-refresh.e2e.ts --workers=1` prüft initiales Laden, Initialfehler mit Retry, Aktualisieren und Doppelklick, vollständigen und teilweisen Refreshfehler mit Retry, leere Liste mit Fehler, offline/online sowie Tastatur und 390 px. `DASHBOARD_SHOTS=<Ordner>` speichert Screenshots.
+
+## Änderungsverlauf im Ticket
+
+- `...fixture.html?route=/issue/DEMO-1`, unten „Änderungsverlauf“ aufklappen. DEMO-1 hat 48 lokale Testeinträge (u. a. mehrere Felder in einer Änderung, gelöschte und unbekannte Person, rohe Feld-ID, Beschreibung mit Markup als Text), DEMO-2 keinen, DEMO-3 drei. Eingeklappt wird nichts abgerufen.
+- `window.__qaHistory.reads` enthält die gesendeten Changelog-Anfragen (`startAt`, `maxResults`, Konto). `window.__qaHistoryRule = (key, startAt, account) => ({ delayMs, status, html, values })` verzögert, lässt einzelne Seiten scheitern oder ersetzt die Einträge.
+- Automatisch: `bunx playwright test tests/browser/issue-history.e2e.ts --workers=1`; mit `ISSUE_HISTORY_SHOTS=<Ordner>` entstehen Screenshots.

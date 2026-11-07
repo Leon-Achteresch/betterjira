@@ -748,6 +748,69 @@ window.__qaUpdates = {
     { tag_name: "v0.5.0", published_at: "2026-11-06T12:49:31Z", draft: false, prerelease: false },
   ],
 };
+const historyPeople = {
+  alex: author,
+  sam: { accountId: "qa-sam", displayName: "Sam Muster", avatarUrls: author.avatarUrls },
+  former: { accountId: "qa-former", displayName: "Ehemaliger Nutzer", active: false },
+};
+const historyDay = (index) => new Date(Date.UTC(2026, 8, 1 + index, 8 + (index % 9), 15)).toISOString();
+const historyItem = (field, fromString, toString, extra = {}) => ({ field, fieldtype: "jira", fromString, toString, ...extra });
+const historyFor = (count) =>
+  Array.from({ length: count }, (_, index) => ({
+    id: String(10001 + index),
+    created: historyDay(index),
+    author: index % 3 === 0 ? historyPeople.sam : historyPeople.alex,
+    items: [
+      index % 2 === 0
+        ? historyItem("status", index % 4 === 0 ? "Zu erledigen" : "In Arbeit", index % 4 === 0 ? "In Arbeit" : "Review", { from: "1", to: "3" })
+        : historyItem("priority", "Mittel", "Hoch", { from: "3", to: "2" }),
+    ],
+  }));
+const history = { "DEMO-1": historyFor(45), "DEMO-2": [], "DEMO-3": historyFor(3) };
+history["DEMO-1"].push(
+  {
+    id: "10046",
+    created: "2026-11-01T09:30:00.000Z",
+    items: [historyItem("labels", null, "Barrierefreiheit"), { field: "customfield_10099", fieldtype: "custom", from: "10044", to: "10045" }],
+  },
+  {
+    id: "10047",
+    created: "2026-11-02T14:05:00.000Z",
+    author: historyPeople.former,
+    items: [
+      historyItem(
+        "description",
+        "Erste Fassung der Anforderungen.",
+        Array.from({ length: 8 }, (_, line) => `Zeile ${line + 1}: <img src=x onerror="window.__qaHistoryXss=true"> Die Beschreibung wurde umfassend überarbeitet.`).join("\n"),
+      ),
+      { field: "WorklogId", fieldtype: "jira", to: "20077", toString: "20077" },
+    ],
+  },
+  {
+    id: "10048",
+    created: "2026-11-04T09:45:00.000Z",
+    author: historyPeople.sam,
+    items: [
+      historyItem("status", "Review", "In Arbeit", { from: "12", to: "3" }),
+      historyItem("assignee", "Alex Beispiel", "Sam Muster", { from: "qa-user", to: "qa-sam" }),
+      historyItem("priority", "Mittel", "Hoch", { from: "3", to: "2" }),
+      historyItem("timeestimate", "14400", "5400"),
+    ],
+  },
+);
+window.__qaHistory = { reads: [], history };
+const respondHistory = async (key, url) => {
+  const startAt = Number(url.searchParams.get("startAt") ?? 0);
+  const maxResults = Number(url.searchParams.get("maxResults") ?? 100);
+  window.__qaHistory.reads.push({ key, startAt, maxResults, account: accountId });
+  const rule = window.__qaHistoryRule?.(key, startAt, accountId) ?? {};
+  if (rule.delayMs) await new Promise((resolve) => setTimeout(resolve, rule.delayMs));
+  if (rule.status) return { status: rule.status, body: rule.html ? `<html><body>Fehler ${rule.status}</body></html>` : { errorMessages: [`Test: Jira antwortet mit ${rule.status}`] } };
+  const all = rule.values ?? (key in history ? history[key] : undefined);
+  if (!all) return { status: 404, body: { errorMessages: ["Issue does not exist or you do not have permission to see it."] } };
+  const values = all.slice(startAt, startAt + Math.min(maxResults, rule.pageSize ?? maxResults));
+  return { body: { startAt, maxResults, total: all.length, isLast: startAt + values.length >= all.length, values } };
+};
 const respond = async (request) => {
   const url = new URL(request.url);
   if (url.hostname === "api.github.com") return { body: window.__qaUpdates.releases };
@@ -901,6 +964,8 @@ const respond = async (request) => {
         clauseNames: [id],
       })),
     };
+  const historyMatch = path.match(/^\/issue\/([^/]+)\/changelog$/);
+  if (historyMatch) return respondHistory(decodeURIComponent(historyMatch[1]), url);
   if (path.startsWith("/search/jql")) {
     const qa = window.__qa;
     qa.searches.push(url.searchParams.get("jql"));
