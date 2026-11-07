@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
+import { useDescriptionCopy } from "@/hooks/use-description-copy";
 import { useFieldDraftStore } from "@/hooks/use-field-drafts";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { copyToClipboard } from "@/lib/clipboard";
@@ -14,6 +15,7 @@ export function useIssueActions(issue: JiraIssueDetail | undefined, siteUrl?: st
   const detailsRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLButtonElement>(null);
   const returnFocus = useRef<HTMLButtonElement | null>(null);
+  const description = useDescriptionCopy(issue?.fields.description);
   const key = issue?.key;
   const summary = issue?.fields.summary;
   const statusName = issue?.fields.status.name;
@@ -66,6 +68,7 @@ export function useIssueActions(issue: JiraIssueDetail | undefined, siteUrl?: st
     copyLink: () => {
       if (url) void copyToClipboard(url, "Link kopiert");
     },
+    description,
     openInJira: url ? () => void openUrl(url) : undefined,
   };
 }

@@ -18,6 +18,7 @@ import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SucheRouteImport } from './routes/suche'
 import { Route as TicketsRouteImport } from './routes/tickets'
 import { Route as ZeiterfassungRouteImport } from './routes/zeiterfassung'
+import { Route as BereicheIndexRouteImport } from './routes/bereiche/index'
 import { Route as BereicheKeyRouteImport } from './routes/bereiche/$key'
 import { Route as FilterIdRouteImport } from './routes/filter/$id'
 import { Route as IssueKeyRouteImport } from './routes/issue/$key'
@@ -26,6 +27,7 @@ import { Route as SettingsBereicheRouteImport } from './routes/settings/bereiche
 import { Route as SettingsBriefingRouteImport } from './routes/settings/briefing'
 import { Route as SettingsCodeHostingRouteImport } from './routes/settings/code-hosting'
 import { Route as SettingsDarstellungRouteImport } from './routes/settings/darstellung'
+import { Route as SettingsUpdatesRouteImport } from './routes/settings/updates'
 import { Route as SettingsVerbindungenRouteImport } from './routes/settings/verbindungen'
 
 const IndexRoute = IndexRouteImport.update({
@@ -73,6 +75,11 @@ const ZeiterfassungRoute = ZeiterfassungRouteImport.update({
   path: '/zeiterfassung',
   getParentRoute: () => rootRouteImport,
 } as any)
+const BereicheIndexRoute = BereicheIndexRouteImport.update({
+  id: '/bereiche/',
+  path: '/bereiche/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const BereicheKeyRoute = BereicheKeyRouteImport.update({
   id: '/bereiche/$key',
   path: '/bereiche/$key',
@@ -113,6 +120,11 @@ const SettingsDarstellungRoute = SettingsDarstellungRouteImport.update({
   path: '/darstellung',
   getParentRoute: () => SettingsRoute,
 } as any)
+const SettingsUpdatesRoute = SettingsUpdatesRouteImport.update({
+  id: '/updates',
+  path: '/updates',
+  getParentRoute: () => SettingsRoute,
+} as any)
 const SettingsVerbindungenRoute = SettingsVerbindungenRouteImport.update({
   id: '/verbindungen',
   path: '/verbindungen',
@@ -136,7 +148,9 @@ export interface FileRoutesByFullPath {
   '/settings/briefing': typeof SettingsBriefingRoute
   '/settings/code-hosting': typeof SettingsCodeHostingRoute
   '/settings/darstellung': typeof SettingsDarstellungRoute
+  '/settings/updates': typeof SettingsUpdatesRoute
   '/settings/verbindungen': typeof SettingsVerbindungenRoute
+  '/bereiche/': typeof BereicheIndexRoute
   '/settings/': typeof SettingsIndexRoute
 }
 export interface FileRoutesByTo {
@@ -155,7 +169,9 @@ export interface FileRoutesByTo {
   '/settings/briefing': typeof SettingsBriefingRoute
   '/settings/code-hosting': typeof SettingsCodeHostingRoute
   '/settings/darstellung': typeof SettingsDarstellungRoute
+  '/settings/updates': typeof SettingsUpdatesRoute
   '/settings/verbindungen': typeof SettingsVerbindungenRoute
+  '/bereiche': typeof BereicheIndexRoute
   '/settings': typeof SettingsIndexRoute
 }
 export interface FileRoutesById {
@@ -176,7 +192,9 @@ export interface FileRoutesById {
   '/settings/briefing': typeof SettingsBriefingRoute
   '/settings/code-hosting': typeof SettingsCodeHostingRoute
   '/settings/darstellung': typeof SettingsDarstellungRoute
+  '/settings/updates': typeof SettingsUpdatesRoute
   '/settings/verbindungen': typeof SettingsVerbindungenRoute
+  '/bereiche/': typeof BereicheIndexRoute
   '/settings/': typeof SettingsIndexRoute
 }
 export interface FileRouteTypes {
@@ -198,7 +216,9 @@ export interface FileRouteTypes {
     | '/settings/briefing'
     | '/settings/code-hosting'
     | '/settings/darstellung'
+    | '/settings/updates'
     | '/settings/verbindungen'
+    | '/bereiche/'
     | '/settings/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -217,7 +237,9 @@ export interface FileRouteTypes {
     | '/settings/briefing'
     | '/settings/code-hosting'
     | '/settings/darstellung'
+    | '/settings/updates'
     | '/settings/verbindungen'
+    | '/bereiche'
     | '/settings'
   id:
     | '__root__'
@@ -237,7 +259,9 @@ export interface FileRouteTypes {
     | '/settings/briefing'
     | '/settings/code-hosting'
     | '/settings/darstellung'
+    | '/settings/updates'
     | '/settings/verbindungen'
+    | '/bereiche/'
     | '/settings/'
   fileRoutesById: FileRoutesById
 }
@@ -254,6 +278,7 @@ export interface RootRouteChildren {
   BereicheKeyRoute: typeof BereicheKeyRoute
   FilterIdRoute: typeof FilterIdRoute
   IssueKeyRoute: typeof IssueKeyRoute
+  BereicheIndexRoute: typeof BereicheIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -321,6 +346,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ZeiterfassungRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/bereiche/': {
+      id: '/bereiche/'
+      path: '/bereiche'
+      fullPath: '/bereiche/'
+      preLoaderRoute: typeof BereicheIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/bereiche/$key': {
       id: '/bereiche/$key'
       path: '/bereiche/$key'
@@ -377,6 +409,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsDarstellungRouteImport
       parentRoute: typeof SettingsRoute
     }
+    '/settings/updates': {
+      id: '/settings/updates'
+      path: '/updates'
+      fullPath: '/settings/updates'
+      preLoaderRoute: typeof SettingsUpdatesRouteImport
+      parentRoute: typeof SettingsRoute
+    }
     '/settings/verbindungen': {
       id: '/settings/verbindungen'
       path: '/verbindungen'
@@ -392,6 +431,7 @@ interface SettingsRouteChildren {
   SettingsBriefingRoute: typeof SettingsBriefingRoute
   SettingsCodeHostingRoute: typeof SettingsCodeHostingRoute
   SettingsDarstellungRoute: typeof SettingsDarstellungRoute
+  SettingsUpdatesRoute: typeof SettingsUpdatesRoute
   SettingsVerbindungenRoute: typeof SettingsVerbindungenRoute
   SettingsIndexRoute: typeof SettingsIndexRoute
 }
@@ -401,6 +441,7 @@ const SettingsRouteChildren: SettingsRouteChildren = {
   SettingsBriefingRoute: SettingsBriefingRoute,
   SettingsCodeHostingRoute: SettingsCodeHostingRoute,
   SettingsDarstellungRoute: SettingsDarstellungRoute,
+  SettingsUpdatesRoute: SettingsUpdatesRoute,
   SettingsVerbindungenRoute: SettingsVerbindungenRoute,
   SettingsIndexRoute: SettingsIndexRoute,
 }
@@ -422,6 +463,7 @@ const rootRouteChildren: RootRouteChildren = {
   BereicheKeyRoute: BereicheKeyRoute,
   FilterIdRoute: FilterIdRoute,
   IssueKeyRoute: IssueKeyRoute,
+  BereicheIndexRoute: BereicheIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

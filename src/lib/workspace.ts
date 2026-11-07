@@ -53,7 +53,9 @@ export const rememberIssue = (
     ...retainedKeys,
   ]);
   const contexts = Object.fromEntries(
-    Object.entries(workspace.contexts ?? {}).filter(([key, entry]) => retained.has(key) || entry.note.trim()),
+    Object.entries(workspace.contexts ?? {}).filter(([key, entry]) =>
+      retained.has(key) || entry.note.trim() || (Number.isFinite(entry.scrollTop) && entry.scrollTop > 0),
+    ),
   );
   return {
     ...workspace,

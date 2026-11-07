@@ -3,7 +3,7 @@ import { motion, useReducedMotion } from "motion/react";
 import { AlertTriangleIcon, CircleAlertIcon, ClockIcon, RotateCwIcon } from "lucide-react";
 import { Alert, AlertAction, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
+import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EASE_OUT } from "@/lib/ease";
 
@@ -22,16 +22,25 @@ export function TimeTrackingSkeleton() {
   );
 }
 
-export function TimeTrackingEmpty({ title, description }: { title: string; description: string }) {
+export function TimeTrackingEmpty({
+  title,
+  description,
+  icon = <ClockIcon />,
+  action,
+}: {
+  title: string;
+  description: string;
+  icon?: ReactNode;
+  action?: ReactNode;
+}) {
   return (
     <Empty className="rounded-2xl border border-dashed">
       <EmptyHeader>
-        <EmptyMedia variant="icon">
-          <ClockIcon />
-        </EmptyMedia>
+        <EmptyMedia variant="icon">{icon}</EmptyMedia>
         <EmptyTitle>{title}</EmptyTitle>
         <EmptyDescription>{description}</EmptyDescription>
       </EmptyHeader>
+      {action && <EmptyContent>{action}</EmptyContent>}
     </Empty>
   );
 }

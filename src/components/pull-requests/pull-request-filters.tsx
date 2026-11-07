@@ -1,31 +1,25 @@
 import { Link } from "@tanstack/react-router";
 import { format } from "date-fns";
-import { RefreshCwIcon, SearchIcon, XIcon } from "lucide-react";
+import { ArrowDownUpIcon, ListChecksIcon, RefreshCwIcon, SearchIcon, XIcon } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { NAV_TAB_CLASS, NavTabIndicator, NavTabs } from "@/components/motion/nav-tabs";
 import { Tooltip } from "@/components/motion/tooltip";
 import { Button } from "@/components/ui/button";
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "@/components/ui/input-group";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { OptionSelect } from "@/components/ui/option-select";
 import { EASE_OUT } from "@/lib/ease";
-import { PULL_REQUEST_STATUSES, PULL_REQUEST_STATUS_LABELS, type PullRequestStatus } from "@/lib/scm/pull-requests";
+import { PULL_REQUEST_CHECK_FILTERS, PULL_REQUEST_CHECK_FILTER_LABELS } from "@/lib/scm/pull-request-checks";
+import { PULL_REQUEST_SORTS, PULL_REQUEST_SORT_LABELS } from "@/lib/scm/pull-request-sort";
+import { PULL_REQUEST_STATUSES, PULL_REQUEST_STATUS_LABELS } from "@/lib/scm/pull-requests";
 import { cn } from "@/lib/utils";
+import type { SelectOption } from "@/types/select-option";
+import type { PullRequestFiltersProps } from "@/types/pull-requests";
 
 const ALL_REPOS = "all";
 
-type PullRequestFiltersProps = {
-  filter: PullRequestStatus;
-  query: string;
-  repo: string;
-  repoOptions: Array<{ value: string; label: string }>;
-  count: number;
-  loading: boolean;
-  refreshing: boolean;
-  updatedAt: Date | null;
-  onQueryChange: (query: string) => void;
-  onRepoChange: (repo: string) => void;
-  onRefresh: () => void;
-};
+const SORT_OPTIONS: SelectOption[] = PULL_REQUEST_SORTS.map((sort) => ({ value: sort, label: PULL_REQUEST_SORT_LABELS[sort] }));
+
+const CHECK_OPTIONS: SelectOption[] = PULL_REQUEST_CHECK_FILTERS.map((filter) => ({ value: filter, label: PULL_REQUEST_CHECK_FILTER_LABELS[filter] }));
 
 export function PullRequestFilters(props: PullRequestFiltersProps) {
   const reduce = useReducedMotion();
@@ -81,19 +75,26 @@ export function PullRequestFilters(props: PullRequestFiltersProps) {
             )}
           </AnimatePresence>
         </InputGroup>
-        <Select value={props.repo || ALL_REPOS} onValueChange={(value) => props.onRepoChange(value === ALL_REPOS ? "" : value)}>
-          <SelectTrigger aria-label="Repository filtern" className="h-8 max-w-64 min-w-40 rounded-xl">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ALL_REPOS}>Alle Repositories</SelectItem>
-            {props.repoOptions.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <OptionSelect
+          label="Repository filtern"
+          value={props.repo || ALL_REPOS}
+          options={[{ value: ALL_REPOS, label: "Alle Repositories" }, ...props.repoOptions]}
+          onValueChange={(value) => props.onRepoChange(value === ALL_REPOS ? "" : value)}
+        />
+        <OptionSelect
+          label="Prüfstatus filtern"
+          value={props.checks}
+          options={CHECK_OPTIONS}
+          icon={<ListChecksIcon className="text-muted-foreground" />}
+          onValueChange={props.onChecksChange}
+        />
+        <OptionSelect
+          label="Sortieren"
+          value={props.sort}
+          options={SORT_OPTIONS}
+          icon={<ArrowDownUpIcon className="text-muted-foreground" />}
+          onValueChange={props.onSortChange}
+        />
         <div className="ml-auto flex items-center gap-1">
           <AnimatePresence mode="wait" initial={false}>
             <motion.span

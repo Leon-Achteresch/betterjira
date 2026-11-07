@@ -7,6 +7,7 @@ import { LoginPrompt } from "@/components/shell/login-prompt";
 export const Route = createFileRoute("/issue/$key")({
   validateSearch: (search: Record<string, unknown>): { bereich?: "zeit" } => (search.bereich === "zeit" ? { bereich: "zeit" } : {}),
   onEnter: ({ params }) => useIssueTabStore.getState().open(params.key),
+  onStay: ({ params }) => useIssueTabStore.getState().open(params.key),
   component: Issue,
 });
 
