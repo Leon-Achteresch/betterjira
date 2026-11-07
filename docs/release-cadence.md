@@ -1,5 +1,7 @@
 # Release-Rhythmus
 
+Aktuelle Anweisung vom 7. November 2026: Für den bestehenden Backlog zuerst sämtliche offenen PRs integrieren und gemeinsam testen, anschließend ein gemeinsames Release starten. Während dieser Integration werden keine Zwischenreleases nach fünf PRs erstellt.
+
 Seit dem 7. November 2026 wird nach jeweils fünf zusammengeführten Pull Requests ein Release erstellt und geprüft. Gezählt werden auch Wartungs-PRs, aber keine reine Übernahme von development nach main und keine automatischen Versions-Commits.
 
 Vor dem Release muss der gemeinsame Stand Typecheck, Build, Unit-Tests und die Browserprüfungen der integrierten Bereiche bestehen. development wird anschließend nach main übernommen; der vorhandene Release-Workflow vergibt die nächste Version und erzeugt die Installer.

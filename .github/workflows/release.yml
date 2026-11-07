@@ -99,12 +99,12 @@ jobs:
           VITE_ATLASSIAN_CLIENT_SECRET: ${{ secrets.VITE_ATLASSIAN_CLIENT_SECRET }}
         with:
           tagName: v__VERSION__
-          commitish: ${{ needs.version.outputs.sha }}
+          releaseCommitish: ${{ needs.version.outputs.sha }}
           releaseName: betterjira v__VERSION__
           releaseBody: Lade unten den Installer für dein System herunter.
           releaseDraft: true
           prerelease: false
-          includeUpdaterJson: false
+          uploadUpdaterJson: false
           args: ${{ matrix.args }}
 
       - name: Windows-App starten und auf frühen Absturz prüfen

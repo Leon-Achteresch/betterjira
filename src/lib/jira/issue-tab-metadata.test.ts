@@ -160,7 +160,7 @@ describe("Tab-Titel ohne volle Ticketdetails", () => {
 
   it("übernimmt keine gecachten Details in einen Titel-Key des vorherigen Kontos", async () => {
     client.setQueryData(jiraKeys.myself, { accountId: "user-b" });
-    client.setQueryData(jiraKeys.issue("DEMO-1"), { fields: { summary: "Titel des neuen Kontos" } });
+    client.setQueryData(jiraKeys.issueDetail("DEMO-1", ACCOUNT_A), { fields: { summary: "Titel des neuen Kontos" } });
     const previous = observe(ACCOUNT_A, ["DEMO-1"]);
     await vi.waitFor(() => expect(client.isFetching()).toBe(0));
     expect(previous.titles()).toEqual([undefined]);
@@ -207,7 +207,7 @@ describe("Tab-Titel ohne volle Ticketdetails", () => {
   });
 
   it("verwendet einen frischen Titel aus dem Detailcache ohne Abruf", async () => {
-    client.setQueryData(jiraKeys.issue("DEMO-5"), { key: "DEMO-5", fields: { summary: "Aus den Details" } });
+    client.setQueryData(jiraKeys.issueDetail("DEMO-5", ACCOUNT_A), { key: "DEMO-5", fields: { summary: "Aus den Details" } });
     const tabs = observe(ACCOUNT_A, ["DEMO-5"]);
     await vi.waitFor(() => expect(tabs.titles()).toEqual(["Aus den Details"]));
     expect(paths).toHaveLength(0);
@@ -216,7 +216,7 @@ describe("Tab-Titel ohne volle Ticketdetails", () => {
 
   it("lädt nach einem Wechsel des aktiven Tabs keinen Titel für das gerade geladene Ticket", async () => {
     const active = observe(ACCOUNT_A, ["DEMO-1"], "DEMO-1");
-    client.setQueryData(jiraKeys.issue("DEMO-1"), { key: "DEMO-1", fields: { summary: "Aktiv geladen" } });
+    client.setQueryData(jiraKeys.issueDetail("DEMO-1", ACCOUNT_A), { key: "DEMO-1", fields: { summary: "Aktiv geladen" } });
     active.unsubscribe();
     const inactive = observe(ACCOUNT_A, ["DEMO-1"], "DEMO-3");
     await vi.waitFor(() => expect(inactive.titles()).toEqual(["Aktiv geladen"]));
@@ -225,14 +225,14 @@ describe("Tab-Titel ohne volle Ticketdetails", () => {
   });
 
   it("fragt nach Invalidierung trotz vorhandener Details die Zusammenfassung neu ab", async () => {
-    client.setQueryData(jiraKeys.issue("DEMO-5"), { key: "DEMO-5", fields: { summary: "Alter Titel" } });
+    client.setQueryData(jiraKeys.issueDetail("DEMO-5", ACCOUNT_A), { key: "DEMO-5", fields: { summary: "Alter Titel" } });
     const tabs = observe(ACCOUNT_A, ["DEMO-5"]);
     await vi.waitFor(() => expect(tabs.titles()).toEqual(["Alter Titel"]));
     rule = () => ({ summary: "Neuer Titel" });
     await client.invalidateQueries({ queryKey: jiraKeys.issue("DEMO-5") });
     await vi.waitFor(() => expect(tabs.titles()).toEqual(["Neuer Titel"]));
     expect(paths).toEqual(["/issue/DEMO-5?fields=summary"]);
-    expect(client.getQueryData(jiraKeys.issue("DEMO-5"))).toEqual({ key: "DEMO-5", fields: { summary: "Alter Titel" } });
+    expect(client.getQueryData(jiraKeys.issueDetail("DEMO-5", ACCOUNT_A))).toEqual({ key: "DEMO-5", fields: { summary: "Alter Titel" } });
     tabs.unsubscribe();
   });
 

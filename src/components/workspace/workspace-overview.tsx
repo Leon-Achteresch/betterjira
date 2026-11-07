@@ -138,7 +138,6 @@ export function WorkspaceOverview(props: WorkspaceOverviewProps) {
                   linkRef={props.entryRef(entry.key)}
                   onTogglePin={() => props.onTogglePin(entry)}
                   onRemoveRecent={() => props.onRemoveRecent(entry)}
-                  onTogglePin={() => props.onTogglePin(entry)}
                   onEditNote={() => props.onEditNote(entry)}
                 />
               </StaggerItem>

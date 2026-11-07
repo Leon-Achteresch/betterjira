@@ -14,5 +14,6 @@ export type ProjectDirectoryProps = {
 export type ProjectDirectoryRowProps = {
   entry: ProjectDirectoryState["entries"][number];
   onToggleFavorite: () => void;
+  disabled?: boolean;
   ref?: Ref<HTMLLIElement>;
 };

@@ -6,7 +6,6 @@ import { useRecentRemoval } from "@/hooks/use-recent-removal";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { RECENT_ISSUE_LIMIT, scopedFieldDraftKeys, togglePinnedIssue, type Workspace } from "@/lib/workspace";
 import { useWorkspaceNoteEditor } from "@/hooks/use-workspace-note-editor";
-import { RECENT_ISSUE_LIMIT, scopedFieldDraftKeys, togglePinnedIssue } from "@/lib/workspace";
 import {
   visibleWorkspaceEntries,
   workspaceEmptyState,

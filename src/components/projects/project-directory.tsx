@@ -25,7 +25,7 @@ export function ProjectDirectory(props: Props) {
             <Link
               key={id}
               to="/bereiche"
-              search={projectDirectorySearch({ q: query, ansicht: id })}
+              search={projectDirectorySearch({ q: query, ansicht: id, sort: props.sort })}
               aria-current={id === view ? "page" : undefined}
               className={NAV_TAB_CLASS}
             >
@@ -37,7 +37,7 @@ export function ProjectDirectory(props: Props) {
         </NavTabs>
         <div className="flex flex-wrap gap-2">
           <ProjectDirectorySearch query={query} onQueryChange={onQueryChange} />
-          <SortMenu value={props.sort} options={PROJECT_SORT_IDS.map((value) => ({ value, label: PROJECT_SORTS[value] }))} onValueChange={props.onSortChange} />
+          <SortMenu label="Sortierung" value={props.sort} options={PROJECT_SORT_IDS.map((id) => ({ id, label: PROJECT_SORTS[id].label }))} onValueChange={props.onSortChange} />
         </div>
       </div>
       <AnimatePresence initial={false}>

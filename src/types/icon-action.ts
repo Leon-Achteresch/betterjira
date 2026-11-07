@@ -1,6 +1,7 @@
-import type { ReactNode, ComponentProps } from "react";
+import type { ReactNode } from "react";
+import type { HTMLMotionProps } from "motion/react";
 
-export type IconActionProps = Omit<ComponentProps<"button">, "onClick" | "children"> & {
+export type IconActionProps = Omit<HTMLMotionProps<"button">, "onClick" | "children"> & {
   label: string;
   tooltip: ReactNode;
   onClick: () => void;

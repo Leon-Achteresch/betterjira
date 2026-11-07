@@ -44,7 +44,7 @@ export const issueTabTitleQuery = (client: QueryClient, scope: IssueTabScope | u
   queryFn: ({ signal }: { signal: AbortSignal }) =>
     Effect.runPromise(Effect.suspend(() => {
       if (!jiraQueryScopeMatches(client, scope)) return Effect.fail(new IssueTabScopeChanged());
-      const cached = reusableSummary(client.getQueryState(jiraKeys.issue(key)), Date.now());
+      const cached = reusableSummary(client.getQueryState(jiraKeys.issueDetail(key, scope)), Date.now());
       return cached !== undefined ? Effect.succeed(cached) : fetchIssueTitle(client, scope, key);
     }), { signal }),
   enabled: !!scope && !active,
