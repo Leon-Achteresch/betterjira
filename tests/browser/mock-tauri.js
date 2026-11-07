@@ -603,8 +603,7 @@ if (scenario === "rollout-duplicate" && localStorage.getItem("betterjira:calenda
         title: "Produktion Release 2.4",
         start: "2026-11-06T13:00:00.000Z",
         end: "2026-11-06T14:30:00.000Z",
-        notes: "Monitoring beobachten
-Rollback vorbereiten",
+        notes: "Monitoring beobachten\nRollback vorbereiten",
         issues: [{ key: "DEMO-1", summary: "QA-Testticket DEMO-1" }],
         siteUrl: "https://example.atlassian.net",
         reminderMinutes: 60,

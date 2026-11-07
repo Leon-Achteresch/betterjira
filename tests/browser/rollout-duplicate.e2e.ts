@@ -49,8 +49,7 @@ const open = async (page: Page) => {
 };
 
 const agenda = (page: Page) => page.getByRole("region", { name: "Tagesagenda" });
-const exactText = (text: string) => new RegExp(`^${text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`);
-const article = (page: Page, title: string) => agenda(page).locator("article").filter({ has: page.locator("h3", { hasText: exactText(title) }) });
+const article = (page: Page, title: string) => agenda(page).locator("article").filter({ has: page.getByRole("heading", { name: title, exact: true, level: 3 }) });
 const moreButton = (page: Page, title: string) => article(page, title).getByRole("button", { name: "Weitere Aktionen", exact: true });
 const dialog = (page: Page) => page.getByRole("dialog");
 
