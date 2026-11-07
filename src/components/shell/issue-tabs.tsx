@@ -95,6 +95,7 @@ function IssueTabItem({
           transition={SPRING_LAYOUT}
           onMouseDown={(event) => event.button === 1 && event.preventDefault()}
           onMouseUp={(event) => event.button === 1 && !tab.pinned && onClose(tab.key)}
+          onAuxClick={(event) => event.button === 1 && event.preventDefault()}
           className={cn(
             "group relative flex shrink-0 items-center rounded-t-lg text-xs transition-colors",
             tab.pinned ? "w-auto" : "w-44",

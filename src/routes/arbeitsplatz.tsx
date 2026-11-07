@@ -36,14 +36,19 @@ function Arbeitsplatz() {
           ready={page.ready}
           filter={page.filter}
           query={page.query}
+          sort={page.sort}
           total={page.total}
           counts={page.counts}
           entries={page.entries}
           emptyState={page.emptyState}
           recentLimit={page.recentLimit}
+          entryRef={page.entryRef}
+          searchRef={page.searchRef}
           searchFor={page.searchFor}
           onQueryChange={page.changeQuery}
+          onSortChange={page.changeSort}
           onTogglePin={page.togglePin}
+          onRemoveRecent={page.removeRecent}
         />
       </SessionGate>
     </div>

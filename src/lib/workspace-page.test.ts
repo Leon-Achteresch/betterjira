@@ -11,10 +11,13 @@ import {
 import {
   filterWorkspaceEntries,
   parseWorkspacePageSearch,
+  sortWorkspaceEntries,
   workspaceEmptyState,
   workspaceEntries,
   workspaceFilterCounts,
   workspacePageSearch,
+  workspacePageSortOf,
+  type WorkspaceEntry,
 } from "./workspace-page";
 
 const busy = (): Workspace => {
@@ -88,5 +91,98 @@ describe("Arbeitsplatz-Ableitung", () => {
   it("unterscheidet leere Kategorie und erfolglose Suche", () => {
     expect(workspaceEmptyState("notizen", "").title).toBe("Keine privaten Notizen");
     expect(workspaceEmptyState("notizen", "x").title).toBe("Kein passender Arbeitskontext");
+  });
+});
+
+const entry = (key: string, summary: string, visitedAt: number): WorkspaceEntry => ({
+  key,
+  summary,
+  note: "",
+  hasDraft: false,
+  hasFieldDraft: false,
+  pinned: false,
+  visitedAt,
+  hasReadingPosition: false,
+  status: undefined,
+  draft: "",
+  recent: visitedAt > 0,
+  known: summary !== key,
+});
+
+const mixed = (): WorkspaceEntry[] => [
+  entry("DEMO-10", "Zahlungslauf prüfen", 200),
+  entry("DEMO-2", "abnahme vorbereiten", 500),
+  entry("DEMO-11", "DEMO-11", 0),
+  entry("OPS-7", "Monitoring einrichten", 500),
+  entry("DEMO-9", "Abnahme vorbereiten", Number.NaN),
+  entry("DEMO-1", "  ", 100),
+];
+
+const keysOf = (entries: readonly WorkspaceEntry[]) => entries.map((item) => item.key);
+
+describe("Arbeitsplatz-Sortierung", () => {
+  it("lässt die bisherige Reihenfolge im Standard unverändert", () => {
+    expect(keysOf(sortWorkspaceEntries(mixed(), "standard"))).toEqual(keysOf(mixed()));
+  });
+
+  it("zeigt zuletzt Geöffnetes zuerst, stabil bei gleicher Zeit und unbekannte Zeiten am Ende", () => {
+    expect(keysOf(sortWorkspaceEntries(mixed(), "geoeffnet"))).toEqual([
+      "DEMO-2",
+      "OPS-7",
+      "DEMO-10",
+      "DEMO-1",
+      "DEMO-11",
+      "DEMO-9",
+    ]);
+  });
+
+  it("ordnet Ticket-Schlüssel in natürlicher Zahlenfolge", () => {
+    expect(keysOf(sortWorkspaceEntries(mixed(), "schluessel"))).toEqual([
+      "DEMO-1",
+      "DEMO-2",
+      "DEMO-9",
+      "DEMO-10",
+      "DEMO-11",
+      "OPS-7",
+    ]);
+  });
+
+  it("ordnet nach Titel ohne Groß-/Kleinschreibung, stabil, und unbekannte Titel ans Ende", () => {
+    expect(keysOf(sortWorkspaceEntries(mixed(), "titel"))).toEqual([
+      "DEMO-2",
+      "DEMO-9",
+      "OPS-7",
+      "DEMO-10",
+      "DEMO-11",
+      "DEMO-1",
+    ]);
+  });
+
+  it("verändert die Eingabe nicht und verträgt leere Listen", () => {
+    const entries = Object.freeze(mixed());
+    for (const sort of ["standard", "geoeffnet", "schluessel", "titel"] as const) {
+      const sorted = sortWorkspaceEntries(entries, sort);
+      expect(sorted).not.toBe(entries);
+      expect(new Set(sorted)).toEqual(new Set(entries));
+      expect(sortWorkspaceEntries([], sort)).toEqual([]);
+    }
+    expect(keysOf(entries)).toEqual(keysOf(mixed()));
+  });
+
+  it("liest die Sortierung aus der URL und behandelt Standard, Fehlendes und Ungültiges gleich", () => {
+    expect(workspacePageSortOf(undefined)).toBe("standard");
+    expect(workspacePageSortOf("unbekannt")).toBe("standard");
+    expect(workspacePageSortOf(3)).toBe("standard");
+    expect(workspacePageSortOf("titel")).toBe("titel");
+    expect(parseWorkspacePageSearch({ sort: "schluessel", art: "notizen", q: "sam" })).toEqual({
+      art: "notizen",
+      q: "sam",
+      sort: "schluessel",
+    });
+    expect(parseWorkspacePageSearch({ sort: "standard" })).toEqual({});
+    expect(parseWorkspacePageSearch({ sort: "unbekannt" })).toEqual({});
+    expect(parseWorkspacePageSearch({ sort: ["titel"] })).toEqual({});
+    expect(parseWorkspacePageSearch({ sort: ["titel"] })).toHaveProperty("sort", undefined);
+    expect(workspacePageSearch("entwuerfe", "", "geoeffnet")).toEqual({ art: "entwuerfe", sort: "geoeffnet" });
   });
 });

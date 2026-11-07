@@ -137,6 +137,8 @@ if (scenario === "busy") {
     ]).flat(),
   };
 }
+if (window.__qaDescriptions)
+  for (const issue of issues) if (issue.key in window.__qaDescriptions) issue.fields.description = window.__qaDescriptions[issue.key];
 const boardStatuses = [
   { id: "10", name: "Triage", statusCategory: { key: "new", colorName: "blue-gray" } },
   { id: "11", name: "Zu erledigen", statusCategory: { key: "new", colorName: "blue-gray" } },
@@ -373,6 +375,16 @@ const scmGithub = {
     CLOSED: [],
   },
 };
+if (scmScenario === "scm-checks")
+  scmGithub["qa/design-system"].OPEN.push(
+    scmGraphPullRequest("qa/design-system", 14, "Icons ohne Prüfdaten", "OPEN", 12, {
+      commits: { nodes: [{ commit: { statusCheckRollup: null } }] },
+    }),
+    scmGraphPullRequest("qa/design-system", 15, "Fokusrahmen schärfen", "OPEN", 30, {
+      commits: { nodes: [{ commit: { statusCheckRollup: { state: "QA_UNBEKANNT" } } }] },
+    }),
+    scmGraphPullRequest("qa/design-system", 16, "Changelog ergänzen", "OPEN", 40, { commits: { nodes: [] } }),
+  );
 const scmCloud = {
   OPEN: [
     {
@@ -528,20 +540,124 @@ const issueLinks = {
     ];
   },
 };
+const remoteLinks = {
+  "DEMO-1": [
+    {
+      id: 10000,
+      globalId: "appId=qa&pageId=1",
+      application: { type: "com.atlassian.confluence", name: "Confluence" },
+      relationship: "Wiki-Seite",
+      object: {
+        url: "https://example.atlassian.net/wiki/spaces/QA/pages/1",
+        title: "Übergabe-Checkliste für das Release",
+        summary: "Lokale Testseite: Ablauf, Verantwortliche und Rückfallplan.",
+        icon: { url16x16: "https://example.atlassian.net/wiki/icon.png" },
+      },
+    },
+    {
+      id: 10001,
+      relationship: "Spezifikation",
+      object: {
+        url: "https://specs.example.test/editor/tastatur-und-fokusfuehrung-im-mehrzeiligen-editor-mit-sehr-langem-pfad",
+        title: "Tastaturbedienung im Editor: vollständige Spezifikation mit allen Sonderfällen für Fokus, Auswahl und Rückgängig",
+        summary: "Sehr lange Beschreibung zum Testen des Umbruchs: <b>kein HTML</b> wird ausgeführt, Inhalte erscheinen als Text.",
+        status: { resolved: true },
+      },
+    },
+    { id: 10002, relationship: "Skript", object: { url: "javascript:alert(1)", title: "Ungültiges Protokoll" } },
+    { id: 10003, object: { title: "Ziel fehlt" } },
+    { id: 10004, object: { url: "https://qa:geheim@intranet.example.test/doc", title: "Ziel mit Zugangsdaten" } },
+    { id: 10005 },
+  ],
+};
 const listeners = new Map();
 let listenerId = 0;
 let callbackId = 0;
 const requests = new Map();
 let nextId = 0;
-window.__qa = { writes: [], issueReads: [], failNextWrite: false, delayMs: 0, issues, wiki, briefing, briefingFailure: false, searches: [], searchDelayMs: 0, failSearch: false, emptySearch: false, sessionFailure: scenario === "session-error", sessionDelayMs: scenario === "session-slow" ? 1500 : 0, commands: [], myselfDelayMs: 0, failMyself: false, myselfCalls: 0 };
+if (scenario === "rollout-search" && localStorage.getItem("betterjira:calendar:rollouts:v1") === null) {
+  const rollout = (index, title, start, end, notes, keys) => ({
+    id: `00000000-0000-4000-8000-${String(index).padStart(12, "0")}`,
+    title,
+    start,
+    end,
+    notes,
+    issues: keys.map((key) => ({ key, summary: `QA-Testticket ${key}` })),
+    siteUrl: "https://example.atlassian.net",
+    reminderMinutes: 15,
+    outlookEventId: null,
+    outlookAccountId: null,
+    outlookWebLink: null,
+  });
+  const hotfixes = Array.from({ length: 10 }, (_, index) => {
+    const day = String(index + 1).padStart(2, "0");
+    return rollout(index + 10, `Hotfix-Release 1.0.${index + 1}`, `2026-10-${day}T08:00:00.000Z`, `2026-10-${day}T09:00:00.000Z`, "", []);
+  });
+  localStorage.setItem(
+    "betterjira:calendar:rollouts:v1",
+    JSON.stringify([
+      rollout(1, "Produktion Release 2.4", "2026-11-06T13:00:00.000Z", "2026-11-06T14:00:00.000Z", "Monitoring (Grafana) beobachten", ["DEMO-1"]),
+      rollout(2, "Datenbank Migration", "2026-12-03T08:00:00.000Z", "2026-12-03T09:00:00.000Z", "Backup vorher prüfen", ["OPS-7"]),
+      rollout(3, "Wartungsfenster [intern] 50%", "2026-11-20T08:00:00.000Z", "2026-11-20T09:00:00.000Z", "", []),
+      ...hotfixes,
+    ]),
+  );
+}
+if (scenario === "rollout-duplicate" && localStorage.getItem("betterjira:calendar:rollouts:v1") === null) {
+  localStorage.setItem("betterjira:calendar:outlook:v1", "ABC123");
+  localStorage.setItem(
+    "betterjira:calendar:rollouts:v1",
+    JSON.stringify([
+      {
+        id: "00000000-0000-4000-8000-000000000101",
+        title: "Produktion Release 2.4",
+        start: "2026-11-06T13:00:00.000Z",
+        end: "2026-11-06T14:30:00.000Z",
+        notes: "Monitoring beobachten\nRollback vorbereiten",
+        issues: [{ key: "DEMO-1", summary: "QA-Testticket DEMO-1" }],
+        siteUrl: "https://example.atlassian.net",
+        reminderMinutes: 60,
+        outlookEventId: "DUP-OUTLOOK-1",
+        outlookAccountId: "ABC123",
+        outlookWebLink: "https://outlook.example.invalid/DUP-OUTLOOK-1",
+      },
+      {
+        id: "00000000-0000-4000-8000-000000000102",
+        title: "Partner-Rollout",
+        start: "2026-11-06T15:00:00.000Z",
+        end: "2026-11-06T16:00:00.000Z",
+        notes: "Freigabe beim Partner einholen",
+        issues: [{ key: "EXT-4", summary: "QA-Testticket der fremden Site" }],
+        siteUrl: "https://andere-firma.example.atlassian.net",
+        reminderMinutes: 1440,
+        outlookEventId: null,
+        outlookAccountId: null,
+        outlookWebLink: null,
+      },
+    ]),
+  );
+}
+window.__qa = { writes: [], issueReads: [], failNextWrite: false, delayMs: 0, issues, wiki, briefing, briefingFailure: false, searches: [], searchDelayMs: 0, failSearch: false, emptySearch: false, sessionFailure: scenario === "session-error", sessionDelayMs: scenario === "session-slow" ? 1500 : 0, commands: [], opened: [], myselfDelayMs: 0, failMyself: false, myselfCalls: 0 };
 window.__qa.outlook = {
   calls: [],
   failNext: false,
   account: { id: "ABC123", displayName: "Lokaler Outlook-Testkalender", email: "outlook@example.com" },
   events: [{ id: "AAAA", title: "Externer Outlook-Termin", start: "2026-11-06T10:00:00.000Z", end: "2026-11-06T11:00:00.000Z", webLink: "", isAllDay: false }],
 };
+if (scenario === "rollout-duplicate")
+  window.__qa.outlook.events.push({ id: "DUP-OUTLOOK-1", rolloutId: "00000000-0000-4000-8000-000000000101", title: "Produktion Release 2.4", start: "2026-11-06T13:00:00.000Z", end: "2026-11-06T14:30:00.000Z", webLink: "", isAllDay: false });
+window.__qaUpdates = {
+  installed: [],
+  restarts: 0,
+  releases: [
+    { tag_name: "v0.7.0", published_at: "2026-11-06T18:14:30Z", draft: false, prerelease: false },
+    { tag_name: "v0.6.0", published_at: "2026-11-06T17:18:31Z", draft: false, prerelease: false },
+    { tag_name: "v0.5.0", published_at: "2026-11-06T12:49:31Z", draft: false, prerelease: false },
+  ],
+};
 const respond = async (request) => {
   const url = new URL(request.url);
+  if (url.hostname === "api.github.com") return { body: window.__qaUpdates.releases };
   const path = url.pathname.replace(/^.*\/rest\/(?:api\/[23]|agile\/1\.0)/, "");
   if (request.method !== "GET") {
     if (path.endsWith("approximate-count")) return { body: { count: issues.length } };
@@ -641,6 +757,14 @@ const respond = async (request) => {
   if (path.endsWith("/transitions")) return { body: { transitions } };
   if (path.startsWith("/issue/")) window.__qa.issueReads.push(`${path}?fields=${url.searchParams.get("fields") ?? ""}`);
 
+  const remoteLinkPath = path.match(/^\/issue\/([^/]+)\/remotelink$/);
+  if (remoteLinkPath) {
+    const rule = window.__qaRemoteLinksRule?.(remoteLinkPath[1]) ?? {};
+    if (rule.delayMs) await new Promise((resolve) => setTimeout(resolve, rule.delayMs));
+    if (rule.status) return { status: rule.status, body: { errorMessages: [`Test: Jira antwortet mit ${rule.status}`] } };
+    return { body: rule.links ?? remoteLinks[remoteLinkPath[1]] ?? [] };
+  }
+
   const worklogPath = path.match(/^\/issue\/([^/]+)\/worklog$/);
   if (worklogPath) {
     const target = issues.find((issue) => issue.id === worklogPath[1] || issue.key === worklogPath[1]);
@@ -700,6 +824,10 @@ window.__TAURI_INTERNALS__ = {
     if (command === "scm_request" && scmScenario) return scmRespond(args);
     if (command === "plugin:opener|open_url" && scmScenario) {
       window.__qaScm.opened.push(args.url);
+      return null;
+    }
+    if (command === "plugin:opener|open_url") {
+      window.__qa.opened.push(args.url);
       return null;
     }
     if (command === "outlook_request") {
@@ -775,6 +903,16 @@ window.__TAURI_INTERNALS__ = {
       return id;
     }
     if (command === "plugin:window|is_focused") return true;
+    if (command === "plugin:app|version") return "0.7.0";
+    if (command === "plugin:updater|check") return null;
+    if (command === "update_install_version") {
+      window.__qaUpdates.installed.push(args.version);
+      return null;
+    }
+    if (command === "plugin:process|restart") {
+      window.__qaUpdates.restarts++;
+      return null;
+    }
     if (command === "plugin:http|fetch") {
       const id = ++nextId;
       requests.set(id, { request: args.clientConfig, sent: false });
