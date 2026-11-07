@@ -5,10 +5,11 @@ import { NAV_TAB_CLASS, NavTabIndicator, NavTabs } from "@/components/motion/nav
 import { Fade } from "@/components/motion/fade";
 import { ProjectDirectoryContent } from "@/components/projects/project-directory-content";
 import { ProjectDirectorySearch } from "@/components/projects/project-directory-search";
+import { SortMenu } from "@/components/motion/sort-menu";
 import { Alert, AlertAction, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { RetryButton } from "@/components/ui/retry-button";
 import { jiraErrors } from "@/lib/jira/field-values";
-import { PROJECT_VIEW_IDS, PROJECT_VIEWS, projectDirectorySearch } from "@/lib/project-directory";
+import { PROJECT_VIEW_IDS, PROJECT_VIEWS, PROJECT_SORT_IDS, PROJECT_SORTS, projectDirectorySearch } from "@/lib/project-directory";
 import type { ProjectDirectoryProps as Props } from "@/types/project-directory";
 
 export function ProjectDirectory(props: Props) {
@@ -34,7 +35,10 @@ export function ProjectDirectory(props: Props) {
             </Link>
           ))}
         </NavTabs>
-        <ProjectDirectorySearch query={query} onQueryChange={onQueryChange} />
+        <div className="flex flex-wrap gap-2">
+          <ProjectDirectorySearch query={query} onQueryChange={onQueryChange} />
+          <SortMenu value={props.sort} options={PROJECT_SORT_IDS.map((value) => ({ value, label: PROJECT_SORTS[value] }))} onValueChange={props.onSortChange} />
+        </div>
       </div>
       <AnimatePresence initial={false}>
         {directory.refreshError && (

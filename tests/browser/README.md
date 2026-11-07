@@ -243,3 +243,7 @@ Der vollständige Ablaufbericht einschließlich Vielnutzer, sorgfältigem Leser,
 - Favoriten-Schreibzugriffe (`PUT`/`DELETE /filter/{id}/favourite`) bleiben in der Simulation und stehen in `window.__qa.writes`; `failNextWrite` und `delayMs` wirken auch hier.
 - Zweites Konto: `&account=qa-colleague` sieht nur seinen eigenen Filter.
 - Automatisch: `bunx playwright test tests/browser/filter-overview.e2e.ts --workers=1`. Mit `FILTER_SHOTS=<Ordner>` speichert der Test Screenshots und prüft, dass die Schrift geladen ist.
+
+## Bereiche sortieren
+
+`http://localhost:1420/tests/browser/fixture.html?scenario=projects&route=/bereiche?sort=name` öffnet die Bereichsübersicht direkt mit Sortierung. Gültige Werte für `sort`: `name`, `schluessel`, `favoriten`; ohne Parameter oder bei unbekanntem Wert gilt die geladene Reihenfolge. `projects.e2e.ts` prüft Reihenfolge je Sortierung, Tastaturbedienung, URL mit Suche und Ansicht, Zurück/Vorwärts, Direktlink, dass Zeilen beim Umordnen nicht neu eingehängt werden und dass keine zusätzlichen Projekt-, Board- oder Ticketanfragen entstehen. Die Fixture-Daten bleiben unverändert.
