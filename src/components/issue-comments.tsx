@@ -4,6 +4,7 @@ import { formatDistanceToNowStrict } from "date-fns";
 import { de } from "date-fns/locale";
 import { AdfContent } from "@/components/adf-content";
 import { JiraUserLabel } from "@/components/jira-user-avatar";
+import { CommentLinkAction } from "@/components/issues/comment-link-action";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/motion/tooltip";
 import {
@@ -15,6 +16,7 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { useIssueComments } from "@/hooks/use-issue-comments";
+import { useCommentLink } from "@/hooks/jira/use-comment-link";
 import { EASE_OUT } from "@/lib/ease";
 import { IS_MAC } from "@/lib/platform";
 import { COMMENT_TEMPLATES } from "@/lib/workspace";
@@ -24,6 +26,7 @@ type Comment = NonNullable<JiraIssueDetail["fields"]["comment"]>["comments"][num
 
 export function IssueComments({ issueKey, comments }: { issueKey: string; comments: readonly Comment[] }) {
   const editor = useIssueComments(issueKey, comments);
+  const link = useCommentLink(issueKey);
   const reduce = useReducedMotion();
 
   return (
@@ -55,16 +58,19 @@ export function IssueComments({ issueKey, comments }: { issueKey: string; commen
                   className="flex flex-col gap-2"
                 >
                   <div className="flex items-center gap-2 text-sm">
-                    <JiraUserLabel user={comment.author} />
-                    <span
-                      className="text-xs text-muted-foreground"
-                      title={new Date(comment.created).toLocaleString("de-DE")}
-                    >
-                      {formatDistanceToNowStrict(new Date(comment.created), {
-                        locale: de,
-                        addSuffix: true,
-                      })}
-                    </span>
+                    <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1 [overflow-wrap:anywhere]">
+                      <JiraUserLabel user={comment.author} />
+                      <span
+                        className="text-xs text-muted-foreground"
+                        title={new Date(comment.created).toLocaleString("de-DE")}
+                      >
+                        {formatDistanceToNowStrict(new Date(comment.created), {
+                          locale: de,
+                          addSuffix: true,
+                        })}
+                      </span>
+                    </div>
+                    <CommentLinkAction available={link.available(comment.id)} onCopy={() => void link.copy(comment.id)} />
                   </div>
                   <AdfContent doc={comment.body} className="pl-8" />
                 </motion.li>

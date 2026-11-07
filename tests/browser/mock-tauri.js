@@ -119,6 +119,16 @@ const issues = Array.from({ length: scenario === "busy" ? 35 : scenario === "wor
     worklog: { total: 0, worklogs: [] },
   },
 }));
+if (scenario === "comment-links")
+  issues[0].fields.comment.comments = [
+    { id: "10001", author, created: "2026-11-02T10:00:00Z", body: paragraph("Erster QA-Kommentar mit numerischer ID.") },
+    {
+      id: "10002",
+      author: { ...author, accountId: "qa-long-name", displayName: "Maximiliane Alexandra Beispielhaft-Langnamige von und zu Testdorf (Qualitätssicherung Nord)" },
+      created: "2026-11-04T10:00:00Z",
+      body: paragraph("Zweiter QA-Kommentar mit sehr langem Autorennamen."),
+    },
+  ];
 if (scenario === "busy") {
   issues[0].fields.description = {
     type: "doc",
@@ -743,7 +753,7 @@ window.__TAURI_INTERNALS__ = {
         refreshToken: "local-test",
         expiresAt: Date.now() + 3600000,
         cloudId: "qa-cloud",
-        siteUrl: "https://example.atlassian.net",
+        siteUrl: window.__qaSiteUrl ?? "https://example.atlassian.net",
         siteName: "Lokale UI-Testdaten",
       });
     if (command === "oauth_login") throw "Test: Anmeldung abgebrochen";
