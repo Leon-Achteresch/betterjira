@@ -12,6 +12,14 @@ describe("Meine Zeiterfassung: Zeitraum", () => {
     expect(timeRangeSearch({ datum: 20261102 })).toEqual({});
   });
 
+  it("liest die Suche aus q und liefert sonst ausdrücklich undefined", () => {
+    expect(timeRangeSearch({ q: "  DEMO-1 Review " })).toEqual({ q: "DEMO-1 Review" });
+    expect(timeRangeSearch({ q: 1234 }).q).toBe("1234");
+    for (const q of [undefined, "", "   ", ["a"], { a: 1 }, true, null]) {
+      expect(timeRangeSearch({ q })).toHaveProperty("q", undefined);
+    }
+  });
+
   it("beginnt Wochen am Montag und endet exklusiv", () => {
     const week = resolveTimeRange({}, today);
     expect(week.days).toEqual(["2026-11-02", "2026-11-03", "2026-11-04", "2026-11-05", "2026-11-06", "2026-11-07", "2026-11-08"]);

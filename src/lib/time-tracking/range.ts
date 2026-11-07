@@ -1,8 +1,9 @@
 import { addDays, addWeeks, format, isValid, parse, startOfDay, startOfWeek } from "date-fns";
 import { de } from "date-fns/locale";
+import { queryOf } from "@/lib/search/search-params";
 
 export type TimeRangeKind = "tag" | "woche";
-export type TimeRangeSearch = { zeitraum?: TimeRangeKind; datum?: string };
+export type TimeRangeSearch = { zeitraum?: TimeRangeKind; datum?: string; q?: string };
 export type TimeRange = { kind: TimeRangeKind; start: Date; end: Date; days: string[] };
 export type TimeRangePreset = "heute" | "woche" | "vorwoche";
 
@@ -26,6 +27,7 @@ export const parseDayKey = (value: unknown) => {
 export const timeRangeSearch = (search: Record<string, unknown>): TimeRangeSearch => ({
   ...(search.zeitraum === "tag" && { zeitraum: "tag" }),
   ...(parseDayKey(search.datum) && { datum: String(search.datum) }),
+  q: queryOf(search.q),
 });
 
 export const resolveTimeRange = (search: TimeRangeSearch, today: Date): TimeRange => {

@@ -38,7 +38,15 @@ function TimeEntryRow({ entry }: { entry: TimeDayView["entries"][number] }) {
   );
 }
 
-export function TimeDayList({ days, emptyDayLabel }: { days: readonly TimeDayView[]; emptyDayLabel: string }) {
+export function TimeDayList({
+  days,
+  emptyDayLabel,
+  totalLabel,
+}: {
+  days: readonly TimeDayView[];
+  emptyDayLabel: string;
+  totalLabel: string;
+}) {
   return (
     <Stagger className="flex flex-col gap-3">
       {days.map((day) => (
@@ -47,7 +55,7 @@ export function TimeDayList({ days, emptyDayLabel }: { days: readonly TimeDayVie
             <header className="flex items-baseline gap-2 px-3 pt-1.5 pb-1">
               <h2 className="text-sm font-semibold text-balance">{day.label}</h2>
               {day.isToday && <span className="rounded-xl bg-primary/12 px-2 text-xs text-primary">Heute</span>}
-              <span className="ml-auto text-sm text-muted-foreground tabular-nums" aria-label={`Tagessumme ${day.total}`}>
+              <span className="ml-auto text-sm text-muted-foreground tabular-nums" aria-label={`${totalLabel} ${day.total}`}>
                 {day.total}
               </span>
             </header>

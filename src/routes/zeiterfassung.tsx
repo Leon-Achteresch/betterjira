@@ -1,12 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { TimerIcon } from "lucide-react";
+import { SearchXIcon, TimerIcon } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { SearchField } from "@/components/motion/search-field";
 import { LoginPrompt } from "@/components/shell/login-prompt";
 import { SessionGate } from "@/components/shell/session-gate";
 import { TimeDayList } from "@/components/time-tracking/time-day-list";
 import { TimeRangeBar } from "@/components/time-tracking/time-range-bar";
 import { TimeNoticeSlot, TimeTrackingEmpty, TimeTrackingNotice, TimeTrackingSkeleton } from "@/components/time-tracking/time-states";
 import { TimeSummaryTiles } from "@/components/time-tracking/time-summary";
+import { Button } from "@/components/ui/button";
 import { useTimeTrackingPage } from "@/hooks/time-tracking/use-time-tracking-page";
 import { EASE_OUT } from "@/lib/ease";
 import { timeRangeSearch } from "@/lib/time-tracking/range";
@@ -48,6 +50,13 @@ function Zeiterfassung() {
           onPrevious={page.previous}
           onNext={page.next}
           onRefresh={page.refresh}
+        />
+        <SearchField
+          value={page.search.value}
+          onChange={page.search.onChange}
+          label="Buchungen durchsuchen"
+          placeholder="Ticket, Titel oder Kommentar"
+          className="w-full sm:max-w-xs"
         />
         <AnimatePresence initial={false}>
           {page.refreshError && (
@@ -92,11 +101,37 @@ function Zeiterfassung() {
             )}
             {view === "ready" && (
               <>
-                <TimeSummaryTiles total={page.total} totalLabel={page.totalLabel} hint={page.totalHint} entries={page.entryCount} issues={page.issueCount} />
+                <TimeSummaryTiles
+                  total={page.total}
+                  totalLabel={page.totalLabel}
+                  hint={page.totalHint}
+                  entries={page.entryCount}
+                  issues={page.issueCount}
+                  matches={page.matches}
+                />
                 {page.empty ? (
                   <TimeTrackingEmpty title={page.emptyTitle} description="In diesem Zeitraum hast du in Jira keine Zeit gebucht." />
                 ) : (
-                  <TimeDayList days={page.days} emptyDayLabel="Keine Buchungen" />
+                  <AnimatePresence mode="wait" initial={false}>
+                    {page.noMatches ? (
+                      <TimeNoticeSlot key="no-matches">
+                        <TimeTrackingEmpty
+                          icon={<SearchXIcon />}
+                          title={page.noMatchesTitle}
+                          description="Keine geladene Buchung passt zu Ticket, Titel oder Kommentar."
+                          action={
+                            <Button variant="outline" onClick={page.resetSearch}>
+                              Suche zurücksetzen
+                            </Button>
+                          }
+                        />
+                      </TimeNoticeSlot>
+                    ) : (
+                      <TimeNoticeSlot key="days">
+                        <TimeDayList days={page.days} emptyDayLabel="Keine Buchungen" totalLabel={page.dayTotalLabel} />
+                      </TimeNoticeSlot>
+                    )}
+                  </AnimatePresence>
                 )}
               </>
             )}

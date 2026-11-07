@@ -110,6 +110,7 @@ Der vollständige Ablaufbericht einschließlich Vielnutzer, sorgfältigem Leser,
 - Lokale Testbuchungen: `...fixture.html?scenario=time-tracking&route=/zeiterfassung` (eigene Buchungen in der Woche ab 02.11.2026, eine fremde Buchung, eine aus der Vorwoche).
 - `window.__qaWorklogRule = (key) => ({ status, delayMs, pageSize })` lässt Worklog-Abrufe einzelner Tickets scheitern, verzögern oder in kleinen Seiten antworten.
 - Automatisch: `bunx playwright test tests/browser/time-tracking.e2e.ts --workers=1`; `TIME_TRACKING_SHOTS=<Ordner>` speichert Screenshots.
+- Suche in eigenen Buchungen: `...fixture.html?scenario=time-tracking&route=/zeiterfassung?q=Review`. Gefiltert wird nur lokal in den bereits geladenen eigenen Buchungen (Ticketschlüssel, Titel, Kommentar); `window.__qaReads`, per `addInitScript` als Array gesetzt, bleibt beim Tippen unverändert. „Summe Woche“ zeigt weiter die ganze Woche, „Summe Treffer“ nur die Treffer. Die Tests unter „Suche in eigenen Buchungen“ prüfen außerdem URL-Verlauf, Tastatur, Sonderzeichen, Teilfehler sowie Desktop hell und 390 px dunkel mit reduzierter Bewegung.
 
 ## Benachrichtigungen
 
