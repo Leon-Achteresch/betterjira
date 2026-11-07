@@ -142,3 +142,9 @@ jobs:
         run: |
           awk '/^## /{n++} n==1' CHANGELOG.md > notes.md
           gh release edit "v${{ needs.version.outputs.version }}" --draft=false --latest --notes-file notes.md
+
+      - name: Veröffentlichtes Release prüfen
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: ./.github/scripts/test-release.ps1 -Tag "v${{ needs.version.outputs.version }}"

@@ -12,4 +12,8 @@ Ein fehlgeschlagener Release wird repariert, bevor die nächste Fünfergruppe ve
 
 - #57: Rollout als Vorlage duplizieren
 - #35: Dropdown-Untermenüs
-- Drei weitere Merges und Release-Prüfung stehen noch aus.
+- #36: Hinweisaktionen ohne Überdeckung
+- #28: Verständliche Not-found-Ansicht
+- #26: Durchsuchbare Shortcut-Hilfe
+
+Die gemeinsame Release-Prüfung läuft. Für veröffentlichte Releases prüft `.github/scripts/test-release.ps1 -Tag vX.Y.Z` die Version sowie die Updater-Einträge, Binärdateien und Signaturen aller sieben Plattformvarianten.
