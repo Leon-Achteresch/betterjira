@@ -2,10 +2,11 @@ import type { ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { formatDistanceToNowStrict } from "date-fns";
 import { de } from "date-fns/locale";
-import { ArrowRightIcon } from "lucide-react";
+import { ArrowRightIcon, CircleAlertIcon, WifiOffIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
+import { RefreshStatus } from "@/components/dashboard/refresh-status";
 import { ResumeWork } from "@/components/dashboard/resume-work";
 import { AttentionBriefing } from "@/components/attention/attention-briefing";
 import { IssueStatusMenu } from "@/components/issue-status-menu";
@@ -69,7 +70,7 @@ function Welcome({ login }: { login: DashboardState["login"] }) {
 }
 
 function Dashboard({ dashboard }: { dashboard: DashboardState }) {
-  const { work, attention, active, next, done, open } = dashboard;
+  const { freshness, attention, active, next, done, open } = dashboard;
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-7 px-6 py-8 lg:px-10">
@@ -79,13 +80,22 @@ function Dashboard({ dashboard }: { dashboard: DashboardState }) {
             {dashboard.dateLabel} · {dashboard.session.site?.siteName}
           </p>
           <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">{dashboard.greeting}</h1>
-          {work.data && (
+          {freshness.kind === "ready" && (
             <p className="max-w-2xl text-lg text-balance text-muted-foreground">
               <Figure value={active.length}>in Arbeit</Figure>, <Figure value={next.length}>als Nächstes</Figure> und{" "}
               <Figure value={done.length}>diese Woche erledigt</Figure>.
             </p>
           )}
         </div>
+        {freshness.kind === "ready" && (
+          <RefreshStatus
+            tone={freshness.tone}
+            updatedAt={freshness.updatedAt}
+            failed={freshness.failed}
+            now={dashboard.now}
+            onRefresh={dashboard.refresh}
+          />
+        )}
       </header>
 
       <ResumeWork />
@@ -93,11 +103,20 @@ function Dashboard({ dashboard }: { dashboard: DashboardState }) {
         <AttentionBriefing {...attention} onRun={attention.run} />
       </div>
 
-      {work.error ? (
-        <p role="alert" className="text-sm text-destructive">
-          {work.error.message}
-        </p>
-      ) : !work.data ? (
+      {freshness.kind === "error" ? (
+        <LoadProblem
+          icon={<CircleAlertIcon className="size-4 shrink-0 text-destructive" />}
+          title="Deine Tickets konnten nicht geladen werden."
+          detail={freshness.message}
+          onRetry={dashboard.refresh}
+        />
+      ) : freshness.kind === "waiting" ? (
+        <LoadProblem
+          icon={<WifiOffIcon className="size-4 shrink-0 text-warning" />}
+          title="Offline: Deine Tickets werden geladen, sobald die Verbindung zurück ist."
+          detail="Bisher wurde in dieser Sitzung noch kein Stand geladen."
+        />
+      ) : freshness.kind === "loading" ? (
         <div className="flex flex-col gap-3" aria-busy>
           <Skeleton className="h-3 w-full" />
           {Array.from({ length: 6 }, (_, i) => (
@@ -126,6 +145,33 @@ function Dashboard({ dashboard }: { dashboard: DashboardState }) {
             </aside>
           </div>
         </>
+      )}
+    </div>
+  );
+}
+
+function LoadProblem({
+  icon,
+  title,
+  detail,
+  onRetry,
+}: {
+  icon: ReactNode;
+  title: string;
+  detail: string;
+  onRetry?: () => void;
+}) {
+  return (
+    <div role="alert" className={cn("flex flex-wrap items-start gap-3 rounded-2xl border px-4 py-3.5", reveal)}>
+      {icon}
+      <div className="flex min-w-0 flex-1 flex-col gap-1">
+        <p className="text-sm font-medium text-balance">{title}</p>
+        {detail && <p className="text-sm text-muted-foreground">{detail}</p>}
+      </div>
+      {onRetry && (
+        <Button variant="outline" onClick={onRetry}>
+          Erneut versuchen
+        </Button>
       )}
     </div>
   );

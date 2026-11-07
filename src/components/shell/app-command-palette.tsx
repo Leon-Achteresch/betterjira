@@ -38,6 +38,7 @@ export function AppCommandPalette() {
         onOpenChange={palette.setOpen}
         onQueryChange={palette.setQuery}
         loading={palette.loading}
+        emptyMessage={palette.emptyMessage}
         placeholder="Vorgänge, Bereiche, Filter oder Befehle suchen…"
       />
     </>

@@ -4,7 +4,7 @@ $ErrorActionPreference = 'Stop'
 $release = gh api "repos/$Repository/releases/tags/$Tag" | ConvertFrom-Json
 if ($LASTEXITCODE -ne 0) { throw 'Release konnte nicht gelesen werden.' }
 if ($release.draft -or $release.tag_name -ne $Tag) { throw 'Release ist nicht veröffentlicht.' }
-$outputDirectory = Join-Path $env:TEMP ('betterjira-release-test-' + [guid]::NewGuid())
+$outputDirectory = Join-Path ([IO.Path]::GetTempPath()) ('betterjira-release-test-' + [guid]::NewGuid())
 New-Item -ItemType Directory -Path $outputDirectory | Out-Null
 gh release download $Tag --repo $Repository --pattern latest.json --dir $outputDirectory
 if ($LASTEXITCODE -ne 0) { throw 'Updater-Manifest konnte nicht geladen werden.' }

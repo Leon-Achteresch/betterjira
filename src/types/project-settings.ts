@@ -7,5 +7,6 @@ export type ProjectVisibilityRowProps = {
   entry: ProjectSettingsState["entries"][number];
   onToggleFavorite: () => void;
   onToggleHidden: () => void;
+  disabled?: boolean;
   ref?: Ref<HTMLDivElement>;
 };

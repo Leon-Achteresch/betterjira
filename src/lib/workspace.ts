@@ -36,6 +36,7 @@ export const EMPTY_WORKSPACE: Workspace = {
   contexts: {},
 };
 export const RECENT_ISSUE_LIMIT = 50;
+export const WORKSPACE_STORAGE_KEY = "betterjira-workspaces";
 
 export const workspaceId = (cloudId: string, accountId: string) => JSON.stringify([cloudId, accountId]);
 

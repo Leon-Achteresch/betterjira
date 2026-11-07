@@ -4,6 +4,7 @@ import { IS_MAC } from "@/lib/platform";
 export type ShortcutId =
   | "palette"
   | "help"
+  | "createIssue"
   | "sidebar"
   | "back"
   | "forward"
@@ -44,6 +45,7 @@ export const SHORTCUTS: Shortcut[] = [
   shortcut("palette", "Mod+K", "Suchen und Befehle", "Allgemein"),
   shortcut("help", "?", "Tastenkürzel anzeigen", "Allgemein"),
   shortcut("sidebar", "Mod+B", "Seitenleiste ein-/ausblenden", "Allgemein"),
+  shortcut("createIssue", "C", "Ticket erstellen", "Allgemein"),
   shortcut("back", IS_MAC ? "Mod+[" : "Alt+ArrowLeft", "Zurück", "Navigation"),
   shortcut("forward", IS_MAC ? "Mod+]" : "Alt+ArrowRight", "Vor", "Navigation"),
   shortcut("home", ["G", "H"], "Übersicht", "Navigation"),

@@ -1,6 +1,7 @@
-import { ChevronLeft, ChevronRight, EllipsisIcon, PinIcon, PinOffIcon, XIcon } from "lucide-react";
+import { ArchiveRestoreIcon, ArchiveXIcon, ChevronLeft, ChevronRight, EllipsisIcon, SearchIcon, SquarePenIcon, PinIcon, PinOffIcon, XIcon } from "lucide-react";
 import { Tooltip } from "@/components/motion/tooltip";
 import type { IssueTab } from "@/components/shell/issue-tabs";
+import type { LegacyTabsOfferData } from "@/components/shell/legacy-tabs-offer";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -14,7 +15,7 @@ import {
   DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useThemeCycle } from "@/hooks/use-theme";
+import { useHeaderMoreMenu } from "@/hooks/use-header-more-menu";
 import { shortcutHint } from "@/lib/shortcuts";
 import { cn } from "@/lib/utils";
 
@@ -27,6 +28,9 @@ type HeaderMoreMenuProps = {
   onOpenTab: (key: string) => void;
   onCloseTab: (key: string) => void;
   onTogglePin: (key: string) => void;
+  onCreateIssue: () => void;
+  legacy?: Pick<LegacyTabsOfferData, "label" | "onAdopt" | "onDiscard">;
+  onSearchTabs: () => void;
   className?: string;
 };
 
@@ -41,10 +45,12 @@ export function HeaderMoreMenu({
   onOpenTab,
   onCloseTab,
   onTogglePin,
+  onCreateIssue,
+  legacy,
+  onSearchTabs,
   className,
 }: HeaderMoreMenuProps) {
-  const theme = useThemeCycle();
-  const activeTab = tabs.find((tab) => tab.key === activeKey);
+  const { theme, activeTab } = useHeaderMoreMenu(tabs, activeKey);
   return (
     <DropdownMenu>
       <Tooltip content="Weitere Aktionen" side="bottom">
@@ -63,8 +69,14 @@ export function HeaderMoreMenu({
       <DropdownMenuContent
         align="end"
         collisionPadding={8}
-        className="w-64 motion-reduce:data-open:animate-none motion-reduce:data-closed:animate-none"
+        className="w-64 motion-reduce:animate-none!"
       >
+        <DropdownMenuItem onSelect={onCreateIssue}>
+          <SquarePenIcon />
+          Ticket erstellen
+          <DropdownMenuShortcut>{shortcutHint("createIssue")}</DropdownMenuShortcut>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
         <DropdownMenuItem disabled={!canGoBack} onSelect={onBack}>
           <ChevronLeft />
           Zurück
@@ -83,6 +95,10 @@ export function HeaderMoreMenu({
                 Geöffnete Tickets
                 <span className="ml-auto tabular-nums">{tabs.length}</span>
               </DropdownMenuLabel>
+              <DropdownMenuItem onSelect={onSearchTabs}>
+                <SearchIcon />
+                Geöffnete Tickets durchsuchen
+              </DropdownMenuItem>
               <DropdownMenuRadioGroup
                 value={activeKey ?? ""}
                 onValueChange={onOpenTab}
@@ -118,6 +134,22 @@ export function HeaderMoreMenu({
               {activeTab.pinned ? "Angeheftet, zum Schließen lösen" : `${activeTab.key} schließen`}
               {activeTab.pinned ? null : <DropdownMenuShortcut>{shortcutHint("closeTab")}</DropdownMenuShortcut>}
             </DropdownMenuItem>
+          </>
+        ) : null}
+        {legacy ? (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuGroup aria-label="Frühere Tabs ohne Konto">
+              <DropdownMenuLabel>{legacy.label} ohne Konto</DropdownMenuLabel>
+              <DropdownMenuItem className="min-h-8" onSelect={legacy.onAdopt}>
+                <ArchiveRestoreIcon />
+                {legacy.label} übernehmen
+              </DropdownMenuItem>
+              <DropdownMenuItem className="min-h-8" onSelect={legacy.onDiscard}>
+                <ArchiveXIcon />
+                {legacy.label} verwerfen
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
           </>
         ) : null}
         <DropdownMenuSeparator />

@@ -3,6 +3,8 @@ import { useNavigate } from "@tanstack/react-router";
 import { useDebouncedValue } from "@tanstack/react-pacer";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import {
+  ArchiveRestoreIcon,
+  ArchiveXIcon,
   BellIcon,
   BriefcaseIcon,
   ExternalLinkIcon,
@@ -13,6 +15,8 @@ import {
   KeyboardIcon,
   LayersIcon,
   LayoutGridIcon,
+  ListFilterIcon,
+  LinkIcon,
   SparklesIcon,
   LogInIcon,
   LogOutIcon,
@@ -28,6 +32,7 @@ import {
   GitPullRequestIcon,
   PinIcon,
   HistoryIcon,
+  SquarePenIcon,
   TimerIcon,
 } from "lucide-react";
 import type { CommandItem } from "@/components/motion/command-palette";
@@ -43,14 +48,31 @@ import {
   useJiraSite,
 } from "@/lib/jira/queries";
 import { IS_MAC } from "@/lib/platform";
-import { useProjectPrefs } from "@/lib/project-prefs";
+import { useProjectPrefs } from "@/hooks/use-project-prefs";
 import { shortcutHint } from "@/lib/shortcuts";
 import { useShortcutHelp } from "@/hooks/use-app-shortcuts";
+import { useLegacyIssueTabs } from "@/hooks/use-issue-tabs";
+import { useIssueTabStore } from "@/hooks/use-issue-tabs";
+import { useOpenTabSearchDialog } from "@/hooks/use-open-tab-search";
 import { type ThemePreference, useTheme } from "@/hooks/use-theme";
 import { useWorkspace } from "@/hooks/use-workspace";
+import { looksLikeLink, parseTicketReference, type TicketLinkProblem } from "@/lib/ticket-reference";
 
 const MOD = IS_MAC ? "⌘" : "Strg";
-const ISSUE_KEY = /^[a-z][a-z0-9_]*-\d+$/i;
+
+const LINK_PROBLEMS: Record<TicketLinkProblem, string> = {
+  offline: "Ticket-Links lassen sich erst nach der Verbindung mit Jira öffnen.",
+  invalid: "Das ist kein gültiger Link.",
+  protocol: "Nur sichere https-Links der verbundenen Jira-Instanz werden geöffnet.",
+  credentials: "Links mit Zugangsdaten werden aus Sicherheitsgründen nicht geöffnet.",
+  host: "Dieser Link gehört nicht zur verbundenen Jira-Instanz.",
+  path: "Der Link zeigt auf kein Ticket. Erwartet wird …/browse/ABC-123.",
+};
+
+const linkProblemMessage = (problem: TicketLinkProblem, siteUrl?: string) =>
+  problem === "host" && siteUrl
+    ? `Nur Links von ${new URL(siteUrl).host} werden geöffnet. Dieser Link gehört zu einer anderen Adresse.`
+    : LINK_PROBLEMS[problem];
 
 const THEMES: { value: ThemePreference; label: string; icon: typeof SunIcon }[] = [
   { value: "system", label: "Design: wie System", icon: MonitorIcon },
@@ -70,15 +92,21 @@ export function useAppCommandPalette() {
   const myWork = useJiraMyWork();
   const login = useJiraLogin();
   const logout = useJiraLogout();
-  const hiddenIds = useProjectPrefs((state) => state.hiddenProjectIds);
-  const favoriteIds = useProjectPrefs((state) => state.projectIds);
+  const { hiddenIds, favoriteIds } = useProjectPrefs();
   const { theme, setTheme } = useTheme();
   const openShortcutHelp = useShortcutHelp((state) => state.setOpen);
+  const legacyTabs = useLegacyIssueTabs();
+  const hasTabs = useIssueTabStore((state) => state.keys.length > 0);
+  const openTabSearch = useOpenTabSearchDialog((state) => state.setOpen);
 
-  const text = debounced.replace(/[\\"]/g, "\\$&");
-  const search = useJiraIssues(`text ~ "${text}*" ORDER BY updated DESC`, open && debounced.length >= 2);
   const trimmed = query.trim();
-  const issueKey = ISSUE_KEY.test(trimmed) ? trimmed.toUpperCase() : null;
+  const siteUrl = site.data?.siteUrl;
+  const reference = parseTicketReference(trimmed, siteUrl);
+  const linkMode = reference.kind === "link" || reference.kind === "rejected";
+  const searching = open && debounced.length >= 2 && !linkMode && !looksLikeLink(debounced);
+  const text = debounced.replace(/[\\"]/g, "\\$&");
+  const search = useJiraIssues(`text ~ "${text}*" ORDER BY updated DESC`, searching);
+  const issueKey = reference.kind === "key" ? reference.key : null;
 
   const openIssue = (key: string) => void navigate({ to: "/issue/$key", params: { key } });
   const { workspace, ready } = useWorkspace();
@@ -264,6 +292,14 @@ export function useAppCommandPalette() {
       onSelect: () => void navigate({ to: "/suche", search: { modus: "jql" } }),
     },
     {
+      id: "nav:filters",
+      label: "Alle Filter",
+      group: "Navigation",
+      icon: ListFilterIcon,
+      keywords: ["filter", "favoriten", "gespeicherte suchen", "übersicht"],
+      onSelect: () => void navigate({ to: "/filter", search: {} }),
+    },
+    {
       id: "nav:settings",
       label: "Einstellungen",
       group: "Navigation",
@@ -293,6 +329,35 @@ export function useAppCommandPalette() {
       icon: SparklesIcon,
       onSelect: () => void navigate({ to: "/settings/briefing" }),
     },
+    ...(hasTabs
+      ? [
+          {
+            id: "action:open-tabs",
+            label: "Geöffnete Tickets durchsuchen",
+            group: "Aktionen",
+            icon: SearchIcon,
+            keywords: ["tabs", "reiter", "offen", "wechseln"],
+            onSelect: () => openTabSearch(true),
+          },
+        ]
+      : []),
+    {
+      id: "action:create-issue",
+      label: "Ticket erstellen",
+      group: "Aktionen",
+      icon: SquarePenIcon,
+      keywords: ["neu", "anlegen", "vorgang", "issue", "create"],
+      hint: shortcutHint("createIssue"),
+      onSelect: () => void navigate({ to: "/neu" }),
+    },
+    {
+      id: "nav:activity-alerts",
+      label: "Hinweise zu Jira-Aktivität einstellen",
+      group: "Navigation",
+      icon: BellIcon,
+      keywords: ["benachrichtigungen", "popup", "systemhinweis", "stumm", "toast"],
+      onSelect: () => void navigate({ to: "/settings/benachrichtigungen" }),
+    },
     {
       id: "action:sidebar",
       label: "Seitenleiste ein-/ausblenden",
@@ -319,6 +384,26 @@ export function useAppCommandPalette() {
       badge: theme === option.value ? <span className="text-[10px] text-muted-foreground">Aktiv</span> : undefined,
       onSelect: () => setTheme(option.value),
     })),
+    ...(legacyTabs
+      ? [
+          {
+            id: "action:legacy-tabs-adopt",
+            label: `${legacyTabs.label} übernehmen`,
+            group: "Aktionen",
+            icon: ArchiveRestoreIcon,
+            keywords: ["tabs", "reiter", "frühere", "übernehmen"],
+            onSelect: legacyTabs.onAdopt,
+          },
+          {
+            id: "action:legacy-tabs-discard",
+            label: `${legacyTabs.label} verwerfen`,
+            group: "Aktionen",
+            icon: ArchiveXIcon,
+            keywords: ["tabs", "reiter", "frühere", "verwerfen"],
+            onSelect: legacyTabs.onDiscard,
+          },
+        ]
+      : []),
     ...(site.data
       ? [
           {
@@ -347,14 +432,30 @@ export function useAppCommandPalette() {
         ]),
   ];
 
+  const linkItems: CommandItem[] =
+    reference.kind === "link"
+      ? [
+          {
+            id: `link:${reference.key}`,
+            label: `${reference.key} öffnen`,
+            group: "Ticket-Link",
+            icon: LinkIcon,
+            keywords: [trimmed],
+            preview: <IssuePreview issueKey={reference.key} />,
+            onSelect: () => openIssue(reference.key),
+          },
+        ]
+      : [];
+
   return {
-    items,
+    items: linkMode ? linkItems : items,
+    emptyMessage: reference.kind === "rejected" ? linkProblemMessage(reference.problem, siteUrl) : undefined,
     open,
     setOpen: (next: boolean) => {
       if (next) setQuery("");
       setOpen(next);
     },
     setQuery,
-    loading: open && debounced.length >= 2 && search.isFetching,
+    loading: searching && search.isFetching,
   };
 }

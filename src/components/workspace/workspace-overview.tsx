@@ -37,6 +37,7 @@ type WorkspaceOverviewProps = {
   onSortChange: (value: string) => void;
   onTogglePin: (entry: WorkspaceEntry) => void;
   onRemoveRecent: (entry: WorkspaceEntry) => void;
+  onEditNote: (entry: WorkspaceEntry) => void;
 };
 
 export function WorkspaceOverview(props: WorkspaceOverviewProps) {
@@ -65,7 +66,7 @@ export function WorkspaceOverview(props: WorkspaceOverviewProps) {
               <SearchIcon />
             </InputGroupAddon>
             <InputGroupInput
-              ref={props.searchRef}
+              ref={props.searchRef} data-workspace-search
               type="search"
               aria-label="Arbeitsplatz durchsuchen"
               placeholder="Ticket, Notiz oder Entwurf …"
@@ -137,6 +138,7 @@ export function WorkspaceOverview(props: WorkspaceOverviewProps) {
                   linkRef={props.entryRef(entry.key)}
                   onTogglePin={() => props.onTogglePin(entry)}
                   onRemoveRecent={() => props.onRemoveRecent(entry)}
+                  onEditNote={() => props.onEditNote(entry)}
                 />
               </StaggerItem>
             ))}

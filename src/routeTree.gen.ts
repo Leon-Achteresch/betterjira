@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as ArbeitsplatzRouteImport } from './routes/arbeitsplatz'
 import { Route as BenachrichtigungenRouteImport } from './routes/benachrichtigungen'
 import { Route as KalenderRouteImport } from './routes/kalender'
+import { Route as NeuRouteImport } from './routes/neu'
 import { Route as PullRequestsRouteImport } from './routes/pull-requests'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SucheRouteImport } from './routes/suche'
@@ -20,9 +21,11 @@ import { Route as TicketsRouteImport } from './routes/tickets'
 import { Route as ZeiterfassungRouteImport } from './routes/zeiterfassung'
 import { Route as BereicheIndexRouteImport } from './routes/bereiche/index'
 import { Route as BereicheKeyRouteImport } from './routes/bereiche/$key'
+import { Route as FilterIndexRouteImport } from './routes/filter/index'
 import { Route as FilterIdRouteImport } from './routes/filter/$id'
 import { Route as IssueKeyRouteImport } from './routes/issue/$key'
 import { Route as SettingsIndexRouteImport } from './routes/settings/index'
+import { Route as SettingsBenachrichtigungenRouteImport } from './routes/settings/benachrichtigungen'
 import { Route as SettingsBereicheRouteImport } from './routes/settings/bereiche'
 import { Route as SettingsBriefingRouteImport } from './routes/settings/briefing'
 import { Route as SettingsCodeHostingRouteImport } from './routes/settings/code-hosting'
@@ -48,6 +51,11 @@ const BenachrichtigungenRoute = BenachrichtigungenRouteImport.update({
 const KalenderRoute = KalenderRouteImport.update({
   id: '/kalender',
   path: '/kalender',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NeuRoute = NeuRouteImport.update({
+  id: '/neu',
+  path: '/neu',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PullRequestsRoute = PullRequestsRouteImport.update({
@@ -85,6 +93,11 @@ const BereicheKeyRoute = BereicheKeyRouteImport.update({
   path: '/bereiche/$key',
   getParentRoute: () => rootRouteImport,
 } as any)
+const FilterIndexRoute = FilterIndexRouteImport.update({
+  id: '/filter/',
+  path: '/filter/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const FilterIdRoute = FilterIdRouteImport.update({
   id: '/filter/$id',
   path: '/filter/$id',
@@ -100,6 +113,12 @@ const SettingsIndexRoute = SettingsIndexRouteImport.update({
   path: '/',
   getParentRoute: () => SettingsRoute,
 } as any)
+const SettingsBenachrichtigungenRoute =
+  SettingsBenachrichtigungenRouteImport.update({
+    id: '/benachrichtigungen',
+    path: '/benachrichtigungen',
+    getParentRoute: () => SettingsRoute,
+  } as any)
 const SettingsBereicheRoute = SettingsBereicheRouteImport.update({
   id: '/bereiche',
   path: '/bereiche',
@@ -136,6 +155,7 @@ export interface FileRoutesByFullPath {
   '/arbeitsplatz': typeof ArbeitsplatzRoute
   '/benachrichtigungen': typeof BenachrichtigungenRoute
   '/kalender': typeof KalenderRoute
+  '/neu': typeof NeuRoute
   '/pull-requests': typeof PullRequestsRoute
   '/settings': typeof SettingsRouteWithChildren
   '/suche': typeof SucheRoute
@@ -144,6 +164,7 @@ export interface FileRoutesByFullPath {
   '/bereiche/$key': typeof BereicheKeyRoute
   '/filter/$id': typeof FilterIdRoute
   '/issue/$key': typeof IssueKeyRoute
+  '/settings/benachrichtigungen': typeof SettingsBenachrichtigungenRoute
   '/settings/bereiche': typeof SettingsBereicheRoute
   '/settings/briefing': typeof SettingsBriefingRoute
   '/settings/code-hosting': typeof SettingsCodeHostingRoute
@@ -151,6 +172,7 @@ export interface FileRoutesByFullPath {
   '/settings/updates': typeof SettingsUpdatesRoute
   '/settings/verbindungen': typeof SettingsVerbindungenRoute
   '/bereiche/': typeof BereicheIndexRoute
+  '/filter/': typeof FilterIndexRoute
   '/settings/': typeof SettingsIndexRoute
 }
 export interface FileRoutesByTo {
@@ -158,6 +180,7 @@ export interface FileRoutesByTo {
   '/arbeitsplatz': typeof ArbeitsplatzRoute
   '/benachrichtigungen': typeof BenachrichtigungenRoute
   '/kalender': typeof KalenderRoute
+  '/neu': typeof NeuRoute
   '/pull-requests': typeof PullRequestsRoute
   '/suche': typeof SucheRoute
   '/tickets': typeof TicketsRoute
@@ -165,6 +188,7 @@ export interface FileRoutesByTo {
   '/bereiche/$key': typeof BereicheKeyRoute
   '/filter/$id': typeof FilterIdRoute
   '/issue/$key': typeof IssueKeyRoute
+  '/settings/benachrichtigungen': typeof SettingsBenachrichtigungenRoute
   '/settings/bereiche': typeof SettingsBereicheRoute
   '/settings/briefing': typeof SettingsBriefingRoute
   '/settings/code-hosting': typeof SettingsCodeHostingRoute
@@ -172,6 +196,7 @@ export interface FileRoutesByTo {
   '/settings/updates': typeof SettingsUpdatesRoute
   '/settings/verbindungen': typeof SettingsVerbindungenRoute
   '/bereiche': typeof BereicheIndexRoute
+  '/filter': typeof FilterIndexRoute
   '/settings': typeof SettingsIndexRoute
 }
 export interface FileRoutesById {
@@ -180,6 +205,7 @@ export interface FileRoutesById {
   '/arbeitsplatz': typeof ArbeitsplatzRoute
   '/benachrichtigungen': typeof BenachrichtigungenRoute
   '/kalender': typeof KalenderRoute
+  '/neu': typeof NeuRoute
   '/pull-requests': typeof PullRequestsRoute
   '/settings': typeof SettingsRouteWithChildren
   '/suche': typeof SucheRoute
@@ -188,6 +214,7 @@ export interface FileRoutesById {
   '/bereiche/$key': typeof BereicheKeyRoute
   '/filter/$id': typeof FilterIdRoute
   '/issue/$key': typeof IssueKeyRoute
+  '/settings/benachrichtigungen': typeof SettingsBenachrichtigungenRoute
   '/settings/bereiche': typeof SettingsBereicheRoute
   '/settings/briefing': typeof SettingsBriefingRoute
   '/settings/code-hosting': typeof SettingsCodeHostingRoute
@@ -195,6 +222,7 @@ export interface FileRoutesById {
   '/settings/updates': typeof SettingsUpdatesRoute
   '/settings/verbindungen': typeof SettingsVerbindungenRoute
   '/bereiche/': typeof BereicheIndexRoute
+  '/filter/': typeof FilterIndexRoute
   '/settings/': typeof SettingsIndexRoute
 }
 export interface FileRouteTypes {
@@ -204,6 +232,7 @@ export interface FileRouteTypes {
     | '/arbeitsplatz'
     | '/benachrichtigungen'
     | '/kalender'
+    | '/neu'
     | '/pull-requests'
     | '/settings'
     | '/suche'
@@ -212,6 +241,7 @@ export interface FileRouteTypes {
     | '/bereiche/$key'
     | '/filter/$id'
     | '/issue/$key'
+    | '/settings/benachrichtigungen'
     | '/settings/bereiche'
     | '/settings/briefing'
     | '/settings/code-hosting'
@@ -219,6 +249,7 @@ export interface FileRouteTypes {
     | '/settings/updates'
     | '/settings/verbindungen'
     | '/bereiche/'
+    | '/filter/'
     | '/settings/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -226,6 +257,7 @@ export interface FileRouteTypes {
     | '/arbeitsplatz'
     | '/benachrichtigungen'
     | '/kalender'
+    | '/neu'
     | '/pull-requests'
     | '/suche'
     | '/tickets'
@@ -233,6 +265,7 @@ export interface FileRouteTypes {
     | '/bereiche/$key'
     | '/filter/$id'
     | '/issue/$key'
+    | '/settings/benachrichtigungen'
     | '/settings/bereiche'
     | '/settings/briefing'
     | '/settings/code-hosting'
@@ -240,6 +273,7 @@ export interface FileRouteTypes {
     | '/settings/updates'
     | '/settings/verbindungen'
     | '/bereiche'
+    | '/filter'
     | '/settings'
   id:
     | '__root__'
@@ -247,6 +281,7 @@ export interface FileRouteTypes {
     | '/arbeitsplatz'
     | '/benachrichtigungen'
     | '/kalender'
+    | '/neu'
     | '/pull-requests'
     | '/settings'
     | '/suche'
@@ -255,6 +290,7 @@ export interface FileRouteTypes {
     | '/bereiche/$key'
     | '/filter/$id'
     | '/issue/$key'
+    | '/settings/benachrichtigungen'
     | '/settings/bereiche'
     | '/settings/briefing'
     | '/settings/code-hosting'
@@ -262,6 +298,7 @@ export interface FileRouteTypes {
     | '/settings/updates'
     | '/settings/verbindungen'
     | '/bereiche/'
+    | '/filter/'
     | '/settings/'
   fileRoutesById: FileRoutesById
 }
@@ -270,6 +307,7 @@ export interface RootRouteChildren {
   ArbeitsplatzRoute: typeof ArbeitsplatzRoute
   BenachrichtigungenRoute: typeof BenachrichtigungenRoute
   KalenderRoute: typeof KalenderRoute
+  NeuRoute: typeof NeuRoute
   PullRequestsRoute: typeof PullRequestsRoute
   SettingsRoute: typeof SettingsRouteWithChildren
   SucheRoute: typeof SucheRoute
@@ -279,6 +317,7 @@ export interface RootRouteChildren {
   FilterIdRoute: typeof FilterIdRoute
   IssueKeyRoute: typeof IssueKeyRoute
   BereicheIndexRoute: typeof BereicheIndexRoute
+  FilterIndexRoute: typeof FilterIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -309,6 +348,13 @@ declare module '@tanstack/react-router' {
       path: '/kalender'
       fullPath: '/kalender'
       preLoaderRoute: typeof KalenderRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/neu': {
+      id: '/neu'
+      path: '/neu'
+      fullPath: '/neu'
+      preLoaderRoute: typeof NeuRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/pull-requests': {
@@ -360,6 +406,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BereicheKeyRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/filter/': {
+      id: '/filter/'
+      path: '/filter'
+      fullPath: '/filter/'
+      preLoaderRoute: typeof FilterIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/filter/$id': {
       id: '/filter/$id'
       path: '/filter/$id'
@@ -379,6 +432,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/settings/'
       preLoaderRoute: typeof SettingsIndexRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/settings/benachrichtigungen': {
+      id: '/settings/benachrichtigungen'
+      path: '/benachrichtigungen'
+      fullPath: '/settings/benachrichtigungen'
+      preLoaderRoute: typeof SettingsBenachrichtigungenRouteImport
       parentRoute: typeof SettingsRoute
     }
     '/settings/bereiche': {
@@ -427,6 +487,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface SettingsRouteChildren {
+  SettingsBenachrichtigungenRoute: typeof SettingsBenachrichtigungenRoute
   SettingsBereicheRoute: typeof SettingsBereicheRoute
   SettingsBriefingRoute: typeof SettingsBriefingRoute
   SettingsCodeHostingRoute: typeof SettingsCodeHostingRoute
@@ -437,6 +498,7 @@ interface SettingsRouteChildren {
 }
 
 const SettingsRouteChildren: SettingsRouteChildren = {
+  SettingsBenachrichtigungenRoute: SettingsBenachrichtigungenRoute,
   SettingsBereicheRoute: SettingsBereicheRoute,
   SettingsBriefingRoute: SettingsBriefingRoute,
   SettingsCodeHostingRoute: SettingsCodeHostingRoute,
@@ -455,6 +517,7 @@ const rootRouteChildren: RootRouteChildren = {
   ArbeitsplatzRoute: ArbeitsplatzRoute,
   BenachrichtigungenRoute: BenachrichtigungenRoute,
   KalenderRoute: KalenderRoute,
+  NeuRoute: NeuRoute,
   PullRequestsRoute: PullRequestsRoute,
   SettingsRoute: SettingsRouteWithChildren,
   SucheRoute: SucheRoute,
@@ -464,6 +527,7 @@ const rootRouteChildren: RootRouteChildren = {
   FilterIdRoute: FilterIdRoute,
   IssueKeyRoute: IssueKeyRoute,
   BereicheIndexRoute: BereicheIndexRoute,
+  FilterIndexRoute: FilterIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

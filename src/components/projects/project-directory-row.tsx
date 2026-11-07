@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { EASE_OUT, SPRING_LAYOUT } from "@/lib/ease";
 import type { ProjectDirectoryRowProps } from "@/types/project-directory";
 
-export function ProjectDirectoryRow({ entry, onToggleFavorite, ref }: ProjectDirectoryRowProps) {
+export function ProjectDirectoryRow({ entry, onToggleFavorite, disabled, ref }: ProjectDirectoryRowProps) {
   const reduce = useReducedMotion();
   const { project, favorite, hidden } = entry;
   return (
@@ -38,7 +38,7 @@ export function ProjectDirectoryRow({ entry, onToggleFavorite, ref }: ProjectDir
           </Badge>
         )}
       </Link>
-      <FavoriteButton name={project.name} favorite={favorite} onToggle={onToggleFavorite} />
+      <FavoriteButton name={project.name} favorite={favorite} onToggle={onToggleFavorite} disabled={disabled} />
     </motion.li>
   );
 }

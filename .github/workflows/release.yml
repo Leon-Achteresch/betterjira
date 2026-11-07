@@ -16,7 +16,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
       - run: bun run build
@@ -30,7 +30,7 @@ jobs:
       version: ${{ steps.bump.outputs.version }}
       sha: ${{ steps.bump.outputs.sha }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -68,7 +68,7 @@ jobs:
             args: ""
     runs-on: ${{ matrix.platform }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ needs.version.outputs.sha }}
 
@@ -90,7 +90,7 @@ jobs:
 
       - run: bun install --frozen-lockfile
 
-      - uses: tauri-apps/tauri-action@v0
+      - uses: tauri-apps/tauri-action@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
@@ -99,12 +99,12 @@ jobs:
           VITE_ATLASSIAN_CLIENT_SECRET: ${{ secrets.VITE_ATLASSIAN_CLIENT_SECRET }}
         with:
           tagName: v__VERSION__
-          commitish: ${{ needs.version.outputs.sha }}
+          releaseCommitish: ${{ needs.version.outputs.sha }}
           releaseName: betterjira v__VERSION__
           releaseBody: Lade unten den Installer für dein System herunter.
           releaseDraft: true
           prerelease: false
-          includeUpdaterJson: false
+          uploadUpdaterJson: false
           args: ${{ matrix.args }}
 
       - name: Windows-App starten und auf frühen Absturz prüfen
@@ -124,7 +124,7 @@ jobs:
     needs: [version, release]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ needs.version.outputs.sha }}
 
@@ -147,4 +147,4 @@ jobs:
         shell: pwsh
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: ./.github/scripts/test-release.ps1 -Tag "v${{ needs.version.outputs.version }}"
+        run: ./.github/scripts/test-release.ps1 -Tag "v${{ needs.version.outputs.version }}" -Repository "${{ github.repository }}"

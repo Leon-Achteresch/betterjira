@@ -1,65 +1,71 @@
-import { useQueries } from "@tanstack/react-query";
+
 import { useMatch, useNavigate } from "@tanstack/react-router";
-import { useEffect } from "react";
-import { create } from "zustand";
-import { persist } from "zustand/middleware";
-import { addTab, issueKeyFromHref, keepOthers, keepUntil, neighborTab, orderTabs, removeTab } from "@/lib/issue-tabs";
-import { issueQuery, useJiraSite } from "@/lib/jira/queries";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
+import { useConfirmedWorkspace } from "@/hooks/jira/use-confirmed-workspace";
+import { useIssueTabStore } from "@/hooks/use-issue-tab-store";
+import {
+  EMPTY_TAB_SET,
+  adoptLegacyTabs,
+  discardLegacyTabs,
+  legacyTabsLabel,
+  restoreLegacyTabs,
+  tabsOf,
+  undoLegacyAdoption,
+  withKeys,
+  withoutTab,
+  withPinToggled,
+} from "@/lib/issue-tab-scopes";
+import { issueKeyFromHref, keepOthers, keepUntil, neighborTab, orderTabs } from "@/lib/issue-tabs";
+import { useJiraSite } from "@/lib/jira/queries";
+import { useJiraIssue } from "@/hooks/jira/use-jira-issue";
 
-type IssueTabsState = {
-  keys: string[];
-  pinned: string[];
-  open: (key: string) => void;
-  close: (key: string) => void;
-  togglePin: (key: string) => void;
-  setKeys: (keys: string[]) => void;
-};
+import { useIssueTabMetadata } from "@/hooks/jira/use-issue-tab-metadata";
 
-export const useIssueTabStore = create<IssueTabsState>()(
-  persist(
-    (set) => ({
-      keys: [],
-      pinned: [],
-      open: (key) => set(({ keys }) => ({ keys: addTab(keys, key) })),
-      close: (key) => set(({ keys, pinned }) => ({ keys: removeTab(keys, key), pinned: removeTab(pinned, key) })),
-      togglePin: (key) =>
-        set(({ pinned }) => ({ pinned: pinned.includes(key) ? removeTab(pinned, key) : [...pinned, key] })),
-      setKeys: (keys) => set({ keys }),
-    }),
-    { name: "betterjira-issue-tabs" },
-  ),
-);
+export { useIssueTabStore } from "@/hooks/use-issue-tab-store";
+
+const useScopedTabs = (id: string | undefined) =>
+  useIssueTabStore((state) => (id && state.scope === id ? tabsOf(state, id) : EMPTY_TAB_SET));
 
 export const useIssueTabs = () => {
-  const { keys, pinned, close, togglePin, setKeys } = useIssueTabStore();
+  const id = useConfirmedWorkspace()?.id;
+  const { keys, pinned } = useScopedTabs(id);
   const activeKey = useMatch({ from: "/issue/$key", shouldThrow: false })?.params.key;
   const navigate = useNavigate();
   const site = useJiraSite();
+
+
   const ordered = orderTabs(keys, pinned);
-  const issues = useQueries({ queries: ordered.map((key) => ({ ...issueQuery(key), enabled: !!site.data })) });
+  const titles = useIssueTabMetadata(ordered, activeKey);
 
   const tabs = ordered.map((key, index) => ({
     key,
-    title: issues[index]?.data?.fields.summary,
+    title: titles[index],
     pinned: pinned.includes(key),
     url: site.data ? `${site.data.siteUrl}/browse/${key}` : undefined,
   }));
 
-  const openTab = (key: string) => void navigate({ to: "/issue/$key", params: { key } });
+  const live = () => useIssueTabStore.getState().isCurrent(id);
+
+  const openTab = (key: string) => {
+    if (live()) void navigate({ to: "/issue/$key", params: { key } });
+  };
 
   const closeTab = (key: string) => {
+    if (!live()) return;
     if (key === activeKey) {
       const next = neighborTab(ordered, key);
       if (next) openTab(next);
       else void navigate({ to: "/" });
     }
-    close(key);
+    useIssueTabStore.getState().editTabs(id, (current) => withoutTab(current, key));
   };
 
   const keepTabs = (key: string, keep: typeof keepOthers) => {
+    if (!live()) return;
     const remaining = keep(keys, pinned, key);
     if (activeKey && keys.includes(activeKey) && !remaining.includes(activeKey)) openTab(key);
-    setKeys(remaining);
+    useIssueTabStore.getState().editTabs(id, (current) => withKeys(current, keep(current.keys, current.pinned, key)));
   };
 
   return {
@@ -67,9 +73,78 @@ export const useIssueTabs = () => {
     activeKey,
     openTab,
     closeTab,
-    togglePin,
+    togglePin: (key: string) => useIssueTabStore.getState().editTabs(id, (current) => withPinToggled(current, key)),
     closeOthers: (key: string) => keepTabs(key, keepOthers),
     closeRight: (key: string) => keepTabs(key, keepUntil),
+  };
+};
+
+export const useIssueTabScopeSync = () => {
+  const id = useConfirmedWorkspace()?.id;
+  useEffect(() => {
+    useIssueTabStore.getState().setScope(id);
+  }, [id]);
+};
+
+export const useRememberIssueTab = (key: string) => {
+  const workspace = useConfirmedWorkspace();
+  const issue = useJiraIssue(key);
+  const id = workspace?.id;
+  const current = useIssueTabStore((state) => state.scope);
+  const loaded = !!id && current === id && !!issue.data;
+
+  useEffect(() => {
+    if (id && loaded) useIssueTabStore.getState().remember(id, key);
+  }, [id, key, loaded]);
+};
+
+export const useLegacyIssueTabs = () => {
+  const workspace = useConfirmedWorkspace();
+  const [dialog, setDialog] = useState({ scope: workspace?.id, open: false });
+  if (dialog.scope !== workspace?.id) setDialog({ scope: workspace?.id, open: false });
+  const setOpen = (open: boolean) => setDialog({ scope: workspace?.id, open });
+  const legacy = useIssueTabStore((state) => (workspace && state.scope === workspace.id ? state.legacy : undefined));
+  if (!workspace || !legacy) return undefined;
+  const { id } = workspace;
+
+  const adopt = () => {
+    setOpen(false);
+    const store = useIssueTabStore.getState();
+    const taken = store.legacy;
+    if (!store.isCurrent(id) || !taken) return;
+    const before = tabsOf(store, id);
+    store.edit(id, (stored) => adoptLegacyTabs(stored, id));
+    toast(`${legacyTabsLabel(taken.keys.length)} übernommen`, {
+      action: {
+        label: "Rückgängig",
+        onClick: () => useIssueTabStore.getState().edit(id, (stored) => undoLegacyAdoption(stored, id, before, taken)),
+      },
+    });
+  };
+
+  const discard = () => {
+    setOpen(false);
+    const store = useIssueTabStore.getState();
+    const taken = store.legacy;
+    if (!store.isCurrent(id) || !taken) return;
+    store.edit(id, discardLegacyTabs);
+    toast(`${legacyTabsLabel(taken.keys.length)} verworfen`, {
+      action: {
+        label: "Rückgängig",
+        onClick: () => useIssueTabStore.getState().edit(id, (stored) => restoreLegacyTabs(stored, taken)),
+      },
+    });
+  };
+
+  return {
+    keys: legacy.keys,
+    pinned: legacy.pinned,
+    label: legacyTabsLabel(legacy.keys.length),
+    siteName: workspace.siteName,
+    open: dialog.scope === id && dialog.open,
+    onOpenChange: setOpen,
+    onAdopt: adopt,
+    onDiscard: discard,
   };
 };
 
