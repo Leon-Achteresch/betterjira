@@ -246,8 +246,8 @@ export function IssueView({ issueKey, initialTab }: { issueKey: string; initialT
           />
         </Section>
 
-        <Section title={`Kommentare · ${comments.length}`}>
-          <IssueComments key={issue.data.key} issueKey={issue.data.key} comments={comments} />
+        <Section title={`Kommentare · ${Math.max(fields.comment?.total ?? 0, comments.length)}`}>
+          <IssueComments key={issue.data.key} issueKey={issue.data.key} comments={comments} paging={fields.comment} />
         </Section>
       </div>
 

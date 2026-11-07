@@ -3,6 +3,7 @@ import { ArrowDownWideNarrowIcon, CheckIcon, ChevronDownIcon, InfoIcon, FileText
 import { formatDistanceToNowStrict } from "date-fns";
 import { de } from "date-fns/locale";
 import { AdfContent } from "@/components/adf-content";
+import { IssueCommentPages } from "@/components/issue-comment-pages";
 import { JiraUserLabel } from "@/components/jira-user-avatar";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/motion/tooltip";
@@ -15,6 +16,7 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { useIssueComments } from "@/hooks/use-issue-comments";
+import { useIssueCommentPages, type CommentPaging } from "@/hooks/jira/use-issue-comment-pages";
 import { EASE_OUT } from "@/lib/ease";
 import { IS_MAC } from "@/lib/platform";
 import { COMMENT_TEMPLATES } from "@/lib/workspace";
@@ -22,26 +24,39 @@ import type { JiraIssueDetail } from "@/lib/jira/queries";
 
 type Comment = NonNullable<JiraIssueDetail["fields"]["comment"]>["comments"][number];
 
-export function IssueComments({ issueKey, comments }: { issueKey: string; comments: readonly Comment[] }) {
-  const editor = useIssueComments(issueKey, comments);
+export function IssueComments({
+  issueKey,
+  comments,
+  paging,
+}: {
+  issueKey: string;
+  comments: readonly Comment[];
+  paging?: CommentPaging;
+}) {
+  const pages = useIssueCommentPages(issueKey, comments, paging);
+  const editor = useIssueComments(issueKey, pages.comments);
   const reduce = useReducedMotion();
+  const pageControl = pages.visible && <IssueCommentPages pages={pages} />;
 
   return (
     <div className="flex flex-col gap-6">
-      {comments.length === 0 ? (
+      {pages.comments.length === 0 && !pages.visible ? (
         <p className="text-sm text-muted-foreground">Noch keine Kommentare.</p>
       ) : (
         <div className="flex flex-col gap-4">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="self-end text-muted-foreground"
-            onClick={editor.toggleOrder}
-            aria-pressed={editor.newestFirst}
-          >
-            <ArrowDownWideNarrowIcon />
-            {editor.newestFirst ? "Neueste zuerst" : "Älteste zuerst"}
-          </Button>
+          {pages.comments.length > 0 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="self-end text-muted-foreground"
+              onClick={editor.toggleOrder}
+              aria-pressed={editor.newestFirst}
+            >
+              <ArrowDownWideNarrowIcon />
+              {editor.newestFirst ? "Neueste zuerst" : "Älteste zuerst"}
+            </Button>
+          )}
+          {editor.newestFirst && pageControl}
           <ol className="flex flex-col gap-6">
             <AnimatePresence initial={false}>
               {editor.comments.map((comment) => (
@@ -71,6 +86,7 @@ export function IssueComments({ issueKey, comments }: { issueKey: string; commen
               ))}
             </AnimatePresence>
           </ol>
+          {!editor.newestFirst && pageControl}
         </div>
       )}
       <form
