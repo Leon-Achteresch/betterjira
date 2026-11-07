@@ -20,7 +20,7 @@ const searches = (page: Page) => page.evaluate(() => window.__qa.searches);
 const textSearches = async (page: Page) => (await searches(page)).filter((jql) => jql.includes("text ~"));
 
 const summon = async (page: Page) => {
-  await expect(page.getByRole("button", { name: "Suchen" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Suchen", exact: true })).toBeVisible();
   await page.keyboard.press("ControlOrMeta+k");
   await expect(field(page)).toBeFocused();
 };

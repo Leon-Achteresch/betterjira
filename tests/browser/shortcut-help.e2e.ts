@@ -35,7 +35,7 @@ test.beforeEach(async ({ page }) => {
 test("durchsucht Aktion, Bereich und Tasten und blendet leere Gruppen aus", async ({ page }, testInfo) => {
   await openFromSettings(page);
   await expect(searchBox(page)).toBeFocused();
-  await expect(dialog(page).getByText("16 Tastenkürzel", { exact: true })).toBeVisible();
+  await expect(dialog(page).getByText("17 Tastenkürzel", { exact: true })).toBeVisible();
   await expect(headings(page)).toHaveCount(4);
   await shot(page, testInfo, "alle");
 
@@ -43,7 +43,7 @@ test("durchsucht Aktion, Bereich und Tasten und blendet leere Gruppen aus", asyn
   await expect(rows(page)).toHaveCount(1);
   await expect(rows(page).first()).toContainText("Zurück");
   await expect(headings(page)).toHaveText(["Navigation"]);
-  await expect(dialog(page).getByText("1 von 16 Tastenkürzeln")).toBeVisible();
+  await expect(dialog(page).getByText("1 von 17 Tastenkürzeln")).toBeVisible();
 
   await searchBox(page).fill("listen");
   await expect(headings(page)).toHaveText(["Listen"]);
@@ -59,21 +59,21 @@ test("durchsucht Aktion, Bereich und Tasten und blendet leere Gruppen aus", asyn
   await shot(page, testInfo, "treffer");
 
   await searchBox(page).fill("");
-  await expect(rows(page)).toHaveCount(16);
+  await expect(rows(page)).toHaveCount(17);
 });
 
 test("zeigt keine Treffer verständlich an und setzt die Suche zurück", async ({ page }, testInfo) => {
   await openFromSettings(page);
   await searchBox(page).fill("xyz");
   await expect(dialog(page).getByText("Kein Tastenkürzel gefunden")).toBeVisible();
-  await expect(dialog(page).getByText("0 von 16 Tastenkürzeln")).toBeVisible();
+  await expect(dialog(page).getByText("0 von 17 Tastenkürzeln")).toBeVisible();
   await expect(headings(page)).toHaveCount(0);
   await shot(page, testInfo, "leer");
 
   await dialog(page).getByRole("button", { name: "Suche zurücksetzen" }).click();
   await expect(searchBox(page)).toHaveValue("");
   await expect(searchBox(page)).toBeFocused();
-  await expect(rows(page)).toHaveCount(16);
+  await expect(rows(page)).toHaveCount(17);
 });
 
 test("Esc leert erst die Suche, schließt dann und gibt den Fokus zurück", async ({ page }) => {
@@ -99,7 +99,7 @@ test("öffnet ohne alte Suche, hält den Fokus im Dialog und ? bleibt erhalten",
   await page.keyboard.press("?");
   await expect(dialog(page)).toBeVisible();
   await expect(searchBox(page)).toHaveValue("");
-  await expect(rows(page)).toHaveCount(16);
+  await expect(rows(page)).toHaveCount(17);
 
   await searchBox(page).fill("?");
   await expect(dialog(page)).toBeVisible();
