@@ -312,3 +312,10 @@ Integration offener PRs:
 - `...fixture.html?scenario=busy` (12 offene Tabs, `DEMO-2` angeheftet). Bei schmalem Fenster über „Weitere Aktionen“ → „Geöffnete Tickets durchsuchen“, auf dem Desktop über die Command Palette (`Strg K`, „Geöffnete Tickets durchsuchen“).
 - Der Dialog filtert nur die bereits geladenen Tabs nach Schlüssel und bekanntem Titel; er lädt nichts aus Jira nach, schließt keine Tabs und ändert keine Pins. Tabs ohne geladenen Titel erscheinen mit „Titel nicht geladen“ und sind über den Schlüssel auffindbar.
 - Automatisch: `bunx playwright test tests/browser/open-tab-search.e2e.ts --workers=1` prüft Reihenfolge, aktiven und angehefteten Tab, Suche ohne zusätzliche `GET /issue`-Anfragen, keinen Treffer mit Zurücksetzen, Tastatur und Maus mit erhaltenem Kommentarentwurf, unbekannte Titel, Wiederöffnen, Abmelden, Escape mit Fokusrückgabe sowie 390 px dunkel mit reduzierter Bewegung. Mit `OPEN_TAB_SEARCH_SHOTS=<Ordner>` speichert der Test Screenshots.
+
+## Ticket-Links in der Command Palette
+
+- Fixture öffnen, `Strg`/`⌘` + `K`, einen Link der simulierten Instanz einfügen, z. B. `https://example.atlassian.net/browse/DEMO-2?focusedCommentId=1#comment-1`. Die Palette zeigt nur „DEMO-2 öffnen“ mit der bekannten Ticket-Vorschau; Enter oder Klick öffnet `/issue/DEMO-2` in BetterJira. Es wird keine externe URL geöffnet.
+- Akzeptiert werden nur `https`-Links mit exakt der Origin der verbundenen Instanz, ohne Zugangsdaten und mit Pfad `/browse/<SCHLÜSSEL>`. Query und Fragment werden verworfen. Fremde oder täuschende Hosts, andere Protokolle, Zugangsdaten, andere Pfade und fehlende Anmeldung (`scenario=calendar-offline`) werden in der Palette erklärt, ohne Query oder Fragment anzuzeigen.
+- Im Link-Modus startet keine Jira-Volltextsuche (`window.__qa.searches` bleibt ohne neuen `text ~`-Eintrag); eine verzögerte frühere Freitextantwort überlagert den Linktreffer nicht.
+- Automatisch: `bunx playwright test tests/browser/ticket-reference.e2e.ts --workers=1`; mit `TICKET_REFERENCE_SHOTS=<Ordner>` zusätzlich Screenshots. Parsergrenzen: `src/lib/ticket-reference.test.ts`.
