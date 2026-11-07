@@ -1,4 +1,4 @@
-import { useQueries, useQueryClient } from "@tanstack/react-query";
+
 import { useMatch, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -17,9 +17,10 @@ import {
   withPinToggled,
 } from "@/lib/issue-tab-scopes";
 import { issueKeyFromHref, keepOthers, keepUntil, neighborTab, orderTabs } from "@/lib/issue-tabs";
-import { issueQuery, useJiraSite } from "@/lib/jira/queries";
+import { useJiraSite } from "@/lib/jira/queries";
 import { useJiraIssue } from "@/hooks/jira/use-jira-issue";
-import { useJiraQueryScope } from "@/hooks/jira/use-jira-query-scope";
+
+import { useIssueTabMetadata } from "@/hooks/jira/use-issue-tab-metadata";
 
 export { useIssueTabStore } from "@/hooks/use-issue-tab-store";
 
@@ -32,14 +33,14 @@ export const useIssueTabs = () => {
   const activeKey = useMatch({ from: "/issue/$key", shouldThrow: false })?.params.key;
   const navigate = useNavigate();
   const site = useJiraSite();
-  const { scope } = useJiraQueryScope();
-  const queryClient = useQueryClient();
+
+
   const ordered = orderTabs(keys, pinned);
-  const issues = useQueries({ queries: ordered.map((key) => issueQuery(key, scope, queryClient)) });
+  const titles = useIssueTabMetadata(ordered, activeKey);
 
   const tabs = ordered.map((key, index) => ({
     key,
-    title: issues[index]?.data?.fields.summary,
+    title: titles[index],
     pinned: pinned.includes(key),
     url: site.data ? `${site.data.siteUrl}/browse/${key}` : undefined,
   }));

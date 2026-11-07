@@ -1111,6 +1111,20 @@ const respond = async (request) => {
     return { body: { startAt: from, maxResults: rule.maxResults ?? size, total, comments: rule.omitComments ? undefined : (rule.comments ?? all.slice(from, from + size)) } };
   }
   const issue = issues.find((issue) => path === `/issue/${issue.key}`);
+  if (issue && url.searchParams.get("fields") === "summary") {
+    const stats = (window.__qaTabTitles ??= { calls: [], open: 0, peak: 0 });
+    const rule = window.__qaTabTitleRule?.(issue.key) ?? {};
+    stats.calls.push(issue.key);
+    stats.open++;
+    stats.peak = Math.max(stats.peak, stats.open);
+    try {
+      if (rule.delayMs) await new Promise((resolve) => setTimeout(resolve, rule.delayMs));
+      if (rule.status) return { status: rule.status, body: { errorMessages: [`Test: Jira antwortet mit ${rule.status}`] } };
+      return { body: { id: issue.id, key: issue.key, fields: { summary: rule.summary ?? issue.fields.summary } } };
+    } finally {
+      stats.open--;
+    }
+  }
   if (issue && url.searchParams.get("fields") === "issuelinks") {
     const rule = window.__qaIssueLinksRule?.(issue.key) ?? {};
     if (rule.delayMs) await new Promise((resolve) => setTimeout(resolve, rule.delayMs));

@@ -298,3 +298,9 @@ Integration offener PRs:
 - #37 (Tab-Suche): `useIssueTabStore((state) => state.keys)` und `useIssueTabs()` bleiben erhalten; `keys`/`pinned` im Store sind nur noch die Sicht des bestätigten Kontos.
 - #41 (schlanke Titel): in `useIssueTabs` die Zeile `const issues = useQueries(...)` samt `title:` durch `useIssueTabMetadata(ordered, activeKey)` ersetzen. Die passiven Detail-Beobachter und Cache-Leser in diesem Hook müssen dann den bestätigten Scope/QueryClient an `issueQuery` übergeben und `jiraKeys.issueDetail(key, scope)` lesen. `useRememberIssueTab` verwendet `useJiraIssue` aus `hooks/jira/use-jira-issue` und beobachtet dieselben Details, ohne eine zweite Titelabfrage.
 - #44 (Ticket-Wiederherstellung): Query-Factory, Scope-Guard und die neuen Query-Hooks sind identisch. Dessen `SessionGate` und Controller mit `useRememberIssueTab` aus diesem PR zusammensetzen; das frühere `onEnter.open` bleibt entfernt.
+
+## Tab-Titel offener Tickets
+
+- Zwölf offene Tabs: `...fixture.html?scenario=busy&route=/issue/DEMO-1`. Nur das aktive Ticket lädt volle Details (`fields=*all`), die übrigen Tabs fragen ausschließlich `GET /issue/{key}?fields=summary` ab, höchstens vier gleichzeitig.
+- `window.__qaTabTitleRule = (key) => ({ delayMs, status, summary })` (per `addInitScript`) verzögert, scheitert oder ersetzt den Titel einzelner Abrufe. `window.__qaTabTitles` zählt `calls`, `open` und `peak`.
+- Automatisch: `bunx playwright test tests/browser/issue-tab-metadata.e2e.ts --workers=1`; mit `ISSUE_TAB_SHOTS=<Ordner>` zusätzlich Screenshots (prüft vorher, dass Geist geladen ist).
