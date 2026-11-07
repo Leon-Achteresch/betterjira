@@ -131,3 +131,11 @@ Der vollständige Ablaufbericht einschließlich Vielnutzer, sorgfältigem Leser,
 - Zweites Konto derselben Instanz: `&account=qa-colleague`. Es sieht nur seinen eigenen QA-Kontext; die Daten von `qa-user` bleiben unverändert im lokalen Speicher.
 - Abmelden simuliert `session_delete`; danach meldet die Sitzung bis zum erneuten Öffnen der Fixture „Nicht angemeldet“.
 - Automatisch: `bunx playwright test tests/browser/workspace-page.e2e.ts --workers=1`. Mit `WORKSPACE_SHOTS=<Ordner>` speichert der Test Screenshots.
+
+## Dropdown-Untermenüs
+
+- Tabelle: `...fixture.html?route=/bereiche/DEMO`, dort „Ansicht und Export“ → „Kopieren als“ sowie „Filter“ → „Status“.
+- Untermenüs werden in einem eigenen Portal gerendert. Vorher lagen sie im Hauptmenü: Dessen `backdrop-filter` machte es zum Bezugsrahmen der Positionierung, und `overflow-x-hidden` schnitt das Untermenü ab. Passt ein Untermenü auf keiner Seite neben das Hauptmenü (z. B. bei 390 px), überlappt es das Hauptmenü und bleibt 8 px vom Fensterrand entfernt.
+- Automatisch: `bunx playwright test tests/browser/dropdown-submenus.e2e.ts --workers=1` (Projektbreite und 390 px; Mausklick mit Zwischenablage, Mauswechsel zwischen Haupt- und Untermenü, Pfeiltasten/Enter/Escape mit Fokusrückgabe, Statusfilter). Jeder Eintrag muss im Fenster liegen und an seinem Mittelpunkt und beiden Rändern selbst getroffen werden. Mit `DROPDOWN_SUBMENU_SHOTS=<Ordner>` speichert der Test Screenshots.
+- Am 07.11.2026 gegen den gebauten Stand (`vite preview`) geprüft: mit der Korrektur 16 von 16 Tests erfolgreich, mit dem alten `dropdown-menu.tsx` 16 von 16 rot. Auf Desktop war das Untermenü vollständig abgeschnitten, bei 390 px lag es bei x = −74 bzw. reichte bis 436 px. `issue-query-states.e2e.ts` und `header.e2e.ts` laufen weiter durch. Ausnahme ist „Geöffnete Tickets im Menü sind per Tastatur bedienbar“ (390 px, reduziert): Der Test scheitert gelegentlich, weil die Schleife ArrowDown drückt, ohne auf den Fokus zu warten. Für dieses Menü ändert die Korrektur kein CSS.
+- Mausbewegungen im Test laufen schrittweise. Radix erkennt die Richtung zum Untermenü aus aufeinanderfolgenden `pointermove`-Ereignissen; ein einzelner Sprung über das Hauptmenü hinweg schließt ein links liegendes Untermenü, wie bei echter Maus ein abrupter Sprung auch.
