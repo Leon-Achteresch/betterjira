@@ -1,8 +1,13 @@
+import { useNavigate } from "@tanstack/react-router";
 import { useJiraProjects } from "@/lib/jira/queries";
-import { projectDirectory, type ProjectSort, type ProjectView } from "@/lib/project-directory";
+import { projectDirectory, projectDirectorySearch, projectSortOf, projectViewOf, type ProjectDirectorySearch, type ProjectSort } from "@/lib/project-directory";
 import { useProjectPrefs } from "@/lib/project-prefs";
 
-export function useProjectDirectory({ query, view, sort }: { query: string; view: ProjectView; sort: ProjectSort }) {
+export function useProjectDirectory(search: ProjectDirectorySearch) {
+  const query = search.q ?? "";
+  const view = projectViewOf(search.ansicht);
+  const sort = projectSortOf(search.sort);
+  const navigate = useNavigate({ from: "/bereiche/" });
   const projects = useJiraProjects();
   const favoriteIds = useProjectPrefs((state) => state.projectIds);
   const hiddenIds = useProjectPrefs((state) => state.hiddenProjectIds);
@@ -11,6 +16,11 @@ export function useProjectDirectory({ query, view, sort }: { query: string; view
 
   return {
     ...directory,
+    query,
+    view,
+    sort,
+    changeSort: (next: ProjectSort) => void navigate({ search: (previous) => projectDirectorySearch({ ...previous, sort: next }) }),
+    changeQuery: (next: string) => void navigate({ search: (previous) => projectDirectorySearch({ ...previous, q: next }), replace: true }),
     loaded: !!projects.data,
     isPending: projects.isPending,
     loadError: projects.data ? null : projects.error,

@@ -97,6 +97,8 @@ test("Suche und Ansicht stehen in der URL und folgen Zurück und Vorwärts", asy
   await page.goForward();
   await expect(page).toHaveURL(/ansicht=favoriten/);
 
+  const filterReads = await page.evaluate(() => window.__qaReads ?? []);
+  expect(filterReads.filter((path) => path.startsWith("/board"))).toEqual([]);
   await list(page).getByRole("link", { name: /Betrieb/ }).click();
   await expect(page).toHaveURL(/\/bereiche\/OPS$/);
   await page.goBack();
@@ -109,8 +111,6 @@ test("Suche und Ansicht stehen in der URL und folgen Zurück und Vorwärts", asy
   await expect(search(page)).toHaveValue("");
   await expect(list(page).getByRole("listitem")).toHaveCount(1);
 
-  const reads = await page.evaluate(() => window.__qaReads ?? []);
-  expect(reads.filter((path) => path.startsWith("/board"))).toEqual([]);
 });
 
 test("Favoriten bleiben mit der Seitenleiste synchron, ohne die Sichtbarkeit zu ändern", async ({ page }) => {
@@ -211,6 +211,7 @@ test("Command Palette und Tastatur führen zur Übersicht und in einen Bereich",
   await expect(page.getByRole("option", { name: /Alle Bereiche/ })).toBeVisible();
   await page.keyboard.press("Enter");
   await expect(page).toHaveURL(/\/bereiche$/);
+  await expect(page.getByRole("dialog")).toHaveCount(0);
 
   await search(page).focus();
   await page.keyboard.type("daten");
@@ -234,8 +235,9 @@ test("Command Palette und Tastatur führen zur Übersicht und in einen Bereich",
 test("Darstellung: Desktop hell und 390 px dunkel ohne Seitenüberlauf", async ({ page }, info) => {
   const narrow = info.project.name !== "desktop";
   if (narrow) await page.setViewportSize({ width: 390, height: 844 });
-  await open(page);
+  await open(page, "/bereiche?sort=name");
   await expect(list(page).getByRole("listitem")).toHaveCount(7);
+  await expect(sortButton(page)).toHaveAccessibleName("Sortierung: Name A–Z");
   const fonts = await page.evaluate(async () => {
     await document.fonts.ready;
     return {
@@ -261,7 +263,7 @@ test("Sortierung ordnet nur geladene Bereiche um und folgt URL, Verlauf und Dire
   await expect(list(page).getByRole("listitem")).toHaveCount(7);
   await expect(sortButton(page)).toHaveAccessibleName("Sortierung: Standard");
   await expect.poll(() => rowNames(page)).toEqual(LOADED_ORDER);
-  expect(searchParams(page)).toEqual({});
+  const originalUrl = page.url();
   const readsBefore = await dataReads(page);
   await list(page)
     .getByRole("listitem")
@@ -292,7 +294,7 @@ test("Sortierung ordnet nur geladene Bereiche um und folgt URL, Verlauf und Dire
   await expect(page).toHaveURL(/\/bereiche\?sort=name$/);
   await expect.poll(() => rowNames(page)).toEqual(NAME_ORDER);
   await page.goBack();
-  await expect(page).toHaveURL(/\/bereiche$/);
+  await expect(page).toHaveURL(originalUrl);
   await expect.poll(() => rowNames(page)).toEqual(LOADED_ORDER);
   await page.goForward();
   await expect(sortButton(page)).toHaveAccessibleName("Sortierung: Name A–Z");

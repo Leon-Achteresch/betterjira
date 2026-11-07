@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useJiraSession } from "@/hooks/jira/use-jira-session";
 import { useProjectDirectory } from "@/hooks/jira/use-project-directory";
-import { projectDirectorySearch, projectSortOf, projectViewOf } from "@/lib/project-directory";
+import { projectDirectorySearch } from "@/lib/project-directory";
 
 export const Route = createFileRoute("/bereiche/")({
   validateSearch: (search: Record<string, unknown>) => projectDirectorySearch(search),
@@ -16,12 +16,9 @@ export const Route = createFileRoute("/bereiche/")({
 });
 
 function Bereiche() {
-  const { q = "", ansicht, sort: sortParam } = Route.useSearch();
-  const view = projectViewOf(ansicht);
-  const sort = projectSortOf(sortParam);
-  const navigate = Route.useNavigate();
+  const search = Route.useSearch();
   const session = useJiraSession();
-  const directory = useProjectDirectory({ query: q, view, sort });
+  const directory = useProjectDirectory(search);
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-4 sm:p-8">
@@ -48,13 +45,11 @@ function Bereiche() {
       >
         <ProjectDirectory
           directory={directory}
-          query={q}
-          view={view}
-          sort={sort}
-          onSortChange={(next) => void navigate({ search: (prev) => projectDirectorySearch({ ...prev, sort: next }) })}
-          onQueryChange={(next) =>
-            void navigate({ search: (prev) => projectDirectorySearch({ ...prev, q: next }), replace: true })
-          }
+          query={directory.query}
+          view={directory.view}
+          sort={directory.sort}
+          onSortChange={directory.changeSort}
+          onQueryChange={directory.changeQuery}
         />
       </SessionGate>
     </div>

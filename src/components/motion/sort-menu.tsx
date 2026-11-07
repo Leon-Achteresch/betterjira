@@ -39,7 +39,7 @@ export function SortMenu<T extends string>({ label, options, value, onValueChang
           </motion.span>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-auto min-w-48 rounded-2xl">
+      <DropdownMenuContent align="end" className="w-auto min-w-48 rounded-2xl motion-reduce:animate-none!">
         <DropdownMenuLabel>{label}</DropdownMenuLabel>
         <DropdownMenuRadioGroup
           value={value}
