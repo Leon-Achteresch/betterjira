@@ -530,6 +530,36 @@ const issueLinks = {
     ];
   },
 };
+const remoteLinks = {
+  "DEMO-1": [
+    {
+      id: 10000,
+      globalId: "appId=qa&pageId=1",
+      application: { type: "com.atlassian.confluence", name: "Confluence" },
+      relationship: "Wiki-Seite",
+      object: {
+        url: "https://example.atlassian.net/wiki/spaces/QA/pages/1",
+        title: "Übergabe-Checkliste für das Release",
+        summary: "Lokale Testseite: Ablauf, Verantwortliche und Rückfallplan.",
+        icon: { url16x16: "https://example.atlassian.net/wiki/icon.png" },
+      },
+    },
+    {
+      id: 10001,
+      relationship: "Spezifikation",
+      object: {
+        url: "https://specs.example.test/editor/tastatur-und-fokusfuehrung-im-mehrzeiligen-editor-mit-sehr-langem-pfad",
+        title: "Tastaturbedienung im Editor: vollständige Spezifikation mit allen Sonderfällen für Fokus, Auswahl und Rückgängig",
+        summary: "Sehr lange Beschreibung zum Testen des Umbruchs: <b>kein HTML</b> wird ausgeführt, Inhalte erscheinen als Text.",
+        status: { resolved: true },
+      },
+    },
+    { id: 10002, relationship: "Skript", object: { url: "javascript:alert(1)", title: "Ungültiges Protokoll" } },
+    { id: 10003, object: { title: "Ziel fehlt" } },
+    { id: 10004, object: { url: "https://qa:geheim@intranet.example.test/doc", title: "Ziel mit Zugangsdaten" } },
+    { id: 10005 },
+  ],
+};
 const listeners = new Map();
 let listenerId = 0;
 let callbackId = 0;
@@ -598,7 +628,7 @@ Rollback vorbereiten",
     ]),
   );
 }
-window.__qa = { writes: [], issueReads: [], failNextWrite: false, delayMs: 0, issues, wiki, briefing, briefingFailure: false, searches: [], searchDelayMs: 0, failSearch: false, emptySearch: false, sessionFailure: scenario === "session-error", sessionDelayMs: scenario === "session-slow" ? 1500 : 0, commands: [], myselfDelayMs: 0, failMyself: false, myselfCalls: 0 };
+window.__qa = { writes: [], issueReads: [], failNextWrite: false, delayMs: 0, issues, wiki, briefing, briefingFailure: false, searches: [], searchDelayMs: 0, failSearch: false, emptySearch: false, sessionFailure: scenario === "session-error", sessionDelayMs: scenario === "session-slow" ? 1500 : 0, commands: [], opened: [], myselfDelayMs: 0, failMyself: false, myselfCalls: 0 };
 window.__qa.outlook = {
   calls: [],
   failNext: false,
@@ -607,8 +637,18 @@ window.__qa.outlook = {
 };
 if (scenario === "rollout-duplicate")
   window.__qa.outlook.events.push({ id: "DUP-OUTLOOK-1", rolloutId: "00000000-0000-4000-8000-000000000101", title: "Produktion Release 2.4", start: "2026-11-06T13:00:00.000Z", end: "2026-11-06T14:30:00.000Z", webLink: "", isAllDay: false });
+window.__qaUpdates = {
+  installed: [],
+  restarts: 0,
+  releases: [
+    { tag_name: "v0.7.0", published_at: "2026-11-06T18:14:30Z", draft: false, prerelease: false },
+    { tag_name: "v0.6.0", published_at: "2026-11-06T17:18:31Z", draft: false, prerelease: false },
+    { tag_name: "v0.5.0", published_at: "2026-11-06T12:49:31Z", draft: false, prerelease: false },
+  ],
+};
 const respond = async (request) => {
   const url = new URL(request.url);
+  if (url.hostname === "api.github.com") return { body: window.__qaUpdates.releases };
   const path = url.pathname.replace(/^.*\/rest\/(?:api\/[23]|agile\/1\.0)/, "");
   if (request.method !== "GET") {
     if (path.endsWith("approximate-count")) return { body: { count: issues.length } };
@@ -708,6 +748,14 @@ const respond = async (request) => {
   if (path.endsWith("/transitions")) return { body: { transitions } };
   if (path.startsWith("/issue/")) window.__qa.issueReads.push(`${path}?fields=${url.searchParams.get("fields") ?? ""}`);
 
+  const remoteLinkPath = path.match(/^\/issue\/([^/]+)\/remotelink$/);
+  if (remoteLinkPath) {
+    const rule = window.__qaRemoteLinksRule?.(remoteLinkPath[1]) ?? {};
+    if (rule.delayMs) await new Promise((resolve) => setTimeout(resolve, rule.delayMs));
+    if (rule.status) return { status: rule.status, body: { errorMessages: [`Test: Jira antwortet mit ${rule.status}`] } };
+    return { body: rule.links ?? remoteLinks[remoteLinkPath[1]] ?? [] };
+  }
+
   const worklogPath = path.match(/^\/issue\/([^/]+)\/worklog$/);
   if (worklogPath) {
     const target = issues.find((issue) => issue.id === worklogPath[1] || issue.key === worklogPath[1]);
@@ -767,6 +815,10 @@ window.__TAURI_INTERNALS__ = {
     if (command === "scm_request" && scmScenario) return scmRespond(args);
     if (command === "plugin:opener|open_url" && scmScenario) {
       window.__qaScm.opened.push(args.url);
+      return null;
+    }
+    if (command === "plugin:opener|open_url") {
+      window.__qa.opened.push(args.url);
       return null;
     }
     if (command === "outlook_request") {
@@ -842,6 +894,16 @@ window.__TAURI_INTERNALS__ = {
       return id;
     }
     if (command === "plugin:window|is_focused") return true;
+    if (command === "plugin:app|version") return "0.7.0";
+    if (command === "plugin:updater|check") return null;
+    if (command === "update_install_version") {
+      window.__qaUpdates.installed.push(args.version);
+      return null;
+    }
+    if (command === "plugin:process|restart") {
+      window.__qaUpdates.restarts++;
+      return null;
+    }
     if (command === "plugin:http|fetch") {
       const id = ++nextId;
       requests.set(id, { request: args.clientConfig, sent: false });

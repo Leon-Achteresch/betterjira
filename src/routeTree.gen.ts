@@ -27,6 +27,7 @@ import { Route as SettingsBereicheRouteImport } from './routes/settings/bereiche
 import { Route as SettingsBriefingRouteImport } from './routes/settings/briefing'
 import { Route as SettingsCodeHostingRouteImport } from './routes/settings/code-hosting'
 import { Route as SettingsDarstellungRouteImport } from './routes/settings/darstellung'
+import { Route as SettingsUpdatesRouteImport } from './routes/settings/updates'
 import { Route as SettingsVerbindungenRouteImport } from './routes/settings/verbindungen'
 
 const IndexRoute = IndexRouteImport.update({
@@ -119,6 +120,11 @@ const SettingsDarstellungRoute = SettingsDarstellungRouteImport.update({
   path: '/darstellung',
   getParentRoute: () => SettingsRoute,
 } as any)
+const SettingsUpdatesRoute = SettingsUpdatesRouteImport.update({
+  id: '/updates',
+  path: '/updates',
+  getParentRoute: () => SettingsRoute,
+} as any)
 const SettingsVerbindungenRoute = SettingsVerbindungenRouteImport.update({
   id: '/verbindungen',
   path: '/verbindungen',
@@ -142,6 +148,7 @@ export interface FileRoutesByFullPath {
   '/settings/briefing': typeof SettingsBriefingRoute
   '/settings/code-hosting': typeof SettingsCodeHostingRoute
   '/settings/darstellung': typeof SettingsDarstellungRoute
+  '/settings/updates': typeof SettingsUpdatesRoute
   '/settings/verbindungen': typeof SettingsVerbindungenRoute
   '/bereiche/': typeof BereicheIndexRoute
   '/settings/': typeof SettingsIndexRoute
@@ -162,6 +169,7 @@ export interface FileRoutesByTo {
   '/settings/briefing': typeof SettingsBriefingRoute
   '/settings/code-hosting': typeof SettingsCodeHostingRoute
   '/settings/darstellung': typeof SettingsDarstellungRoute
+  '/settings/updates': typeof SettingsUpdatesRoute
   '/settings/verbindungen': typeof SettingsVerbindungenRoute
   '/bereiche': typeof BereicheIndexRoute
   '/settings': typeof SettingsIndexRoute
@@ -184,6 +192,7 @@ export interface FileRoutesById {
   '/settings/briefing': typeof SettingsBriefingRoute
   '/settings/code-hosting': typeof SettingsCodeHostingRoute
   '/settings/darstellung': typeof SettingsDarstellungRoute
+  '/settings/updates': typeof SettingsUpdatesRoute
   '/settings/verbindungen': typeof SettingsVerbindungenRoute
   '/bereiche/': typeof BereicheIndexRoute
   '/settings/': typeof SettingsIndexRoute
@@ -207,6 +216,7 @@ export interface FileRouteTypes {
     | '/settings/briefing'
     | '/settings/code-hosting'
     | '/settings/darstellung'
+    | '/settings/updates'
     | '/settings/verbindungen'
     | '/bereiche/'
     | '/settings/'
@@ -227,6 +237,7 @@ export interface FileRouteTypes {
     | '/settings/briefing'
     | '/settings/code-hosting'
     | '/settings/darstellung'
+    | '/settings/updates'
     | '/settings/verbindungen'
     | '/bereiche'
     | '/settings'
@@ -248,6 +259,7 @@ export interface FileRouteTypes {
     | '/settings/briefing'
     | '/settings/code-hosting'
     | '/settings/darstellung'
+    | '/settings/updates'
     | '/settings/verbindungen'
     | '/bereiche/'
     | '/settings/'
@@ -397,6 +409,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsDarstellungRouteImport
       parentRoute: typeof SettingsRoute
     }
+    '/settings/updates': {
+      id: '/settings/updates'
+      path: '/updates'
+      fullPath: '/settings/updates'
+      preLoaderRoute: typeof SettingsUpdatesRouteImport
+      parentRoute: typeof SettingsRoute
+    }
     '/settings/verbindungen': {
       id: '/settings/verbindungen'
       path: '/verbindungen'
@@ -412,6 +431,7 @@ interface SettingsRouteChildren {
   SettingsBriefingRoute: typeof SettingsBriefingRoute
   SettingsCodeHostingRoute: typeof SettingsCodeHostingRoute
   SettingsDarstellungRoute: typeof SettingsDarstellungRoute
+  SettingsUpdatesRoute: typeof SettingsUpdatesRoute
   SettingsVerbindungenRoute: typeof SettingsVerbindungenRoute
   SettingsIndexRoute: typeof SettingsIndexRoute
 }
@@ -421,6 +441,7 @@ const SettingsRouteChildren: SettingsRouteChildren = {
   SettingsBriefingRoute: SettingsBriefingRoute,
   SettingsCodeHostingRoute: SettingsCodeHostingRoute,
   SettingsDarstellungRoute: SettingsDarstellungRoute,
+  SettingsUpdatesRoute: SettingsUpdatesRoute,
   SettingsVerbindungenRoute: SettingsVerbindungenRoute,
   SettingsIndexRoute: SettingsIndexRoute,
 }
