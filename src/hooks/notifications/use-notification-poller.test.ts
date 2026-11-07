@@ -122,4 +122,16 @@ describe("deliverActivityAlerts", () => {
     await delivery;
     expect(native.sendNotification).toHaveBeenCalledTimes(1);
   });
+  it.each([null, "konto-b"])("verwirft Hinweise bei geaenderter Sitzung trotz altem Inbox-Konto (%s)", async (nextOwner) => {
+    const check = deferred<boolean>();
+    native.isPermissionGranted.mockReturnValue(check.promise);
+    let activeOwner: string | null = "konto-a";
+    const delivery = deliverActivityAlerts([notification("1")], false, openIssue, () => activeOwner);
+    activeOwner = nextOwner;
+    check.resolve(true);
+    await delivery;
+    expect(useNotifications.getState().owner).toBe("konto-a");
+    expect(native.sendNotification).not.toHaveBeenCalled();
+  });
+
 });
