@@ -190,3 +190,8 @@ Der vollständige Ablaufbericht einschließlich Vielnutzer, sorgfältigem Leser,
 - `alert-actions.e2e.ts` prüft die echten Hinweise mit Wiederholaktion: fehlgeschlagene Tabellenaktualisierung (simulierter HTTP 503), „Jira konnte zuletzt nicht geprüft werden“ in den Benachrichtigungen (ohne Icon) und „Projekt „NOPE“ ist nicht verfügbar“ in der Suche (lange Beschriftung). Gemessen werden Textzeilen, Icon und Aktion gegeneinander sowie der Treffer der Aktion per `elementFromPoint`; dazu Tastaturfokus aus dem Text und Retry per Enter bzw. Maus.
 - Desktop hell (1440 px): Aktion kompakt rechts neben dem Text. 390 px dunkel mit reduzierter Bewegung, auch mit Textgröße „Sehr groß“: Aktion unter dem Text, ohne Seitenüberlauf. Aktionen sind mindestens 32 px hoch.
 - Automatisch: `bunx playwright test tests/browser/alert-actions.e2e.ts --project=desktop --workers=1`; mit `ALERT_ACTIONS_SHOTS=<Ordner>` zusätzlich Screenshots (erst nach `document.fonts.ready` und geladener Geist-Schrift).
+
+## Unbekannte Routen
+
+- Direktlink auf eine nicht vorhandene Ansicht: `...fixture.html?route=/gibt-es-nicht?token=test`. Kopfzeile und Seitenleiste bleiben, die Seite zeigt weder Pfad noch Parameter, die URL bleibt unverändert. „Zurück“ erscheint nur nach einer Navigation innerhalb der App.
+- Automatisch: `bunx playwright test tests/browser/not-found.e2e.ts --workers=1`; mit `NOT_FOUND_SHOTS=<Ordner>` zusätzlich Screenshots.

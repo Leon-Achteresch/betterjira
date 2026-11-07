@@ -17,6 +17,8 @@ import { useAppShortcuts } from "@/hooks/use-app-shortcuts";
 import { SHORTCUT_GROUPS } from "@/lib/shortcuts";
 import { RenderErrorBoundary } from "@/components/ui/render-error-boundary";
 import { RenderError } from "@/components/shell/render-error";
+import { RouteNotFound } from "@/components/shell/route-not-found";
+import { useRouteNotFound } from "@/hooks/use-route-not-found";
 import { useRenderRecovery } from "@/hooks/use-render-recovery";
 import { OfflineNotice } from "@/components/connections/offline-notice";
 import { useDeviceOnline } from "@/hooks/connections/use-device-online";
@@ -92,8 +94,14 @@ function RootError({ reset }: ErrorComponentProps) {
   return <RenderError scope="app" onRetry={retry} onReload={recovery.reload} className="h-dvh bg-background" />;
 }
 
+function NotFound() {
+  const notFound = useRouteNotFound();
+  return <RouteNotFound canGoBack={notFound.canGoBack} onBack={notFound.goBack} onHome={notFound.goHome} />;
+}
+
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   errorComponent: RootError,
+  notFoundComponent: NotFound,
   component: () => (
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
       <ReadabilitySync />
