@@ -603,6 +603,40 @@ if (scenario === "rollout-search" && localStorage.getItem("betterjira:calendar:r
     ]),
   );
 }
+if (scenario === "rollout-duplicate" && localStorage.getItem("betterjira:calendar:rollouts:v1") === null) {
+  localStorage.setItem("betterjira:calendar:outlook:v1", "ABC123");
+  localStorage.setItem(
+    "betterjira:calendar:rollouts:v1",
+    JSON.stringify([
+      {
+        id: "00000000-0000-4000-8000-000000000101",
+        title: "Produktion Release 2.4",
+        start: "2026-11-06T13:00:00.000Z",
+        end: "2026-11-06T14:30:00.000Z",
+        notes: "Monitoring beobachten\nRollback vorbereiten",
+        issues: [{ key: "DEMO-1", summary: "QA-Testticket DEMO-1" }],
+        siteUrl: "https://example.atlassian.net",
+        reminderMinutes: 60,
+        outlookEventId: "DUP-OUTLOOK-1",
+        outlookAccountId: "ABC123",
+        outlookWebLink: "https://outlook.example.invalid/DUP-OUTLOOK-1",
+      },
+      {
+        id: "00000000-0000-4000-8000-000000000102",
+        title: "Partner-Rollout",
+        start: "2026-11-06T15:00:00.000Z",
+        end: "2026-11-06T16:00:00.000Z",
+        notes: "Freigabe beim Partner einholen",
+        issues: [{ key: "EXT-4", summary: "QA-Testticket der fremden Site" }],
+        siteUrl: "https://andere-firma.example.atlassian.net",
+        reminderMinutes: 1440,
+        outlookEventId: null,
+        outlookAccountId: null,
+        outlookWebLink: null,
+      },
+    ]),
+  );
+}
 window.__qa = { writes: [], issueReads: [], failNextWrite: false, delayMs: 0, issues, wiki, briefing, briefingFailure: false, searches: [], searchDelayMs: 0, failSearch: false, emptySearch: false, sessionFailure: scenario === "session-error", sessionDelayMs: scenario === "session-slow" ? 1500 : 0, commands: [], opened: [], myselfDelayMs: 0, failMyself: false, myselfCalls: 0 };
 window.__qa.outlook = {
   calls: [],
@@ -610,6 +644,8 @@ window.__qa.outlook = {
   account: { id: "ABC123", displayName: "Lokaler Outlook-Testkalender", email: "outlook@example.com" },
   events: [{ id: "AAAA", title: "Externer Outlook-Termin", start: "2026-11-06T10:00:00.000Z", end: "2026-11-06T11:00:00.000Z", webLink: "", isAllDay: false }],
 };
+if (scenario === "rollout-duplicate")
+  window.__qa.outlook.events.push({ id: "DUP-OUTLOOK-1", rolloutId: "00000000-0000-4000-8000-000000000101", title: "Produktion Release 2.4", start: "2026-11-06T13:00:00.000Z", end: "2026-11-06T14:30:00.000Z", webLink: "", isAllDay: false });
 window.__qaUpdates = {
   installed: [],
   restarts: 0,

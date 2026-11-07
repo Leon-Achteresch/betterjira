@@ -108,6 +108,12 @@ Der vollständige Ablaufbericht einschließlich Vielnutzer, sorgfältigem Leser,
 - Suchtext aus der URL: `?route=/kalender?q=Migration`. Die Suche durchsucht nur die bereits geladenen Rollouts nach Titel, Notiz und Ticket-Schlüssel, keine Outlook-Termine und kein Jira.
 - Automatisch: `bunx playwright test tests/browser/rollout-search.e2e.ts --workers=1` prüft Trefferliste ohne Änderung an Kalender und Tagesagenda, mehrere Wörter, Groß/Klein und Sonderzeichen, Tageswahl in anderen Monaten, „Weitere anzeigen“ mit Zurücksetzen bei neuer Suche, keine zusätzlichen Lese- oder Schreibzugriffe durch Eingabe, URL mit Zurück/Vorwärts und Zurücksetzen, Ladefehler, Tastatur sowie 390 px hell und dunkel. Mit `ROLLOUT_SEARCH_SHOTS=<Ordner>` speichert der Test Screenshots.
 
+## Rollout als Vorlage duplizieren
+
+- Kalender mit zwei lokalen QA-Rollouts: `...fixture.html?scenario=rollout-duplicate&route=/kalender`. „Produktion Release 2.4“ ist mit dem simulierten Outlook-Kalender verknüpft (`DEMO-1`, Notiz, Erinnerung 1 Stunde), „Partner-Rollout“ gehört zu einer fremden Jira-Site (`EXT-4`). Das Szenario legt die Daten nur an, wenn der lokale Speicher noch keine Rollouts enthält; es sind reine Testdaten ohne Outlook- oder Jira-Schreibzugriff.
+- „Weitere Aktionen“ am Rollout → „Als Vorlage duplizieren“ öffnet den bekannten Dialog mit „(Kopie)“ im Titel und übernommenem Inhalt. Erst „Anlegen“ speichert einen neuen lokalen Rollout mit neuer ID und ohne Outlook-Verknüpfung; „Abbrechen“ und Escape schreiben nichts.
+- Automatisch: `bunx playwright test tests/browser/rollout-duplicate.e2e.ts --workers=1` prüft vorbefüllte Werte, keine Schreibzugriffe vor dem Speichern oder beim Abbrechen, genau einen neuen Eintrag bei doppeltem Absenden, unverändertes Original, keine Outlook- und Jira-Schreibaufrufe, ehrliche Anzeige der fremden Site ohne zusätzliche Ticketsuche, Tastatur, Tooltip, 32 px Trefferfläche sowie Desktop hell und 390 px hell und dunkel. Mit `ROLLOUT_DUPLICATE_SHOTS=<Ordner>` speichert der Test Screenshots.
+
 ## Verbindungen und Offline-Hinweis
 
 - Übersicht: `http://localhost:1420/tests/browser/fixture.html?route=/settings/verbindungen` (abgemeldet mit `scenario=calendar-offline`, Lesefehler mit `scenario=session-error`).

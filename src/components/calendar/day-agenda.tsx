@@ -8,7 +8,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import type { OutlookAccount, OutlookCalendarEvent, Rollout } from "@/lib/calendar/model";
 import { dayKey, dayTitle, errorMessage } from "@/lib/calendar/presentation";
 import { EASE_OUT } from "@/lib/ease";
-import { RolloutList, type RolloutActions } from "./rollout-list";
+import type { RolloutActions } from "@/types/calendar";
+import { RolloutList } from "./rollout-list";
 
 type DayAgendaProps = RolloutActions & {
   day: Date;

@@ -1,6 +1,7 @@
 import type { RolloutDraft } from "./model";
 
 export const ROLLOUT_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+export const ROLLOUT_TITLE_MAX_LENGTH = 255;
 export const REMINDER_MINUTES = [0, 5, 15, 30, 60, 1440] as const;
 
 export const isInstant = (value: string) =>
@@ -9,7 +10,7 @@ export const isInstant = (value: string) =>
 
 export const validateRolloutDraft = (draft: RolloutDraft): string | undefined => {
   if (!draft.title.trim()) return "Bitte einen Titel eingeben.";
-  if (draft.title.trim().length > 255) return "Der Titel darf höchstens 255 Zeichen enthalten.";
+  if (draft.title.trim().length > ROLLOUT_TITLE_MAX_LENGTH) return `Der Titel darf höchstens ${ROLLOUT_TITLE_MAX_LENGTH} Zeichen enthalten.`;
   if (!isInstant(draft.start) || !isInstant(draft.end)) return "Bitte einen gültigen Zeitraum mit Zeitzone eingeben.";
   if (Date.parse(draft.end) <= Date.parse(draft.start)) return "Das Ende muss nach dem Beginn liegen.";
   if (draft.notes.length > 20_000) return "Die Notizen dürfen höchstens 20.000 Zeichen enthalten.";
