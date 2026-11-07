@@ -192,10 +192,13 @@ test("Command Palette und Tastatur führen zur Übersicht und in einen Bereich",
   await expect(page.getByRole("option", { name: /Alle Bereiche/ })).toBeVisible();
   await page.keyboard.press("Enter");
   await expect(page).toHaveURL(/\/bereiche$/);
+  await expect(page.getByRole("dialog")).toHaveCount(0);
 
+  await search(page).fill("daten");
+  await expect(list(page).getByRole("listitem")).toHaveCount(1);
   await search(page).focus();
-  await page.keyboard.type("daten");
   await page.keyboard.press("Tab");
+  await expect(main(page).getByRole("button", { name: "Suche leeren" })).toBeFocused();
   await page.keyboard.press("Tab");
   await expect(list(page).getByRole("link", { name: /Datenplattform/ })).toBeFocused();
   await page.keyboard.press("Enter");
