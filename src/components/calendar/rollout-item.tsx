@@ -8,6 +8,7 @@ import type { Rollout } from "@/lib/calendar/model";
 import { canSyncRollout, OUTLOOK_LINK_LABELS, reminderLabel, timeRange, type OutlookLinkState } from "@/lib/calendar/presentation";
 import { SPRING_PRESS } from "@/lib/ease";
 import { cn } from "@/lib/utils";
+import { RolloutMoreMenu } from "./rollout-more-menu";
 
 type RolloutItemProps = {
   rollout: Rollout;
@@ -16,6 +17,7 @@ type RolloutItemProps = {
   outlookConnected: boolean;
   syncing: boolean;
   onEdit: () => void;
+  onDuplicate: () => void;
   onDelete: () => void;
   onSync: () => void;
   onOpenOutlook: () => void;
@@ -29,7 +31,7 @@ const LINK_TONE: Record<OutlookLinkState, string> = {
   "other-account": "text-amber-600 dark:text-amber-400",
 };
 
-export function RolloutItem({ rollout, day, linkState, outlookConnected, syncing, onEdit, onDelete, onSync, onOpenOutlook, onOpenIssue }: RolloutItemProps) {
+export function RolloutItem({ rollout, day, linkState, outlookConnected, syncing, onEdit, onDuplicate, onDelete, onSync, onOpenOutlook, onOpenIssue }: RolloutItemProps) {
   const reduce = useReducedMotion();
   const syncable = outlookConnected && canSyncRollout(linkState);
   return (
@@ -55,6 +57,7 @@ export function RolloutItem({ rollout, day, linkState, outlookConnected, syncing
               <Trash2Icon />
             </Button>
           </Tooltip>
+          <RolloutMoreMenu onDuplicate={onDuplicate} />
         </div>
       </div>
       {rollout.issues.length > 0 && (

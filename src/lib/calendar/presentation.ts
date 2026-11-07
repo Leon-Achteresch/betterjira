@@ -15,6 +15,7 @@ import {
 import { de } from "date-fns/locale";
 import { quoteJql } from "@/lib/jira/jql";
 import type { LinkedIssue, OutlookAccount, OutlookCalendarEvent, Rollout, RolloutDraft } from "./model";
+import { ROLLOUT_TITLE_MAX_LENGTH } from "./validation";
 
 export const WEEKDAY_LABELS = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"] as const;
 
@@ -143,7 +144,7 @@ export const validateRolloutForm = (form: RolloutForm): RolloutFormErrors => {
   const end = localInstant(form.endDate, form.endTime);
   return {
     ...(!form.title.trim() && { title: "Bitte einen Titel angeben." }),
-    ...(form.title.trim().length > 255 && { title: "Der Titel darf höchstens 255 Zeichen enthalten." }),
+    ...(form.title.trim().length > ROLLOUT_TITLE_MAX_LENGTH && { title: `Der Titel darf höchstens ${ROLLOUT_TITLE_MAX_LENGTH} Zeichen enthalten.` }),
     ...(!start && { start: "Bitte Datum und Uhrzeit für den Beginn angeben." }),
     ...(!end && { end: "Bitte Datum und Uhrzeit für das Ende angeben." }),
     ...(start && end && end <= start && { end: "Das Ende muss nach dem Beginn liegen." }),

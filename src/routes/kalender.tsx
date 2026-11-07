@@ -30,6 +30,7 @@ function Kalender() {
   });
   const actions = {
     onEdit: page.edit,
+    onDuplicate: page.duplicate,
     onDelete: page.confirmDelete,
     onSync: page.syncRollout,
     onOpenOutlook: page.openOutlookEvent,
