@@ -24,10 +24,11 @@ jobs:
     needs: frontend
     runs-on: windows-latest
     timeout-minutes: 60
-    env:
-      BROWSER_QA_DIRECTORY: ${{ runner.temp }}/betterjira-browser-qa
     steps:
       - uses: actions/checkout@v7
+      - name: Testverzeichnis festlegen
+        shell: pwsh
+        run: '"BROWSER_QA_DIRECTORY=$env:RUNNER_TEMP/betterjira-browser-qa" >> $env:GITHUB_ENV'
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
       - run: bunx playwright install msedge
