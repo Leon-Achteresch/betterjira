@@ -13,7 +13,17 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: bun run build
+      - run: bun run test --maxWorkers=1
+
   version:
+    needs: test
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     outputs:
@@ -96,6 +106,19 @@ jobs:
           prerelease: false
           includeUpdaterJson: false
           args: ${{ matrix.args }}
+
+      - name: Windows-App starten und auf frühen Absturz prüfen
+        if: matrix.platform == 'windows-latest'
+        shell: pwsh
+        run: |
+          $app = Start-Process -FilePath "src-tauri/target/release/betterjira.exe" -PassThru -WindowStyle Hidden
+          try {
+            Start-Sleep -Seconds 10
+            $app.Refresh()
+            if ($app.HasExited) { throw "App wurde beim Start beendet (Exitcode $($app.ExitCode))." }
+          } finally {
+            if (-not $app.HasExited) { Stop-Process -Id $app.Id }
+          }
 
   updater-manifest:
     needs: [version, release]

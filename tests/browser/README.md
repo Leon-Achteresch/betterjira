@@ -185,6 +185,12 @@ Der vollständige Ablaufbericht einschließlich Vielnutzer, sorgfältigem Leser,
 - Die Reihenfolge landet im lokalen Speicher `betterjira-issue-views` (derselbe Pfad wie beim Ziehen) und bleibt nach erneutem Öffnen der Fixture erhalten. Es entstehen keine Jira-Schreibzugriffe (`window.__qa.writes` bleibt leer).
 - Automatisch: `bunx playwright test tests/browser/column-picker.e2e.ts --workers=1` prüft Tastatur, Maus, Ziehen, Feld hinzufügen/entfernen, Tabellenspalten, Neuladen sowie 390 px dunkel mit reduzierter Bewegung. Mit `COLUMN_PICKER_SHOTS=<Ordner>` speichert der Test Screenshots.
 
+## Hinweise mit Aktionen
+
+- `alert-actions.e2e.ts` prüft die echten Hinweise mit Wiederholaktion: fehlgeschlagene Tabellenaktualisierung (simulierter HTTP 503), „Jira konnte zuletzt nicht geprüft werden“ in den Benachrichtigungen (ohne Icon) und „Projekt „NOPE“ ist nicht verfügbar“ in der Suche (lange Beschriftung). Gemessen werden Textzeilen, Icon und Aktion gegeneinander sowie der Treffer der Aktion per `elementFromPoint`; dazu Tastaturfokus aus dem Text und Retry per Enter bzw. Maus.
+- Desktop hell (1440 px): Aktion kompakt rechts neben dem Text. 390 px dunkel mit reduzierter Bewegung, auch mit Textgröße „Sehr groß“: Aktion unter dem Text, ohne Seitenüberlauf. Aktionen sind mindestens 32 px hoch.
+- Automatisch: `bunx playwright test tests/browser/alert-actions.e2e.ts --project=desktop --workers=1`; mit `ALERT_ACTIONS_SHOTS=<Ordner>` zusätzlich Screenshots (erst nach `document.fonts.ready` und geladener Geist-Schrift).
+
 ## Tastenkürzel-Hilfe
 
 - `...fixture.html?route=/settings/darstellung` und „Übersicht öffnen“ oder <kbd>?</kbd> drücken. Das Suchfeld findet Aktionen („Zurück“), Bereiche („Navigation“) und angezeigte Tasten, auch über übliche Namen wie „Strg“, „Cmd“, „Option“ oder „Enter“. Einzelne Zeichen gelten als Taste oder Wortanfang, damit „g h“ genau die Tastenfolge findet.

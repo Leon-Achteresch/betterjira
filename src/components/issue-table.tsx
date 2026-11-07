@@ -51,7 +51,7 @@ function FailedNotice({
       <AlertTitle>{title}</AlertTitle>
       <AlertDescription>{jiraErrors(error).messages.join(" ")}</AlertDescription>
       <AlertAction>
-        <Button variant="outline" size="xs" onClick={onRetry} disabled={disabled || retrying}>
+        <Button variant="outline" size="sm" onClick={onRetry} disabled={disabled || retrying}>
           {retrying && <Spinner aria-hidden />}
           {retryLabel}
         </Button>
