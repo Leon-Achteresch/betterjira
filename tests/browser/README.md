@@ -137,3 +137,12 @@ Der vollständige Ablaufbericht einschließlich Vielnutzer, sorgfältigem Leser,
 - Sieben Testbereiche, ein Favorit (Betrieb) und ein in der Seitenleiste ausgeblendeter Bereich (Archiv 2024): `...fixture.html?scenario=projects&route=/bereiche`.
 - `window.__qaProjectRule = () => ({ delayMs, status, values })` steuert die Projektabfrage (verzögern, mit HTTP-Status scheitern, andere Bereiche liefern, etwa für einen Kontowechsel). `window.__qaReads`, per `addInitScript` als Array gesetzt, sammelt alle gelesenen Pfade.
 - Automatisch: `bunx playwright test tests/browser/projects.e2e.ts --workers=1` prüft Suche und Ansicht in der URL mit Zurück/Vorwärts, Favoriten synchron mit der Seitenleiste, ausgeblendete Bereiche, Ladefehler und fehlgeschlagene Aktualisierung mit Retry, Abmelden und Kontowechsel, Tastatur und Command Palette sowie Desktop hell und 390 px dunkel. Mit `PROJECTS_SHOTS=<Ordner>` speichert der Test Screenshots.
+
+## Ticketansicht nach Ladefehlern
+
+`window.__qaIssueRule = (key) => ({ delayMs, status, summary })` steuert ausschließlich den vollständigen Ticketabruf `GET /issue/{key}?fields=*all`: verzögern, mit HTTP-Status scheitern lassen oder eine geänderte Zusammenfassung liefern. Per `addInitScript` gesetzt wirkt die Regel schon auf den ersten Abruf. `window.__qa.issueReads` zählt die Abrufe.
+
+- Erster Fehler ohne Daten: eigene Erklärung je Ursache (503, 403, 404) mit „Erneut versuchen“. 403/404 werden weder als Abmeldung noch als sicher gelöscht bezeichnet.
+- Fehlgeschlagene Aktualisierung mit geladenem Ticket („Weitere Ticketaktionen“ → „Aktualisieren“ oder nach einem Schreibzugriff): Inhalt, Kommentare, Kommentarentwurf, Editor-DOM und geöffneter Bereich bleiben; Hinweis mit Datenstand und Retry.
+- Sitzung fehlt bzw. ist nicht lesbar: `scenario=calendar-offline` bzw. `scenario=session-error` mit `route=/issue/DEMO-1`.
+- Automatisch: `bunx playwright test tests/browser/issue-recovery.e2e.ts --workers=1`; mit `ISSUE_RECOVERY_SHOTS=<Ordner>` zusätzlich Screenshots.

@@ -667,6 +667,12 @@ const respond = async (request) => {
   }
   if (issue && url.pathname.includes("/api/2/") && url.searchParams.get("fields") === "description")
     return { body: { fields: { description: wiki[issue.key] } } };
+  if (issue && url.searchParams.get("fields") === "*all") {
+    const rule = window.__qaIssueRule?.(issue.key) ?? {};
+    if (rule.delayMs) await new Promise((resolve) => setTimeout(resolve, rule.delayMs));
+    if (rule.status) return { status: rule.status, body: { errorMessages: [`Test: Jira antwortet mit ${rule.status}`] } };
+    if (rule.summary) return { body: { ...issue, fields: { ...issue.fields, summary: rule.summary } } };
+  }
   if (issue) return { body: issue };
   return {
     status: 404,
