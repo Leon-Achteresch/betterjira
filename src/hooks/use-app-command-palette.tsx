@@ -13,6 +13,7 @@ import {
   KeyboardIcon,
   LayersIcon,
   LayoutGridIcon,
+  LinkIcon,
   SparklesIcon,
   LogInIcon,
   LogOutIcon,
@@ -48,9 +49,23 @@ import { shortcutHint } from "@/lib/shortcuts";
 import { useShortcutHelp } from "@/hooks/use-app-shortcuts";
 import { type ThemePreference, useTheme } from "@/hooks/use-theme";
 import { useWorkspace } from "@/hooks/use-workspace";
+import { looksLikeLink, parseTicketReference, type TicketLinkProblem } from "@/lib/ticket-reference";
 
 const MOD = IS_MAC ? "⌘" : "Strg";
-const ISSUE_KEY = /^[a-z][a-z0-9_]*-\d+$/i;
+
+const LINK_PROBLEMS: Record<TicketLinkProblem, string> = {
+  offline: "Ticket-Links lassen sich erst nach der Verbindung mit Jira öffnen.",
+  invalid: "Das ist kein gültiger Link.",
+  protocol: "Nur sichere https-Links der verbundenen Jira-Instanz werden geöffnet.",
+  credentials: "Links mit Zugangsdaten werden aus Sicherheitsgründen nicht geöffnet.",
+  host: "Dieser Link gehört nicht zur verbundenen Jira-Instanz.",
+  path: "Der Link zeigt auf kein Ticket. Erwartet wird …/browse/ABC-123.",
+};
+
+const linkProblemMessage = (problem: TicketLinkProblem, siteUrl?: string) =>
+  problem === "host" && siteUrl
+    ? `Nur Links von ${new URL(siteUrl).host} werden geöffnet. Dieser Link gehört zu einer anderen Adresse.`
+    : LINK_PROBLEMS[problem];
 
 const THEMES: { value: ThemePreference; label: string; icon: typeof SunIcon }[] = [
   { value: "system", label: "Design: wie System", icon: MonitorIcon },
@@ -75,10 +90,14 @@ export function useAppCommandPalette() {
   const { theme, setTheme } = useTheme();
   const openShortcutHelp = useShortcutHelp((state) => state.setOpen);
 
-  const text = debounced.replace(/[\\"]/g, "\\$&");
-  const search = useJiraIssues(`text ~ "${text}*" ORDER BY updated DESC`, open && debounced.length >= 2);
   const trimmed = query.trim();
-  const issueKey = ISSUE_KEY.test(trimmed) ? trimmed.toUpperCase() : null;
+  const siteUrl = site.data?.siteUrl;
+  const reference = parseTicketReference(trimmed, siteUrl);
+  const linkMode = reference.kind === "link" || reference.kind === "rejected";
+  const searching = open && debounced.length >= 2 && !linkMode && !looksLikeLink(debounced);
+  const text = debounced.replace(/[\\"]/g, "\\$&");
+  const search = useJiraIssues(`text ~ "${text}*" ORDER BY updated DESC`, searching);
+  const issueKey = reference.kind === "key" ? reference.key : null;
 
   const openIssue = (key: string) => void navigate({ to: "/issue/$key", params: { key } });
   const { workspace, ready } = useWorkspace();
@@ -347,14 +366,30 @@ export function useAppCommandPalette() {
         ]),
   ];
 
+  const linkItems: CommandItem[] =
+    reference.kind === "link"
+      ? [
+          {
+            id: `link:${reference.key}`,
+            label: `${reference.key} öffnen`,
+            group: "Ticket-Link",
+            icon: LinkIcon,
+            keywords: [trimmed],
+            preview: <IssuePreview issueKey={reference.key} />,
+            onSelect: () => openIssue(reference.key),
+          },
+        ]
+      : [];
+
   return {
-    items,
+    items: linkMode ? linkItems : items,
+    emptyMessage: reference.kind === "rejected" ? linkProblemMessage(reference.problem, siteUrl) : undefined,
     open,
     setOpen: (next: boolean) => {
       if (next) setQuery("");
       setOpen(next);
     },
     setQuery,
-    loading: open && debounced.length >= 2 && search.isFetching,
+    loading: searching && search.isFetching,
   };
 }
