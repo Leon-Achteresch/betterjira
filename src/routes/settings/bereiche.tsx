@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { ProjectSettingsSkeleton, ProjectVisibilitySettings } from "@/components/settings/project-visibility-settings";
+import { ProjectSettingsSkeleton } from "@/components/settings/project-settings-skeleton";
+import { ProjectVisibilitySettings } from "@/components/settings/project-visibility-settings";
 import { LoginPrompt } from "@/components/shell/login-prompt";
 import { SessionGate } from "@/components/shell/session-gate";
 import { useJiraSession } from "@/hooks/jira/use-jira-session";
