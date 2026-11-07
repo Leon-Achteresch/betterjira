@@ -1,16 +1,16 @@
-import type { ReactNode } from "react";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { FolderSearchIcon, RotateCwIcon, SearchXIcon, TriangleAlertIcon } from "lucide-react";
+import { AnimatePresence, useReducedMotion } from "motion/react";
+import { FolderSearchIcon, SearchXIcon, TriangleAlertIcon } from "lucide-react";
+import { Fade } from "@/components/motion/fade";
 import { SearchField } from "@/components/motion/search-field";
 import { Stagger, StaggerItem } from "@/components/motion/stagger";
 import { FavoriteButton } from "@/components/projects/favorite-button";
 import { ProjectAvatar } from "@/components/shell/project-avatar";
-import { Alert, AlertAction, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { Item, ItemActions, ItemContent, ItemDescription, ItemMedia, ItemTitle } from "@/components/ui/item";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Spinner } from "@/components/ui/spinner";
+import { RetryButton } from "@/components/ui/retry-button";
 import { Switch } from "@/components/ui/switch";
 import type { ProjectSettingsState } from "@/hooks/jira/use-project-settings";
 import { EASE_OUT, SPRING_LAYOUT } from "@/lib/ease";
@@ -20,29 +20,6 @@ import { projectMatchLabel } from "@/lib/project-settings-search";
 type Props = { settings: ProjectSettingsState };
 
 type Entry = ProjectSettingsState["entries"][number];
-
-function Fade({ children }: { children: ReactNode }) {
-  const reduce = useReducedMotion();
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: reduce ? 0 : 6 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, transition: { duration: 0.12, ease: EASE_OUT } }}
-      transition={{ duration: 0.2, ease: EASE_OUT }}
-    >
-      {children}
-    </motion.div>
-  );
-}
-
-function RetryButton({ retrying, onRetry }: { retrying: boolean; onRetry: () => void }) {
-  return (
-    <Button variant="outline" onClick={onRetry} disabled={retrying}>
-      {retrying ? <Spinner aria-hidden /> : <RotateCwIcon />}
-      Erneut versuchen
-    </Button>
-  );
-}
 
 export function ProjectSettingsSkeleton() {
   return (
@@ -94,7 +71,7 @@ function Content({ settings }: Props) {
             <EmptyDescription>{jiraErrors(settings.loadError).messages.join(" ")}</EmptyDescription>
           </EmptyHeader>
           <EmptyContent>
-            <RetryButton retrying={settings.isFetching} onRetry={settings.retry} />
+            <RetryButton retrying={settings.isFetching} onRetry={settings.retry}>Erneut versuchen</RetryButton>
           </EmptyContent>
         </Empty>
       </Fade>
@@ -165,7 +142,7 @@ export function ProjectVisibilitySettings({ settings }: Props) {
           onChange={settings.setQuery}
           label="Bereiche durchsuchen"
           placeholder="Name oder Schlüssel"
-          className="w-full sm:w-72"
+          className="w-full sm:w-72 [&_input::-webkit-search-cancel-button]:hidden [&_button]:min-h-8 [&_button]:min-w-8"
         />
         <p className="text-xs text-muted-foreground tabular-nums" aria-live="polite">
           {settings.loaded && settings.counts.alle > 0 && projectMatchLabel(settings.entries.length, settings.counts.alle)}
@@ -178,14 +155,14 @@ export function ProjectVisibilitySettings({ settings }: Props) {
               <TriangleAlertIcon />
               <AlertTitle>Aktualisierung fehlgeschlagen. Angezeigt wird der zuletzt geladene Stand.</AlertTitle>
               <AlertDescription>{jiraErrors(settings.refreshError).messages.join(" ")}</AlertDescription>
-              <AlertAction>
-                <RetryButton retrying={settings.isFetching} onRetry={settings.retry} />
-              </AlertAction>
+              <div className="col-start-2 mt-2 flex flex-wrap gap-2">
+                <RetryButton retrying={settings.isFetching} onRetry={settings.retry}>Erneut versuchen</RetryButton>
+              </div>
             </Alert>
           </Fade>
         )}
       </AnimatePresence>
-      <AnimatePresence mode="wait" initial={false}>
+      <AnimatePresence mode="wait">
         <Content key={settings.loadError ? "error" : settings.isPending ? "pending" : (settings.empty ?? "list")} settings={settings} />
       </AnimatePresence>
     </div>

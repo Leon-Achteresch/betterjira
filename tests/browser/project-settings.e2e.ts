@@ -47,6 +47,12 @@ const closeSidebar = async (page: Page) => {
 };
 
 const settle = async (page: Page) => {
+  const fontLoaded = await page.evaluate(async () => {
+    await document.fonts.load('14px "Geist Variable"');
+    await document.fonts.ready;
+    return [...document.fonts].some((face) => face.family.includes("Geist") && face.status === "loaded");
+  });
+  expect(fontLoaded).toBe(true);
   await page.waitForFunction(() =>
     document
       .getAnimations()
@@ -276,6 +282,7 @@ test("Darstellung: Desktop hell und 390 px dunkel ohne Seitenüberlauf", async (
   if (narrow) await page.setViewportSize({ width: 390, height: 844 });
   await open(page, "/settings/bereiche?q=o");
   await expect(rows(page)).toHaveCount(5);
+  await expect(rows(page).first()).toHaveCSS("opacity", "1");
   const state = await page.evaluate(async () => {
     await document.fonts.load('500 1em "Geist Variable"');
     await document.fonts.ready;

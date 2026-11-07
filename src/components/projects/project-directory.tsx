@@ -1,8 +1,8 @@
-import type { ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { EyeOffIcon, FolderSearchIcon, SearchIcon, SearchXIcon, StarIcon, TriangleAlertIcon, XIcon } from "lucide-react";
 import { NAV_TAB_CLASS, NavTabIndicator, NavTabs } from "@/components/motion/nav-tabs";
+import { Fade } from "@/components/motion/fade";
 import { Tooltip } from "@/components/motion/tooltip";
 import { FavoriteButton } from "@/components/projects/favorite-button";
 import { ProjectAvatar } from "@/components/shell/project-avatar";
@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "@/components/ui/input-group";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Spinner } from "@/components/ui/spinner";
+import { RetryButton } from "@/components/ui/retry-button";
 import type { ProjectDirectoryState } from "@/hooks/jira/use-project-directory";
 import { EASE_OUT, SPRING_LAYOUT } from "@/lib/ease";
 import { jiraErrors } from "@/lib/jira/field-values";
@@ -33,20 +33,6 @@ const EMPTY_TEXT = {
   },
   "no-matches": { title: "Keine Treffer", description: "Kein geladener Bereich passt zu Name oder Schlüssel." },
 };
-
-function Fade({ children }: { children: ReactNode }) {
-  const reduce = useReducedMotion();
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: reduce ? 0 : 6 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, transition: { duration: 0.12, ease: EASE_OUT } }}
-      transition={{ duration: 0.2, ease: EASE_OUT }}
-    >
-      {children}
-    </motion.div>
-  );
-}
 
 function SearchField({ query, onQueryChange }: Pick<Props, "query" | "onQueryChange">) {
   return (
@@ -126,15 +112,6 @@ function ListSkeleton() {
   );
 }
 
-function RetryButton({ retrying, onRetry, size }: { retrying: boolean; onRetry: () => void; size: "xs" | "sm" }) {
-  return (
-    <Button variant="outline" size={size} onClick={onRetry} disabled={retrying}>
-      {retrying && <Spinner aria-hidden />}
-      Erneut versuchen
-    </Button>
-  );
-}
-
 function Content({ directory, query, onQueryChange }: Props) {
   if (directory.loadError)
     return (
@@ -148,7 +125,7 @@ function Content({ directory, query, onQueryChange }: Props) {
             <EmptyDescription>{jiraErrors(directory.loadError).messages.join(" ")}</EmptyDescription>
           </EmptyHeader>
           <EmptyContent>
-            <RetryButton size="sm" retrying={directory.isFetching} onRetry={directory.retry} />
+            <RetryButton size="sm" retrying={directory.isFetching} onRetry={directory.retry}>Erneut versuchen</RetryButton>
           </EmptyContent>
         </Empty>
       </Fade>
@@ -240,7 +217,7 @@ export function ProjectDirectory(props: Props) {
               <AlertTitle>Aktualisierung fehlgeschlagen. Angezeigt wird der zuletzt geladene Stand.</AlertTitle>
               <AlertDescription>{jiraErrors(directory.refreshError).messages.join(" ")}</AlertDescription>
               <AlertAction>
-                <RetryButton size="xs" retrying={directory.isFetching} onRetry={directory.retry} />
+                <RetryButton size="xs" retrying={directory.isFetching} onRetry={directory.retry}>Erneut versuchen</RetryButton>
               </AlertAction>
             </Alert>
           </Fade>
