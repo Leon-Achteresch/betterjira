@@ -1,7 +1,8 @@
 import { JiraApiError, JiraAuthError, NotAuthenticated } from "./client";
+import { Schema } from "effect";
 import { jiraErrors } from "./field-values";
 
-export type IssueLoadProblemKind = "not-found" | "forbidden" | "session" | "connection" | "unavailable" | "unknown";
+export type IssueLoadProblemKind = "not-found" | "forbidden" | "session" | "connection" | "unavailable" | "account" | "unknown";
 
 export type IssueLoadProblem = {
   kind: IssueLoadProblemKind;
@@ -29,6 +30,10 @@ const kindOf = (error: unknown): IssueLoadProblemKind => {
 };
 
 const TEXTS: Record<IssueLoadProblemKind, Pick<IssueLoadProblem, "title" | "description">> = {
+  account: {
+    title: "Jira-Konto konnte nicht geprüft werden",
+    description: "Das Konto für diese Verbindung ist noch nicht bestätigt. Das ist keine Abmeldung. Versuche die Prüfung erneut, bevor das Ticket geladen wird.",
+  },
   "not-found": {
     title: "Ticket nicht gefunden",
     description:
@@ -56,9 +61,22 @@ const TEXTS: Record<IssueLoadProblemKind, Pick<IssueLoadProblem, "title" | "desc
   },
 };
 
+const ApiProblem = Schema.Struct({ errorMessages: Schema.optional(Schema.Array(Schema.String)) });
+
+const problemDetail = (error: unknown) => {
+  if (!(error instanceof JiraApiError)) return error instanceof JiraAuthError ? error.message : "";
+  const fallback = `Jira antwortet mit ${error.status}.`;
+  try {
+    const body: unknown = JSON.parse(error.body);
+    return Schema.is(ApiProblem)(body) ? jiraErrors(error).messages.join(" ") || fallback : fallback;
+  } catch {
+    return fallback;
+  }
+};
+
 export const issueLoadProblem = (error: unknown): IssueLoadProblem => {
   const kind = kindOf(error);
-  const detail = jiraErrors(error).messages.join(" ") || (error instanceof JiraApiError ? error.message : "");
+  const detail = problemDetail(error);
   return { kind, ...TEXTS[kind], detail };
 };
 
@@ -66,11 +84,14 @@ export const issueLoadState = <T>({
   data,
   error,
   loadedAt,
+  accountError = false,
 }: {
   data: T | undefined;
   error: unknown;
   loadedAt: number;
+  accountError?: boolean;
 }): IssueLoadState<T> => {
+  if (accountError && error) return { phase: "failed", problem: { kind: "account", ...TEXTS.account, detail: problemDetail(error) } };
   if (data !== undefined) return { phase: "ready", data, refreshProblem: error ? issueLoadProblem(error) : null, loadedAt };
   if (error) return { phase: "failed", problem: issueLoadProblem(error) };
   return { phase: "loading" };

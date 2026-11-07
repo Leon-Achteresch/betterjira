@@ -17,7 +17,7 @@ describe("issueLoadProblem", () => {
     const problem = issueLoadProblem(api(403));
     expect(problem.kind).toBe("forbidden");
     expect(problem.description).toContain("weiterhin angemeldet");
-    expect(problem.detail).toBe("Jira antwortet mit 403: {\"errorMessages\":[]}");
+    expect(problem.detail).toBe("Jira antwortet mit 403.");
   });
 
   it("ordnet vorübergehende Fehler, Netz und Sitzung zu", () => {
@@ -31,7 +31,13 @@ describe("issueLoadProblem", () => {
       detail: "Atlassian ist nicht erreichbar",
     });
     expect(issueLoadProblem(api(400)).kind).toBe("unknown");
-    expect(issueLoadProblem(new Error("Schema passt nicht")).detail).toBe("Schema passt nicht");
+    expect(issueLoadProblem(new Error("Schema passt nicht")).detail).toBe("");
+  });
+
+  it("zeigt weder rohe Antworten noch fehlerhaft formatierte Jira-Fehlermeldungen", () => {
+    expect(issueLoadProblem(new JiraApiError({ status: 503, body: "<html>internal-secret</html>" })).detail).toBe("Jira antwortet mit 503.");
+    expect(issueLoadProblem(new JiraApiError({ status: 503, body: '{"errorMessages":{"secret":"internal"}}' })).detail).toBe("Jira antwortet mit 503.");
+    expect(issueLoadProblem(new Error("internal-secret")).detail).toBe("");
   });
 });
 
@@ -43,6 +49,11 @@ describe("issueLoadState", () => {
   it("zeigt einen ersten Fehler ohne Daten als eigenen Zustand", () => {
     const state = issueLoadState({ data: undefined, error: api(503), loadedAt: 0 });
     expect(state.phase).toBe("failed");
+  });
+
+  it("verwechselt eine fehlgeschlagene Kontoprüfung nicht mit fehlendem Ticketzugriff", () => {
+    expect(issueLoadState({ data: undefined, error: api(403), loadedAt: 0, accountError: true }))
+      .toMatchObject({ phase: "failed", problem: { kind: "account", title: "Jira-Konto konnte nicht geprüft werden" } });
   });
 
   it("behält gecachte Daten bei einem Aktualisierungsfehler", () => {

@@ -4,6 +4,7 @@ type IssueRule = { delayMs?: number; status?: number; summary?: string };
 
 declare global {
   interface Window {
+    __qaMyselfRule?: () => { delayMs?: number; status?: number };
     __qaIssueRule?: (key: string) => IssueRule;
     __qa: { issueReads: string[]; writes: unknown[]; sessionFailure: boolean };
   }
@@ -58,6 +59,21 @@ test.beforeEach(async ({ page }) => {
   page.on("pageerror", (error) => {
     throw error;
   });
+});
+
+test("fehlgeschlagene Kontoprüfung bietet Retry statt endloser Ticket-Platzhalter", async ({ page }) => {
+  await page.addInitScript(() => {
+    window.__qaMyselfRule = () => ({ status: 403 });
+  });
+  await page.goto(ISSUE("DEMO-1"));
+  const error = alertWith(page, "Jira-Konto konnte nicht geprüft werden");
+  await expect(error).toBeVisible();
+  await expect(title(page)).toHaveCount(0);
+  await expect(loginPrompt(page)).toHaveCount(0);
+  expect(await detailReads(page, "DEMO-1")).toBe(0);
+  await page.evaluate(() => { window.__qaMyselfRule = undefined; });
+  await retry(page, error).click();
+  await expect(title(page)).toHaveText(DEMO_1);
 });
 
 test("erster 503 erklärt den Fehler ohne Ticketinhalt und Retry lädt das Ticket", async ({ page }, testInfo) => {
