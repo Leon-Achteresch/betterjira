@@ -9,6 +9,7 @@ export function useIssueTabMetadata(keys: readonly string[], activeKey: string |
   const scope = site.data && myself.data ? { cloudId: site.data.cloudId, accountId: myself.data.accountId } : undefined;
   const details = useQueries({ queries: keys.map((key) => ({ ...issueQuery(key), enabled: false })) });
   const titles = useQueries({ queries: keys.map((key) => issueTabTitleQuery(client, scope, key, key === activeKey)) });
+  if (!scope) return keys.map(() => undefined);
   return titles.map(({ data, dataUpdatedAt }, index) => {
     const detail = details[index];
     return newestSummary(

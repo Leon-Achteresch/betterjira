@@ -52,6 +52,8 @@ beforeEach(() => {
   interrupted = 0;
   rule = () => ({});
   session.cloudId = ACCOUNT_A.cloudId;
+  client.setQueryData(jiraKeys.site, { cloudId: ACCOUNT_A.cloudId });
+  client.setQueryData(jiraKeys.myself, { accountId: ACCOUNT_A.accountId });
   jira.mockReset();
   jira.mockImplementation((path: string, schema: Schema.Decoder<unknown>) =>
     Effect.gen(function* () {
@@ -127,12 +129,43 @@ describe("Tab-Titel ohne volle Ticketdetails", () => {
 
     rule = (key) => ({ delayMs: 5, summary: `Konto B ${key}` });
     session.cloudId = ACCOUNT_B.cloudId;
+    client.setQueryData(jiraKeys.site, { cloudId: ACCOUNT_B.cloudId });
+    client.setQueryData(jiraKeys.myself, { accountId: ACCOUNT_B.accountId });
     const after = observe(ACCOUNT_B, ["DEMO-1"]);
     await vi.waitFor(() => expect(after.titles()).toEqual(["Konto B DEMO-1"]));
     await vi.waitFor(() => expect(interrupted).toBe(4));
     expect(client.getQueryData(issueTabMetadataKeys.title(ACCOUNT_A.cloudId, ACCOUNT_A.accountId, "DEMO-1"))).toBeUndefined();
     expect(issueTabMetadataKeys.title("cloud-a", "user-a", "DEMO-1")).not.toEqual(issueTabMetadataKeys.title("cloud-a", "user-b", "DEMO-1"));
     after.unsubscribe();
+  });
+
+  it("verwirft laufende Titel und startet wartende Titel nach einem Kontowechsel derselben Instanz nicht", async () => {
+    rule = () => ({ delayMs: 100 });
+    const before = observe(ACCOUNT_A, TABS);
+    await vi.waitFor(() => expect(paths).toHaveLength(4));
+    const other = { ...ACCOUNT_A, accountId: "user-b" };
+    client.setQueryData(jiraKeys.myself, { accountId: other.accountId });
+    await vi.waitFor(() => expect(client.isFetching()).toBe(0));
+    expect(paths).toHaveLength(4);
+    expect(before.titles()).toEqual(TABS.map(() => undefined));
+
+    rule = () => ({ summary: "Titel für Konto B" });
+    const after = observe(other, ["DEMO-1"]);
+    await vi.waitFor(() => expect(after.titles()).toEqual(["Titel für Konto B"]));
+    expect(client.getQueryData(issueTabMetadataKeys.title(ACCOUNT_A.cloudId, ACCOUNT_A.accountId, "DEMO-1"))).toBeUndefined();
+    expect(paths).toHaveLength(5);
+    before.unsubscribe();
+    after.unsubscribe();
+  });
+
+  it("übernimmt keine gecachten Details in einen Titel-Key des vorherigen Kontos", async () => {
+    client.setQueryData(jiraKeys.myself, { accountId: "user-b" });
+    client.setQueryData(jiraKeys.issue("DEMO-1"), { fields: { summary: "Titel des neuen Kontos" } });
+    const previous = observe(ACCOUNT_A, ["DEMO-1"]);
+    await vi.waitFor(() => expect(client.isFetching()).toBe(0));
+    expect(previous.titles()).toEqual([undefined]);
+    expect(paths).toHaveLength(0);
+    previous.unsubscribe();
   });
 
   it("verwirft Titel, wenn die Sitzung inzwischen zu einer anderen Instanz gehört", async () => {
