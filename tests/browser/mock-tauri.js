@@ -1061,6 +1061,7 @@ const respond = async (request) => {
   }
 
   if (path.startsWith("/filter/my")) {
+    window.__qaFilterListReads = (window.__qaFilterListReads ?? 0) + 1;
     window.__qa.filterRequests++;
     if (window.__qa.failFilters) return { status: 503, body: { errorMessages: ["Test: Filter vorübergehend nicht erreichbar"] } };
     return { body: visibleQaFilters() };

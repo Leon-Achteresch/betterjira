@@ -102,7 +102,9 @@ test("bedienbar per Tastatur mit Fokusrückgabe", async ({ page }) => {
   await trigger(page).focus();
   await page.keyboard.press("Enter");
   await expect(page.getByRole("listbox")).toBeVisible();
+  await expect(page.getByRole("option", { name: LABEL.original, exact: true })).toBeFocused();
   await page.keyboard.press("ArrowDown");
+  await expect(page.getByRole("option", { name: LABEL.name, exact: true })).toBeFocused();
   await page.keyboard.press("Enter");
   await expect(page.getByRole("listbox")).toBeHidden();
   await expect(trigger(page)).toBeFocused();

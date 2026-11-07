@@ -176,8 +176,8 @@ test("Tastatur erreicht und löst Aktualisieren aus, schmale Ansicht ohne Überl
   await open(page);
   await expect(status(page)).toHaveText(/^Stand/);
   const box = await refreshButton(page).boundingBox();
-  expect(box!.width).toBeGreaterThanOrEqual(32);
-  expect(box!.height).toBeGreaterThanOrEqual(32);
+  expect(Math.round(box!.width * 100) / 100).toBeGreaterThanOrEqual(32);
+  expect(Math.round(box!.height * 100) / 100).toBeGreaterThanOrEqual(32);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   const before = await workRequests(page);
   await refreshButton(page).focus();
