@@ -304,3 +304,11 @@ Integration offener PRs:
 - Zwölf offene Tabs: `...fixture.html?scenario=busy&route=/issue/DEMO-1`. Nur das aktive Ticket lädt volle Details (`fields=*all`), die übrigen Tabs fragen ausschließlich `GET /issue/{key}?fields=summary` ab, höchstens vier gleichzeitig.
 - `window.__qaTabTitleRule = (key) => ({ delayMs, status, summary })` (per `addInitScript`) verzögert, scheitert oder ersetzt den Titel einzelner Abrufe. `window.__qaTabTitles` zählt `calls`, `open` und `peak`.
 - Automatisch: `bunx playwright test tests/browser/issue-tab-metadata.e2e.ts --workers=1`; mit `ISSUE_TAB_SHOTS=<Ordner>` zusätzlich Screenshots (prüft vorher, dass Geist geladen ist).
+
+## Geöffnete Tickets durchsuchen
+
+- Nach dem Einstieg aus der Palette kehrt der Fokus beim Schließen zu „Suchen“ zurück. Enter auf „Suche leeren“ leert nur das Feld; es öffnet keinen markierten Tab.
+
+- `...fixture.html?scenario=busy` (12 offene Tabs, `DEMO-2` angeheftet). Bei schmalem Fenster über „Weitere Aktionen“ → „Geöffnete Tickets durchsuchen“, auf dem Desktop über die Command Palette (`Strg K`, „Geöffnete Tickets durchsuchen“).
+- Der Dialog filtert nur die bereits geladenen Tabs nach Schlüssel und bekanntem Titel; er lädt nichts aus Jira nach, schließt keine Tabs und ändert keine Pins. Tabs ohne geladenen Titel erscheinen mit „Titel nicht geladen“ und sind über den Schlüssel auffindbar.
+- Automatisch: `bunx playwright test tests/browser/open-tab-search.e2e.ts --workers=1` prüft Reihenfolge, aktiven und angehefteten Tab, Suche ohne zusätzliche `GET /issue`-Anfragen, keinen Treffer mit Zurücksetzen, Tastatur und Maus mit erhaltenem Kommentarentwurf, unbekannte Titel, Wiederöffnen, Abmelden, Escape mit Fokusrückgabe sowie 390 px dunkel mit reduzierter Bewegung. Mit `OPEN_TAB_SEARCH_SHOTS=<Ordner>` speichert der Test Screenshots.

@@ -6,12 +6,14 @@ import { HeaderMoreMenu } from "@/components/shell/header-more-menu";
 import { IssueTabs } from "@/components/shell/issue-tabs";
 import { LegacyTabsOffer } from "@/components/shell/legacy-tabs-offer";
 import { NotificationBell } from "@/components/shell/notification-bell";
+import { OpenTabSearch } from "@/components/shell/open-tab-search";
 import { ThemeToggle } from "@/components/shell/theme-toggle";
 import { WorkQueue } from "@/components/shell/work-queue";
 import { WindowControls } from "@/components/shell/window-controls";
 import { Button } from "@/components/ui/button";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { useIssueTabs, useLegacyIssueTabs } from "@/hooks/use-issue-tabs";
+import { useOpenTabSearch } from "@/hooks/use-open-tab-search";
 import { useTabHotkeys } from "@/hooks/use-tab-hotkeys";
 import { IS_MAC, USE_CUSTOM_WINDOW_CONTROLS } from "@/lib/platform";
 import { shortcutHint } from "@/lib/shortcuts";
@@ -23,6 +25,7 @@ export function AppHeader() {
   const router = useRouter();
   const canGoBack = useCanGoBack();
   useTabHotkeys({ keys: tabs.map((tab) => tab.key), activeKey, openTab, closeTab });
+  const tabSearch = useOpenTabSearch({ tabs, onOpenTab: openTab });
 
   return (
     <header
@@ -117,8 +120,10 @@ export function AppHeader() {
           onTogglePin={togglePin}
           onCreateIssue={() => void router.navigate({ to: "/neu" })}
           legacy={legacyTabs}
+          onSearchTabs={() => tabSearch.onOpenChange(true)}
         />
       </nav>
+      <OpenTabSearch {...tabSearch} activeKey={activeKey} />
       {USE_CUSTOM_WINDOW_CONTROLS ? <WindowControls /> : null}
     </header>
   );

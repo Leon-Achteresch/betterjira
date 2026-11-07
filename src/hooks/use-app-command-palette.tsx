@@ -51,6 +51,8 @@ import { useProjectPrefs } from "@/hooks/use-project-prefs";
 import { shortcutHint } from "@/lib/shortcuts";
 import { useShortcutHelp } from "@/hooks/use-app-shortcuts";
 import { useLegacyIssueTabs } from "@/hooks/use-issue-tabs";
+import { useIssueTabStore } from "@/hooks/use-issue-tabs";
+import { useOpenTabSearchDialog } from "@/hooks/use-open-tab-search";
 import { type ThemePreference, useTheme } from "@/hooks/use-theme";
 import { useWorkspace } from "@/hooks/use-workspace";
 
@@ -79,6 +81,8 @@ export function useAppCommandPalette() {
   const { theme, setTheme } = useTheme();
   const openShortcutHelp = useShortcutHelp((state) => state.setOpen);
   const legacyTabs = useLegacyIssueTabs();
+  const hasTabs = useIssueTabStore((state) => state.keys.length > 0);
+  const openTabSearch = useOpenTabSearchDialog((state) => state.setOpen);
 
   const text = debounced.replace(/[\\"]/g, "\\$&");
   const search = useJiraIssues(`text ~ "${text}*" ORDER BY updated DESC`, open && debounced.length >= 2);
@@ -306,6 +310,18 @@ export function useAppCommandPalette() {
       icon: SparklesIcon,
       onSelect: () => void navigate({ to: "/settings/briefing" }),
     },
+    ...(hasTabs
+      ? [
+          {
+            id: "action:open-tabs",
+            label: "Geöffnete Tickets durchsuchen",
+            group: "Aktionen",
+            icon: SearchIcon,
+            keywords: ["tabs", "reiter", "offen", "wechseln"],
+            onSelect: () => openTabSearch(true),
+          },
+        ]
+      : []),
     {
       id: "action:create-issue",
       label: "Ticket erstellen",

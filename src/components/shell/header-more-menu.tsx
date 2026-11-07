@@ -1,4 +1,4 @@
-import { ArchiveRestoreIcon, ArchiveXIcon, ChevronLeft, ChevronRight, EllipsisIcon, SquarePenIcon, PinIcon, PinOffIcon, XIcon } from "lucide-react";
+import { ArchiveRestoreIcon, ArchiveXIcon, ChevronLeft, ChevronRight, EllipsisIcon, SearchIcon, SquarePenIcon, PinIcon, PinOffIcon, XIcon } from "lucide-react";
 import { Tooltip } from "@/components/motion/tooltip";
 import type { IssueTab } from "@/components/shell/issue-tabs";
 import type { LegacyTabsOfferData } from "@/components/shell/legacy-tabs-offer";
@@ -30,6 +30,7 @@ type HeaderMoreMenuProps = {
   onTogglePin: (key: string) => void;
   onCreateIssue: () => void;
   legacy?: Pick<LegacyTabsOfferData, "label" | "onAdopt" | "onDiscard">;
+  onSearchTabs: () => void;
   className?: string;
 };
 
@@ -46,6 +47,7 @@ export function HeaderMoreMenu({
   onTogglePin,
   onCreateIssue,
   legacy,
+  onSearchTabs,
   className,
 }: HeaderMoreMenuProps) {
   const { theme, activeTab } = useHeaderMoreMenu(tabs, activeKey);
@@ -93,6 +95,10 @@ export function HeaderMoreMenu({
                 Geöffnete Tickets
                 <span className="ml-auto tabular-nums">{tabs.length}</span>
               </DropdownMenuLabel>
+              <DropdownMenuItem onSelect={onSearchTabs}>
+                <SearchIcon />
+                Geöffnete Tickets durchsuchen
+              </DropdownMenuItem>
               <DropdownMenuRadioGroup
                 value={activeKey ?? ""}
                 onValueChange={onOpenTab}

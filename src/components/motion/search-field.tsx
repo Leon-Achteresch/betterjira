@@ -1,3 +1,4 @@
+import type { ComponentProps } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import type { Ref } from "react";
 import { SearchIcon, XIcon } from "lucide-react";
@@ -6,7 +7,7 @@ import { Tooltip } from "@/components/motion/tooltip";
 import { EASE_OUT } from "@/lib/ease";
 import { cn } from "@/lib/utils";
 
-type Props = {
+type Props = Omit<ComponentProps<"input">, "value" | "onChange" | "className"> & {
   value: string;
   onChange: (value: string) => void;
   label: string;
@@ -16,7 +17,7 @@ type Props = {
   inputRef?: Ref<HTMLInputElement>;
 };
 
-export function SearchField({ value, onChange, label, placeholder, className, autoFocus, inputRef }: Props) {
+export function SearchField({ value, onChange, onKeyDown, inputRef, label, placeholder, className, ...inputProps }: Props) {
   const reduce = useReducedMotion();
   return (
     <InputGroup className={cn("h-8 rounded-xl", className)}>
@@ -26,13 +27,19 @@ export function SearchField({ value, onChange, label, placeholder, className, au
       <InputGroupInput
         ref={inputRef}
         type="search"
+        {...inputProps}
         className="[&::-webkit-search-cancel-button]:appearance-none"
-        autoFocus={autoFocus}
         placeholder={placeholder}
         aria-label={label}
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        onKeyDown={(event) => event.key === "Escape" && value && (event.stopPropagation(), onChange(""))}
+        onKeyDown={(event) => {
+          onKeyDown?.(event);
+          if (!event.defaultPrevented && event.key === "Escape" && value) {
+            event.stopPropagation();
+            onChange("");
+          }
+        }}
       />
       <AnimatePresence initial={false}>
         {value && (
