@@ -3,12 +3,10 @@ import { IssueView, IssueViewSkeleton } from "@/components/issue-view";
 import { LoginPrompt } from "@/components/shell/login-prompt";
 import { SessionGate } from "@/components/shell/session-gate";
 import { useJiraSession } from "@/hooks/jira/use-jira-session";
-import { useIssueTabStore } from "@/hooks/use-issue-tabs";
+import { useRememberIssueTab } from "@/hooks/use-issue-tabs";
 
 export const Route = createFileRoute("/issue/$key")({
   validateSearch: (search: Record<string, unknown>): { bereich?: "zeit" } => (search.bereich === "zeit" ? { bereich: "zeit" } : {}),
-  onEnter: ({ params }) => useIssueTabStore.getState().open(params.key),
-  onStay: ({ params }) => useIssueTabStore.getState().open(params.key),
   component: Issue,
 });
 
@@ -16,6 +14,7 @@ function Issue() {
   const { key } = Route.useParams();
   const { bereich } = Route.useSearch();
   const session = useJiraSession();
+  useRememberIssueTab(key);
 
   return (
     <div className="@container mx-auto flex w-full max-w-6xl flex-col p-8">

@@ -8,7 +8,7 @@ import { AppSidebar } from "@/components/shell/app-sidebar";
 import { useNotificationPoller } from "@/hooks/notifications/use-notification-poller";
 import { useAttentionScheduler } from "@/hooks/attention/use-attention-scheduler";
 import { useAppUpdate } from "@/hooks/use-app-update";
-import { useBackgroundTabClick } from "@/hooks/use-issue-tabs";
+import { useBackgroundTabClick, useIssueTabScopeSync } from "@/hooks/use-issue-tabs";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { PageTransition } from "@/components/motion/page-transition";
 import { ShortcutHelp } from "@/components/shell/shortcut-help";
@@ -59,6 +59,11 @@ function ReadabilitySync() {
 
 function BackgroundTabClick() {
   useBackgroundTabClick();
+  return null;
+}
+
+function IssueTabScopeSync() {
+  useIssueTabScopeSync();
   return null;
 }
 
@@ -140,6 +145,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         <AttentionScheduler />
         <AppUpdater />
         <BackgroundTabClick />
+        <IssueTabScopeSync />
       </TooltipProvider>
     </ThemeProvider>
   ),

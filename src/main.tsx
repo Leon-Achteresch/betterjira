@@ -9,7 +9,9 @@ import { routeTree } from "./routeTree.gen";
 import "./index.css";
 
 const resetOnLogout = (error: unknown) => {
-  if (error instanceof NotAuthenticated) void queryClient.resetQueries({ queryKey: jiraKeys.site });
+  if (!(error instanceof NotAuthenticated)) return;
+  void queryClient.resetQueries({ queryKey: jiraKeys.site });
+  void queryClient.resetQueries({ queryKey: jiraKeys.myself, exact: true });
 };
 
 const queryClient: QueryClient = new QueryClient({

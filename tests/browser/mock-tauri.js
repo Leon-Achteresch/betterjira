@@ -371,9 +371,11 @@ if (scenario === "busy") {
   localStorage.setItem("betterjira-workspaces", JSON.stringify(stored));
   if (!localStorage.getItem("betterjira-issue-tabs")) {
     const keys = issues.slice(0, 12).map((issue) => issue.key);
-    localStorage.setItem("betterjira-issue-tabs", JSON.stringify({ state: { keys, pinned: [keys[1]] }, version: 0 }));
+    localStorage.setItem("betterjira-issue-tabs", JSON.stringify({ state: { workspaces: { [id]: { keys, pinned: [keys[1]] } } }, version: 0 }));
   }
 }
+if (scenario === "tabs-legacy" && !localStorage.getItem("betterjira-issue-tabs"))
+  localStorage.setItem("betterjira-issue-tabs", JSON.stringify({ state: { keys: ["DEMO-3", "DEMO-1", "DEMO-2"], pinned: ["DEMO-1"] }, version: 0 }));
 if (scenario === "notifications" || scenario === "notifications-foreign") {
   const minutes = (count) => Date.now() - count * 60000;
   const qaPeople = ["Sam Muster", "Kim Probe", "Jo Test"].map((displayName) => ({ displayName, avatarUrls: author.avatarUrls }));
@@ -968,6 +970,7 @@ const respond = async (request) => {
   window.__qaReads?.push(path);
   window.__qa.reads.push(path);
   if (path === "/myself") {
+    if (window.__qaMyselfGate) await window.__qaMyselfGate;
     window.__qa.myselfCalls++;
     if (window.__qa.myselfDelayMs) await new Promise((resolve) => setTimeout(resolve, window.__qa.myselfDelayMs));
     if (window.__qa.failMyself) return { status: 503, body: { errorMessages: ["Test: Jira vorübergehend nicht erreichbar"] } };

@@ -281,3 +281,20 @@ Der vollständige Ablaufbericht einschließlich Vielnutzer, sorgfältigem Leser,
 - Fehlgeschlagene Aktualisierung mit geladenem Ticket („Weitere Ticketaktionen“ → „Aktualisieren“ oder nach einem Schreibzugriff): Inhalt, Kommentare, Kommentarentwurf, Editor-DOM und geöffneter Bereich bleiben; Hinweis mit Datenstand und Retry.
 - Sitzung fehlt bzw. ist nicht lesbar: `scenario=calendar-offline` bzw. `scenario=session-error` mit `route=/issue/DEMO-1`.
 - Automatisch: `bunx playwright test tests/browser/issue-recovery.e2e.ts --workers=1`; mit `ISSUE_RECOVERY_SHOTS=<Ordner>` zusätzlich Screenshots.
+
+## Ticket-Tabs je Konto
+
+Tabs und Pins liegen weiter unter `betterjira-issue-tabs`, jetzt je Arbeitsbereich `JSON.stringify([cloudId, accountId])`. Die alte globale Liste `{ keys, pinned }` wird beim Laden in Quarantäne gelegt und keinem Konto automatisch zugeordnet. Erst nach bestätigter Sitzung und `/myself` zeigt die Kopfleiste Tabs; vorher schreibt keine Aktion.
+
+- Alte globale Tabs: `fixture.html?scenario=tabs-legacy&route=/` (DEMO-3, DEMO-1 angeheftet, DEMO-2). Übernehmen/Verwerfen über den Hinweis in der Kopfleiste ab 640 px, darunter über „Weitere Aktionen“, oder die Command Palette, jeweils mit „Rückgängig“.
+- Anderes Konto oder andere Instanz: `account=<id>` bzw. `cloud=<id>` an die Fixture-URL hängen.
+- `window.__qaMyselfRule = () => ({ delayMs, status })` verzögert oder bricht `/myself` ab, `window.__qaIssueRule = (key) => ({ delayMs, status })` die Ticketdetails. Per `addInitScript` setzen.
+- `window.__qaMyselfGate` kann eine kontrollierte Promise sein. Die langsame Prüfung bleibt bis zu ihrer expliziten Freigabe stehen; das Prüfen der ungeladenen Ansicht hängt dadurch nicht von einer festen Verzögerung ab.
+- `busy` legt die zwölf Tabs bereits im neuen Format für `qa-cloud` / `qa-user` an.
+- `issue-tab-scopes.e2e.ts` prüft A → B → A, gleichen Schlüssel in anderer Instanz, langsame und fehlgeschlagene Kontoprüfung, Abmelden, Laden aus fremdem Pfad, Quarantäne mit Rückgängig, Command Palette und 390 px. `ISSUE_TAB_SCOPE_SHOTS=<Ordner>` speichert Screenshots.
+
+Integration offener PRs:
+
+- #37 (Tab-Suche): `useIssueTabStore((state) => state.keys)` und `useIssueTabs()` bleiben erhalten; `keys`/`pinned` im Store sind nur noch die Sicht des bestätigten Kontos.
+- #41 (schlanke Titel): in `useIssueTabs` die Zeile `const issues = useQueries(...)` samt `title:` durch `useIssueTabMetadata(ordered, activeKey)` ersetzen. Die passiven Detail-Beobachter und Cache-Leser in diesem Hook müssen dann den bestätigten Scope/QueryClient an `issueQuery` übergeben und `jiraKeys.issueDetail(key, scope)` lesen. `useRememberIssueTab` verwendet `useJiraIssue` aus `hooks/jira/use-jira-issue` und beobachtet dieselben Details, ohne eine zweite Titelabfrage.
+- #44 (Ticket-Wiederherstellung): Query-Factory, Scope-Guard und die neuen Query-Hooks sind identisch. Dessen `SessionGate` und Controller mit `useRememberIssueTab` aus diesem PR zusammensetzen; das frühere `onEnter.open` bleibt entfernt.

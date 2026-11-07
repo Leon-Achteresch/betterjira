@@ -4,13 +4,14 @@ import { Tooltip } from "@/components/motion/tooltip";
 import { AppCommandPalette } from "@/components/shell/app-command-palette";
 import { HeaderMoreMenu } from "@/components/shell/header-more-menu";
 import { IssueTabs } from "@/components/shell/issue-tabs";
+import { LegacyTabsOffer } from "@/components/shell/legacy-tabs-offer";
 import { NotificationBell } from "@/components/shell/notification-bell";
 import { ThemeToggle } from "@/components/shell/theme-toggle";
 import { WorkQueue } from "@/components/shell/work-queue";
 import { WindowControls } from "@/components/shell/window-controls";
 import { Button } from "@/components/ui/button";
 import { SidebarTrigger } from "@/components/ui/sidebar";
-import { useIssueTabs } from "@/hooks/use-issue-tabs";
+import { useIssueTabs, useLegacyIssueTabs } from "@/hooks/use-issue-tabs";
 import { useTabHotkeys } from "@/hooks/use-tab-hotkeys";
 import { IS_MAC, USE_CUSTOM_WINDOW_CONTROLS } from "@/lib/platform";
 import { shortcutHint } from "@/lib/shortcuts";
@@ -18,6 +19,7 @@ import { cn } from "@/lib/utils";
 
 export function AppHeader() {
   const { tabs, activeKey, openTab, closeTab, togglePin, closeOthers, closeRight } = useIssueTabs();
+  const legacyTabs = useLegacyIssueTabs();
   const router = useRouter();
   const canGoBack = useCanGoBack();
   useTabHotkeys({ keys: tabs.map((tab) => tab.key), activeKey, openTab, closeTab });
@@ -73,6 +75,7 @@ export function AppHeader() {
           onCloseOthers={closeOthers}
           onCloseRight={closeRight}
         />
+        <LegacyTabsOffer offer={legacyTabs} className="max-sm:hidden" />
       </div>
       <div className="flex shrink-0 lg:w-72">
         <AppCommandPalette />
@@ -113,6 +116,7 @@ export function AppHeader() {
           onCloseTab={closeTab}
           onTogglePin={togglePin}
           onCreateIssue={() => void router.navigate({ to: "/neu" })}
+          legacy={legacyTabs}
         />
       </nav>
       {USE_CUSTOM_WINDOW_CONTROLS ? <WindowControls /> : null}
