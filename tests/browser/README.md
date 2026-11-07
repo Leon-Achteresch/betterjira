@@ -98,6 +98,12 @@ Der vollständige Ablaufbericht einschließlich Vielnutzer, sorgfältigem Leser,
 - `window.__qaProjects` (per `addInitScript`) ersetzt die simulierte Projektliste, z. B. für die Projektwahl mit mehreren Projekten.
 - Automatisch: `bunx playwright test tests/browser/simple-search.e2e.ts --workers=1`; mit `SIMPLE_SEARCH_SHOTS=<Ordner>` zusätzlich Screenshots.
 
+## Suche in geladenen Rollouts
+
+- Kalender mit lokalen QA-Rollouts: `...fixture.html?scenario=rollout-search&route=/kalender` (Produktion Release 2.4 mit `DEMO-1`, Datenbank Migration im Dezember mit `OPS-7`, Wartungsfenster mit Sonderzeichen, zehn Hotfix-Releases im Oktober). Die Rollouts werden nur angelegt, wenn der lokale Speicher noch keine Rollouts enthält; sie sind reine Testdaten und werden nicht nach Outlook oder Jira geschrieben.
+- Suchtext aus der URL: `?route=/kalender?q=Migration`. Die Suche durchsucht nur die bereits geladenen Rollouts nach Titel, Notiz und Ticket-Schlüssel, keine Outlook-Termine und kein Jira.
+- Automatisch: `bunx playwright test tests/browser/rollout-search.e2e.ts --workers=1` prüft Trefferliste ohne Änderung an Kalender und Tagesagenda, mehrere Wörter, Groß/Klein und Sonderzeichen, Tageswahl in anderen Monaten, „Weitere anzeigen“ mit Zurücksetzen bei neuer Suche, keine zusätzlichen Lese- oder Schreibzugriffe durch Eingabe, URL mit Zurück/Vorwärts und Zurücksetzen, Ladefehler, Tastatur sowie 390 px hell und dunkel. Mit `ROLLOUT_SEARCH_SHOTS=<Ordner>` speichert der Test Screenshots.
+
 ## Verbindungen und Offline-Hinweis
 
 - Übersicht: `http://localhost:1420/tests/browser/fixture.html?route=/settings/verbindungen` (abgemeldet mit `scenario=calendar-offline`, Lesefehler mit `scenario=session-error`).
