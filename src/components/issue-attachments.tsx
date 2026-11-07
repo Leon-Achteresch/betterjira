@@ -1,11 +1,15 @@
 import { useRef, useState } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { FileIcon, PaperclipIcon } from "lucide-react";
+import { ArrowDownUpIcon, FileIcon, PaperclipIcon } from "lucide-react";
+import { motion, useReducedMotion } from "motion/react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { useJiraAttachmentImage, useJiraUploadAttachments } from "@/hooks/jira/use-issue-mutations";
+import { useAttachmentSort } from "@/hooks/use-attachment-sort";
+import { SPRING_LAYOUT } from "@/lib/ease";
 import { type JiraIssueDetail, useJiraSite } from "@/lib/jira/queries";
 
 type Attachment = NonNullable<JiraIssueDetail["fields"]["attachment"]>[number];
@@ -47,6 +51,8 @@ export function IssueAttachments({ issueKey, attachments }: { issueKey: string; 
   const upload = useJiraUploadAttachments(issueKey);
   const input = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<Attachment>();
+  const sort = useAttachmentSort(issueKey, attachments);
+  const reduce = useReducedMotion();
 
   const open = (attachment: Attachment) => {
     if (attachment.mimeType.startsWith("image/")) return setPreview(attachment);
@@ -55,10 +61,32 @@ export function IssueAttachments({ issueKey, attachments }: { issueKey: string; 
 
   return (
     <div className="flex flex-col gap-3">
+      {attachments.length > 1 && (
+        <div className="flex justify-end">
+          <Select value={sort.mode} onValueChange={sort.select}>
+            <SelectTrigger aria-label="Anhänge sortieren" className="max-w-full rounded-xl">
+              <ArrowDownUpIcon className="text-muted-foreground" />
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent position="popper" align="end" className="rounded-2xl">
+              {sort.options.map((option) => (
+                <SelectItem key={option.value} value={option.value} className="min-h-8 rounded-xl">
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
       {attachments.length > 0 && (
         <ul className="grid grid-cols-[repeat(auto-fill,minmax(9rem,1fr))] gap-3">
-          {attachments.map((attachment) => (
-            <li key={attachment.id}>
+          {sort.sorted.map((attachment) => (
+            <motion.li
+              key={attachment.id}
+              layout={reduce ? false : "position"}
+              layoutDependency={sort.mode}
+              transition={SPRING_LAYOUT}
+            >
               <button
                 type="button"
                 onClick={() => open(attachment)}
@@ -73,11 +101,11 @@ export function IssueAttachments({ issueKey, attachments }: { issueKey: string; 
                   )}
                 </span>
                 <span className="flex flex-col px-2 py-1.5">
-                  <span className="truncate text-xs font-medium">{attachment.filename}</span>
+                  <span className="truncate text-xs font-medium">{attachment.filename || "Unbenannter Anhang"}</span>
                   <span className="text-[11px] text-muted-foreground">{fileSize(attachment.size)}</span>
                 </span>
               </button>
-            </li>
+            </motion.li>
           ))}
         </ul>
       )}

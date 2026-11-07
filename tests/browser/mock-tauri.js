@@ -210,6 +210,24 @@ if (scenario === "time-tracking") {
     issues[index].fields.worklog.total++;
   }
 }
+const attachmentSortFixture = (id, filename, mimeType, size, created) => ({ id, filename, mimeType, size, created, author });
+if (scenario === "attachments") {
+  issues[0].fields.attachment = [
+    attachmentSortFixture("qa-att-1", "Bericht 10.pdf", "application/pdf", 2400000, "2026-11-03T08:00:00.000+0000"),
+    attachmentSortFixture("qa-att-2", "bericht 2.pdf", "application/pdf", 512, "2026-11-05T10:00:00.000+0100"),
+    attachmentSortFixture("qa-att-3", "Screenshot.png", "image/png", 48000, "kein-datum"),
+    attachmentSortFixture("qa-att-4", "", "text/plain", 2048, "2026-11-01T09:00:00.000+0000"),
+    attachmentSortFixture("qa-att-5", "Anhang.txt", "text/plain", 2048, "2026-11-05T09:00:00.000+0000"),
+  ];
+  issues[1].fields.attachment = [
+    attachmentSortFixture("qa-att-6", "zeta.txt", "text/plain", 1, "2026-11-02T09:00:00.000+0000"),
+    attachmentSortFixture("qa-att-7", "alpha.txt", "text/plain", 5, "2026-11-04T09:00:00.000+0000"),
+  ];
+}
+const attachmentSortPixel = Uint8Array.from(
+  atob("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="),
+  (char) => char.charCodeAt(0),
+);
 const wiki = Object.fromEntries(
   issues.map((issue) => [issue.key, "h2. Beschreibung\n\nVorhandener Text für die Bearbeitung."]),
 );
@@ -554,6 +572,18 @@ const respond = async (request) => {
         body: { errorMessages: ["Test: Jira vorübergehend nicht erreichbar"] },
       };
     }
+    const uploadTarget = path.match(/^\/issue\/([^/]+)\/attachments$/);
+    if (uploadTarget) {
+      const target = issues.find((issue) => issue.key === uploadTarget[1]);
+      const text = new TextDecoder().decode(new Uint8Array(request.data ?? []));
+      const names = [...text.matchAll(/filename="([^"]*)"/g)].map((match) => match[1]);
+      const added = names.map((filename) =>
+        attachmentSortFixture(`qa-upload-${++nextId}`, filename, "text/plain", 1, new Date().toISOString()),
+      );
+      target?.fields.attachment.push(...added);
+      window.__qa.writes.push({ path, method: request.method, input: { files: names } });
+      return { body: added };
+    }
     const input = request.data ? JSON.parse(new TextDecoder().decode(new Uint8Array(request.data))) : {};
     window.__qa.writes.push({ path, method: request.method, input });
     const issue = issues.find((issue) => path.startsWith(`/issue/${issue.key}/`) || path === `/issue/${issue.key}`);
@@ -668,6 +698,7 @@ const respond = async (request) => {
   if (issue && url.pathname.includes("/api/2/") && url.searchParams.get("fields") === "description")
     return { body: { fields: { description: wiki[issue.key] } } };
   if (issue) return { body: issue };
+  if (/^\/attachment\/(thumbnail|content)\/qa-att-/.test(path)) return { bytes: attachmentSortPixel, contentType: "image/png" };
   return {
     status: 404,
     body: { errorMessages: [`Keine Testantwort für ${path}`] },
@@ -788,7 +819,7 @@ window.__TAURI_INTERNALS__ = {
         status: result.status ?? 200,
         statusText: "Test",
         url: entry.request.url,
-        headers: [["content-type", "application/json"]],
+        headers: [["content-type", result.contentType ?? "application/json"]],
         rid: args.rid,
       };
     }
@@ -799,7 +830,7 @@ window.__TAURI_INTERNALS__ = {
         return [1];
       }
       entry.sent = true;
-      return [...new TextEncoder().encode(JSON.stringify(entry.result.body ?? {})), 0];
+      return [...(entry.result.bytes ?? new TextEncoder().encode(JSON.stringify(entry.result.body ?? {}))), 0];
     }
     if (command.startsWith("plugin:http|fetch_cancel")) {
       requests.delete(args.rid);

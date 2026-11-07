@@ -137,3 +137,9 @@ Der vollständige Ablaufbericht einschließlich Vielnutzer, sorgfältigem Leser,
 - Sieben Testbereiche, ein Favorit (Betrieb) und ein in der Seitenleiste ausgeblendeter Bereich (Archiv 2024): `...fixture.html?scenario=projects&route=/bereiche`.
 - `window.__qaProjectRule = () => ({ delayMs, status, values })` steuert die Projektabfrage (verzögern, mit HTTP-Status scheitern, andere Bereiche liefern, etwa für einen Kontowechsel). `window.__qaReads`, per `addInitScript` als Array gesetzt, sammelt alle gelesenen Pfade.
 - Automatisch: `bunx playwright test tests/browser/projects.e2e.ts --workers=1` prüft Suche und Ansicht in der URL mit Zurück/Vorwärts, Favoriten synchron mit der Seitenleiste, ausgeblendete Bereiche, Ladefehler und fehlgeschlagene Aktualisierung mit Retry, Abmelden und Kontowechsel, Tastatur und Command Palette sowie Desktop hell und 390 px dunkel. Mit `PROJECTS_SHOTS=<Ordner>` speichert der Test Screenshots.
+
+## Anhänge sortieren
+
+- Fünf lokale Testanhänge an `DEMO-1` (natürliche Namen, leerer Name, ungültiges Datum, gleiche Größe und gleicher Zeitpunkt) und zwei an `DEMO-2`: `...fixture.html?scenario=attachments&route=/issue/DEMO-1`, dann „Weitere Ticketaktionen“ → „Anhänge“.
+- Bilder der Testanhänge (`qa-att-*`) liefert die Simulation als 1×1-PNG; Uploads (`POST /issue/{key}/attachments`) landen nur im Testticket und in `window.__qa.writes`, `window.__qa.delayMs` verzögert sie.
+- Automatisch: `bunx playwright test tests/browser/attachment-sort.e2e.ts --workers=1`; mit `ATTACHMENT_SORT_SHOTS=<Ordner>` entstehen Screenshots.
