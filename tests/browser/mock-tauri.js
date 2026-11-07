@@ -575,7 +575,7 @@ const qaFilters =
       ]
     : [];
 const visibleQaFilters = () =>
-  qaFilters.filter((filter) => filter.account === accountId && (filter.owner.accountId === accountId || filter.favourite));
+  window.__qa.filters.filter((filter) => (filter.account ?? accountId) === accountId && (filter.owner.accountId === accountId || filter.favourite));
 const callbacks = new Map();
 const linkTypes = {
   blocks: { id: "10000", name: "Blocks", inward: "is blocked by", outward: "blocks" },
@@ -708,6 +708,11 @@ if (scenario === "rollout-duplicate" && localStorage.getItem("betterjira:calenda
   );
 }
 window.__qa = { writes: [], issueReads: [], failNextWrite: false, delayMs: 0, issues, wiki, briefing, briefingFailure: false, searches: [], searchDelayMs: 0, failSearch: false, emptySearch: false, sessionFailure: scenario === "session-error", sessionDelayMs: scenario === "session-slow" ? 1500 : 0, filters: qaFilters, filterRequests: 0, failFilters: new URLSearchParams(location.search).get("fail") === "filters", commands: [], metaDelay: {}, createFailure: null, opened: [], myselfDelayMs: 0, failMyself: false, myselfCalls: 0 };
+window.__qa.filters = /^\/filter\/(100|200)/.test(new URLSearchParams(location.search).get("route") ?? "") ? [
+  { id: "100", name: "Offene Testtickets", jql: "project = DEMO AND statusCategory != Done ORDER BY updated DESC", favourite: true, owner: author },
+  { id: "200", name: "Team-Rückstand", jql: "project = DEMO ORDER BY created DESC", favourite: false, owner: author },
+] : qaFilters;
+window.__qa.filterReads = [];
 window.__qa.outlook = {
   calls: [],
   failNext: false,
@@ -769,6 +774,28 @@ const respond = async (request) => {
     }
     const favourite = qaFilters.find((filter) => path === `/filter/${filter.id}/favourite`);
     if (favourite) favourite.favourite = request.method === "PUT";
+    if (scenario === "filters" && /^\/filter(?:\/[^/]+)?$/.test(path) && window.__qaHoldFilterWrite) {
+      window.__qaFilterWriteWaiting = true;
+      await new Promise((resolve) => {
+        window.__qaReleaseFilterWrite = () => {
+          window.__qaHoldFilterWrite = false;
+          window.__qaFilterWriteWaiting = false;
+          window.__qaReleaseFilterWrite = undefined;
+          resolve();
+        };
+      });
+    }
+    const filter = window.__qa.filters.find((entry) => path === `/filter/${entry.id}`);
+    if (scenario === "filters" && path === "/filter" && request.method === "POST") {
+      const created = { ...window.__qa.filters[0], ...input, id: String(1000 + nextId++), favourite: false };
+      window.__qa.filters.push(created);
+      return { body: created };
+    }
+    if (scenario === "filters" && filter && request.method === "DELETE") {
+      window.__qa.filters = window.__qa.filters.filter((entry) => entry.id !== filter.id);
+      return { body: {} };
+    }
+    if (filter && request.method === "PUT") return { body: Object.assign(filter, input) };
     const issue = issues.find((issue) => path.startsWith(`/issue/${issue.key}/`) || path === `/issue/${issue.key}`);
     if (path.endsWith("/comment") && issue)
       issue.fields.comment.comments.push({
@@ -831,8 +858,15 @@ const respond = async (request) => {
     if (window.__qa.failFilters) return { status: 503, body: { errorMessages: ["Test: Filter vorübergehend nicht erreichbar"] } };
     return { body: visibleQaFilters() };
   }
-  const filter = qaFilters.find((entry) => path === `/filter/${entry.id}`);
-  if (filter) return { body: filter };
+  const filterId = path.match(/^\/filter\/([^/]+)$/)?.[1];
+  if (filterId) {
+    window.__qa.filterReads.push(filterId);
+    const rule = window.__qaFilterRule?.(filterId) ?? {};
+    if (rule.delayMs) await new Promise((resolve) => setTimeout(resolve, rule.delayMs));
+    if (rule.status) return { status: rule.status, body: { errorMessages: [`Test: Jira antwortet mit ${rule.status}`] } };
+    const filter = window.__qa.filters.find((entry) => entry.id === filterId);
+    if (filter) return { body: filter };
+  }
   if (path === "/field")
     return {
       body: ["summary", "status", "assignee", "priority", "updated", "issuetype"].map((id) => ({

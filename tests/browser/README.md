@@ -103,6 +103,12 @@ Der vollständige Ablaufbericht einschließlich Vielnutzer, sorgfältigem Leser,
 - Ungültige Links wie `?board=abc` oder `?sprint=openSprints()` werden verworfen und gelangen nicht in JQL oder Agile-Pfade.
 - Automatisch: `bunx playwright test tests/browser/area-recovery.e2e.ts --workers=1`; mit `AREA_RECOVERY_SHOTS=<Ordner>` zusätzlich Screenshots.
 
+## Filter
+
+- Zwei lokale Testfilter (`100` „Offene Testtickets“, `200` „Team-Rückstand“, beide von `qa-user`): `...fixture.html?scenario=filters&route=/filter/100`. Nur `scenario=filters` listet sie in der Seitenleiste; die Detailseite liest sie in jedem Szenario, z. B. `scenario=session-error&route=/filter/100`.
+- `window.__qaFilterRule = (id) => ({ delayMs, status })` lässt `GET /filter/{id}` verzögern oder mit HTTP-Status scheitern. `window.__qa.filterReads` protokolliert gelesene Filter-IDs, Speichern landet als `PUT /filter/{id}` in `window.__qa.writes`.
+- Automatisch: `bunx playwright test tests/browser/filter-recovery.e2e.ts --workers=1` prüft Sitzung langsam/abgemeldet/Lesefehler, ersten 503 mit Retry, 403/404, gescheiterten Refresh mit Entwurf, Wechsel A → B ohne fremden Entwurf und normales Speichern. `FILTER_RECOVERY_SHOTS=<Ordner>` speichert Screenshots.
+
 ## Verknüpfte Tickets
 
 `DEMO-1` hat lokale Testverknüpfungen in beide Richtungen (`blocks`, `is blocked by`, `relates to`), ein Ticket ohne Felder (`OPS-7`), einen doppelten Eintrag und eine unlesbare Verknüpfung. `window.__qaIssueLinksRule = (key) => ({ delayMs, status, issuelinks })` steuert die Abfrage `GET /issue/{key}?fields=issuelinks`; `window.__qa.issueReads` protokolliert alle gelesenen Ticketpfade. Automatisch: `bunx playwright test tests/browser/issue-links.e2e.ts --workers=1` (mit `ISSUE_LINKS_SHOTS=<Ordner>` zusätzlich Screenshots).
