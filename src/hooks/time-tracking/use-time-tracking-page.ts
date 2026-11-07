@@ -26,7 +26,7 @@ export function useTimeTrackingPage(search: TimeRangeSearch) {
   const { summary, coverage } = worklogs;
   const text = useUrlText(search.q ?? "", (q) => void navigate({ search: (prev) => ({ ...prev, q: q || undefined }), replace: true }));
   const query = normalizeQuery(text.text);
-  const keepQuery = (next: TimeRangeSearch): TimeRangeSearch => ({ ...next, ...(search.q && { q: search.q }) });
+  const keepQuery = (next: TimeRangeSearch): TimeRangeSearch => ({ ...next, q: query || undefined });
   const show = (next: TimeRangeSearch) => void navigate({ to: "/zeiterfassung", search: keepQuery(next) });
   const unit = range.kind === "tag" ? "Tag" : "Woche";
   const loading = coverage.pendingCount > 0;
@@ -34,6 +34,7 @@ export function useTimeTrackingPage(search: TimeRangeSearch) {
   const empty = !!summary && summary.entryCount === 0 && !loading;
 
   return {
+    view: worklogs.error ? "error" : worklogs.pending ? "pending" : "ready",
     session,
     rangeKey: `${range.kind}:${range.start.getTime()}`,
     label: timeRangeLabel(range),
@@ -57,11 +58,13 @@ export function useTimeTrackingPage(search: TimeRangeSearch) {
     search: { value: text.text, onChange: text.setText },
     matches: matches && {
       total: formatSeconds(matches.seconds),
-      label: "Summe Treffer",
-      hint: `${matches.entryCount} von ${summary?.entryCount ?? 0} Buchungen`,
+      label: coverage.complete ? "Summe Treffer" : "Summe Treffer (geladener Stand)",
+      hint: `${matches.entryCount} von ${summary?.entryCount ?? 0} ${coverage.complete ? "Buchungen" : "geladenen Buchungen"}`,
     },
     days: matches ? timeDayViews(matches, today) : summary ? timeDayViews(summary, today) : [],
-    dayTotalLabel: matches ? "Treffer am Tag" : "Tagessumme",
+    dayTotalLabel: matches
+      ? coverage.complete ? "Treffer am Tag" : "Treffer am Tag (geladener Stand)"
+      : "Tagessumme",
     empty,
     noMatches: matches?.entryCount === 0 && !!summary?.entryCount,
     noMatchesTitle: `Keine Treffer für „${query}“`,

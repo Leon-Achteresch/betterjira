@@ -25,8 +25,8 @@ export const parseDayKey = (value: unknown) => {
 };
 
 export const timeRangeSearch = (search: Record<string, unknown>): TimeRangeSearch => ({
-  ...(search.zeitraum === "tag" && { zeitraum: "tag" }),
-  ...(parseDayKey(search.datum) && { datum: String(search.datum) }),
+  zeitraum: search.zeitraum === "tag" ? "tag" : undefined,
+  datum: parseDayKey(search.datum) ? String(search.datum) : undefined,
   q: queryOf(search.q),
 });
 

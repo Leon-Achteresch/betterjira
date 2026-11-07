@@ -21,7 +21,7 @@ export const Route = createFileRoute("/zeiterfassung")({
 function Zeiterfassung() {
   const page = useTimeTrackingPage(Route.useSearch());
   const reduce = useReducedMotion();
-  const view = page.error ? "error" : page.pending ? "pending" : "ready";
+  const view = page.view;
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 p-4 sm:p-8">

@@ -13,6 +13,7 @@ describe("Meine Zeiterfassung: Zeitraum", () => {
   });
 
   it("liest die Suche aus q und liefert sonst ausdrücklich undefined", () => {
+    expect(timeRangeSearch({ zeitraum: "falsch", datum: "unbekannt" })).toMatchObject({ zeitraum: undefined, datum: undefined });
     expect(timeRangeSearch({ q: "  DEMO-1 Review " })).toEqual({ q: "DEMO-1 Review" });
     expect(timeRangeSearch({ q: 1234 }).q).toBe("1234");
     for (const q of [undefined, "", "   ", ["a"], { a: 1 }, true, null]) {

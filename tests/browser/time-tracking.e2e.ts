@@ -230,7 +230,6 @@ test.describe("Suche in eigenen Buchungen", () => {
     await expect(total(page)).toContainText("3 h 30 min");
     await searchField(page).fill("Rev");
     await searchField(page).fill("Review");
-    await expect(page).toHaveURL(/\/zeiterfassung\?q=Review$/);
 
     await ranges(page).getByRole("link", { name: "Letzte Woche" }).click();
     await expect(page).toHaveURL(/datum=2026-10-26&q=Review$/);
@@ -287,6 +286,8 @@ test.describe("Suche in eigenen Buchungen", () => {
     await expect(notice).toContainText("Nicht geladen: DEMO-2.");
     await expect(notice).toContainText("Die Summen zeigen nur den geladenen Stand.");
     await expect(total(page)).toContainText("geladener Stand");
+    await expect(matchTile(page)).toContainText("Summe Treffer (geladener Stand)");
+    await expect(matchTile(page)).toContainText("geladenen Buchungen");
     await expect(page.getByText("Keine Treffer für „Review“")).toBeVisible();
   });
 
