@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { BriefcaseIcon } from "lucide-react";
 import { LoginPrompt } from "@/components/shell/login-prompt";
 import { SessionGate } from "@/components/shell/session-gate";
+import { WorkspaceNoteDialog } from "@/components/workspace/workspace-note-dialog";
 import { WorkspaceOverview } from "@/components/workspace/workspace-overview";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useJiraSession } from "@/hooks/jira/use-jira-session";
@@ -49,6 +50,23 @@ function Arbeitsplatz() {
           onSortChange={page.changeSort}
           onTogglePin={page.togglePin}
           onRemoveRecent={page.removeRecent}
+          onEditNote={page.note.start}
+        />
+        <WorkspaceNoteDialog
+          open={page.note.open}
+          issueKey={page.note.issueKey}
+          summary={page.note.summary}
+          draft={page.note.draft}
+          conflict={page.note.conflict}
+          hadNote={page.note.hadNote}
+          dirty={page.note.dirty}
+          onDraftChange={page.note.setDraft}
+          onKeyDown={page.note.onKeyDown}
+          onSave={page.note.save}
+          onCancel={page.note.cancel}
+          onTakeLatest={page.note.takeLatest}
+          onKeepMine={page.note.keepMine}
+          onCloseAutoFocus={page.note.onCloseAutoFocus}
         />
       </SessionGate>
     </div>

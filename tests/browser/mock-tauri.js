@@ -1036,7 +1036,7 @@ const respond = async (request) => {
     const rule = window.__qaMyselfRule?.() ?? {};
     if (rule.delayMs) await new Promise((resolve) => setTimeout(resolve, rule.delayMs));
     if (rule.status) return { status: rule.status, body: { errorMessages: [`Test: Jira antwortet mit ${rule.status}`] } };
-    return { body: { ...author, accountId } };
+    return { body: { ...author, accountId: window.__qa.accountId ?? accountId } };
   }
   if (path.startsWith("/project/search")) {
     if (window.__qaProjectFailure) return { status: 503, body: { errorMessages: ["Test: Projekte konnten nicht geladen werden"] } };

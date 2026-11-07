@@ -340,3 +340,11 @@ Integration offener PRs:
 - `window.__qaSearchRule` darf zusätzlich `issues` liefern, um lokale Testaktivität (z. B. einen neuen Kommentar) zu simulieren.
 - Automatisch: `bunx playwright test tests/browser/activity-alerts.e2e.ts --workers=1`; mit `ACTIVITY_ALERTS_SHOTS=<Ordner>` entstehen Screenshots.
 - Grenzen: Ob das Betriebssystem einen Hinweis tatsächlich anzeigt, prüft nur ein nativer Tauri-Build. Auf dem Desktop meldet das Tauri-Plugin (2.8.0) die Berechtigung immer als erteilt; „blockiert“ und „noch nicht erlaubt“ kommen nur auf Mobilplattformen bzw. im Stub vor.
+
+## Private Notizen im Arbeitsplatz
+
+`http://localhost:1420/tests/browser/fixture.html?scenario=workspace&route=/arbeitsplatz`: Jede Zeile hat die Aktion „Notiz bearbeiten“ bzw. „Notiz hinzufügen“. Der Dialog speichert nur mit „Speichern“ oder Strg/⌘ + Enter in den lokalen Arbeitsbereich des aktuellen Kontos; es entsteht kein Jira-Schreibzugriff (`window.__qa.writes` bleibt leer).
+
+`window.__qa.accountId = "qa-colleague"` lässt die nächste `/myself`-Antwort ein anderes Konto melden, ohne die Seite neu zu laden. Ein `visibilitychange` nach Ablauf der Query-Frische löst den Wechsel aus; `undefined` kehrt zu `qa-user` zurück. Ein zweiter Tab mit derselben Fixture ändert den gemeinsamen lokalen Speicher und simuliert so eine Änderung vor oder während der Bearbeitung. Der Arbeitsplatz übernimmt externe Speicheränderungen auch bei geschlossenem Dialog; während der Bearbeitung bleibt der eigene Entwurf bei einem Konflikt erhalten.
+
+`workspace-notes.e2e.ts` prüft Persistenz, Abgleich mit dem Notizfeld im Ticket, unveränderte Kommentar- und Feldentwürfe, Konto-Bindung von Speichern und Rückgängig, Konflikte, Fokus nach dem Filtern und 390 px hell/dunkel. Mit `WORKSPACE_NOTES_SHOTS=<Ordner>` speichert der Test Screenshots.

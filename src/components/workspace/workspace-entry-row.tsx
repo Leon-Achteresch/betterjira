@@ -3,7 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { formatDistanceToNowStrict } from "date-fns";
 import { de } from "date-fns/locale";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { BookOpenIcon, FilePenLineIcon, MessageSquareDashedIcon, PinIcon, StickyNoteIcon, XIcon } from "lucide-react";
+import { BookOpenIcon, FilePenLineIcon, MessageSquareDashedIcon, NotebookPenIcon, PinIcon, StickyNoteIcon, XIcon } from "lucide-react";
 import { JiraStatusBadge } from "@/components/jira-status-badge";
 import { IconAction } from "@/components/motion/icon-action";
 import { EASE_OUT } from "@/lib/ease";
@@ -13,11 +13,16 @@ import { cn } from "@/lib/utils";
 const CHIP = "inline-flex items-center gap-1 rounded-xl px-2 py-0.5 text-[0.7rem] font-medium";
 const ROW_ACTION = "text-muted-foreground sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100";
 
-export function WorkspaceEntryRow({ entry, linkRef, onTogglePin, onRemoveRecent }: WorkspaceEntryRowProps) {
+export function WorkspaceEntryRow({ entry, linkRef, onTogglePin, onRemoveRecent, onEditNote }: WorkspaceEntryRowProps) {
   const reduce = useReducedMotion();
   const detailsId = useId();
+  const hasNote = !!entry.note.trim();
+  const noteAction = hasNote ? "Notiz bearbeiten" : "Notiz hinzufügen";
   return (
-    <div className="group flex items-start gap-1 rounded-xl p-1 transition-colors hover:bg-muted/60 has-[a:focus-visible]:bg-muted/60">
+    <div
+      data-workspace-entry={entry.key}
+      className="group flex items-start gap-1 rounded-xl p-1 transition-colors hover:bg-muted/60 has-[a:focus-visible]:bg-muted/60"
+    >
       <Link
         ref={linkRef}
         to="/issue/$key"
@@ -74,6 +79,7 @@ export function WorkspaceEntryRow({ entry, linkRef, onTogglePin, onRemoveRecent 
         </span>
       </Link>
       <div className="mt-1.5 flex shrink-0 items-center">
+        <IconAction label={`Notiz zu ${entry.key} ${hasNote ? "bearbeiten" : "hinzufügen"}`} tooltip={noteAction} onClick={onEditNote} aria-haspopup="dialog" data-note-trigger className={ROW_ACTION}><NotebookPenIcon /></IconAction>
         <IconAction
           label={`${entry.key} ${entry.pinned ? "lösen" : "anheften"}`}
           tooltip={entry.pinned ? "Lösen" : "Anheften"}
