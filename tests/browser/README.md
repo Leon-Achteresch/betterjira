@@ -6,6 +6,12 @@ Für die Tabelle: `http://localhost:1420/tests/browser/fixture.html?route=/berei
 
 Zum Neuladen immer die Fixture-URL öffnen. Die App ersetzt anschließend die Adresse durch ihre normale Route. Ein direktes Neuladen dieser normalen Route lädt die App ohne Tauri-Simulation. Auch ein vollständiger Vite-Neustart durch HMR kann deshalb ein erneutes Öffnen der Fixture erfordern.
 
+## Tastenkürzel-Hilfe
+
+- `...fixture.html?route=/settings/darstellung` und „Übersicht öffnen“ oder <kbd>?</kbd> drücken. Das Suchfeld findet Aktionen („Zurück“), Bereiche („Navigation“) und angezeigte Tasten, auch über übliche Namen wie „Strg“, „Cmd“, „Option“ oder „Enter“. Einzelne Zeichen gelten als Taste oder Wortanfang, damit „g h“ genau die Tastenfolge findet.
+- <kbd>Esc</kbd> leert zuerst die Suche und schließt erst danach den Dialog.
+- Automatisch: `bunx playwright test tests/browser/shortcut-help.e2e.ts --workers=1`; mit `SHORTCUT_HELP_SHOTS=<Ordner>` zusätzlich Screenshots.
+
 ## Automatische Prüfung
 
 ```sh
