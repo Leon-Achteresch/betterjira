@@ -42,7 +42,7 @@ const newestFirst = byTime(-1);
 const COMPARE: Record<PullRequestSort, Compare> = {
   updated: newestFirst,
   "updated-asc": byTime(1),
-  title: (a, b) => collator.compare(a.pr.title, b.pr.title) || newestFirst(a, b),
+  title: (a, b) => collator.compare(a.pr.title, b.pr.title),
   repo: (a, b) => collator.compare(a.repo, b.repo) || newestFirst(a, b),
 };
 

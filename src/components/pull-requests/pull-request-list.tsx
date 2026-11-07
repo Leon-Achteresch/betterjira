@@ -89,7 +89,7 @@ export function PullRequestList({ pullRequests, repos, filterLabel, query, onOpe
                     role="listitem"
                     layout={!reduce}
                     transition={{ layout: SPRING_LAYOUT }}
-                    exit={{ opacity: 0, transition: { duration: 0.12 } }}
+                    exit={{ opacity: 0, transition: { duration: 0.12, ease: EASE_OUT } }}
                   >
                     <PullRequestRow pr={entry.pr} repo={entry.repo} onOpen={onOpen} />
                   </StaggerItem>

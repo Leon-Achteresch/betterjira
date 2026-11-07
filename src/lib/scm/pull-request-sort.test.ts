@@ -100,6 +100,11 @@ describe("sortPullRequests", () => {
     for (const sort of ["updated", "updated-asc", "title", "repo"] as const) expect(urls(sortPullRequests(same, sort))).toEqual(["a", "b", "c", "d"]);
     const reversed = [...same].reverse();
     expect(urls(sortPullRequests(reversed, "title"))).toEqual(["d", "c", "b", "a"]);
+    const equalTitles = [
+      entry("erst", { title: "Gleich", updatedAt: "2026-11-01T10:00:00Z" }),
+      entry("danach", { title: "gleich", updatedAt: "2026-11-05T10:00:00Z" }),
+    ];
+    expect(urls(sortPullRequests(equalTitles, "title"))).toEqual(["erst", "danach"]);
   });
 
   it("verändert die Eingabe nicht", () => {
