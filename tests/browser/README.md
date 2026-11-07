@@ -266,3 +266,9 @@ Der vollständige Ablaufbericht einschließlich Vielnutzer, sorgfältigem Leser,
 - `window.__qa.commentDetailLimit` begrenzt die Kommentare der Detailantwort (Szenario: 2), `window.__qa.commentPageReads` protokolliert jede Seitenabfrage (`key`, `startAt`, `maxResults`, `orderBy`).
 - `window.__qaCommentPagesRule = (key, startAt) => ({ delayMs, status, pageSize, startAt, total, comments })` steuert einzelne Seiten: verzögern, mit HTTP-Status scheitern, kürzere Seiten, abweichend bestätigtes `startAt` (Duplikate), `total: null` (Gesamtzahl unbekannt) oder eine leere Seite.
 - Automatisch: `bunx playwright test tests/browser/comment-pages.e2e.ts --workers=1`; mit `COMMENT_PAGES_SHOTS=<Ordner>` zusätzlich Screenshots.
+
+## Link zu einem Kommentar
+
+- `...fixture.html?scenario=comment-links&route=/issue/DEMO-1` zeigt zwei QA-Kommentare mit numerischen IDs (`10001`, `10002`), einer davon mit sehr langem Autorennamen. Jeder Kommentar hat die Aktion „Jira-Link zum Kommentar kopieren“; kopiert wird `https://example.atlassian.net/browse/DEMO-1?focusedCommentId=10001#comment-10001`.
+- `window.__qaSiteUrl` (per `addInitScript`) ersetzt die Instanzadresse der simulierten Sitzung, z. B. mit Kontextpfad, leer (keine Verbindung) oder mit Zugangsdaten (wird abgelehnt).
+- Automatisch: `bunx playwright test tests/browser/comment-link.e2e.ts --workers=1` prüft die tatsächlichen Bytes der Zwischenablage, einmaliges Kopieren bei Doppelklick, Tastatur, Fehler der Zwischenablage, fehlende oder ungültige Verbindung, unveränderten Entwurf und Sortierung, neu hinzugefügte Kommentare sowie 390 px hell und dunkel mit reduzierter Bewegung. Mit `COMMENT_LINK_SHOTS=<Ordner>` entstehen Screenshots.
