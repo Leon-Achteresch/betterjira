@@ -4,8 +4,8 @@ import { addMonths, isSameMonth, parseISO, startOfDay, startOfMonth } from "date
 import type { Rollout } from "@/lib/calendar/model";
 import { externalEvents, gridRange, issueBrowseUrl, itemsOn, monthGrid, opensInternally, upcomingRollouts } from "@/lib/calendar/presentation";
 import { useJiraSite } from "@/lib/jira/queries";
+import type { RolloutFormTarget } from "@/types/calendar";
 import { useConnectOutlook, useDisconnectOutlook, useOpenOutlookEvent, useOutlookAccount, useOutlookEvents, useOpenCalendarIssue } from "./use-outlook";
-import type { RolloutFormTarget } from "./use-rollout-form";
 import { useDeleteRollout, useRollouts, useSyncRollout } from "./use-rollouts";
 
 const NO_ROLLOUTS: readonly Rollout[] = [];
@@ -52,6 +52,7 @@ export const useCalendarPage = () => {
     today: now,
     rollouts: items,
     rolloutsPending: rollouts.isPending,
+    rolloutsLoaded: rollouts.data !== undefined,
     rolloutsError: rollouts.error,
     retryRollouts: () => void rollouts.refetch(),
     outlookEvents,
@@ -70,6 +71,7 @@ export const useCalendarPage = () => {
     editor,
     createOn: (day: Date) => setEditor({ day }),
     edit: (rollout: Rollout) => setEditor({ rollout }),
+    duplicate: (rollout: Rollout) => setEditor({ template: rollout }),
     closeEditor: () => setEditor(null),
     deleting,
     confirmDelete: (rollout: Rollout) => {

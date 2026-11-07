@@ -1,13 +1,17 @@
 import { Link } from "@tanstack/react-router";
-import { CalendarDaysIcon, HouseIcon, TicketIcon } from "lucide-react";
+import { BellIcon, BriefcaseIcon, CalendarDaysIcon, GitPullRequestIcon, HouseIcon, TicketIcon, TimerIcon } from "lucide-react";
 import { LayoutGroup, motion, useReducedMotion } from "motion/react";
 import { SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from "@/components/ui/sidebar";
 import { SPRING_LAYOUT } from "@/lib/ease";
 
 const ITEMS = [
   { to: "/", label: "Übersicht", icon: HouseIcon, activeOptions: { exact: true } },
+  { to: "/arbeitsplatz", label: "Arbeitsplatz", icon: BriefcaseIcon, activeOptions: { includeSearch: false } },
   { to: "/tickets", label: "Jira-Tickets", icon: TicketIcon, activeOptions: { includeSearch: false } },
+  { to: "/pull-requests", label: "Pull Requests", icon: GitPullRequestIcon, activeOptions: { includeSearch: false } },
   { to: "/kalender", label: "Kalender", icon: CalendarDaysIcon, activeOptions: {} },
+  { to: "/zeiterfassung", label: "Zeiterfassung", icon: TimerIcon, activeOptions: { includeSearch: false } },
+  { to: "/benachrichtigungen", label: "Benachrichtigungen", icon: BellIcon, activeOptions: { includeSearch: false } },
 ] as const;
 
 export function PrimaryNav() {

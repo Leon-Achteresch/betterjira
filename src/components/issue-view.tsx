@@ -7,16 +7,20 @@ import { ChevronRightIcon } from "lucide-react";
 import { CreateBranchDialog } from "@/components/development/create-branch-dialog";
 import { IssueDevelopment } from "@/components/development/issue-development";
 import { IssueComments } from "@/components/issue-comments";
-import { IssueDrawer } from "@/components/issue-drawer";
+import { IssueDrawer, type IssueDrawerTab } from "@/components/issue-drawer";
 import { EditableField, FieldValue, richFieldIds } from "@/components/issue-fields";
 import { IssueStatusMenu } from "@/components/issue-status-menu";
 import { JiraStatusBadge } from "@/components/jira-status-badge";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { IssueActions } from "@/components/issues/issue-actions";
+import { IssueLinksPanel } from "@/components/issues/issue-links-panel";
+import { RemoteLinksPanel } from "@/components/issues/remote-links-panel";
 import { useIssueReadingPosition } from "@/hooks/use-issue-reading-position";
 import { useIssueActions } from "@/hooks/use-issue-actions";
 import { useIssueDevelopmentPanel } from "@/hooks/scm/use-issue-development-panel";
+import { useIssueLinks } from "@/hooks/jira/use-issue-links";
+import { useRemoteLinks } from "@/hooks/jira/use-remote-links";
 import { EASE_OUT } from "@/lib/ease";
 import { useJiraIssue, useJiraSite, type JiraIssueDetail } from "@/lib/jira/queries";
 import { cn } from "@/lib/utils";
@@ -146,12 +150,14 @@ function IssueViewSkeleton() {
   );
 }
 
-export function IssueView({ issueKey }: { issueKey: string }) {
+export function IssueView({ issueKey, initialTab }: { issueKey: string; initialTab?: IssueDrawerTab }) {
   const site = useJiraSite();
   const issue = useJiraIssue(issueKey);
   const reduce = useReducedMotion();
   useIssueReadingPosition(issueKey, !!issue.data);
-  const actions = useIssueActions(issue.data, site.data?.siteUrl);
+  const actions = useIssueActions(issue.data, site.data?.siteUrl, initialTab);
+  const links = useIssueLinks(issueKey);
+  const remoteLinks = useRemoteLinks(issueKey);
   const development = useIssueDevelopmentPanel(
     issueKey,
     issue.data && { projectKey: issue.data.fields.project.key, summary: issue.data.fields.summary },
@@ -232,6 +238,20 @@ export function IssueView({ issueKey }: { issueKey: string }) {
         </Section>
 
         {subtasks.length > 0 && <Subtasks subtasks={subtasks} />}
+
+        <Section title={links.summary ? `Verknüpfungen · ${links.summary.total}` : "Verknüpfungen"}>
+          <IssueLinksPanel
+            summary={links.summary}
+            error={links.error}
+            refreshError={links.refreshError}
+            retrying={links.retrying}
+            onRetry={links.retry}
+          />
+        </Section>
+
+        <motion.div variants={reveal(reduce)}>
+          <RemoteLinksPanel {...remoteLinks} />
+        </motion.div>
 
         <Section title={`Kommentare · ${comments.length}`}>
           <IssueComments key={issue.data.key} issueKey={issue.data.key} comments={comments} />

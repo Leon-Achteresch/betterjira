@@ -11,7 +11,8 @@ export function SessionError({ message, retrying, onRetry }: { message: string; 
           <ShieldAlertIcon />
         </EmptyMedia>
         <EmptyTitle>Anmeldung konnte nicht geprüft werden</EmptyTitle>
-        <EmptyDescription>{message}. Das ist keine Abmeldung, versuche es erneut.</EmptyDescription>
+        <EmptyDescription>Das ist keine Abmeldung, versuche es erneut.</EmptyDescription>
+        {message && <p className="text-xs text-muted-foreground">{message}</p>}
       </EmptyHeader>
       <EmptyContent>
         <Button variant="outline" onClick={onRetry} disabled={retrying}>

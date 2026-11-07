@@ -2,6 +2,7 @@ import { Link, useCanGoBack, useRouter } from "@tanstack/react-router";
 import { ChevronLeft, ChevronRight, Settings } from "lucide-react";
 import { Tooltip } from "@/components/motion/tooltip";
 import { AppCommandPalette } from "@/components/shell/app-command-palette";
+import { HeaderMoreMenu } from "@/components/shell/header-more-menu";
 import { IssueTabs } from "@/components/shell/issue-tabs";
 import { NotificationBell } from "@/components/shell/notification-bell";
 import { ThemeToggle } from "@/components/shell/theme-toggle";
@@ -36,6 +37,7 @@ export function AppHeader() {
           variant="ghost"
           size="icon-sm"
           aria-label="Zurück"
+          className="hidden sm:inline-flex"
           disabled={!canGoBack}
           onClick={() => router.history.back()}
         >
@@ -43,7 +45,13 @@ export function AppHeader() {
         </Button>
       </Tooltip>
       <Tooltip content={`Vorwärts (${IS_MAC ? "⌘]" : "Alt+→"})`} side="bottom">
-        <Button variant="ghost" size="icon-sm" aria-label="Vorwärts" onClick={() => router.history.forward()}>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label="Vorwärts"
+          className="hidden sm:inline-flex"
+          onClick={() => router.history.forward()}
+        >
           <ChevronRight />
         </Button>
       </Tooltip>
@@ -52,10 +60,11 @@ export function AppHeader() {
         className="ml-1 inline-flex h-7 shrink-0 items-center gap-1.5 px-1 text-sm font-semibold tracking-tight"
       >
         <img src="/logo.svg" alt="" className="size-5" />
-        betterjira
+        <span className="sr-only sm:not-sr-only">betterjira</span>
       </Link>
-      <div data-tauri-drag-region="deep" className="flex h-full min-w-0 flex-1">
+      <div data-tauri-drag-region="deep" className="flex h-full min-w-0 flex-1 overflow-hidden">
         <IssueTabs
+          className="max-sm:hidden"
           tabs={tabs}
           activeKey={activeKey}
           onClose={closeTab}
@@ -64,13 +73,13 @@ export function AppHeader() {
           onCloseRight={closeRight}
         />
       </div>
-      <div className="flex w-72 shrink-0">
+      <div className="flex shrink-0 lg:w-72">
         <AppCommandPalette />
       </div>
-      <nav className="ml-auto flex items-center gap-1 px-3" aria-label="Werkzeuge">
+      <nav className="ml-auto flex shrink-0 items-center gap-0.5 px-1.5 sm:gap-1 sm:px-3" aria-label="Werkzeuge">
         <WorkQueue />
         <NotificationBell />
-        <ThemeToggle />
+        <ThemeToggle className="hidden sm:inline-flex" />
         <Tooltip content="Einstellungen" side="bottom">
           <Link
             to="/settings"
@@ -81,6 +90,17 @@ export function AppHeader() {
             <Settings className="size-4" strokeWidth={1.75} />
           </Link>
         </Tooltip>
+        <HeaderMoreMenu
+          className="sm:hidden"
+          canGoBack={canGoBack}
+          onBack={() => router.history.back()}
+          onForward={() => router.history.forward()}
+          tabs={tabs}
+          activeKey={activeKey}
+          onOpenTab={openTab}
+          onCloseTab={closeTab}
+          onTogglePin={togglePin}
+        />
       </nav>
       {USE_CUSTOM_WINDOW_CONTROLS ? <WindowControls /> : null}
     </header>

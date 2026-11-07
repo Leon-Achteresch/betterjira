@@ -193,6 +193,16 @@
     @apply bg-background text-foreground;
     text-rendering: optimizeLegibility;
     }
+  :root[data-text-size] [data-slot=sidebar-inset] {
+    --text-xs: calc(0.75rem * var(--content-text-scale));
+    --text-sm: calc(0.875rem * var(--content-text-scale));
+    --text-base: calc(1rem * var(--content-text-scale));
+    --text-lg: calc(1.125rem * var(--content-text-scale));
+    --text-xl: calc(1.25rem * var(--content-text-scale));
+    --text-2xl: calc(1.5rem * var(--content-text-scale));
+    --text-3xl: calc(1.875rem * var(--content-text-scale));
+    font-size: var(--text-base);
+    }
   .native-glass body {
     background-color: transparent;
     }

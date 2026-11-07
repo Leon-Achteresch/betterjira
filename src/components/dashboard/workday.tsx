@@ -10,6 +10,7 @@ import { ResumeWork } from "@/components/dashboard/resume-work";
 import { AttentionBriefing } from "@/components/attention/attention-briefing";
 import { IssueStatusMenu } from "@/components/issue-status-menu";
 import { ProjectAvatar } from "@/components/shell/project-avatar";
+import { SessionGate } from "@/components/shell/session-gate";
 import type { JiraProject, JiraWorkIssue } from "@/lib/jira/queries";
 import { useDashboard, type DashboardState } from "@/hooks/use-dashboard";
 import { useVisibleItems } from "@/hooks/use-visible-items";
@@ -19,14 +20,20 @@ const reveal = "animate-in fade-in slide-in-from-bottom-2 fill-mode-both duratio
 
 export function Workday() {
   const dashboard = useDashboard();
-  if (dashboard.sitePending) {
-    return (
-      <div className="grid h-full place-items-center">
-        <Spinner />
-      </div>
-    );
-  }
-  return dashboard.site ? <Dashboard dashboard={dashboard} /> : <Welcome login={dashboard.login} />;
+  return (
+    <SessionGate
+      session={dashboard.session}
+      className="flex h-full flex-col"
+      pending={
+        <div className="grid h-full place-items-center">
+          <Spinner />
+        </div>
+      }
+      unconnected={<Welcome login={dashboard.login} />}
+    >
+      <Dashboard dashboard={dashboard} />
+    </SessionGate>
+  );
 }
 
 function Welcome({ login }: { login: DashboardState["login"] }) {
@@ -69,7 +76,7 @@ function Dashboard({ dashboard }: { dashboard: DashboardState }) {
       <header className={cn("flex flex-wrap items-end justify-between gap-6", reveal)}>
         <div className="flex flex-col gap-3">
           <p className="text-sm text-muted-foreground tabular-nums">
-            {dashboard.dateLabel} · {dashboard.site?.siteName}
+            {dashboard.dateLabel} · {dashboard.session.site?.siteName}
           </p>
           <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">{dashboard.greeting}</h1>
           {work.data && (
