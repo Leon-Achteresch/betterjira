@@ -41,6 +41,7 @@ const EXPECTED = [
   "1. Erster Schritt\n2. Zweiter Schritt",
   "Ende 😄",
 ].join("\n\n");
+const EXPECTED_CLIPBOARD = process.platform === "win32" ? EXPECTED.replace(/\n/g, "\r\n") : EXPECTED;
 
 const SENTINEL = "QA-Zwischenablage vorher";
 
@@ -52,7 +53,15 @@ const toast = (page: Page, message: string) => page.getByText(message, { exact: 
 
 const shot = async (page: Page, testInfo: TestInfo, name: string) => {
   const dir = process.env.DESCRIPTION_COPY_SHOTS;
-  if (dir) await page.screenshot({ path: `${dir}/${testInfo.project.name}-${name}.png` });
+  if (!dir) return;
+  const loaded = await page.evaluate(async () => {
+    await document.fonts.load('14px "Geist Variable"');
+    await document.fonts.ready;
+    await Promise.all(document.getAnimations().filter((animation) => animation.effect?.getComputedTiming().iterations !== Infinity).map((animation) => animation.finished.catch(() => undefined)));
+    return [...document.fonts].some((face) => face.family.includes("Geist") && face.status === "loaded");
+  });
+  expect(loaded).toBe(true);
+  await page.screenshot({ path: `${dir}/${testInfo.project.name}-${name}.png` });
 };
 
 const settleMenu = (page: Page) =>
@@ -61,7 +70,7 @@ const settleMenu = (page: Page) =>
       element
         .getAnimations({ subtree: true })
         .filter((animation) => animation.effect?.getTiming().iterations !== Infinity)
-        .map((animation) => animation.finished),
+        .map((animation) => animation.finished.catch(() => undefined)),
     ),
   );
 
@@ -132,12 +141,15 @@ test("kopiert die gespeicherte Beschreibung per Tastatur als lesbaren Klartext o
   await openMenuByKeyboard(page);
   await focusCopyItem(page);
   await expect(copyItem(page)).not.toHaveAttribute("aria-disabled", "true");
+  await expect(copyItem(page)).toContainText("Gespeicherter Stand");
+  const actionBox = await copyItem(page).boundingBox();
+  expect(actionBox?.height).toBeGreaterThanOrEqual(32);
   await shot(page, testInfo, "menue");
   await page.keyboard.press("Enter");
 
   await expect(toast(page, "Beschreibung kopiert")).toBeVisible();
   await expect(menu(page)).toHaveCount(0);
-  expect(await clipboardBytes(page)).toEqual([...Buffer.from(EXPECTED, "utf8")]);
+  expect(await clipboardBytes(page)).toEqual([...Buffer.from(EXPECTED_CLIPBOARD, "utf8")]);
   expect(await traffic(page)).toEqual(before);
 });
 
@@ -155,7 +167,7 @@ test("verwendet den gespeicherten Stand, nicht den offenen Editorentwurf", async
 
   await expect(toast(page, "Beschreibung kopiert")).toBeVisible();
   const copied = Buffer.from(await clipboardBytes(page)).toString("utf8");
-  expect(copied).toBe(EXPECTED);
+  expect(copied).toBe(EXPECTED_CLIPBOARD);
   expect(copied).not.toContain("UNGESPEICHERT");
   await expect(editor).toHaveValue("UNGESPEICHERTER ENTWURF");
   expect(await traffic(page)).toEqual(before);
@@ -208,6 +220,17 @@ test("sperrt Doppelauslösung und zeigt Fehler der Zwischenablage", async ({ pag
   expect(await clipboardCalls(page)).toEqual([EXPECTED, EXPECTED]);
   await settleClipboard(page, true);
   await expect(toast(page, "Beschreibung kopiert")).toBeVisible();
+});
+
+test("fehlende Clipboard-API zeigt einen Fehler und gibt die Kopiersperre wieder frei", async ({ page }) => {
+  await page.addInitScript(() => Object.defineProperty(navigator, "clipboard", { value: undefined }));
+  await page.goto(ISSUE("DEMO-1"));
+  await expect(page.getByRole("heading", { name: "Ziel" })).toBeVisible();
+  await trigger(page).click();
+  await copyItem(page).click();
+  await expect(toast(page, "Kopieren fehlgeschlagen")).toBeVisible();
+  await openMenuByKeyboard(page);
+  await expect(copyItem(page)).not.toHaveAttribute("aria-disabled", "true");
 });
 
 test("Darstellung: Desktop hell und 390 px dunkel mit geöffnetem Menü", async ({ page }, testInfo) => {

@@ -135,6 +135,11 @@ describe("plainDescription", () => {
     expect(textOf("  Wiki *Text*\r\nZeile  \r\n")).toBe("Wiki *Text*\nZeile");
   });
 
+  it("verträgt ungültige Datumswerte und liest Text unbekannter Knoten ohne deren Attribute", () => {
+    expect(textOf(doc(paragraph(text("Text"), { type: "date", attrs: { timestamp: "1e100" } })))).toBe("Text");
+    expect(textOf(doc({ type: "futureText", text: "Lesbarer Text", attrs: { secret: "nicht kopieren" } }))).toBe("Lesbarer Text");
+  });
+
   it("unterscheidet fehlende, leere und unlesbare Beschreibungen", () => {
     expect(plainDescription(null)).toEqual({ kind: "missing" });
     expect(plainDescription(undefined)).toEqual({ kind: "missing" });

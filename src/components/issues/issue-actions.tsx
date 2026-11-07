@@ -94,7 +94,7 @@ export function IssueActions({
             <CopyIcon />
             Schlüssel kopieren
           </DropdownMenuItem>
-          <DropdownMenuItem onSelect={actions.description.copy} disabled={actions.description.disabled} className="items-start">
+          <DropdownMenuItem onSelect={actions.description.copy} disabled={actions.description.disabled} className="min-h-8 items-start">
             <FileTextIcon className="mt-0.5" />
             <span className="flex min-w-0 flex-col">
               Beschreibung kopieren

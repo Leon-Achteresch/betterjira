@@ -15,7 +15,7 @@ export function useDescriptionCopy(savedDescription: unknown) {
 
   return {
     disabled: description.kind !== "text" || pending,
-    hint: description.kind !== "text" ? UNAVAILABLE[description.kind] : pending ? "Wird kopiert …" : undefined,
+    hint: description.kind !== "text" ? UNAVAILABLE[description.kind] : pending ? "Wird kopiert …" : "Gespeicherter Stand",
     copy: () => {
       if (description.kind !== "text" || busy.current) return;
       busy.current = true;

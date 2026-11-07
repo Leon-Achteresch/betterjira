@@ -1,25 +1,27 @@
 import { Schema } from "effect";
-import { INLINE_NODES } from "./adf";
+import { INLINE_NODES } from "./adf-nodes";
 
 const Attrs = Schema.optional(Schema.Record(Schema.String, Schema.Unknown));
 const AdfTextMark = Schema.Struct({ type: Schema.String, attrs: Attrs });
-
-interface AdfTextNode {
-  readonly type: string;
-  readonly text?: string | undefined;
-  readonly attrs?: { readonly [key: string]: unknown } | undefined;
-  readonly marks?: ReadonlyArray<typeof AdfTextMark.Type> | undefined;
-  readonly content?: ReadonlyArray<AdfTextNode> | undefined;
-}
 
 const AdfTextNode = Schema.Struct({
   type: Schema.String,
   text: Schema.optional(Schema.String),
   attrs: Attrs,
   marks: Schema.optional(Schema.Array(AdfTextMark)),
-  content: Schema.optional(Schema.Array(Schema.suspend((): Schema.Codec<AdfTextNode> => AdfTextNode))),
+  content: Schema.optional(Schema.Array(Schema.Unknown)),
 });
-const isAdfTextDoc = Schema.is(Schema.Struct({ type: Schema.Literal("doc"), content: Schema.optional(Schema.Array(AdfTextNode)) }));
+type AdfTextNode = typeof AdfTextNode.Type;
+const AdfTextDoc = Schema.Struct({ type: Schema.Literal("doc"), content: Schema.optional(Schema.Array(Schema.Unknown)) });
+const isTextNode = Schema.is(AdfTextNode);
+const decodeTextNode = Schema.decodeUnknownSync(AdfTextNode);
+const nodesOf = (nodes: ReadonlyArray<unknown> = []) => nodes.map((node) => decodeTextNode(node));
+
+function validNodes(nodes: ReadonlyArray<unknown> = []): boolean {
+  return nodes.every((node) => isTextNode(node) && validNodes(node.content));
+}
+
+const isAdfTextDoc = (value: unknown): value is typeof AdfTextDoc.Type => Schema.is(AdfTextDoc)(value) && validNodes(value.content);
 
 export type PlainDescription =
   | { readonly kind: "text"; readonly text: string }
@@ -46,7 +48,8 @@ const mentionText = (node: AdfTextNode) => {
 const dateText = (node: AdfTextNode) => {
   const raw = attr(node, "timestamp");
   const timestamp = raw ? Number(raw) : Number.NaN;
-  return Number.isFinite(timestamp) ? UTC_DATE.format(timestamp) : "";
+  const date = new Date(timestamp);
+  return Number.isFinite(date.getTime()) ? UTC_DATE.format(date) : "";
 };
 
 const inlineNode = (node: AdfTextNode): string => {
@@ -66,7 +69,7 @@ const inlineNode = (node: AdfTextNode): string => {
     case "inlineCard":
       return attr(node, "url");
     default:
-      return inlineText(node.content);
+      return node.text ?? inlineText(node.content);
   }
 };
 
@@ -75,7 +78,8 @@ const namesTarget = (label: string, href: string) => {
   return text === href || text === href.replace(/^mailto:/i, "");
 };
 
-function inlineText(nodes: ReadonlyArray<AdfTextNode> = []): string {
+function inlineText(values: ReadonlyArray<unknown> = []): string {
+  const nodes = nodesOf(values);
   let text = "";
   let label = "";
   nodes.forEach((node, index) => {
@@ -96,8 +100,10 @@ const prefixLines = (text: string, first: string, rest: string) =>
     .map((line, index) => (index === 0 ? first + line : line ? rest + line : line))
     .join("\n");
 
-const flow = (nodes: ReadonlyArray<AdfTextNode> = [], separator: string) =>
-  nodes.every((node) => INLINE_NODES.has(node.type)) ? inlineText(nodes) : nodes.map(block).filter(isFilled).join(separator);
+const flow = (values: ReadonlyArray<unknown> = [], separator: string) => {
+  const nodes = nodesOf(values);
+  return nodes.every((node) => INLINE_NODES.has(node.type)) ? inlineText(nodes) : nodes.map(block).filter(isFilled).join(separator);
+};
 
 const orderedStart = (node: AdfTextNode) => {
   const order = node.attrs?.order;
@@ -111,7 +117,7 @@ const itemMarker = (list: AdfTextNode, item: AdfTextNode, index: number) => {
 };
 
 const listText = (list: AdfTextNode) =>
-  (list.content ?? [])
+  nodesOf(list.content)
     .map((item, index) => {
       if (!LIST_ITEM_TYPES.has(item.type)) return prefixLines(block(item), "  ", "  ");
       const marker = itemMarker(list, item, index);
@@ -121,8 +127,8 @@ const listText = (list: AdfTextNode) =>
     .join("\n");
 
 const tableText = (table: AdfTextNode) =>
-  (table.content ?? [])
-    .map((row) => (row.content ?? []).map((cell) => flow(cell.content, " ").replace(/\s+/g, " ").trim()))
+  nodesOf(table.content)
+    .map((row) => nodesOf(row.content).map((cell) => flow(cell.content, " ").replace(/\s+/g, " ").trim()))
     .filter((cells) => cells.some(isFilled))
     .map((cells) => cells.join(" | "))
     .join("\n");
@@ -151,7 +157,7 @@ function block(node: AdfTextNode): string {
     case "embedCard":
       return attr(node, "url");
     default:
-      return INLINE_NODES.has(node.type) ? inlineNode(node) : flow(node.content, "\n\n");
+      return node.text ?? (INLINE_NODES.has(node.type) ? inlineNode(node) : flow(node.content, "\n\n"));
   }
 }
 
