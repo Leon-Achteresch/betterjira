@@ -1,25 +1,32 @@
 import { Link } from "@tanstack/react-router";
 import { format } from "date-fns";
-import { ArrowDownUpIcon, RefreshCwIcon, SearchIcon, XIcon } from "lucide-react";
+import { ArrowDownUpIcon, ListChecksIcon, RefreshCwIcon, SearchIcon, XIcon } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { NAV_TAB_CLASS, NavTabIndicator, NavTabs } from "@/components/motion/nav-tabs";
 import { Tooltip } from "@/components/motion/tooltip";
 import { Button } from "@/components/ui/button";
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "@/components/ui/input-group";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { OptionSelect } from "@/components/ui/option-select";
 import { EASE_OUT } from "@/lib/ease";
+import { PULL_REQUEST_CHECK_FILTERS, PULL_REQUEST_CHECK_FILTER_LABELS, type PullRequestCheckFilter } from "@/lib/scm/pull-request-checks";
 import { PULL_REQUEST_SORTS, PULL_REQUEST_SORT_LABELS, type PullRequestSort } from "@/lib/scm/pull-request-sort";
 import { PULL_REQUEST_STATUSES, PULL_REQUEST_STATUS_LABELS, type PullRequestStatus } from "@/lib/scm/pull-requests";
 import { cn } from "@/lib/utils";
+import type { SelectOption } from "@/types/select-option";
 
 const ALL_REPOS = "all";
+
+const SORT_OPTIONS: SelectOption[] = PULL_REQUEST_SORTS.map((sort) => ({ value: sort, label: PULL_REQUEST_SORT_LABELS[sort] }));
+
+const CHECK_OPTIONS: SelectOption[] = PULL_REQUEST_CHECK_FILTERS.map((filter) => ({ value: filter, label: PULL_REQUEST_CHECK_FILTER_LABELS[filter] }));
 
 type PullRequestFiltersProps = {
   filter: PullRequestStatus;
   query: string;
   sort: PullRequestSort;
+  checks: PullRequestCheckFilter;
   repo: string;
-  repoOptions: Array<{ value: string; label: string }>;
+  repoOptions: SelectOption[];
   count: number;
   loading: boolean;
   refreshing: boolean;
@@ -27,6 +34,7 @@ type PullRequestFiltersProps = {
   onQueryChange: (query: string) => void;
   onRepoChange: (repo: string) => void;
   onSortChange: (sort: string) => void;
+  onChecksChange: (checks: string) => void;
   onRefresh: () => void;
 };
 
@@ -84,32 +92,26 @@ export function PullRequestFilters(props: PullRequestFiltersProps) {
             )}
           </AnimatePresence>
         </InputGroup>
-        <Select value={props.repo || ALL_REPOS} onValueChange={(value) => props.onRepoChange(value === ALL_REPOS ? "" : value)}>
-          <SelectTrigger aria-label="Repository filtern" className="h-8 max-w-64 min-w-40 rounded-xl">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ALL_REPOS}>Alle Repositories</SelectItem>
-            {props.repoOptions.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={props.sort} onValueChange={props.onSortChange}>
-          <SelectTrigger aria-label="Sortieren" className="h-8 max-w-64 min-w-40 rounded-xl *:data-[slot=select-value]:flex-1">
-            <ArrowDownUpIcon className="text-muted-foreground" />
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {PULL_REQUEST_SORTS.map((sort) => (
-              <SelectItem key={sort} value={sort}>
-                {PULL_REQUEST_SORT_LABELS[sort]}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <OptionSelect
+          label="Repository filtern"
+          value={props.repo || ALL_REPOS}
+          options={[{ value: ALL_REPOS, label: "Alle Repositories" }, ...props.repoOptions]}
+          onValueChange={(value) => props.onRepoChange(value === ALL_REPOS ? "" : value)}
+        />
+        <OptionSelect
+          label="Prüfstatus filtern"
+          value={props.checks}
+          options={CHECK_OPTIONS}
+          icon={<ListChecksIcon className="text-muted-foreground" />}
+          onValueChange={props.onChecksChange}
+        />
+        <OptionSelect
+          label="Sortieren"
+          value={props.sort}
+          options={SORT_OPTIONS}
+          icon={<ArrowDownUpIcon className="text-muted-foreground" />}
+          onValueChange={props.onSortChange}
+        />
         <div className="ml-auto flex items-center gap-1">
           <AnimatePresence mode="wait" initial={false}>
             <motion.span

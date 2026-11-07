@@ -375,6 +375,16 @@ const scmGithub = {
     CLOSED: [],
   },
 };
+if (scmScenario === "scm-checks")
+  scmGithub["qa/design-system"].OPEN.push(
+    scmGraphPullRequest("qa/design-system", 14, "Icons ohne Prüfdaten", "OPEN", 12, {
+      commits: { nodes: [{ commit: { statusCheckRollup: null } }] },
+    }),
+    scmGraphPullRequest("qa/design-system", 15, "Fokusrahmen schärfen", "OPEN", 30, {
+      commits: { nodes: [{ commit: { statusCheckRollup: { state: "QA_UNBEKANNT" } } }] },
+    }),
+    scmGraphPullRequest("qa/design-system", 16, "Changelog ergänzen", "OPEN", 40, { commits: { nodes: [] } }),
+  );
 const scmCloud = {
   OPEN: [
     {

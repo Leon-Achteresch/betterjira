@@ -1,20 +1,23 @@
-import { CircleAlertIcon, ExternalLinkIcon, GitPullRequestIcon, RotateCwIcon } from "lucide-react";
+import { CircleAlertIcon, ExternalLinkIcon, RotateCwIcon } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { Stagger, StaggerItem } from "@/components/motion/stagger";
 import { PullRequestRow } from "@/components/development/pull-request-row";
 import { Button } from "@/components/ui/button";
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EASE_OUT, SPRING_LAYOUT } from "@/lib/ease";
 import { PULL_REQUEST_LIST_LIMIT } from "@/lib/scm/model";
-import type { ListedPullRequest, PullRequestRepoState } from "@/lib/scm/pull-requests";
+import type { ListedPullRequest, PullRequestEmptyReason, PullRequestRepoState } from "@/lib/scm/pull-requests";
+import { PullRequestsEmpty } from "./pull-requests-empty";
 
 type PullRequestListProps = {
   pullRequests: ListedPullRequest[];
   repos: PullRequestRepoState[];
+  empty: PullRequestEmptyReason | null;
   filterLabel: string;
+  checksLabel: string;
   query: string;
   onOpen: (url: string) => void;
+  onChecksReset: () => void;
 };
 
 const fade = (reduce: boolean | null) => ({
@@ -24,7 +27,7 @@ const fade = (reduce: boolean | null) => ({
   transition: { duration: 0.2, ease: EASE_OUT },
 });
 
-export function PullRequestList({ pullRequests, repos, filterLabel, query, onOpen }: PullRequestListProps) {
+export function PullRequestList({ pullRequests, repos, empty, filterLabel, checksLabel, query, onOpen, onChecksReset }: PullRequestListProps) {
   const reduce = useReducedMotion();
   const failed = repos.filter((repo) => repo.error !== null);
   const truncated = repos.flatMap(({ id, repo, truncated, browseUrl }) => (truncated && browseUrl ? [{ id, repo, browseUrl }] : []));
@@ -64,20 +67,15 @@ export function PullRequestList({ pullRequests, repos, filterLabel, query, onOpe
             ))}
           </motion.div>
         ) : pullRequests.length === 0 ? (
-          <motion.div key="empty" {...fade(reduce)}>
-            <Empty className="rounded-2xl border border-dashed py-10">
-              <EmptyHeader>
-                <EmptyMedia variant="icon">
-                  <GitPullRequestIcon />
-                </EmptyMedia>
-                <EmptyTitle className="text-balance">
-                  {query ? `Keine Treffer für „${query}“` : `Keine Pull Requests mit Status „${filterLabel}“`}
-                </EmptyTitle>
-                <EmptyDescription>
-                  {failed.length > 0 ? "Einige Repositories konnten nicht geladen werden." : "Durchsucht werden alle verknüpften Repositories."}
-                </EmptyDescription>
-              </EmptyHeader>
-            </Empty>
+          <motion.div key={`empty:${empty ?? "status"}`} {...fade(reduce)}>
+            <PullRequestsEmpty
+              reason={empty ?? "status"}
+              query={query}
+              filterLabel={filterLabel}
+              checksLabel={checksLabel}
+              partial={failed.length > 0}
+              onChecksReset={onChecksReset}
+            />
           </motion.div>
         ) : (
           <motion.div key="list" {...fade(reduce)}>
@@ -103,7 +101,7 @@ export function PullRequestList({ pullRequests, repos, filterLabel, query, onOpe
       <AnimatePresence initial={false}>
         {truncated.length > 0 && (
           <motion.div key="truncated" layout={!reduce} {...fade(reduce)} className="flex flex-col gap-1 rounded-xl bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
-            <p>Je Repository und Status werden die {PULL_REQUEST_LIST_LIMIT} zuletzt aktualisierten Pull Requests geladen; Suche und Sortierung gelten nur für diese. Weitere gibt es in:</p>
+            <p>Je Repository und Status werden die {PULL_REQUEST_LIST_LIMIT} zuletzt aktualisierten Pull Requests geladen; Suche, Prüfstatus und Sortierung gelten nur für diese. Weitere gibt es in:</p>
             <ul className="flex flex-wrap gap-1">
               {truncated.map((repo) => (
                 <li key={repo.id}>

@@ -5,11 +5,19 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { Effect } from "effect";
 import { scmKeys } from "@/lib/scm/client";
 import { providerFor } from "@/lib/scm/provider";
+import {
+  DEFAULT_PULL_REQUEST_CHECK_FILTER,
+  PULL_REQUEST_CHECK_FILTER_LABELS,
+  pullRequestCheckFilterFrom,
+  pullRequestCheckFilterParam,
+  type PullRequestCheckFilter,
+} from "@/lib/scm/pull-request-checks";
 import { DEFAULT_PULL_REQUEST_SORT, pullRequestSortFrom, pullRequestSortParam, type PullRequestSort } from "@/lib/scm/pull-request-sort";
 import {
   listStateFor,
   PULL_REQUEST_STATUS_LABELS,
   loadPullRequests,
+  pullRequestEmptyReason,
   pullRequestTargets,
   visiblePullRequests,
   type ListedPullRequest,
@@ -31,6 +39,7 @@ export const usePullRequestsPage = (search: PullRequestsSearch) => {
   const status: PullRequestStatus = search.status ?? "open";
   const listState = listStateFor(status);
   const sort: PullRequestSort = search.sort ?? DEFAULT_PULL_REQUEST_SORT;
+  const checks: PullRequestCheckFilter = search.checks ?? DEFAULT_PULL_REQUEST_CHECK_FILTER;
   const selectedRepo = targets.some(({ id }) => id === search.repo) ? search.repo : undefined;
   const selected = selectedRepo ? targets.filter(({ id }) => id === selectedRepo) : targets;
 
@@ -61,7 +70,8 @@ export const usePullRequestsPage = (search: PullRequestsSearch) => {
   const listed: ListedPullRequest[] = selected.flatMap((target, index) =>
     (queries[index]?.data?.pullRequests ?? []).map((pr) => ({ pr, repo: target.link.repo, repoId: target.id })),
   );
-  const pullRequests = visiblePullRequests(listed, status, search.q, sort);
+  const pullRequests = visiblePullRequests(listed, status, search.q, sort, checks);
+  const empty = pullRequestEmptyReason(listed, status, search.q, checks);
   const updatedAt = Math.max(0, ...queries.map((query) => query.dataUpdatedAt));
 
   const pageStatus: PullRequestsPageStatus =
@@ -81,11 +91,14 @@ export const usePullRequestsPage = (search: PullRequestsSearch) => {
     filter: status,
     query: search.q ?? "",
     sort,
+    checks,
+    checksLabel: PULL_REQUEST_CHECK_FILTER_LABELS[checks],
     repo: selectedRepo ?? "",
     repoOptions: targets.map((target) => ({ value: target.id, label: target.link.repo })),
     repos,
     filterLabel: PULL_REQUEST_STATUS_LABELS[status],
     pullRequests,
+    empty,
     loading: pullRequests.length === 0 && repos.some((repo) => repo.status === "loading"),
     refreshing: queries.some((query) => query.isFetching),
     updatedAt: updatedAt > 0 ? new Date(updatedAt) : null,
@@ -95,6 +108,11 @@ export const usePullRequestsPage = (search: PullRequestsSearch) => {
       const next = pullRequestSortFrom(value);
       if (next && next !== sort) setSearch({ sort: pullRequestSortParam(next) }, false);
     },
+    onChecksChange: (value: string) => {
+      const next = pullRequestCheckFilterFrom(value);
+      if (next && next !== checks) setSearch({ checks: pullRequestCheckFilterParam(next) }, false);
+    },
+    onChecksReset: () => setSearch({ checks: undefined }, false),
     onRefresh: () => void queryClient.invalidateQueries({ queryKey: scmKeys.pullRequestsAll }),
     onOpen: (url: string) => void openUrl(url),
   };

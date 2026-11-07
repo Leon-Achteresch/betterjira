@@ -36,6 +36,7 @@ function PullRequests() {
             filter={page.filter}
             query={page.query}
             sort={page.sort}
+            checks={page.checks}
             repo={page.repo}
             repoOptions={page.repoOptions}
             count={page.pullRequests.length}
@@ -45,14 +46,18 @@ function PullRequests() {
             onQueryChange={page.onQueryChange}
             onRepoChange={page.onRepoChange}
             onSortChange={page.onSortChange}
+            onChecksChange={page.onChecksChange}
             onRefresh={page.onRefresh}
           />
           <PullRequestList
             pullRequests={page.pullRequests}
             repos={page.repos}
+            empty={page.empty}
             filterLabel={page.filterLabel}
+            checksLabel={page.checksLabel}
             query={page.query}
             onOpen={page.onOpen}
+            onChecksReset={page.onChecksReset}
           />
         </>
       )}
