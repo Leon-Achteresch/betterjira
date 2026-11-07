@@ -30,7 +30,7 @@ function MoveButton({
 }) {
   const reduce = useReducedMotion();
   return (
-    <Tooltip content={hint} side="top">
+    <Tooltip content={hint} side="left">
       <MotionButton
         variant="ghost"
         size="icon"
@@ -70,12 +70,12 @@ function ActiveColumn({
       dragListener={false}
       dragControls={controls}
       transition={reduce ? { duration: 0 } : SPRING_LAYOUT}
-      whileDrag={{ scale: 1.02, boxShadow: "0 6px 16px -6px rgb(0 0 0 / 0.25)" }}
-      className="group/column flex items-center gap-1 rounded-md bg-popover px-1 text-sm"
+      whileDrag={reduce ? undefined : { scale: 1.02 }}
+      className="group/column flex items-center gap-1 rounded-xl bg-popover px-1 text-sm"
     >
       <span
         onPointerDown={(event) => controls.start(event)}
-        className="flex cursor-grab touch-none items-center text-muted-foreground active:cursor-grabbing"
+        className="flex size-8 shrink-0 cursor-grab touch-none items-center justify-center text-muted-foreground active:cursor-grabbing"
         aria-hidden
       >
         <GripVerticalIcon className="size-3.5" />
@@ -89,9 +89,11 @@ function ActiveColumn({
           <ArrowDownIcon />
         </MoveButton>
       </span>
-      <Button variant="ghost" size="icon-xs" onClick={onRemove} aria-label={`${column.label} ausblenden`}>
-        <XIcon />
-      </Button>
+      <Tooltip content="Ausblenden" side="top">
+        <Button variant="ghost" size="icon" onClick={onRemove} aria-label={`${column.label} ausblenden`}>
+          <XIcon />
+        </Button>
+      </Tooltip>
     </Reorder.Item>
   );
 }
@@ -123,7 +125,7 @@ export function ColumnPicker({
           Spalten
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-80 gap-2 p-2">
+      <PopoverContent align="end" className="w-80 gap-2 p-2 motion-reduce:animate-none!">
         <p className="px-1 text-xs font-medium text-muted-foreground">Angezeigt · zum Sortieren ziehen oder Pfeile nutzen</p>
         <Reorder.Group axis="y" values={ids} onReorder={onReorder} className="flex max-h-56 flex-col overflow-y-auto">
           {columns.map((column) => (

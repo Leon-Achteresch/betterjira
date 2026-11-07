@@ -22,7 +22,7 @@ const headerOrder = (page: Page) =>
 const storedColumns = (page: Page) =>
   page.evaluate(() => {
     const raw = window.localStorage.getItem("betterjira-issue-views");
-    return raw ? (JSON.parse(raw).state?.views?.DEMO?.columns ?? null) : null;
+    return raw ? (JSON.parse(raw).state?.views?.['project = "DEMO" ORDER BY updated DESC']?.columns ?? null) : null;
   });
 
 const expectOrder = async (page: Page, labels: string[]) => {
@@ -42,7 +42,16 @@ const openPicker = async (page: Page) => {
 
 const shot = async (page: Page, testInfo: TestInfo, name: string) => {
   const dir = process.env.COLUMN_PICKER_SHOTS;
-  if (dir) await page.screenshot({ path: `${dir}/${testInfo.project.name}-${name}.png` });
+  if (!dir) return;
+  const fontLoaded = await page.evaluate(async () => {
+    await document.fonts.load('14px "Geist Variable"');
+    await document.fonts.ready;
+    await Promise.all(document.getAnimations().filter((animation) => animation.effect?.getComputedTiming().iterations !== Infinity).map((animation) => animation.finished.catch(() => undefined)));
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    return [...document.fonts].some((face) => face.family.includes("Geist") && face.status === "loaded");
+  });
+  expect(fontLoaded).toBe(true);
+  await page.screenshot({ path: `${dir}/${testInfo.project.name}-${name}.png` });
 };
 
 test.beforeEach(async ({ page }) => {
@@ -166,6 +175,7 @@ test.describe("390 px, dunkel, reduzierte Bewegung", () => {
   test("Picker bleibt ohne Seitenüberlauf mit großen Aktionen bedienbar", async ({ page }, testInfo) => {
     await openTable(page);
     await openPicker(page);
+    await expect(picker(page)).toHaveCSS("animation-name", "none");
     const up = moveUp(page, "Status");
     await up.focus();
     await expect(up).toBeFocused();

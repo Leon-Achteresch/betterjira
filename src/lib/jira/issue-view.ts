@@ -45,7 +45,7 @@ export const toggleValue = <T>(values: readonly T[], value: T) =>
 export const canMoveValue = <T>(values: readonly T[], value: T, offset: number) => {
   const from = values.indexOf(value);
   const to = from + offset;
-  return from >= 0 && offset !== 0 && to >= 0 && to < values.length;
+  return from >= 0 && Number.isSafeInteger(offset) && offset !== 0 && to >= 0 && to < values.length;
 };
 
 export const moveValue = <T>(values: readonly T[], value: T, offset: number) => {

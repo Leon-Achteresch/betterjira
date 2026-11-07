@@ -57,6 +57,9 @@ describe("canMoveValue", () => {
     expect(canMoveValue(values, "c", 1)).toBe(false);
     expect(canMoveValue(values, "x", 1)).toBe(false);
     expect(canMoveValue(values, "b", 0)).toBe(false);
+    expect(canMoveValue(values, "b", 0.5)).toBe(false);
+    expect(canMoveValue(values, "b", Number.NaN)).toBe(false);
+    expect(canMoveValue(values, "b", Number.POSITIVE_INFINITY)).toBe(false);
     expect(canMoveValue(["a"], "a", 1)).toBe(false);
   });
 });
