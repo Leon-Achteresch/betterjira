@@ -29,6 +29,20 @@ const project = {
   projectTypeKey: "software",
   avatarUrls: author.avatarUrls,
 };
+const projects =
+  scenario === "projects"
+    ? [
+        ["1", "DEMO", "Produktentwicklung"],
+        ["2", "OPS", "Betrieb"],
+        ["3", "OLD", "Archiv 2024"],
+        ["4", "MOB", "Mobile App"],
+        ["5", "WEB", "Webauftritt"],
+        ["6", "SEC", "Sicherheit"],
+        ["7", "DATA", "Datenplattform"],
+      ].map(([id, key, name]) => ({ ...project, id, key, name }))
+    : [project];
+if (scenario === "projects" && !localStorage.getItem("betterjira-favorites"))
+  localStorage.setItem("betterjira-favorites", JSON.stringify({ state: { projectIds: ["2"], hiddenProjectIds: ["3"] }, version: 0 }));
 const paragraph = (text) => ({
   type: "doc",
   version: 1,
@@ -123,6 +137,8 @@ if (scenario === "busy") {
     ]).flat(),
   };
 }
+if (window.__qaDescriptions)
+  for (const issue of issues) if (issue.key in window.__qaDescriptions) issue.fields.description = window.__qaDescriptions[issue.key];
 const boardStatuses = [
   { id: "10", name: "Triage", statusCategory: { key: "new", colorName: "blue-gray" } },
   { id: "11", name: "Zu erledigen", statusCategory: { key: "new", colorName: "blue-gray" } },
@@ -549,6 +565,34 @@ let listenerId = 0;
 let callbackId = 0;
 const requests = new Map();
 let nextId = 0;
+if (scenario === "rollout-search" && localStorage.getItem("betterjira:calendar:rollouts:v1") === null) {
+  const rollout = (index, title, start, end, notes, keys) => ({
+    id: `00000000-0000-4000-8000-${String(index).padStart(12, "0")}`,
+    title,
+    start,
+    end,
+    notes,
+    issues: keys.map((key) => ({ key, summary: `QA-Testticket ${key}` })),
+    siteUrl: "https://example.atlassian.net",
+    reminderMinutes: 15,
+    outlookEventId: null,
+    outlookAccountId: null,
+    outlookWebLink: null,
+  });
+  const hotfixes = Array.from({ length: 10 }, (_, index) => {
+    const day = String(index + 1).padStart(2, "0");
+    return rollout(index + 10, `Hotfix-Release 1.0.${index + 1}`, `2026-10-${day}T08:00:00.000Z`, `2026-10-${day}T09:00:00.000Z`, "", []);
+  });
+  localStorage.setItem(
+    "betterjira:calendar:rollouts:v1",
+    JSON.stringify([
+      rollout(1, "Produktion Release 2.4", "2026-11-06T13:00:00.000Z", "2026-11-06T14:00:00.000Z", "Monitoring (Grafana) beobachten", ["DEMO-1"]),
+      rollout(2, "Datenbank Migration", "2026-12-03T08:00:00.000Z", "2026-12-03T09:00:00.000Z", "Backup vorher prüfen", ["OPS-7"]),
+      rollout(3, "Wartungsfenster [intern] 50%", "2026-11-20T08:00:00.000Z", "2026-11-20T09:00:00.000Z", "", []),
+      ...hotfixes,
+    ]),
+  );
+}
 window.__qa = { writes: [], issueReads: [], failNextWrite: false, delayMs: 0, issues, wiki, briefing, briefingFailure: false, searches: [], searchDelayMs: 0, failSearch: false, emptySearch: false, sessionFailure: scenario === "session-error", sessionDelayMs: scenario === "session-slow" ? 1500 : 0, commands: [], opened: [], myselfDelayMs: 0, failMyself: false, myselfCalls: 0 };
 window.__qa.outlook = {
   calls: [],
@@ -556,8 +600,18 @@ window.__qa.outlook = {
   account: { id: "ABC123", displayName: "Lokaler Outlook-Testkalender", email: "outlook@example.com" },
   events: [{ id: "AAAA", title: "Externer Outlook-Termin", start: "2026-11-06T10:00:00.000Z", end: "2026-11-06T11:00:00.000Z", webLink: "", isAllDay: false }],
 };
+window.__qaUpdates = {
+  installed: [],
+  restarts: 0,
+  releases: [
+    { tag_name: "v0.7.0", published_at: "2026-11-06T18:14:30Z", draft: false, prerelease: false },
+    { tag_name: "v0.6.0", published_at: "2026-11-06T17:18:31Z", draft: false, prerelease: false },
+    { tag_name: "v0.5.0", published_at: "2026-11-06T12:49:31Z", draft: false, prerelease: false },
+  ],
+};
 const respond = async (request) => {
   const url = new URL(request.url);
+  if (url.hostname === "api.github.com") return { body: window.__qaUpdates.releases };
   const path = url.pathname.replace(/^.*\/rest\/(?:api\/[23]|agile\/1\.0)/, "");
   if (request.method !== "GET") {
     if (path.endsWith("approximate-count")) return { body: { count: issues.length } };
@@ -600,13 +654,19 @@ const respond = async (request) => {
     }
     return { status: 204 };
   }
+  window.__qaReads?.push(path);
   if (path === "/myself") {
     window.__qa.myselfCalls++;
     if (window.__qa.myselfDelayMs) await new Promise((resolve) => setTimeout(resolve, window.__qa.myselfDelayMs));
     if (window.__qa.failMyself) return { status: 503, body: { errorMessages: ["Test: Jira vorübergehend nicht erreichbar"] } };
     return { body: { ...author, accountId } };
   }
-  if (path.startsWith("/project/search")) return { body: { isLast: true, values: window.__qaProjects ?? [project] } };
+  if (path.startsWith("/project/search")) {
+    const rule = window.__qaProjectRule?.() ?? {};
+    if (rule.delayMs) await new Promise((resolve) => setTimeout(resolve, rule.delayMs));
+    if (rule.status) return { status: rule.status, body: { errorMessages: [`Test: Jira antwortet mit ${rule.status}`] } };
+    return { body: { isLast: true, values: rule.values ?? window.__qaProjects ?? projects } };
+  }
   if (path.startsWith("/filter/my")) return { body: [] };
   if (path === "/field")
     return {
@@ -797,6 +857,16 @@ window.__TAURI_INTERNALS__ = {
       return id;
     }
     if (command === "plugin:window|is_focused") return true;
+    if (command === "plugin:app|version") return "0.7.0";
+    if (command === "plugin:updater|check") return null;
+    if (command === "update_install_version") {
+      window.__qaUpdates.installed.push(args.version);
+      return null;
+    }
+    if (command === "plugin:process|restart") {
+      window.__qaUpdates.restarts++;
+      return null;
+    }
     if (command === "plugin:http|fetch") {
       const id = ++nextId;
       requests.set(id, { request: args.clientConfig, sent: false });

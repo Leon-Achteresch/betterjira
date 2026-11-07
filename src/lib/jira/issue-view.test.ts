@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { toMarkdown, toTsv } from "../table-export";
 import { fieldText } from "./field-text";
-import { collectFacetOptions, moveValue, sortClauseOf } from "./issue-view";
+import { canMoveValue, collectFacetOptions, moveValue, sortClauseOf } from "./issue-view";
 
 describe("collectFacetOptions", () => {
   const issues = [
@@ -23,6 +23,44 @@ describe("moveValue", () => {
   it("verschiebt innerhalb der Grenzen", () => {
     expect(moveValue(["a", "b", "c"], "a", 1)).toEqual(["b", "a", "c"]);
     expect(moveValue(["a", "b", "c"], "a", -1)).toEqual(["a", "b", "c"]);
+  });
+
+  it("bleibt an beiden Enden und bei unbekannten Werten unverändert", () => {
+    expect(moveValue(["a", "b", "c"], "c", 1)).toEqual(["a", "b", "c"]);
+    expect(moveValue(["a", "b", "c"], "x", 1)).toEqual(["a", "b", "c"]);
+    expect(moveValue([], "x", -1)).toEqual([]);
+  });
+
+  it("erzeugt über mehrere Schritte keine Duplikate und verliert nichts", () => {
+    let values = ["key", "summary", "status", "assignee"];
+    for (const offset of [1, 1, 1, 1, -1, -1, -1, -1, -1]) values = moveValue(values, "summary", offset);
+    expect(values).toEqual(["summary", "key", "status", "assignee"]);
+    expect(new Set(values).size).toBe(4);
+  });
+
+  it("verändert die Eingabe nicht und liefert immer eine neue Liste", () => {
+    const values = Object.freeze(["a", "b", "c"]);
+    const moved = moveValue(values, "b", -1);
+    const unchanged = moveValue(values, "a", -1);
+    expect(values).toEqual(["a", "b", "c"]);
+    expect(moved).toEqual(["b", "a", "c"]);
+    expect(unchanged).not.toBe(values);
+  });
+});
+
+describe("canMoveValue", () => {
+  it("sperrt die Grenzen, unbekannte Werte und Nullschritte", () => {
+    const values = ["a", "b", "c"];
+    expect(canMoveValue(values, "a", -1)).toBe(false);
+    expect(canMoveValue(values, "a", 1)).toBe(true);
+    expect(canMoveValue(values, "b", -1)).toBe(true);
+    expect(canMoveValue(values, "c", 1)).toBe(false);
+    expect(canMoveValue(values, "x", 1)).toBe(false);
+    expect(canMoveValue(values, "b", 0)).toBe(false);
+    expect(canMoveValue(values, "b", 0.5)).toBe(false);
+    expect(canMoveValue(values, "b", Number.NaN)).toBe(false);
+    expect(canMoveValue(values, "b", Number.POSITIVE_INFINITY)).toBe(false);
+    expect(canMoveValue(["a"], "a", 1)).toBe(false);
   });
 });
 

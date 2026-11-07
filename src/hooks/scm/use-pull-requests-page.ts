@@ -5,6 +5,7 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { Effect } from "effect";
 import { scmKeys } from "@/lib/scm/client";
 import { providerFor } from "@/lib/scm/provider";
+import { DEFAULT_PULL_REQUEST_SORT, pullRequestSortFrom, pullRequestSortParam, type PullRequestSort } from "@/lib/scm/pull-request-sort";
 import {
   listStateFor,
   PULL_REQUEST_STATUS_LABELS,
@@ -29,6 +30,7 @@ export const usePullRequestsPage = (search: PullRequestsSearch) => {
   const targets = useMemo(() => pullRequestTargets(repoLinks, connections), [repoLinks, connections]);
   const status: PullRequestStatus = search.status ?? "open";
   const listState = listStateFor(status);
+  const sort: PullRequestSort = search.sort ?? DEFAULT_PULL_REQUEST_SORT;
   const selectedRepo = targets.some(({ id }) => id === search.repo) ? search.repo : undefined;
   const selected = selectedRepo ? targets.filter(({ id }) => id === selectedRepo) : targets;
 
@@ -59,7 +61,7 @@ export const usePullRequestsPage = (search: PullRequestsSearch) => {
   const listed: ListedPullRequest[] = selected.flatMap((target, index) =>
     (queries[index]?.data?.pullRequests ?? []).map((pr) => ({ pr, repo: target.link.repo, repoId: target.id })),
   );
-  const pullRequests = visiblePullRequests(listed, status, search.q);
+  const pullRequests = visiblePullRequests(listed, status, search.q, sort);
   const updatedAt = Math.max(0, ...queries.map((query) => query.dataUpdatedAt));
 
   const pageStatus: PullRequestsPageStatus =
@@ -71,13 +73,14 @@ export const usePullRequestsPage = (search: PullRequestsSearch) => {
           ? "unlinked"
           : "ready";
 
-  const setSearch = (patch: PullRequestsSearch) =>
-    void navigate({ search: (previous) => ({ ...previous, ...patch }), replace: true });
+  const setSearch = (patch: PullRequestsSearch, replace = true) =>
+    void navigate({ search: (previous) => ({ ...previous, ...patch }), replace });
 
   return {
     status: pageStatus,
     filter: status,
     query: search.q ?? "",
+    sort,
     repo: selectedRepo ?? "",
     repoOptions: targets.map((target) => ({ value: target.id, label: target.link.repo })),
     repos,
@@ -88,6 +91,10 @@ export const usePullRequestsPage = (search: PullRequestsSearch) => {
     updatedAt: updatedAt > 0 ? new Date(updatedAt) : null,
     onQueryChange: (q: string) => setSearch({ q: q || undefined }),
     onRepoChange: (repo: string) => setSearch({ repo: repo || undefined }),
+    onSortChange: (value: string) => {
+      const next = pullRequestSortFrom(value);
+      if (next && next !== sort) setSearch({ sort: pullRequestSortParam(next) }, false);
+    },
     onRefresh: () => void queryClient.invalidateQueries({ queryKey: scmKeys.pullRequestsAll }),
     onOpen: (url: string) => void openUrl(url),
   };

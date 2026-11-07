@@ -2,6 +2,7 @@ import { Semaphore } from "effect";
 import { repoLinkId } from "./development";
 import type { PullRequest, PullRequestListState, PullRequestState, RepoLink, ScmConnection } from "./model";
 import { providerFor } from "./provider";
+import { DEFAULT_PULL_REQUEST_SORT, pullRequestSortParam, sortPullRequests, type PullRequestSort } from "./pull-request-sort";
 
 export const PULL_REQUEST_STATUSES = ["open", "draft", "merged", "closed"] as const satisfies readonly PullRequestState[];
 export type PullRequestStatus = (typeof PULL_REQUEST_STATUSES)[number];
@@ -13,7 +14,7 @@ export const PULL_REQUEST_STATUS_LABELS: Record<PullRequestStatus, string> = {
   closed: "Geschlossen",
 };
 
-export type PullRequestsSearch = { status?: PullRequestStatus; q?: string; repo?: string };
+export type PullRequestsSearch = { status?: PullRequestStatus; q?: string; repo?: string; sort?: PullRequestSort };
 
 const MAX_SEARCH_LENGTH = 200;
 
@@ -23,6 +24,7 @@ export const pullRequestsSearch = (raw: Record<string, unknown>): PullRequestsSe
   status: PULL_REQUEST_STATUSES.find((status) => status === raw.status && status !== "open"),
   q: text(raw.q, MAX_SEARCH_LENGTH),
   repo: text(raw.repo, MAX_SEARCH_LENGTH * 2),
+  sort: pullRequestSortParam(raw.sort),
 });
 
 export const listStateFor = (status: PullRequestStatus): PullRequestListState => (status === "draft" ? "open" : status);
@@ -58,9 +60,15 @@ export type ListedPullRequest = { pr: PullRequest; repo: string; repoId: string 
 const matchesQuery = ({ pr, repo }: ListedPullRequest, query: string) =>
   [pr.title, `#${pr.number}`, pr.source, pr.target, pr.author?.name ?? "", repo].some((value) => value.toLowerCase().includes(query));
 
-export const visiblePullRequests = (listed: readonly ListedPullRequest[], status: PullRequestStatus, query: string | undefined) => {
+export const visiblePullRequests = (
+  listed: readonly ListedPullRequest[],
+  status: PullRequestStatus,
+  query: string | undefined,
+  sort: PullRequestSort = DEFAULT_PULL_REQUEST_SORT,
+) => {
   const needle = query?.trim().toLowerCase() ?? "";
-  return listed
-    .filter((entry) => entry.pr.state === status && (!needle || matchesQuery(entry, needle)))
-    .sort((a, b) => b.pr.updatedAt.localeCompare(a.pr.updatedAt));
+  return sortPullRequests(
+    listed.filter((entry) => entry.pr.state === status && (!needle || matchesQuery(entry, needle))),
+    sort,
+  );
 };
