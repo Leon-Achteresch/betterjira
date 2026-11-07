@@ -257,6 +257,18 @@ if (scenario === "board") {
     });
   }
 }
+if (scenario === "attachments") {
+  const attachment = (id, filename, mimeType, size) => ({ id, filename, mimeType, size, created: "2026-11-03T09:00:00Z", author });
+  issues[0].fields.attachment = window.__qaAttachments ?? [
+    attachment("att-1", "Screenshot Übergabe.png", "image/png", 245_000),
+    attachment("att-2", "Angebot (final) [v2].pdf", "application/pdf", 1_840_000),
+    attachment("att-3", "Protokoll_Abstimmung_Team_mit_sehr_langem_Dateinamen_der_umbrechen_muss_2026-11-03.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", 38_000),
+    attachment("att-4", "export.csv", "text/csv", 2_100),
+    attachment("att-5", "archiv.zip", "application/zip", 5_300_000),
+    attachment("att-6", "", "", 512),
+    attachment("att-7", "bericht.pdf", "application/octet-stream", 92_000),
+  ];
+}
 if (scenario === "time-tracking") {
   const other = { accountId: "qa-other", displayName: "Sam Muster", avatarUrls: author.avatarUrls };
   const entries = [
@@ -888,6 +900,10 @@ const respond = async (request) => {
         body: { errorMessages: ["Test: Jira vorübergehend nicht erreichbar"] },
       };
     }
+    if (path.endsWith("/attachments")) {
+      window.__qa.writes.push({ path, method: request.method, input: { bytes: request.data?.length ?? 0 } });
+      return { body: [] };
+    }
     const input = request.data ? JSON.parse(new TextDecoder().decode(new Uint8Array(request.data))) : {};
     if (path === "/issue" && window.__qa.createFailure) {
       const failure = window.__qa.createFailure;
@@ -1172,6 +1188,10 @@ window.__TAURI_INTERNALS__ = {
     if (command === "session_get" && scenario === "scm-offline") return null;
     if (command === "scm_gh_hosts" && scmScenario) return JSON.stringify(window.__qaScm.hosts);
     if (command === "scm_request" && scmScenario) return scmRespond(args);
+    if (command === "plugin:opener|open_url" && scenario === "attachments") {
+      (window.__qa.opened ??= []).push(args.url);
+      return null;
+    }
     if (command === "plugin:opener|open_url" && scmScenario) {
       window.__qaScm.opened.push(args.url);
       return null;

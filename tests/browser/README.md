@@ -319,3 +319,9 @@ Integration offener PRs:
 - Akzeptiert werden nur `https`-Links mit exakt der Origin der verbundenen Instanz, ohne Zugangsdaten und mit Pfad `/browse/<SCHLÜSSEL>`. Query und Fragment werden verworfen. Fremde oder täuschende Hosts, andere Protokolle, Zugangsdaten, andere Pfade und fehlende Anmeldung (`scenario=calendar-offline`) werden in der Palette erklärt, ohne Query oder Fragment anzuzeigen.
 - Im Link-Modus startet keine Jira-Volltextsuche (`window.__qa.searches` bleibt ohne neuen `text ~`-Eintrag); eine verzögerte frühere Freitextantwort überlagert den Linktreffer nicht.
 - Automatisch: `bunx playwright test tests/browser/ticket-reference.e2e.ts --workers=1`; mit `TICKET_REFERENCE_SHOTS=<Ordner>` zusätzlich Screenshots. Parsergrenzen: `src/lib/ticket-reference.test.ts`.
+
+## Anhänge durchsuchen
+
+- `...fixture.html?scenario=attachments&route=/issue/DEMO-1`, dann „Details“ → „Anhänge“: sieben lokale Testanhänge (Bild, PDF, langer Dokumentname, CSV, ZIP, Anhang ohne Namen und MIME-Typ, PDF-Endung mit `application/octet-stream`). `window.__qaAttachments` (per `addInitScript`) ersetzt die Liste.
+- Suche und Dateityp-Filter arbeiten nur auf den geladenen Metadaten. `window.__qa.opened` enthält extern geöffnete Anhang-URLs; ein Upload wird lokal simuliert und in `window.__qa.writes` protokolliert.
+- Automatisch: `bunx playwright test tests/browser/attachment-filter.e2e.ts --workers=1`; mit `ATTACHMENT_FILTER_SHOTS=<Ordner>` zusätzlich Screenshots.
