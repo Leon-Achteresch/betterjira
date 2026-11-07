@@ -52,6 +52,7 @@ export const useCalendarPage = () => {
     today: now,
     rollouts: items,
     rolloutsPending: rollouts.isPending,
+    rolloutsLoaded: rollouts.data !== undefined,
     rolloutsError: rollouts.error,
     retryRollouts: () => void rollouts.refetch(),
     outlookEvents,
