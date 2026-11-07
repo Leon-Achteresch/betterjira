@@ -13,7 +13,7 @@ const PROJECT_KEY = /^[A-Z][A-Z0-9_]*$/;
 
 export const normalizeQuery = (value: string) => value.trim().slice(0, QUERY_MAX_LENGTH);
 
-const queryOf = (value: unknown) => {
+export const queryOf = (value: unknown) => {
   const text = typeof value === "number" ? String(value) : typeof value === "string" ? normalizeQuery(value) : "";
   return text || undefined;
 };

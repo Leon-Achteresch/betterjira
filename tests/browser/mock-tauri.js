@@ -137,6 +137,8 @@ if (scenario === "busy") {
     ]).flat(),
   };
 }
+if (window.__qaDescriptions)
+  for (const issue of issues) if (issue.key in window.__qaDescriptions) issue.fields.description = window.__qaDescriptions[issue.key];
 const boardStatuses = [
   { id: "10", name: "Triage", statusCategory: { key: "new", colorName: "blue-gray" } },
   { id: "11", name: "Zu erledigen", statusCategory: { key: "new", colorName: "blue-gray" } },
@@ -533,6 +535,34 @@ let listenerId = 0;
 let callbackId = 0;
 const requests = new Map();
 let nextId = 0;
+if (scenario === "rollout-search" && localStorage.getItem("betterjira:calendar:rollouts:v1") === null) {
+  const rollout = (index, title, start, end, notes, keys) => ({
+    id: `00000000-0000-4000-8000-${String(index).padStart(12, "0")}`,
+    title,
+    start,
+    end,
+    notes,
+    issues: keys.map((key) => ({ key, summary: `QA-Testticket ${key}` })),
+    siteUrl: "https://example.atlassian.net",
+    reminderMinutes: 15,
+    outlookEventId: null,
+    outlookAccountId: null,
+    outlookWebLink: null,
+  });
+  const hotfixes = Array.from({ length: 10 }, (_, index) => {
+    const day = String(index + 1).padStart(2, "0");
+    return rollout(index + 10, `Hotfix-Release 1.0.${index + 1}`, `2026-10-${day}T08:00:00.000Z`, `2026-10-${day}T09:00:00.000Z`, "", []);
+  });
+  localStorage.setItem(
+    "betterjira:calendar:rollouts:v1",
+    JSON.stringify([
+      rollout(1, "Produktion Release 2.4", "2026-11-06T13:00:00.000Z", "2026-11-06T14:00:00.000Z", "Monitoring (Grafana) beobachten", ["DEMO-1"]),
+      rollout(2, "Datenbank Migration", "2026-12-03T08:00:00.000Z", "2026-12-03T09:00:00.000Z", "Backup vorher prüfen", ["OPS-7"]),
+      rollout(3, "Wartungsfenster [intern] 50%", "2026-11-20T08:00:00.000Z", "2026-11-20T09:00:00.000Z", "", []),
+      ...hotfixes,
+    ]),
+  );
+}
 window.__qa = { writes: [], issueReads: [], failNextWrite: false, delayMs: 0, issues, wiki, briefing, briefingFailure: false, searches: [], searchDelayMs: 0, failSearch: false, emptySearch: false, sessionFailure: scenario === "session-error", sessionDelayMs: scenario === "session-slow" ? 1500 : 0, commands: [], myselfDelayMs: 0, failMyself: false, myselfCalls: 0 };
 window.__qa.outlook = {
   calls: [],
