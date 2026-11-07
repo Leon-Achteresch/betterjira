@@ -37,6 +37,7 @@ const open = async (page: Page, siteUrl?: string) => {
     await navigator.clipboard.writeText(text);
     window.__qaClipboard.calls = [];
   }, SENTINEL);
+  await settle(page);
 };
 
 const settle = async (page: Page) => {

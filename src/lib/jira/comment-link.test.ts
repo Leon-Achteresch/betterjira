@@ -57,4 +57,13 @@ describe("jiraCommentUrl", () => {
     expect(jiraCommentUrl("https://acme.atlassian.net", "", "1")).toBeNull();
     expect(jiraCommentUrl("https://acme.atlassian.net", "DEMO-1", " ")).toBeNull();
   });
+
+  it.each([".", ".."]) ("lehnt Pfadsegment %s als Schlüssel ab", (key) => {
+    expect(jiraCommentUrl("https://acme.atlassian.net", key, "1")).toBeNull();
+  });
+
+  it("behandelt ungültiges Unicode als nicht verfügbaren Link", () => {
+    expect(jiraCommentUrl("https://acme.atlassian.net", "DEMO-\ud800", "1")).toBeNull();
+    expect(jiraCommentUrl("https://acme.atlassian.net", "DEMO-1", "\ud800")).toBeNull();
+  });
 });
