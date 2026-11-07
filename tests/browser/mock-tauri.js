@@ -589,7 +589,7 @@ const respond = async (request) => {
     window.__qa.myselfCalls++;
     if (window.__qa.myselfDelayMs) await new Promise((resolve) => setTimeout(resolve, window.__qa.myselfDelayMs));
     if (window.__qa.failMyself) return { status: 503, body: { errorMessages: ["Test: Jira vorübergehend nicht erreichbar"] } };
-    return { body: { ...author, accountId } };
+    return { body: { ...author, accountId: window.__qa.accountId ?? accountId } };
   }
   if (path.startsWith("/project/search")) {
     const rule = window.__qaProjectRule?.() ?? {};

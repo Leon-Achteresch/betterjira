@@ -1,10 +1,11 @@
 import { Schema } from "effect";
-import { useCallback } from "react";
+import { useCallback, useEffect } from "react";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { useJiraMyself, useJiraSite } from "@/lib/jira/queries";
 import {
   EMPTY_WORKSPACE,
+  WORKSPACE_STORAGE_KEY,
   Workspaces,
   workspaceId,
   type Workspace,
@@ -30,7 +31,7 @@ export const useWorkspaceStore = create<WorkspaceState>()(
         })),
     }),
     {
-      name: "betterjira-workspaces",
+      name: WORKSPACE_STORAGE_KEY,
       merge: (persisted, current) =>
         Schema.is(PersistedState)(persisted)
           ? { ...current, workspaces: persisted.workspaces }
@@ -58,4 +59,15 @@ export function useWorkspace() {
     [id, update],
   );
   return { id, workspace, ready: !!id, update: updateWorkspace };
+}
+
+export function useWorkspaceStorageSync(active: boolean) {
+  useEffect(() => {
+    if (!active) return;
+    const sync = (event: StorageEvent) => {
+      if (event.key === WORKSPACE_STORAGE_KEY) void useWorkspaceStore.persist.rehydrate();
+    };
+    window.addEventListener("storage", sync);
+    return () => window.removeEventListener("storage", sync);
+  }, [active]);
 }

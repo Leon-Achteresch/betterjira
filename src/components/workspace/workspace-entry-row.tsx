@@ -3,7 +3,14 @@ import { Link } from "@tanstack/react-router";
 import { formatDistanceToNowStrict } from "date-fns";
 import { de } from "date-fns/locale";
 import { motion, useReducedMotion } from "motion/react";
-import { BookOpenIcon, FilePenLineIcon, MessageSquareDashedIcon, PinIcon, StickyNoteIcon } from "lucide-react";
+import {
+  BookOpenIcon,
+  FilePenLineIcon,
+  MessageSquareDashedIcon,
+  NotebookPenIcon,
+  PinIcon,
+  StickyNoteIcon,
+} from "lucide-react";
 import { JiraStatusBadge } from "@/components/jira-status-badge";
 import { Tooltip } from "@/components/motion/tooltip";
 import { Button } from "@/components/ui/button";
@@ -15,11 +22,24 @@ const MotionButton = motion.create(Button);
 
 const CHIP = "inline-flex items-center gap-1 rounded-xl px-2 py-0.5 text-[0.7rem] font-medium";
 
-export function WorkspaceEntryRow({ entry, onTogglePin }: { entry: WorkspaceEntry; onTogglePin: () => void }) {
+export function WorkspaceEntryRow({
+  entry,
+  onTogglePin,
+  onEditNote,
+}: {
+  entry: WorkspaceEntry;
+  onTogglePin: () => void;
+  onEditNote: () => void;
+}) {
   const reduce = useReducedMotion();
   const detailsId = useId();
+  const hasNote = !!entry.note.trim();
+  const noteAction = hasNote ? "Notiz bearbeiten" : "Notiz hinzufügen";
   return (
-    <div className="group flex items-start gap-1 rounded-xl p-1 transition-colors hover:bg-muted/60 has-[a:focus-visible]:bg-muted/60">
+    <div
+      data-workspace-entry={entry.key}
+      className="group flex items-start gap-1 rounded-xl p-1 transition-colors hover:bg-muted/60 has-[a:focus-visible]:bg-muted/60"
+    >
       <Link
         to="/issue/$key"
         params={{ key: entry.key }}
@@ -74,6 +94,21 @@ export function WorkspaceEntryRow({ entry, onTogglePin }: { entry: WorkspaceEntr
           )}
         </span>
       </Link>
+      <Tooltip content={noteAction}>
+        <MotionButton
+          variant="ghost"
+          size="icon"
+          data-note-trigger
+          aria-label={`Notiz zu ${entry.key} ${hasNote ? "bearbeiten" : "hinzufügen"}`}
+          aria-haspopup="dialog"
+          onClick={onEditNote}
+          whileTap={reduce ? undefined : { scale: 0.96 }}
+          transition={SPRING_PRESS}
+          className="mt-1.5 text-muted-foreground sm:opacity-0 sm:group-focus-within:opacity-100 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
+        >
+          <NotebookPenIcon />
+        </MotionButton>
+      </Tooltip>
       <Tooltip content={entry.pinned ? "Lösen" : "Anheften"}>
         <MotionButton
           variant="ghost"

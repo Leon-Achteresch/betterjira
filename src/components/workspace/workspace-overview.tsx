@@ -28,6 +28,7 @@ type WorkspaceOverviewProps = {
   searchFor: (filter: WorkspacePageFilter) => WorkspacePageSearch;
   onQueryChange: (value: string) => void;
   onTogglePin: (entry: WorkspaceEntry) => void;
+  onEditNote: (entry: WorkspaceEntry) => void;
 };
 
 export function WorkspaceOverview(props: WorkspaceOverviewProps) {
@@ -56,6 +57,7 @@ export function WorkspaceOverview(props: WorkspaceOverviewProps) {
           </InputGroupAddon>
           <InputGroupInput
             type="search"
+            data-workspace-search
             aria-label="Arbeitsplatz durchsuchen"
             placeholder="Ticket, Notiz oder Entwurf …"
             value={props.query}
@@ -107,7 +109,11 @@ export function WorkspaceOverview(props: WorkspaceOverviewProps) {
                 transition={SPRING_LAYOUT}
                 exit={{ opacity: 0, transition: { duration: 0.12, ease: EASE_OUT } }}
               >
-                <WorkspaceEntryRow entry={entry} onTogglePin={() => props.onTogglePin(entry)} />
+                <WorkspaceEntryRow
+                  entry={entry}
+                  onTogglePin={() => props.onTogglePin(entry)}
+                  onEditNote={() => props.onEditNote(entry)}
+                />
               </StaggerItem>
             ))}
           </AnimatePresence>

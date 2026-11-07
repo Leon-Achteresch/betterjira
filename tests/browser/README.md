@@ -137,3 +137,11 @@ Der vollständige Ablaufbericht einschließlich Vielnutzer, sorgfältigem Leser,
 - Sieben Testbereiche, ein Favorit (Betrieb) und ein in der Seitenleiste ausgeblendeter Bereich (Archiv 2024): `...fixture.html?scenario=projects&route=/bereiche`.
 - `window.__qaProjectRule = () => ({ delayMs, status, values })` steuert die Projektabfrage (verzögern, mit HTTP-Status scheitern, andere Bereiche liefern, etwa für einen Kontowechsel). `window.__qaReads`, per `addInitScript` als Array gesetzt, sammelt alle gelesenen Pfade.
 - Automatisch: `bunx playwright test tests/browser/projects.e2e.ts --workers=1` prüft Suche und Ansicht in der URL mit Zurück/Vorwärts, Favoriten synchron mit der Seitenleiste, ausgeblendete Bereiche, Ladefehler und fehlgeschlagene Aktualisierung mit Retry, Abmelden und Kontowechsel, Tastatur und Command Palette sowie Desktop hell und 390 px dunkel. Mit `PROJECTS_SHOTS=<Ordner>` speichert der Test Screenshots.
+
+## Private Notizen im Arbeitsplatz
+
+`http://localhost:1420/tests/browser/fixture.html?scenario=workspace&route=/arbeitsplatz`: Jede Zeile hat die Aktion „Notiz bearbeiten“ bzw. „Notiz hinzufügen“. Der Dialog speichert nur mit „Speichern“ oder Strg/⌘ + Enter in den lokalen Arbeitsbereich des aktuellen Kontos; es entsteht kein Jira-Schreibzugriff (`window.__qa.writes` bleibt leer).
+
+`window.__qa.accountId = "qa-colleague"` lässt die nächste `/myself`-Antwort ein anderes Konto melden, ohne die Seite neu zu laden. Ein `visibilitychange` nach Ablauf der Query-Frische löst den Wechsel aus; `undefined` kehrt zu `qa-user` zurück. Ein zweiter Tab mit derselben Fixture ändert den gemeinsamen lokalen Speicher und simuliert so eine Änderung während der Bearbeitung.
+
+`workspace-notes.e2e.ts` prüft Persistenz, Abgleich mit dem Notizfeld im Ticket, unveränderte Kommentar- und Feldentwürfe, Konto-Bindung von Speichern und Rückgängig, Konflikte, Fokus nach dem Filtern und 390 px hell/dunkel. Mit `WORKSPACE_NOTES_SHOTS=<Ordner>` speichert der Test Screenshots.

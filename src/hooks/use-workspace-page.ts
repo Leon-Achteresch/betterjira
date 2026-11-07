@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useFieldDraftStore } from "@/hooks/use-field-drafts";
 import { useWorkspace } from "@/hooks/use-workspace";
+import { useWorkspaceNoteEditor } from "@/hooks/use-workspace-note-editor";
 import { RECENT_ISSUE_LIMIT, scopedFieldDraftKeys, togglePinnedIssue } from "@/lib/workspace";
 import {
   filterWorkspaceEntries,
@@ -28,6 +29,8 @@ export function useWorkspacePage(search: WorkspacePageSearch) {
     setQuery(urlQuery);
   }
   const entries = workspaceEntries(workspace, scopedFieldDraftKeys(Object.keys(fieldDrafts), id));
+  const visible = filterWorkspaceEntries(entries, filter, query);
+  const note = useWorkspaceNoteEditor(visible);
 
   return {
     ready,
@@ -35,7 +38,8 @@ export function useWorkspacePage(search: WorkspacePageSearch) {
     query,
     total: entries.length,
     counts: workspaceFilterCounts(entries),
-    entries: filterWorkspaceEntries(entries, filter, query),
+    entries: visible,
+    note,
     emptyState: workspaceEmptyState(filter, query),
     recentLimit: RECENT_ISSUE_LIMIT,
     searchFor: (next: WorkspacePageFilter) => workspacePageSearch(next, query),
