@@ -68,7 +68,7 @@ export function IssueAttachments({ issueKey, attachments }: { issueKey: string; 
               <ArrowDownUpIcon className="text-muted-foreground" />
               <SelectValue />
             </SelectTrigger>
-            <SelectContent position="popper" align="end" className="rounded-2xl">
+            <SelectContent position="popper" align="end" className="rounded-2xl motion-reduce:animate-none!">
               {sort.options.map((option) => (
                 <SelectItem key={option.value} value={option.value} className="min-h-8 rounded-xl">
                   {option.label}

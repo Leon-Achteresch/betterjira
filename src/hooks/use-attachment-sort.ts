@@ -10,6 +10,7 @@ import {
 
 export function useAttachmentSort<T extends SortableAttachment>(scope: string, attachments: readonly T[]) {
   const [choice, setChoice] = useState<{ scope: string; mode: AttachmentSortMode }>({ scope, mode: ATTACHMENT_SORT_DEFAULT });
+  if (choice.scope !== scope) setChoice({ scope, mode: ATTACHMENT_SORT_DEFAULT });
   const mode = choice.scope === scope ? choice.mode : ATTACHMENT_SORT_DEFAULT;
   const sorted = useMemo(() => sortAttachments(attachments, mode), [attachments, mode]);
   const select = useCallback(

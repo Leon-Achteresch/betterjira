@@ -51,6 +51,9 @@ const shot = async (page: Page, testInfo: TestInfo, name: string) => {
   if (!dir) return;
   await page.evaluate(() => document.fonts.ready);
   expect(await page.evaluate(() => document.fonts.check("12px 'Geist Variable'"))).toBe(true);
+  await expect.poll(() => panel(page).locator("ul > li").evaluateAll(
+    (items) => items.every((item) => getComputedStyle(item).transform === "none"),
+  )).toBe(true);
   await page.screenshot({ path: `${dir}/${testInfo.project.name}-${name}.png` });
 };
 
@@ -167,9 +170,10 @@ test("390 px: keine Überbreite, Ziele mindestens 32 px", async ({ page }, testI
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(ISSUE("DEMO-1"));
   await openAttachments(page);
-  expect((await trigger(page).boundingBox())?.height).toBeGreaterThanOrEqual(32);
+  await expect.poll(async () => (await trigger(page).boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(32);
   await trigger(page).click();
-  for (const option of await page.getByRole("option").all()) expect((await option.boundingBox())?.height).toBeGreaterThanOrEqual(32);
+  for (const option of await page.getByRole("option").all())
+    await expect.poll(async () => (await option.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(32);
   const listbox = await page.getByRole("listbox").boundingBox();
   expect((listbox?.x ?? -1) >= 0 && (listbox?.x ?? 0) + (listbox?.width ?? 0) <= 390).toBe(true);
   await shot(page, testInfo, "390-offen");
