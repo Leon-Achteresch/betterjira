@@ -3,6 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { EyeOffIcon, FolderSearchIcon, SearchIcon, SearchXIcon, StarIcon, TriangleAlertIcon, XIcon } from "lucide-react";
 import { NAV_TAB_CLASS, NavTabIndicator, NavTabs } from "@/components/motion/nav-tabs";
+import { SortMenu } from "@/components/motion/sort-menu";
 import { Tooltip } from "@/components/motion/tooltip";
 import { FavoriteButton } from "@/components/projects/favorite-button";
 import { ProjectAvatar } from "@/components/shell/project-avatar";
@@ -16,14 +17,26 @@ import { Spinner } from "@/components/ui/spinner";
 import type { ProjectDirectoryState } from "@/hooks/jira/use-project-directory";
 import { EASE_OUT, SPRING_LAYOUT } from "@/lib/ease";
 import { jiraErrors } from "@/lib/jira/field-values";
-import { PROJECT_VIEW_IDS, PROJECT_VIEWS, projectDirectorySearch, type ProjectView } from "@/lib/project-directory";
+import {
+  PROJECT_SORT_IDS,
+  PROJECT_SORTS,
+  PROJECT_VIEW_IDS,
+  PROJECT_VIEWS,
+  projectDirectorySearch,
+  type ProjectSort,
+  type ProjectView,
+} from "@/lib/project-directory";
 
 type Props = {
   directory: ProjectDirectoryState;
   query: string;
   view: ProjectView;
+  sort: ProjectSort;
+  onSortChange: (sort: ProjectSort) => void;
   onQueryChange: (query: string) => void;
 };
+
+const SORT_OPTIONS = PROJECT_SORT_IDS.map((id) => ({ id, label: PROJECT_SORTS[id].label }));
 
 const EMPTY_TEXT = {
   none: { title: "Keine Bereiche", description: "Dein Jira-Konto hat keinen Zugriff auf Bereiche." },
@@ -50,7 +63,7 @@ function Fade({ children }: { children: ReactNode }) {
 
 function SearchField({ query, onQueryChange }: Pick<Props, "query" | "onQueryChange">) {
   return (
-    <InputGroup className="h-9 w-full sm:w-72">
+    <InputGroup className="h-9 min-w-0 flex-1 sm:w-72 sm:flex-none">
       <InputGroupAddon>
         <SearchIcon />
       </InputGroupAddon>
@@ -135,7 +148,7 @@ function RetryButton({ retrying, onRetry, size }: { retrying: boolean; onRetry: 
   );
 }
 
-function Content({ directory, query, onQueryChange }: Props) {
+function Content({ directory, query, sort, onQueryChange }: Props) {
   if (directory.loadError)
     return (
       <Fade>
@@ -180,7 +193,7 @@ function Content({ directory, query, onQueryChange }: Props) {
           {directory.empty === "no-favorites" && (
             <EmptyContent>
               <Button variant="outline" size="sm" asChild>
-                <Link to="/bereiche" search={projectDirectorySearch({ q: query })}>
+                <Link to="/bereiche" search={projectDirectorySearch({ q: query, sort })}>
                   Alle Bereiche zeigen
                 </Link>
               </Button>
@@ -208,7 +221,7 @@ function Content({ directory, query, onQueryChange }: Props) {
 }
 
 export function ProjectDirectory(props: Props) {
-  const { directory, query, view, onQueryChange } = props;
+  const { directory, query, view, sort, onSortChange, onQueryChange } = props;
   const shown = directory.entries.length;
   const total = directory.counts.alle;
 
@@ -220,7 +233,7 @@ export function ProjectDirectory(props: Props) {
             <Link
               key={id}
               to="/bereiche"
-              search={projectDirectorySearch({ q: query, ansicht: id })}
+              search={projectDirectorySearch({ q: query, ansicht: id, sort })}
               aria-current={id === view ? "page" : undefined}
               className={NAV_TAB_CLASS}
             >
@@ -230,7 +243,10 @@ export function ProjectDirectory(props: Props) {
             </Link>
           ))}
         </NavTabs>
-        <SearchField query={query} onQueryChange={onQueryChange} />
+        <div className="flex items-center gap-2">
+          <SearchField query={query} onQueryChange={onQueryChange} />
+          <SortMenu label="Sortierung" options={SORT_OPTIONS} value={sort} onValueChange={onSortChange} />
+        </div>
       </div>
       <AnimatePresence initial={false}>
         {directory.refreshError && (

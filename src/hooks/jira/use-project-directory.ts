@@ -1,13 +1,13 @@
 import { useJiraProjects } from "@/lib/jira/queries";
-import { projectDirectory, type ProjectView } from "@/lib/project-directory";
+import { projectDirectory, type ProjectSort, type ProjectView } from "@/lib/project-directory";
 import { useProjectPrefs } from "@/lib/project-prefs";
 
-export function useProjectDirectory({ query, view }: { query: string; view: ProjectView }) {
+export function useProjectDirectory({ query, view, sort }: { query: string; view: ProjectView; sort: ProjectSort }) {
   const projects = useJiraProjects();
   const favoriteIds = useProjectPrefs((state) => state.projectIds);
   const hiddenIds = useProjectPrefs((state) => state.hiddenProjectIds);
   const toggleFavorite = useProjectPrefs((state) => state.toggleProject);
-  const directory = projectDirectory(projects.data ?? [], { query, view, favoriteIds, hiddenIds });
+  const directory = projectDirectory(projects.data ?? [], { query, view, sort, favoriteIds, hiddenIds });
 
   return {
     ...directory,

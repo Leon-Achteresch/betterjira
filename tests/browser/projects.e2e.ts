@@ -24,6 +24,25 @@ const main = (page: Page) => page.getByRole("main");
 const list = (page: Page) => main(page).getByRole("list", { name: "Bereiche" });
 const views = (page: Page) => main(page).getByRole("navigation", { name: "Bereichsansicht" });
 const search = (page: Page) => main(page).getByRole("searchbox", { name: "Bereiche durchsuchen" });
+const sortButton = (page: Page) => main(page).getByRole("button", { name: /^Sortierung:/ });
+const rowNames = (page: Page) =>
+  list(page)
+    .getByRole("listitem")
+    .evaluateAll((rows) => rows.map((row) => row.querySelector(".font-medium")?.textContent ?? ""));
+const searchParams = (page: Page) => Object.fromEntries(new URL(page.url()).searchParams);
+const dataReads = (page: Page) =>
+  page.evaluate(() => (window.__qaReads ?? []).filter((path) => /^\/(project|board|agile|search|issue)/.test(path)));
+
+const LOADED_ORDER = ["Produktentwicklung", "Betrieb", "Archiv 2024", "Mobile App", "Webauftritt", "Sicherheit", "Datenplattform"];
+const NAME_ORDER = ["Archiv 2024", "Betrieb", "Datenplattform", "Mobile App", "Produktentwicklung", "Sicherheit", "Webauftritt"];
+const KEY_ORDER = ["Datenplattform", "Produktentwicklung", "Mobile App", "Archiv 2024", "Betrieb", "Sicherheit", "Webauftritt"];
+
+const chooseSort = async (page: Page, label: string) => {
+  await sortButton(page).click();
+  await page.getByRole("menuitemradio", { name: label }).click();
+  await expect(page.getByRole("menu")).toHaveCount(0);
+};
+
 const prefs = (page: Page) => page.evaluate(() => JSON.parse(localStorage.getItem("betterjira-favorites") ?? "{}").state);
 
 const sidebar = async (page: Page) => {
@@ -197,6 +216,8 @@ test("Command Palette und Tastatur führen zur Übersicht und in einen Bereich",
   await page.keyboard.type("daten");
   await page.keyboard.press("Tab");
   await page.keyboard.press("Tab");
+  await expect(sortButton(page)).toBeFocused();
+  await page.keyboard.press("Tab");
   await expect(list(page).getByRole("link", { name: /Datenplattform/ })).toBeFocused();
   await page.keyboard.press("Enter");
   await expect(page).toHaveURL(/\/bereiche\/DATA$/);
@@ -228,6 +249,76 @@ test("Darstellung: Desktop hell und 390 px dunkel ohne Seitenüberlauf", async (
   expect(fonts.family).toContain("Geist");
   expect(fonts.overflow).toBeLessThanOrEqual(0);
   expect(fonts.dark).toBe(narrow);
+  const sortBox = await sortButton(page).boundingBox();
+  expect(sortBox?.height).toBeGreaterThanOrEqual(32);
+  expect((sortBox?.x ?? 0) + (sortBox?.width ?? 0)).toBeLessThanOrEqual(page.viewportSize()?.width ?? 0);
   await page.mouse.move(0, 0);
   if (shots) await page.screenshot({ path: `${shots}/${narrow ? "390-dunkel" : "desktop-hell"}.png` });
+});
+
+test("Sortierung ordnet nur geladene Bereiche um und folgt URL, Verlauf und Direktlink", async ({ page }) => {
+  await open(page, "/bereiche?sort=unbekannt");
+  await expect(list(page).getByRole("listitem")).toHaveCount(7);
+  await expect(sortButton(page)).toHaveAccessibleName("Sortierung: Standard");
+  await expect.poll(() => rowNames(page)).toEqual(LOADED_ORDER);
+  expect(searchParams(page)).toEqual({});
+  const readsBefore = await dataReads(page);
+  await list(page)
+    .getByRole("listitem")
+    .evaluateAll((rows) => rows.forEach((row) => row.setAttribute("data-qa-mounted", "1")));
+
+  await sortButton(page).focus();
+  await page.keyboard.press("Enter");
+  const nameOption = page.getByRole("menuitemradio", { name: "Name A–Z" });
+  const standardOption = page.getByRole("menuitemradio", { name: "Standard" });
+  await expect(standardOption).toHaveAttribute("aria-checked", "true");
+  await expect(standardOption).toBeFocused();
+  await page.keyboard.press("ArrowDown");
+  await expect(nameOption).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("menu")).toHaveCount(0);
+  await expect(sortButton(page)).toBeFocused();
+  await expect(page).toHaveURL(/\/bereiche\?sort=name$/);
+  await expect(sortButton(page)).toHaveAccessibleName("Sortierung: Name A–Z");
+  await expect.poll(() => rowNames(page)).toEqual(NAME_ORDER);
+  await expect(list(page).locator('li[data-qa-mounted="1"]')).toHaveCount(7);
+  await expect(list(page).getByRole("listitem").filter({ hasText: "Archiv 2024" }).getByText("Nicht in Seitenleiste")).toBeVisible();
+
+  await chooseSort(page, "Schlüssel");
+  expect(searchParams(page)).toEqual({ sort: "schluessel" });
+  await expect.poll(() => rowNames(page)).toEqual(KEY_ORDER);
+
+  await page.goBack();
+  await expect(page).toHaveURL(/\/bereiche\?sort=name$/);
+  await expect.poll(() => rowNames(page)).toEqual(NAME_ORDER);
+  await page.goBack();
+  await expect(page).toHaveURL(/\/bereiche$/);
+  await expect.poll(() => rowNames(page)).toEqual(LOADED_ORDER);
+  await page.goForward();
+  await expect(sortButton(page)).toHaveAccessibleName("Sortierung: Name A–Z");
+  await expect.poll(() => rowNames(page)).toEqual(NAME_ORDER);
+  await expect(list(page).locator('li[data-qa-mounted="1"]')).toHaveCount(7);
+
+  await chooseSort(page, "Favoriten zuerst");
+  await expect.poll(() => rowNames(page)).toEqual(["Betrieb", ...NAME_ORDER.filter((name) => name !== "Betrieb")]);
+  await list(page).getByRole("button", { name: "Webauftritt favorisieren" }).click();
+  await expect.poll(() => rowNames(page)).toEqual(["Betrieb", "Webauftritt", "Archiv 2024", "Datenplattform", "Mobile App", "Produktentwicklung", "Sicherheit"]);
+  await expect(list(page).locator('li[data-qa-mounted="1"]')).toHaveCount(7);
+  expect(await dataReads(page)).toEqual(readsBefore);
+
+  await open(page, `/bereiche?${new URLSearchParams({ q: "a", sort: "favoriten" })}`);
+  await expect(search(page)).toHaveValue("a");
+  await expect(sortButton(page)).toHaveAccessibleName("Sortierung: Favoriten zuerst");
+  await expect.poll(() => rowNames(page)).toEqual(["Webauftritt", "Archiv 2024", "Datenplattform", "Mobile App"]);
+
+  await views(page).getByRole("link", { name: /Favoriten/ }).click();
+  await expect.poll(() => searchParams(page)).toEqual({ q: "a", ansicht: "favoriten", sort: "favoriten" });
+  await expect.poll(() => rowNames(page)).toEqual(["Webauftritt"]);
+  await search(page).fill("ar");
+  await expect.poll(() => searchParams(page)).toEqual({ q: "ar", ansicht: "favoriten", sort: "favoriten" });
+
+  await chooseSort(page, "Standard");
+  await expect.poll(() => searchParams(page)).toEqual({ q: "ar", ansicht: "favoriten" });
+  await page.goBack();
+  await expect.poll(() => searchParams(page)).toEqual({ q: "ar", ansicht: "favoriten", sort: "favoriten" });
 });
