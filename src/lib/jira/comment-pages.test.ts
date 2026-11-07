@@ -32,14 +32,18 @@ describe("nextCommentPosition", () => {
     expect(nextCommentPosition(page(4, ["c1", "c2"], { startAt: 0, total: 9 }))).toBeUndefined();
   });
 
-  it("verlässt sich ohne Gesamtzahl auf eine bestätigte Seitengröße", () => {
+  it("lädt ohne Gesamtzahl auch nach kürzeren Seiten bis zu einer leeren Seite weiter", () => {
     expect(nextCommentPosition(page(0, ["c1", "c2"], { maxResults: 2 }))).toBe(2);
-    expect(nextCommentPosition(page(0, ["c1"], { maxResults: 2 }))).toBeUndefined();
+    expect(nextCommentPosition(page(0, ["c1"], { maxResults: 2 }))).toBe(1);
     expect(nextCommentPosition(page(0, ["c1"]))).toBe(1);
+    expect(nextCommentPosition(page(1, [], { maxResults: 2 }))).toBeUndefined();
+    expect(nextCommentPosition(page(2, ["c3", "c4"], { total: 2 }))).toBe(4);
   });
 
   it("ignoriert ungültige Metadaten", () => {
     expect(nextCommentPosition(page(2, ["c3"], { startAt: -5, total: 1.5 }))).toBe(3);
+    expect(nextCommentPosition(page(2, ["c3"], { startAt: Number.MAX_SAFE_INTEGER + 1, total: Infinity }))).toBe(3);
+    expect(nextCommentPosition(page(Number.MAX_SAFE_INTEGER, ["c3"]))).toBeUndefined();
   });
 });
 
@@ -48,7 +52,8 @@ describe("initialCommentPosition", () => {
     expect(initialCommentPosition(page(0, ["c1", "c2"], { total: 7 }))).toBe(2);
     expect(initialCommentPosition(page(0, ["c6", "c7"], { startAt: 5, total: 7 }))).toBe(0);
     expect(initialCommentPosition(page(0, ["c1", "c2"], { total: 2 }))).toBeUndefined();
-    expect(initialCommentPosition(page(0, []))).toBeUndefined();
+    expect(initialCommentPosition(page(0, []))).toBe(0);
+    expect(initialCommentPosition(page(0, [], { total: 0 }))).toBeUndefined();
   });
 });
 
@@ -72,10 +77,13 @@ describe("summarizeCommentThread", () => {
     expect(commentProgressLabel(thread)).toBe("2 von 7 Kommentaren geladen · Jira liefert keine weiteren");
   });
 
-  it("nimmt die jüngste Gesamtzahl, aber nie weniger als geladen", () => {
+  it("bewahrt die höchste bekannte Gesamtzahl, aber nie weniger als geladen", () => {
     const detail = page(0, ["c1", "c2"], { total: 3 });
+    expect(summarizeCommentThread(detail, [page(2, ["c3"], { total: 9 })]).total).toBe(9);
     expect(summarizeCommentThread(detail, [page(2, ["c3", "c4"], { total: 4 })]).total).toBe(4);
     expect(summarizeCommentThread(detail, [page(2, ["c3", "c4"], { total: 2 })]).total).toBe(4);
+    expect(summarizeCommentThread(page(0, ["c1", "c2"], { total: 7 }), [page(2, ["c3", "c4"], { total: 2 })]))
+      .toMatchObject({ loaded: 4, total: 7, next: 4 });
     expect(summarizeCommentThread(page(0, ["c1"]), []).total).toBeUndefined();
   });
 });
@@ -89,6 +97,7 @@ describe("commentProgressLabel", () => {
       "3 Kommentare geladen · Gesamtzahl unbekannt",
     );
     expect(commentProgressLabel({ comments: [], loaded: 7, total: 7, incomplete: false })).toBe("Alle 7 Kommentare geladen");
+    expect(commentProgressLabel({ comments: [], loaded: 7, total: 8, incomplete: false })).toBe("7 von 8 Kommentaren geladen");
   });
 });
 

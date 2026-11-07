@@ -24,7 +24,12 @@ const startsOf = async (page: Page, key = "DEMO-1") =>
 const shot = async (page: Page, testInfo: TestInfo, name: string) => {
   const dir = process.env.COMMENT_PAGES_SHOTS;
   if (!dir) return;
-  await section(page).scrollIntoViewIfNeeded();
+  await progress(page).scrollIntoViewIfNeeded();
+  await page.evaluate(() => document.fonts.ready);
+  expect(await page.evaluate(() => document.fonts.check("14px 'Geist Variable'"))).toBe(true);
+  await expect.poll(() => section(page).locator('ol > li, [role="alert"]').evaluateAll(
+    (nodes) => nodes.every((node) => getComputedStyle(node).opacity === "1" && getComputedStyle(node).transform === "none"),
+  )).toBe(true);
   await page.screenshot({ path: `${dir}/${testInfo.project.name}-${name}.png` });
 };
 
@@ -85,6 +90,38 @@ test("lädt mehrere, auch kürzere Seiten mit Duplikaten lückenlos nach", async
   await expect(items(page)).toHaveCount(7);
 });
 
+test("kurze Seiten ohne Gesamtzahl enden nicht vorzeitig; eine neuere Gesamtzahl wird übernommen", async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.assign(window, {
+      __qaCommentPagesRule: (_key: string, startAt: number) => ({ pageSize: 1, maxResults: 50, total: startAt === 2 ? null : startAt === 3 ? 10 : 1 }),
+    });
+  });
+  await page.goto(ISSUE("DEMO-1"));
+  await more(page).click();
+  await expect(items(page)).toHaveCount(3);
+  await expect(more(page)).toBeVisible();
+  await more(page).click();
+  await expect(items(page)).toHaveCount(4);
+  await expect(progress(page)).toHaveText("4 von 10 Kommentaren geladen");
+  await expect(section(page).getByRole("heading", { name: "Kommentare · 10" })).toBeVisible();
+  await more(page).click();
+  await expect(items(page)).toHaveCount(5);
+  await expect(progress(page)).toHaveText("5 von 10 Kommentaren geladen");
+  await expect(more(page)).toBeVisible();
+  expect(await startsOf(page)).toEqual([2, 3, 4]);
+});
+
+test("fehlendes optionales comments-Feld gilt als leere Seite und benennt eine Lücke", async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.assign(window, { __qaCommentPagesRule: () => ({ omitComments: true }) });
+  });
+  await page.goto(ISSUE("DEMO-1"));
+  await more(page).click();
+  await expect(progress(page)).toHaveText("2 von 7 Kommentaren geladen · Jira liefert keine weiteren");
+  await expect(items(page)).toHaveCount(2);
+  await expect(section(page).getByRole("alert")).toHaveCount(0);
+});
+
 test("leere Seite vor der Gesamtzahl wird als Lücke benannt", async ({ page }) => {
   await page.addInitScript(() => {
     Object.assign(window, { __qaCommentPagesRule: () => ({ comments: [] }) });
@@ -124,6 +161,29 @@ test("Fehler beim Nachladen behält geladene Kommentare und lädt per Retry", as
   await expect(items(page)).toHaveCount(6);
   await expect(alert).toHaveCount(0);
   await expect(more(page)).toBeVisible();
+});
+
+test("Offline wartet der Abruf erkennbar und setzt ohne doppelten Request fort", async ({ page }) => {
+  await page.goto(ISSUE("DEMO-1"));
+  await editor(page).fill("Entwurf bleibt auch offline");
+  await page.evaluate(() => {
+    Object.defineProperty(Navigator.prototype, "onLine", { configurable: true, get: () => false });
+    window.dispatchEvent(new Event("offline"));
+  });
+  await more(page).click();
+  const waiting = section(page).getByRole("button", { name: "Wartet auf Verbindung" });
+  await expect(waiting).toHaveAttribute("aria-disabled", "true");
+  await expect(waiting).toHaveAttribute("aria-busy", "false");
+  await expect(progress(page)).toContainText("Offline, Abruf wartet auf Verbindung");
+  await page.keyboard.press("Enter");
+  expect(await startsOf(page)).toEqual([]);
+  await page.evaluate(() => {
+    Object.defineProperty(Navigator.prototype, "onLine", { configurable: true, get: () => true });
+    window.dispatchEvent(new Event("online"));
+  });
+  await expect(items(page)).toHaveCount(7);
+  expect(await startsOf(page)).toEqual([2]);
+  await expect(editor(page)).toHaveValue("Entwurf bleibt auch offline");
 });
 
 test("Ticketwechsel bricht das Nachladen ab und zeigt keine fremden Kommentare", async ({ page }) => {
@@ -181,6 +241,31 @@ test("Nachladen behält Editor und Entwurf, Senden schreibt genau einmal", async
   expect(await editor(page).evaluate((element) => element === (window as unknown as QaWindow).__qaEditorRef)).toBe(true);
   const writes = (await qa(page)).writes.filter((write) => write.path.endsWith("/comment"));
   expect(writes).toHaveLength(1);
+});
+
+test("fehlgeschlagene Aktualisierung nach dem Senden bleibt sichtbar und Retry lädt vorhandene Seiten neu", async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.assign(window, {
+      __qaCommentPagesRule: () => ((window as unknown as QaWindow).__qaCommentFail ? { status: 503 } : {}),
+    });
+  });
+  await page.goto(ISSUE("DEMO-1"));
+  await more(page).click();
+  await expect(items(page)).toHaveCount(7);
+  await page.evaluate(() => { (window as unknown as QaWindow).__qaCommentFail = true; });
+  await editor(page).fill("QA: geschrieben, aber Aktualisierung fehlgeschlagen");
+  await editor(page).focus();
+  await page.keyboard.press("Control+Enter");
+  await expect(section(page).getByRole("alert")).toContainText("Test: Jira antwortet mit 503");
+  await expect(editor(page)).toHaveValue("");
+  await expect(items(page)).toHaveCount(7);
+  await expect(progress(page)).toHaveText("7 von 8 Kommentaren geladen");
+  await page.evaluate(() => { (window as unknown as QaWindow).__qaCommentFail = false; });
+  await section(page).getByRole("button", { name: "Erneut versuchen" }).click();
+  await expect(items(page)).toHaveCount(8);
+  await expect(progress(page)).toHaveText("Alle 8 Kommentare geladen");
+  await expect(section(page).getByRole("alert")).toHaveCount(0);
+  expect((await qa(page)).writes.filter((write) => write.path.endsWith("/comment"))).toHaveLength(1);
 });
 
 test("Tastatur und 390 px dunkel ohne Seitenüberlauf", async ({ page }, testInfo) => {

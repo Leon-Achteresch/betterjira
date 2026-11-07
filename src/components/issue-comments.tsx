@@ -16,24 +16,17 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { useIssueComments } from "@/hooks/use-issue-comments";
-import { useIssueCommentPages, type CommentPaging } from "@/hooks/jira/use-issue-comment-pages";
+import type { IssueCommentPages as CommentPages } from "@/hooks/jira/use-issue-comment-pages";
 import { EASE_OUT } from "@/lib/ease";
 import { IS_MAC } from "@/lib/platform";
 import { COMMENT_TEMPLATES } from "@/lib/workspace";
-import type { JiraIssueDetail } from "@/lib/jira/queries";
-
-type Comment = NonNullable<JiraIssueDetail["fields"]["comment"]>["comments"][number];
-
 export function IssueComments({
   issueKey,
-  comments,
-  paging,
+  pages,
 }: {
   issueKey: string;
-  comments: readonly Comment[];
-  paging?: CommentPaging;
+  pages: CommentPages;
 }) {
-  const pages = useIssueCommentPages(issueKey, comments, paging);
   const editor = useIssueComments(issueKey, pages.comments);
   const reduce = useReducedMotion();
   const pageControl = pages.visible && <IssueCommentPages pages={pages} />;

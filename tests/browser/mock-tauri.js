@@ -691,7 +691,7 @@ const respond = async (request) => {
     const from = rule.startAt ?? startAt;
     const size = Math.min(rule.pageSize ?? maxResults, maxResults);
     const total = rule.total === null ? undefined : (rule.total ?? all.length);
-    return { body: { startAt: from, maxResults: size, total, comments: rule.comments ?? all.slice(from, from + size) } };
+    return { body: { startAt: from, maxResults: rule.maxResults ?? size, total, comments: rule.omitComments ? undefined : (rule.comments ?? all.slice(from, from + size)) } };
   }
   const issue = issues.find((issue) => path === `/issue/${issue.key}`);
   if (issue && url.searchParams.get("fields") === "issuelinks") {

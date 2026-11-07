@@ -19,6 +19,7 @@ import { useIssueReadingPosition } from "@/hooks/use-issue-reading-position";
 import { useIssueActions } from "@/hooks/use-issue-actions";
 import { useIssueDevelopmentPanel } from "@/hooks/scm/use-issue-development-panel";
 import { useIssueLinks } from "@/hooks/jira/use-issue-links";
+import { useIssueCommentPages } from "@/hooks/jira/use-issue-comment-pages";
 import { EASE_OUT } from "@/lib/ease";
 import { useJiraIssue, useJiraSite, type JiraIssueDetail } from "@/lib/jira/queries";
 import { cn } from "@/lib/utils";
@@ -155,6 +156,11 @@ export function IssueView({ issueKey, initialTab }: { issueKey: string; initialT
   useIssueReadingPosition(issueKey, !!issue.data);
   const actions = useIssueActions(issue.data, site.data?.siteUrl, initialTab);
   const links = useIssueLinks(issueKey);
+  const commentPages = useIssueCommentPages(
+    issue.data?.key ?? issueKey,
+    issue.data?.fields.comment?.comments ?? [],
+    issue.data?.fields.comment,
+  );
   const development = useIssueDevelopmentPanel(
     issueKey,
     issue.data && { projectKey: issue.data.fields.project.key, summary: issue.data.fields.summary },
@@ -170,7 +176,6 @@ export function IssueView({ issueKey, initialTab }: { issueKey: string; initialT
   if (!issue.data) return <IssueViewSkeleton />;
   const { fields } = issue.data;
   const subtasks = fields.subtasks ?? [];
-  const comments = fields.comment?.comments ?? [];
 
   return (
     <motion.article variants={container} initial="hidden" animate="show" className={LAYOUT.article}>
@@ -246,8 +251,8 @@ export function IssueView({ issueKey, initialTab }: { issueKey: string; initialT
           />
         </Section>
 
-        <Section title={`Kommentare · ${Math.max(fields.comment?.total ?? 0, comments.length)}`}>
-          <IssueComments key={issue.data.key} issueKey={issue.data.key} comments={comments} paging={fields.comment} />
+        <Section title={`Kommentare · ${commentPages.total ?? commentPages.loaded}`}>
+          <IssueComments key={issue.data.key} issueKey={issue.data.key} pages={commentPages} />
         </Section>
       </div>
 

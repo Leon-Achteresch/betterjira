@@ -9,7 +9,7 @@ import { commentProgressLabel } from "@/lib/jira/comment-pages";
 export function IssueCommentPages({ pages }: { pages: CommentPages }) {
   const reduce = useReducedMotion();
   const actionable = pages.next !== undefined || !!pages.error;
-  const label = pages.error ? "Erneut versuchen" : "Weitere Kommentare laden";
+  const label = pages.waiting ? "Wartet auf Verbindung" : pages.error ? "Erneut versuchen" : "Weitere Kommentare laden";
 
   return (
     <motion.div
@@ -26,18 +26,18 @@ export function IssueCommentPages({ pages }: { pages: CommentPages }) {
           role="status"
           className="min-w-0 text-xs text-muted-foreground tabular-nums outline-none"
         >
-          {commentProgressLabel(pages)}
+          {commentProgressLabel(pages)}{pages.waiting ? " · Offline, Abruf wartet auf Verbindung" : ""}
         </p>
         {actionable && (
           <Button
             type="button"
             variant="outline"
-            aria-disabled={pages.loading}
+            aria-disabled={pages.loading || pages.waiting || !pages.ready}
             aria-busy={pages.loading}
             onClick={pages.loadMore}
             className="aria-disabled:opacity-70"
           >
-            {pages.loading ? <Spinner /> : pages.error ? <RefreshCwIcon /> : <ChevronsDownIcon />}
+            {pages.loading ? <Spinner className="motion-reduce:animate-none" /> : pages.error ? <RefreshCwIcon /> : <ChevronsDownIcon />}
             <AnimatePresence mode="popLayout" initial={false}>
               <motion.span
                 key={label}

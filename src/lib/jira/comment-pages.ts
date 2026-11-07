@@ -8,12 +8,12 @@ const CommentPageResponse = Schema.Struct({
   startAt: Schema.optional(Schema.Number),
   maxResults: Schema.optional(Schema.Number),
   total: Schema.optional(Schema.Number),
-  comments: Schema.Array(IssueComment),
+  comments: Schema.optional(Schema.Array(IssueComment)),
 });
 
 export type JiraComment = typeof IssueComment.Type;
 
-export type CommentPage = typeof CommentPageResponse.Type & { requestedAt: number };
+export type CommentPage = Omit<typeof CommentPageResponse.Type, "comments"> & { comments: readonly JiraComment[]; requestedAt: number };
 
 export type CommentThread = {
   comments: JiraComment[];
@@ -24,27 +24,29 @@ export type CommentThread = {
 };
 
 const count = (value: number | undefined) =>
-  value !== undefined && Number.isInteger(value) && value >= 0 ? value : undefined;
+  value !== undefined && Number.isSafeInteger(value) && value >= 0 ? value : undefined;
 
 export const nextCommentPosition = (page: CommentPage): number | undefined => {
   if (page.comments.length === 0) return undefined;
   const next = (count(page.startAt) ?? page.requestedAt) + page.comments.length;
-  if (next <= page.requestedAt) return undefined;
+  if (!Number.isSafeInteger(next) || next <= page.requestedAt) return undefined;
   const total = count(page.total);
-  if (total !== undefined) return next < total ? next : undefined;
-  const limit = count(page.maxResults);
-  return limit !== undefined && page.comments.length < limit ? undefined : next;
+  if (total !== undefined && total >= next) return next < total ? next : undefined;
+  return next;
 };
 
 export const initialCommentPosition = (first: CommentPage) =>
-  (count(first.startAt) ?? 0) > 0 ? 0 : nextCommentPosition(first);
+  (count(first.startAt) ?? 0) > 0 || (first.comments.length === 0 && count(first.total) === undefined) ? 0 : nextCommentPosition(first);
 
 export const summarizeCommentThread = (first: CommentPage, pages: readonly CommentPage[]): CommentThread => {
   const byId = new Map<string, JiraComment>();
   for (const page of [first, ...pages])
     for (const comment of page.comments) if (!byId.has(comment.id)) byId.set(comment.id, comment);
   const last = pages.at(-1);
-  const reported = [...pages, first].reverse().map((page) => count(page.total)).find((total) => total !== undefined);
+  const reported = [first, ...pages].reduce<number | undefined>((known, page) => {
+    const total = count(page.total);
+    return total === undefined ? known : Math.max(known ?? 0, total);
+  }, undefined);
   const loaded = byId.size;
   const total = reported === undefined ? undefined : Math.max(reported, loaded);
   const next = last ? nextCommentPosition(last) : initialCommentPosition(first);
@@ -60,7 +62,8 @@ export const summarizeCommentThread = (first: CommentPage, pages: readonly Comme
 export const commentProgressLabel = ({ loaded, total, next, incomplete }: CommentThread) => {
   const known = total === undefined ? `${loaded} Kommentare geladen · Gesamtzahl unbekannt` : `${loaded} von ${total} Kommentaren geladen`;
   if (incomplete) return `${known} · Jira liefert keine weiteren`;
-  if (next !== undefined || total === undefined) return known;
+  if (total === undefined && next === undefined) return `${known} · Jira liefert keine weiteren`;
+  if (next !== undefined || total === undefined || loaded < total) return known;
   return `Alle ${total} Kommentare geladen`;
 };
 
@@ -77,4 +80,4 @@ export const fetchCommentPage = (key: string, startAt: number) =>
       orderBy: "created",
     })}`,
     CommentPageResponse,
-  ).pipe(Effect.map((page): CommentPage => ({ ...page, requestedAt: startAt })));
+  ).pipe(Effect.map((page): CommentPage => ({ ...page, comments: page.comments ?? [], requestedAt: startAt })));
