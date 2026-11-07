@@ -5,7 +5,7 @@ import { PullRequestRow } from "@/components/development/pull-request-row";
 import { Button } from "@/components/ui/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { Skeleton } from "@/components/ui/skeleton";
-import { EASE_OUT } from "@/lib/ease";
+import { EASE_OUT, SPRING_LAYOUT } from "@/lib/ease";
 import { PULL_REQUEST_LIST_LIMIT } from "@/lib/scm/model";
 import type { ListedPullRequest, PullRequestRepoState } from "@/lib/scm/pull-requests";
 
@@ -84,7 +84,13 @@ export function PullRequestList({ pullRequests, repos, filterLabel, query, onOpe
             <Stagger role="list" aria-busy={waiting || undefined} className="-mx-2 flex flex-col">
               <AnimatePresence initial={false}>
                 {pullRequests.map((entry) => (
-                  <StaggerItem key={entry.pr.url} role="listitem" layout={!reduce} exit={{ opacity: 0, transition: { duration: 0.12 } }}>
+                  <StaggerItem
+                    key={entry.pr.url}
+                    role="listitem"
+                    layout={!reduce}
+                    transition={{ layout: SPRING_LAYOUT }}
+                    exit={{ opacity: 0, transition: { duration: 0.12 } }}
+                  >
                     <PullRequestRow pr={entry.pr} repo={entry.repo} onOpen={onOpen} />
                   </StaggerItem>
                 ))}
@@ -97,7 +103,7 @@ export function PullRequestList({ pullRequests, repos, filterLabel, query, onOpe
       <AnimatePresence initial={false}>
         {truncated.length > 0 && (
           <motion.div key="truncated" layout={!reduce} {...fade(reduce)} className="flex flex-col gap-1 rounded-xl bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
-            <p>Je Repository und Status werden die {PULL_REQUEST_LIST_LIMIT} zuletzt aktualisierten Pull Requests geladen. Weitere gibt es in:</p>
+            <p>Je Repository und Status werden die {PULL_REQUEST_LIST_LIMIT} zuletzt aktualisierten Pull Requests geladen; Suche und Sortierung gelten nur für diese. Weitere gibt es in:</p>
             <ul className="flex flex-wrap gap-1">
               {truncated.map((repo) => (
                 <li key={repo.id}>

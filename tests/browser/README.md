@@ -123,6 +123,7 @@ Der vollständige Ablaufbericht einschließlich Vielnutzer, sorgfältigem Leser,
 - Teilfehler: `scenario=scm-partial` (Bitbucket antwortet mit 503, ein Link zeigt auf eine fehlende Verbindung). `window.__qaScm.failRepos = []` und „Erneut versuchen“ lädt das Repository nach.
 - `scenario=scm-slow` verzögert jede Antwort um 1,2 s, `scenario=scm-empty` zeigt die Einrichtung ohne Verbindung, `scenario=scm-offline` prüft die Seite ohne Jira-Sitzung.
 - `window.__qaScm.requests` enthält die gesendeten SCM-URLs, `window.__qaScm.opened` die im Browser geöffneten Links.
+- Sortierung: `...fixture.html?scenario=scm&route=/pull-requests?sort=title` (`updated-asc`, `title`, `repo`; ohne `sort` oder bei ungültigem Wert „Zuletzt aktualisiert“). Sortiert werden nur die bereits geladenen Pull Requests; `window.__qaScm.requests` bleibt beim Sortieren unverändert. Jeder Sortierwechsel ist ein eigener Verlaufseintrag, Sucheingaben ersetzen den aktuellen.
 - Automatisch: `bunx playwright test tests/browser/pull-requests.e2e.ts --workers=1`; mit `PULL_REQUEST_SHOTS=<Ordner>` entstehen Screenshots.
 
 ## Arbeitsplatz
