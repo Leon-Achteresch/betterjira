@@ -12,7 +12,7 @@ export type AdfNode = {
 };
 
 const EDITABLE_NODES = new Set(["paragraph", "heading", "bulletList", "orderedList", "listItem", "codeBlock", "blockquote", "hardBreak", "rule"]);
-const INLINE_NODES = new Set(["text", "hardBreak", "mention", "emoji", "date", "status", "inlineCard", "mediaInline", "placeholder", "inlineExtension"]);
+export const INLINE_NODES = new Set(["text", "hardBreak", "mention", "emoji", "date", "status", "inlineCard", "mediaInline", "placeholder", "inlineExtension"]);
 const MARKS_TO_EDITOR: Record<string, string> = { strong: "bold", em: "italic", code: "code", strike: "strike", underline: "underline", link: "link" };
 const MARKS_FROM_EDITOR = Object.fromEntries(Object.entries(MARKS_TO_EDITOR).map(([adf, editor]) => [editor, adf]));
 

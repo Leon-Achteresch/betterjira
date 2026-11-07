@@ -137,6 +137,8 @@ if (scenario === "busy") {
     ]).flat(),
   };
 }
+if (window.__qaDescriptions)
+  for (const issue of issues) if (issue.key in window.__qaDescriptions) issue.fields.description = window.__qaDescriptions[issue.key];
 const boardStatuses = [
   { id: "10", name: "Triage", statusCategory: { key: "new", colorName: "blue-gray" } },
   { id: "11", name: "Zu erledigen", statusCategory: { key: "new", colorName: "blue-gray" } },

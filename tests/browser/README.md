@@ -137,3 +137,9 @@ Der vollständige Ablaufbericht einschließlich Vielnutzer, sorgfältigem Leser,
 - Sieben Testbereiche, ein Favorit (Betrieb) und ein in der Seitenleiste ausgeblendeter Bereich (Archiv 2024): `...fixture.html?scenario=projects&route=/bereiche`.
 - `window.__qaProjectRule = () => ({ delayMs, status, values })` steuert die Projektabfrage (verzögern, mit HTTP-Status scheitern, andere Bereiche liefern, etwa für einen Kontowechsel). `window.__qaReads`, per `addInitScript` als Array gesetzt, sammelt alle gelesenen Pfade.
 - Automatisch: `bunx playwright test tests/browser/projects.e2e.ts --workers=1` prüft Suche und Ansicht in der URL mit Zurück/Vorwärts, Favoriten synchron mit der Seitenleiste, ausgeblendete Bereiche, Ladefehler und fehlgeschlagene Aktualisierung mit Retry, Abmelden und Kontowechsel, Tastatur und Command Palette sowie Desktop hell und 390 px dunkel. Mit `PROJECTS_SHOTS=<Ordner>` speichert der Test Screenshots.
+
+## Beschreibung kopieren
+
+- `window.__qaDescriptions = { "DEMO-1": adf, "DEMO-2": null }` (per `addInitScript`) ersetzt die gespeicherte Beschreibung einzelner Testtickets vor dem Laden, etwa für reichhaltiges ADF, eine fehlende oder eine leere Beschreibung.
+- „Weitere Ticketaktionen“ → „Beschreibung kopieren“ schreibt den bereits geladenen gespeicherten Stand als Klartext in die Zwischenablage, ohne weitere Jira-Anfrage; ein offener Editorentwurf wird nicht verwendet.
+- Automatisch: `bunx playwright test tests/browser/description-copy.e2e.ts --workers=1` liest die echte Zwischenablage byteweise zurück, prüft `window.__qa.issueReads` und `window.__qa.writes` auf zusätzliche Jira-Zugriffe, deaktivierte Aktion mit Erklärung, Doppelauslösung, Fehler der Zwischenablage sowie Desktop hell und 390 px dunkel. Mit `DESCRIPTION_COPY_SHOTS=<Ordner>` speichert der Test Screenshots.
