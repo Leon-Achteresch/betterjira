@@ -7,7 +7,7 @@ import {
   useJiraProjects,
   type JiraWorkIssue,
 } from "@/lib/jira/queries";
-import { useProjectPrefs } from "@/lib/project-prefs";
+import { useProjectPrefs } from "@/hooks/use-project-prefs";
 import { workdayGreeting } from "@/lib/workday";
 
 export function useDashboard() {
@@ -17,7 +17,7 @@ export function useDashboard() {
   const projects = useJiraProjects();
   const login = useJiraLogin();
   const attention = useAttentionStatus();
-  const favoriteIds = useProjectPrefs((state) => state.projectIds);
+  const { favoriteIds } = useProjectPrefs();
   const now = new Date();
   const firstName = myself.data?.displayName.split(" ")[0];
   const issues = work.data?.issues ?? [];

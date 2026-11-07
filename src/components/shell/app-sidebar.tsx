@@ -53,7 +53,7 @@ import { useJiraProjectBoards, useJiraSite, type JiraProject } from "@/lib/jira/
 import { useProfileMenu } from "@/hooks/jira/use-profile-menu";
 import { useProjectStats } from "@/hooks/jira/use-project-stats";
 import { useSidebarSearch } from "@/hooks/use-sidebar-search";
-import { useProjectPrefs } from "@/lib/project-prefs";
+import type { ProjectPrefsControls } from "@/hooks/use-project-prefs";
 import { cn } from "@/lib/utils";
 
 function ProjectBoards({ projectKey }: { projectKey: string }) {
@@ -91,13 +91,13 @@ function ProjectBoards({ projectKey }: { projectKey: string }) {
   );
 }
 
-function ProjectItem({ project }: { project: JiraProject }) {
+type ProjectMenuPrefs = Pick<ProjectPrefsControls, "ready" | "favoriteIds" | "toggleFavorite" | "toggleHidden">;
+
+function ProjectItem({ project, prefs }: { project: JiraProject; prefs: ProjectMenuPrefs }) {
   const site = useJiraSite();
   const { key } = useParams({ strict: false });
   const [open, setOpen] = useState(key === project.key);
-  const favorite = useProjectPrefs((state) => state.projectIds.includes(project.id));
-  const toggleFavorite = useProjectPrefs((state) => state.toggleProject);
-  const toggleHidden = useProjectPrefs((state) => state.toggleHidden);
+  const favorite = prefs.favoriteIds.includes(project.id);
   const [statsOpen, setStatsOpen] = useState(false);
   const stats = useProjectStats(project.key, statsOpen);
   const navigate = useNavigate();
@@ -126,7 +126,7 @@ function ProjectItem({ project }: { project: JiraProject }) {
               Statistiken
             </ContextMenuItem>
             <ContextMenuSeparator />
-            <ContextMenuItem onSelect={() => toggleFavorite(project.id)}>
+            <ContextMenuItem disabled={!prefs.ready} onSelect={() => prefs.toggleFavorite(project.id)}>
               {favorite ? <StarOffIcon /> : <StarIcon />}
               {favorite ? "Aus Favoriten entfernen" : "Favorisieren"}
             </ContextMenuItem>
@@ -137,7 +137,7 @@ function ProjectItem({ project }: { project: JiraProject }) {
               </ContextMenuItem>
             )}
             <ContextMenuSeparator />
-            <ContextMenuItem onSelect={() => toggleHidden(project.id)}>
+            <ContextMenuItem disabled={!prefs.ready} onSelect={() => prefs.toggleHidden(project.id)}>
               <EyeOffIcon />
               Ausblenden
             </ContextMenuItem>
@@ -169,11 +169,11 @@ function ProjectItem({ project }: { project: JiraProject }) {
   );
 }
 
-function ProjectMenu({ projects }: { projects: JiraProject[] }) {
+function ProjectMenu({ projects, prefs }: { projects: JiraProject[]; prefs: ProjectMenuPrefs }) {
   return (
     <SidebarMenu>
       {projects.map((project) => (
-        <ProjectItem key={project.id} project={project} />
+        <ProjectItem key={project.id} project={project} prefs={prefs} />
       ))}
     </SidebarMenu>
   );
@@ -241,7 +241,7 @@ export function AppSidebar() {
           <>
             {projects.favorites.length > 0 && (
               <Section label="Favoriten">
-                <ProjectMenu projects={projects.favorites} />
+                <ProjectMenu projects={projects.favorites} prefs={search.prefs} />
               </Section>
             )}
             <Section
@@ -262,7 +262,7 @@ export function AppSidebar() {
               ) : search.searching && projects.visible.length === 0 ? (
                 <p className="px-2 py-1 text-sm text-muted-foreground">Keine Treffer</p>
               ) : (
-                <ProjectMenu projects={projects.others} />
+                <ProjectMenu projects={projects.others} prefs={search.prefs} />
               )}
             </Section>
             <Section label="Filter" count={filters.loaded ? filters.items.length : undefined}>

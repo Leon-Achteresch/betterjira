@@ -8,6 +8,7 @@ if (new URLSearchParams(location.search).get("reduce") === "1") {
 }
 const scenario = new URLSearchParams(location.search).get("scenario");
 const accountId = new URLSearchParams(location.search).get("account") || "qa-user";
+const cloudId = new URLSearchParams(location.search).get("cloud") || "qa-cloud";
 const scheme = matchMedia("(prefers-color-scheme: dark)");
 const applyScheme = () => document.documentElement.classList.toggle("dark", scheme.matches);
 applyScheme();
@@ -42,7 +43,7 @@ const projects =
       ].map(([id, key, name]) => ({ ...project, id, key, name }))
     : [project];
 if (scenario === "projects" && !localStorage.getItem("betterjira-favorites"))
-  localStorage.setItem("betterjira-favorites", JSON.stringify({ state: { projectIds: ["2"], hiddenProjectIds: ["3"] }, version: 0 }));
+  localStorage.setItem("betterjira-favorites", JSON.stringify({ state: { scopes: { [JSON.stringify([cloudId, accountId])]: { favoriteIds: ["2"], hiddenIds: ["3"] } }, legacy: null }, version: 0 }));
 const paragraph = (text) => ({
   type: "doc",
   version: 1,
@@ -707,7 +708,7 @@ if (scenario === "rollout-duplicate" && localStorage.getItem("betterjira:calenda
     ]),
   );
 }
-window.__qa = { writes: [], issueReads: [], failNextWrite: false, delayMs: 0, issues, wiki, briefing, briefingFailure: false, searches: [], searchDelayMs: 0, failSearch: false, emptySearch: false, sessionFailure: scenario === "session-error", sessionDelayMs: scenario === "session-slow" ? 1500 : 0, filters: qaFilters, filterRequests: 0, failFilters: new URLSearchParams(location.search).get("fail") === "filters", commands: [], metaDelay: {}, createFailure: null, opened: [], myselfDelayMs: 0, failMyself: false, myselfCalls: 0 };
+window.__qa = { writes: [], issueReads: [], failNextWrite: false, delayMs: 0, issues, wiki, briefing, briefingFailure: false, searches: [], searchDelayMs: 0, failSearch: false, emptySearch: false, sessionFailure: scenario === "session-error", sessionDelayMs: scenario === "session-slow" ? 1500 : 0, filters: qaFilters, filterRequests: 0, failFilters: new URLSearchParams(location.search).get("fail") === "filters", commands: [], metaDelay: {}, createFailure: null, opened: [], myselfDelayMs: window.__qaMyselfDelayMs ?? 0, failMyself: window.__qaFailMyself ?? false, myselfCalls: 0 };
 window.__qa.filters = /^\/filter\/(100|200)/.test(new URLSearchParams(location.search).get("route") ?? "") ? [
   { id: "100", name: "Offene Testtickets", jql: "project = DEMO AND statusCategory != Done ORDER BY updated DESC", favourite: true, owner: author },
   { id: "200", name: "Team-Rückstand", jql: "project = DEMO ORDER BY created DESC", favourite: false, owner: author },
@@ -1031,7 +1032,7 @@ window.__TAURI_INTERNALS__ = {
         accessToken: "local-test",
         refreshToken: "local-test",
         expiresAt: Date.now() + 3600000,
-        cloudId: "qa-cloud",
+        cloudId,
         siteUrl: "https://example.atlassian.net",
         siteName: "Lokale UI-Testdaten",
       });

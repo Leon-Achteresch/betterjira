@@ -24,7 +24,7 @@ const main = (page: Page) => page.getByRole("main");
 const list = (page: Page) => main(page).getByRole("list", { name: "Bereiche" });
 const views = (page: Page) => main(page).getByRole("navigation", { name: "Bereichsansicht" });
 const search = (page: Page) => main(page).getByRole("searchbox", { name: "Bereiche durchsuchen" });
-const prefs = (page: Page) => page.evaluate(() => JSON.parse(localStorage.getItem("betterjira-favorites") ?? "{}").state);
+const prefs = (page: Page, account = "qa-user") => page.evaluate((owner) => JSON.parse(localStorage.getItem("betterjira-favorites") ?? "{}").state.scopes[JSON.stringify(["qa-cloud", owner])], account);
 
 const sidebar = async (page: Page) => {
   if ((page.viewportSize()?.width ?? 0) < 768) await page.getByRole("button", { name: "Toggle Sidebar" }).click();
@@ -111,7 +111,7 @@ test("Favoriten bleiben mit der Seitenleiste synchron, ohne die Sichtbarkeit zu 
   await page.getByRole("menuitem", { name: "Aus Favoriten entfernen" }).click();
   await closeSidebar(page);
   await expect(list(page).getByRole("button", { name: "Betrieb favorisieren" })).toHaveAttribute("aria-pressed", "false");
-  expect(await prefs(page)).toEqual({ projectIds: ["4"], hiddenProjectIds: ["3"] });
+  expect(await prefs(page)).toEqual({ favoriteIds: ["4"], hiddenIds: ["3"] });
 });
 
 test("Versteckte Bereiche sind auffindbar, gekennzeichnet und öffnen den Bereich", async ({ page }) => {
@@ -127,7 +127,7 @@ test("Versteckte Bereiche sind auffindbar, gekennzeichnet und öffnen den Bereic
   await row.getByRole("link", { name: /Archiv 2024/ }).click();
   await expect(page).toHaveURL(/\/bereiche\/OLD$/);
   await expect(main(page).getByRole("heading", { name: "Archiv 2024" })).toBeVisible();
-  expect(await prefs(page)).toEqual({ projectIds: ["2", "3"], hiddenProjectIds: ["3"] });
+  expect(await prefs(page)).toEqual({ favoriteIds: ["2", "3"], hiddenIds: ["3"] });
 });
 
 test("Ladefehler bietet Retry, eine fehlgeschlagene Aktualisierung behält die Liste", async ({ page }) => {
@@ -194,10 +194,9 @@ test("Command Palette und Tastatur führen zur Übersicht und in einen Bereich",
   await expect(page).toHaveURL(/\/bereiche$/);
   await expect(page.getByRole("dialog")).toHaveCount(0);
 
-  await search(page).focus();
-  await page.keyboard.type("daten");
+  await search(page).fill("daten");
   await expect(list(page).getByRole("listitem")).toHaveCount(1);
-  await expect(search(page)).toBeFocused();
+  await search(page).focus();
   await page.keyboard.press("Tab");
   await expect(main(page).getByRole("button", { name: "Suche leeren" })).toBeFocused();
   await page.keyboard.press("Tab");
@@ -234,4 +233,22 @@ test("Darstellung: Desktop hell und 390 px dunkel ohne Seitenüberlauf", async (
   expect(fonts.dark).toBe(narrow);
   await page.mouse.move(0, 0);
   if (shots) await page.screenshot({ path: `${shots}/${narrow ? "390-dunkel" : "desktop-hell"}.png` });
+});
+
+
+test("Favoriten der Bereichsuebersicht bleiben bei gleichen Projekt-IDs pro Konto getrennt", async ({ page }) => {
+  await open(page);
+  await list(page).getByRole("button", { name: "Mobile App favorisieren" }).click();
+  expect(await prefs(page)).toEqual({ favoriteIds: ["2", "4"], hiddenIds: ["3"] });
+
+  await page.goto("/tests/browser/fixture.html?scenario=projects&route=/bereiche&account=qa-colleague");
+  await expect(list(page).getByRole("button", { name: "Mobile App favorisieren" })).toHaveAttribute("aria-pressed", "false");
+  await expect(list(page).getByRole("button", { name: "Betrieb favorisieren" })).toHaveAttribute("aria-pressed", "false");
+  await list(page).getByRole("button", { name: "Mobile App favorisieren" }).click();
+  expect(await prefs(page, "qa-colleague")).toEqual({ favoriteIds: ["4"], hiddenIds: [] });
+
+  await open(page);
+  await expect(list(page).getByRole("button", { name: "Mobile App aus Favoriten entfernen" })).toHaveAttribute("aria-pressed", "true");
+  await expect(list(page).getByRole("button", { name: "Betrieb aus Favoriten entfernen" })).toHaveAttribute("aria-pressed", "true");
+  expect(await prefs(page)).toEqual({ favoriteIds: ["2", "4"], hiddenIds: ["3"] });
 });

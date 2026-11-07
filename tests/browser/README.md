@@ -182,6 +182,13 @@ Der vollständige Ablaufbericht einschließlich Vielnutzer, sorgfältigem Leser,
 - Am 07.11.2026 gegen den gebauten Stand (`vite preview`) geprüft: mit der Korrektur 16 von 16 Tests erfolgreich, mit dem alten `dropdown-menu.tsx` 16 von 16 rot. Auf Desktop war das Untermenü vollständig abgeschnitten, bei 390 px lag es bei x = −74 bzw. reichte bis 436 px. `issue-query-states.e2e.ts` und `header.e2e.ts` laufen weiter durch. Ausnahme ist „Geöffnete Tickets im Menü sind per Tastatur bedienbar“ (390 px, reduziert): Der Test scheitert gelegentlich, weil die Schleife ArrowDown drückt, ohne auf den Fokus zu warten. Für dieses Menü ändert die Korrektur kein CSS.
 - Mausbewegungen im Test laufen schrittweise. Radix erkennt die Richtung zum Untermenü aus aufeinanderfolgenden `pointermove`-Ereignissen; ein einzelner Sprung über das Hauptmenü hinweg schließt ein links liegendes Untermenü, wie bei echter Maus ein abrupter Sprung auch.
 
+## Projektfavoriten je Konto
+
+- Favoriten und ausgeblendete Bereiche gelten je Jira-Instanz und Konto (`cloudId` + `accountId`). Zweites Konto: `&account=qa-colleague`, zweite Instanz: `&cloud=other-cloud`.
+- Einstellungen: `...fixture.html?route=/settings/bereiche`. Alte globale Daten (`betterjira-favorites` mit `projectIds`/`hiddenProjectIds`) erscheinen dort als einmaliges Angebot „Übernehmen“/„Verwerfen“ (mit Rückgängig) und werden nie automatisch einem Konto zugeordnet.
+- `window.__qaMyselfDelayMs` und `window.__qaFailMyself` (per `addInitScript`) verzögern bzw. scheitern die erste Kontoprüfung (`/myself`).
+- Automatisch: `bunx playwright test tests/browser/project-prefs.e2e.ts --workers=1`; mit `PROJECT_PREFS_SHOTS=<Ordner>` zusätzlich Screenshots.
+
 ## Bereichsübersicht
 
 - Sieben Testbereiche, ein Favorit (Betrieb) und ein in der Seitenleiste ausgeblendeter Bereich (Archiv 2024): `...fixture.html?scenario=projects&route=/bereiche`.

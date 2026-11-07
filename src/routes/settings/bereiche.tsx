@@ -6,6 +6,8 @@ import { SessionGate } from "@/components/shell/session-gate";
 import { useJiraSession } from "@/hooks/jira/use-jira-session";
 import { useProjectSettings } from "@/hooks/jira/use-project-settings";
 import { parseProjectSettingsSearch } from "@/lib/project-settings-search";
+import { LegacyProjectPrefsNotice } from "@/components/settings/project-prefs-settings";
+import { useLegacyProjectPrefs } from "@/hooks/use-project-prefs";
 
 export const Route = createFileRoute("/settings/bereiche")({
   validateSearch: (search: Record<string, unknown>) => parseProjectSettingsSearch(search),
@@ -15,6 +17,7 @@ export const Route = createFileRoute("/settings/bereiche")({
 function BereicheSettings() {
   const session = useJiraSession();
   const settings = useProjectSettings(Route.useSearch());
+  const legacy = useLegacyProjectPrefs();
 
   return (
     <section className="flex w-full flex-col gap-4">
@@ -27,6 +30,7 @@ function BereicheSettings() {
         pending={<ProjectSettingsSkeleton />}
         unconnected={<LoginPrompt description="Melde dich an, um Bereiche zu verwalten." />}
       >
+        <LegacyProjectPrefsNotice legacy={legacy.legacy} accountLabel="dieses Konto" onAdopt={legacy.adopt} onDiscard={legacy.discard} />
         <ProjectVisibilitySettings settings={settings} />
       </SessionGate>
     </section>

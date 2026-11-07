@@ -1,12 +1,10 @@
 import { useJiraProjects } from "@/lib/jira/queries";
 import { projectDirectory, type ProjectView } from "@/lib/project-directory";
-import { useProjectPrefs } from "@/lib/project-prefs";
+import { useProjectPrefs } from "@/hooks/use-project-prefs";
 
 export function useProjectDirectoryData({ query, view }: { query: string; view: ProjectView }) {
   const projects = useJiraProjects();
-  const favoriteIds = useProjectPrefs((state) => state.projectIds);
-  const hiddenIds = useProjectPrefs((state) => state.hiddenProjectIds);
-  const toggleFavorite = useProjectPrefs((state) => state.toggleProject);
+  const { favoriteIds, hiddenIds, toggleFavorite, ready } = useProjectPrefs();
   const directory = projectDirectory(projects.data ?? [], { query, view, favoriteIds, hiddenIds });
 
   return {
@@ -18,5 +16,6 @@ export function useProjectDirectoryData({ query, view }: { query: string; view: 
     isFetching: projects.isFetching,
     retry: () => void projects.refetch({ cancelRefetch: false }),
     toggleFavorite,
+    favoriteDisabled: !ready,
   };
 }
