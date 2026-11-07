@@ -79,7 +79,9 @@ describe("Verlaufseintrag im Arbeitsplatz-Speicher entfernen", () => {
     const colleagueBefore = useWorkspaceStore.getState().workspaces[colleague];
 
     useWorkspaceStore.getState().restoreRecent(own, removed);
+    const restoredOnce = useWorkspaceStore.getState().workspaces;
     useWorkspaceStore.getState().restoreRecent(own, removed);
+    expect(useWorkspaceStore.getState().workspaces).toBe(restoredOnce);
 
     const after = useWorkspaceStore.getState().workspaces;
     expect(after[own].recent.map(({ key }) => key)).toEqual(["A-1", "A-2", "A-3"]);

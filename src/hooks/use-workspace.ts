@@ -41,7 +41,9 @@ export const useWorkspaceStore = create<WorkspaceState>()(
       },
       restoreRecent: (id, removed) => {
         const current = get().workspaces[id];
-        if (current) set(({ workspaces }) => ({ workspaces: { ...workspaces, [id]: restoreRecentIssue(current, removed) } }));
+        if (!current) return;
+        const restored = restoreRecentIssue(current, removed);
+        if (restored !== current) set(({ workspaces }) => ({ workspaces: { ...workspaces, [id]: restored } }));
       },
     }),
     {

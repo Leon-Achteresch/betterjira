@@ -227,8 +227,8 @@ const chooseSort = async (page: Page, label: string) => {
   await page.getByRole("option", { name: label, exact: true }).click();
   await expect(sortControl(page)).toContainText(label);
 };
-const settle = async (page: Page) => {
-  await page.mouse.move(0, 0);
+const settle = async (page: Page, preservePointer = false) => {
+  if (!preservePointer) await page.mouse.move(0, 0);
   await expect
     .poll(() => rows(page).evaluateAll((items) => items.every((item) => getComputedStyle(item).transform === "none")))
     .toBe(true);
@@ -387,6 +387,14 @@ test("Aus Zuletzt entfernen ändert nur den Verlauf und erhält Notiz, Entwürfe
   const draftsBefore = await fieldDrafts(page);
   const readsBefore = await page.evaluate(() => window.__qaReads?.length ?? 0);
   await expect(removeButton(page, "OPS-7")).toHaveCount(0);
+  await settle(page);
+  await page.getByRole("main").evaluate((element) => element.scrollTo({ top: 0, behavior: "instant" }));
+  await rowOf(page, "DEMO-1").hover();
+  await removeButton(page, "DEMO-1").hover();
+  await expect(page.getByRole("tooltip", { name: "Aus Zuletzt entfernen", exact: true })).toBeVisible();
+  await settle(page, true);
+  await expect(removeButton(page, "DEMO-1")).toHaveCSS("opacity", "1");
+  if (shots) await page.screenshot({ path: `${shots}/${test.info().project.name}-remove-recent-action.png` });
 
   for (const key of ["DEMO-2", "DEMO-3", "DEMO-4"]) {
     await removeRecent(page, key);
@@ -525,6 +533,10 @@ test("Entfernen ist bei 390 px in hell und dunkel bedienbar", async ({ page }) =
     await expect
       .poll(() => page.evaluate(() => document.documentElement.classList.contains("dark")))
       .toBe(colorScheme === "dark");
+    await page.mouse.move(0, 0);
+    await page.getByRole("main").evaluate((element) => element.scrollTo({ top: 0, behavior: "instant" }));
+    await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
+    await expect(page.getByRole("tooltip")).toHaveCount(0);
     await settle(page);
     if (shots) await page.screenshot({ path: `${shots}/${test.info().project.name}-remove-recent-390-${colorScheme}.png` });
   }
