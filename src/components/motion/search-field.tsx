@@ -1,4 +1,5 @@
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import type { Ref } from "react";
 import { SearchIcon, XIcon } from "lucide-react";
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "@/components/ui/input-group";
 import { Tooltip } from "@/components/motion/tooltip";
@@ -11,9 +12,11 @@ type Props = {
   label: string;
   placeholder?: string;
   className?: string;
+  autoFocus?: boolean;
+  inputRef?: Ref<HTMLInputElement>;
 };
 
-export function SearchField({ value, onChange, label, placeholder, className }: Props) {
+export function SearchField({ value, onChange, label, placeholder, className, autoFocus, inputRef }: Props) {
   const reduce = useReducedMotion();
   return (
     <InputGroup className={cn("h-8 rounded-xl", className)}>
@@ -21,7 +24,10 @@ export function SearchField({ value, onChange, label, placeholder, className }: 
         <SearchIcon />
       </InputGroupAddon>
       <InputGroupInput
+        ref={inputRef}
         type="search"
+        className="[&::-webkit-search-cancel-button]:appearance-none"
+        autoFocus={autoFocus}
         placeholder={placeholder}
         aria-label={label}
         value={value}

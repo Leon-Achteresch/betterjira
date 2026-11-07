@@ -157,6 +157,38 @@ if (scenario === "subtasks") {
   issues[0].fields.subtasks = [1, 2, 0, 2, 3, 1, 2, 0, 2, 2].map((statusIndex, index) => subtaskOf(issues[index + 1], statusIndex));
   issues[1].fields.subtasks = [subtaskOf(issues[11], 2)];
 }
+if (scenario === "comments") {
+  const person = (accountId, displayName) => ({ accountId, displayName, avatarUrls: author.avatarUrls });
+  const sam = person("qa-sam", "Sam Muster");
+  const kim = person("qa-kim", "Kim Probe");
+  issues[0].fields.comment.comments.push(
+    {
+      id: "c3",
+      author: sam,
+      created: "2026-11-03T08:30:00Z",
+      body: {
+        type: "doc",
+        version: 1,
+        content: [
+          { type: "paragraph", content: [{ type: "text", text: "Rückfrage zum Rollout:" }, { type: "hardBreak" }, { type: "text", text: "Staging ist freigegeben." }] },
+          { type: "bulletList", content: [{ type: "listItem", content: [{ type: "paragraph", content: [{ type: "text", text: "Preis (netto) + 19 % [offen]" }] }] }] },
+        ],
+      },
+    },
+    {
+      id: "c4",
+      author: kim,
+      created: "2026-11-05T14:00:00Z",
+      body: paragraph("Sieht gut aus, ich übernehme die Dokumentation."),
+    },
+    {
+      id: "c5",
+      author: sam,
+      created: "2026-11-05T16:45:00Z",
+      body: { type: "doc", version: 1, content: [{ type: "paragraph", content: [{ type: "text", text: "Danke " }, { type: "mention", attrs: { id: "qa-kim", text: "@Kim Probe" } }, { type: "text", text: "!" }] }] },
+    },
+  );
+}
 const boardStatuses = [
   { id: "10", name: "Triage", statusCategory: { key: "new", colorName: "blue-gray" } },
   { id: "11", name: "Zu erledigen", statusCategory: { key: "new", colorName: "blue-gray" } },
@@ -741,7 +773,7 @@ if (scenario === "rollout-duplicate" && localStorage.getItem("betterjira:calenda
     ]),
   );
 }
-window.__qa = { writes: [], issueReads: [], failNextWrite: false, delayMs: 0, issues, wiki, briefing, briefingFailure: false, searches: [], searchDelayMs: 0, failSearch: false, emptySearch: false, sessionFailure: scenario === "session-error", sessionDelayMs: scenario === "session-slow" ? 1500 : 0, filters: qaFilters, filterRequests: 0, failFilters: new URLSearchParams(location.search).get("fail") === "filters", commands: [], metaDelay: {}, createFailure: null, opened: [], myselfDelayMs: window.__qaMyselfDelayMs ?? 0, failMyself: window.__qaFailMyself ?? false, myselfCalls: 0 };
+window.__qa = { reads: [], writes: [], issueReads: [], failNextWrite: false, delayMs: 0, issues, wiki, briefing, briefingFailure: false, searches: [], searchDelayMs: 0, failSearch: false, emptySearch: false, sessionFailure: scenario === "session-error", sessionDelayMs: scenario === "session-slow" ? 1500 : 0, filters: qaFilters, filterRequests: 0, failFilters: new URLSearchParams(location.search).get("fail") === "filters", commands: [], metaDelay: {}, createFailure: null, opened: [], myselfDelayMs: window.__qaMyselfDelayMs ?? 0, failMyself: window.__qaFailMyself ?? false, myselfCalls: 0 };
 window.__qa.filters = /^\/filter\/(100|200)/.test(new URLSearchParams(location.search).get("route") ?? "") ? [
   { id: "100", name: "Offene Testtickets", jql: "project = DEMO AND statusCategory != Done ORDER BY updated DESC", favourite: true, owner: author },
   { id: "200", name: "Team-Rückstand", jql: "project = DEMO ORDER BY created DESC", favourite: false, owner: author },
@@ -924,6 +956,7 @@ const respond = async (request) => {
     return { status: 204 };
   }
   window.__qaReads?.push(path);
+  window.__qa.reads.push(path);
   if (path === "/myself") {
     window.__qa.myselfCalls++;
     if (window.__qa.myselfDelayMs) await new Promise((resolve) => setTimeout(resolve, window.__qa.myselfDelayMs));
