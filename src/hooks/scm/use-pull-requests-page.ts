@@ -5,6 +5,7 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { Effect } from "effect";
 import { scmKeys } from "@/lib/scm/client";
 import { providerFor } from "@/lib/scm/provider";
+import { pullRequestsEmptyText } from "@/lib/scm/pull-request-empty";
 import {
   DEFAULT_PULL_REQUEST_CHECK_FILTER,
   PULL_REQUEST_CHECK_FILTER_LABELS,
@@ -72,6 +73,16 @@ export const usePullRequestsPage = (search: PullRequestsSearch) => {
   );
   const pullRequests = visiblePullRequests(listed, status, search.q, sort, checks);
   const empty = pullRequestEmptyReason(listed, status, search.q, checks);
+  const failedRepos = repos.filter((repo) => repo.error !== null);
+  const truncatedRepos = repos.flatMap(({ id, repo, truncated, browseUrl }) => truncated && browseUrl ? [{ id, repo, browseUrl }] : []);
+  const waiting = repos.some((repo) => repo.status === "loading");
+  const emptyText = pullRequestsEmptyText({
+    reason: empty ?? "status",
+    query: search.q ?? "",
+    filterLabel: PULL_REQUEST_STATUS_LABELS[status],
+    checksLabel: PULL_REQUEST_CHECK_FILTER_LABELS[checks],
+    partial: failedRepos.length > 0,
+  });
   const updatedAt = Math.max(0, ...queries.map((query) => query.dataUpdatedAt));
 
   const pageStatus: PullRequestsPageStatus =
@@ -96,6 +107,10 @@ export const usePullRequestsPage = (search: PullRequestsSearch) => {
     repo: selectedRepo ?? "",
     repoOptions: targets.map((target) => ({ value: target.id, label: target.link.repo })),
     repos,
+    failedRepos,
+    truncatedRepos,
+    waiting,
+    emptyText,
     filterLabel: PULL_REQUEST_STATUS_LABELS[status],
     pullRequests,
     empty,

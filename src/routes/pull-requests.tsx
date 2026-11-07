@@ -51,11 +51,11 @@ function PullRequests() {
           />
           <PullRequestList
             pullRequests={page.pullRequests}
-            repos={page.repos}
+            failedRepos={page.failedRepos}
+            truncatedRepos={page.truncatedRepos}
+            waiting={page.waiting}
             empty={page.empty}
-            filterLabel={page.filterLabel}
-            checksLabel={page.checksLabel}
-            query={page.query}
+            emptyText={page.emptyText}
             onOpen={page.onOpen}
             onChecksReset={page.onChecksReset}
           />

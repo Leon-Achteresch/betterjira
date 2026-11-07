@@ -8,35 +8,18 @@ import { Button } from "@/components/ui/button";
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "@/components/ui/input-group";
 import { OptionSelect } from "@/components/ui/option-select";
 import { EASE_OUT } from "@/lib/ease";
-import { PULL_REQUEST_CHECK_FILTERS, PULL_REQUEST_CHECK_FILTER_LABELS, type PullRequestCheckFilter } from "@/lib/scm/pull-request-checks";
-import { PULL_REQUEST_SORTS, PULL_REQUEST_SORT_LABELS, type PullRequestSort } from "@/lib/scm/pull-request-sort";
-import { PULL_REQUEST_STATUSES, PULL_REQUEST_STATUS_LABELS, type PullRequestStatus } from "@/lib/scm/pull-requests";
+import { PULL_REQUEST_CHECK_FILTERS, PULL_REQUEST_CHECK_FILTER_LABELS } from "@/lib/scm/pull-request-checks";
+import { PULL_REQUEST_SORTS, PULL_REQUEST_SORT_LABELS } from "@/lib/scm/pull-request-sort";
+import { PULL_REQUEST_STATUSES, PULL_REQUEST_STATUS_LABELS } from "@/lib/scm/pull-requests";
 import { cn } from "@/lib/utils";
 import type { SelectOption } from "@/types/select-option";
+import type { PullRequestFiltersProps } from "@/types/pull-requests";
 
 const ALL_REPOS = "all";
 
 const SORT_OPTIONS: SelectOption[] = PULL_REQUEST_SORTS.map((sort) => ({ value: sort, label: PULL_REQUEST_SORT_LABELS[sort] }));
 
 const CHECK_OPTIONS: SelectOption[] = PULL_REQUEST_CHECK_FILTERS.map((filter) => ({ value: filter, label: PULL_REQUEST_CHECK_FILTER_LABELS[filter] }));
-
-type PullRequestFiltersProps = {
-  filter: PullRequestStatus;
-  query: string;
-  sort: PullRequestSort;
-  checks: PullRequestCheckFilter;
-  repo: string;
-  repoOptions: SelectOption[];
-  count: number;
-  loading: boolean;
-  refreshing: boolean;
-  updatedAt: Date | null;
-  onQueryChange: (query: string) => void;
-  onRepoChange: (repo: string) => void;
-  onSortChange: (sort: string) => void;
-  onChecksChange: (checks: string) => void;
-  onRefresh: () => void;
-};
 
 export function PullRequestFilters(props: PullRequestFiltersProps) {
   const reduce = useReducedMotion();

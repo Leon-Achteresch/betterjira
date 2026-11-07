@@ -1,16 +1,6 @@
-import type { ReactNode } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import type { SelectOption } from "@/types/select-option";
-
-type OptionSelectProps = {
-  label: string;
-  value: string;
-  options: readonly SelectOption[];
-  icon?: ReactNode;
-  className?: string;
-  onValueChange: (value: string) => void;
-};
+import type { OptionSelectProps } from "@/types/select-option";
 
 export function OptionSelect({ label, value, options, icon, className, onValueChange }: OptionSelectProps) {
   return (
@@ -19,9 +9,9 @@ export function OptionSelect({ label, value, options, icon, className, onValueCh
         {icon}
         <SelectValue />
       </SelectTrigger>
-      <SelectContent>
+      <SelectContent position="popper" className="motion-reduce:animate-none!">
         {options.map((option) => (
-          <SelectItem key={option.value} value={option.value}>
+          <SelectItem key={option.value} value={option.value} className="min-h-8">
             {option.label}
           </SelectItem>
         ))}
