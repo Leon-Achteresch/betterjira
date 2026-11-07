@@ -42,10 +42,16 @@ export const DEFAULT_VIEW: IssueView = { columns: DEFAULT_COLUMNS, sort: [], qui
 export const toggleValue = <T>(values: readonly T[], value: T) =>
   values.includes(value) ? values.filter((item) => item !== value) : [...values, value];
 
-export const moveValue = <T>(values: readonly T[], value: T, offset: number) => {
+export const canMoveValue = <T>(values: readonly T[], value: T, offset: number) => {
   const from = values.indexOf(value);
   const to = from + offset;
-  if (from < 0 || to < 0 || to >= values.length) return [...values];
+  return from >= 0 && offset !== 0 && to >= 0 && to < values.length;
+};
+
+export const moveValue = <T>(values: readonly T[], value: T, offset: number) => {
+  if (!canMoveValue(values, value, offset)) return [...values];
+  const from = values.indexOf(value);
+  const to = from + offset;
   const next = [...values];
   next.splice(from, 1);
   next.splice(to, 0, value);
