@@ -135,6 +135,7 @@ Der vollständige Ablaufbericht einschließlich Vielnutzer, sorgfältigem Leser,
 - `scenario=scm-slow` verzögert jede Antwort um 1,2 s, `scenario=scm-empty` zeigt die Einrichtung ohne Verbindung, `scenario=scm-offline` prüft die Seite ohne Jira-Sitzung.
 - `window.__qaScm.requests` enthält die gesendeten SCM-URLs, `window.__qaScm.opened` die im Browser geöffneten Links.
 - Sortierung: `...fixture.html?scenario=scm&route=/pull-requests?sort=title` (`updated-asc`, `title`, `repo`; ohne `sort` oder bei ungültigem Wert „Zuletzt aktualisiert“). Sortiert werden nur die bereits geladenen Pull Requests; `window.__qaScm.requests` bleibt beim Sortieren unverändert. Jeder Sortierwechsel ist ein eigener Verlaufseintrag, Sucheingaben ersetzen den aktuellen.
+- Prüfstatus: `scenario=scm-checks` ergänzt in `qa/design-system` drei offene Pull Requests ohne verwertbare Prüfdaten (#14 ohne Rollup, #15 mit unbekanntem Rollup-Zustand `QA_UNBEKANNT`, #16 ohne Commit). Filter über `...&route=/pull-requests?checks=failure` (`failure`, `pending`, `success`, `unknown` = „Keine Angabe“; ohne `checks` oder bei ungültigem Wert „Alle Prüfstatus“). Gefiltert werden nur die bereits geladenen Pull Requests vor der Sortierung; `window.__qaScm.requests` bleibt unverändert. Jeder Wechsel und „Prüfstatus zurücksetzen“ ist ein eigener Verlaufseintrag. Mit `scenario=scm-partial&route=/pull-requests?checks=pending` erscheinen Teilfehler, Grenzhinweis und der leere Prüfstatus gemeinsam.
 - Automatisch: `bunx playwright test tests/browser/pull-requests.e2e.ts --workers=1`; mit `PULL_REQUEST_SHOTS=<Ordner>` entstehen Screenshots.
 
 ## Arbeitsplatz
@@ -151,6 +152,12 @@ Der vollständige Ablaufbericht einschließlich Vielnutzer, sorgfältigem Leser,
 - Sieben Testbereiche, ein Favorit (Betrieb) und ein in der Seitenleiste ausgeblendeter Bereich (Archiv 2024): `...fixture.html?scenario=projects&route=/bereiche`.
 - `window.__qaProjectRule = () => ({ delayMs, status, values })` steuert die Projektabfrage (verzögern, mit HTTP-Status scheitern, andere Bereiche liefern, etwa für einen Kontowechsel). `window.__qaReads`, per `addInitScript` als Array gesetzt, sammelt alle gelesenen Pfade.
 - Automatisch: `bunx playwright test tests/browser/projects.e2e.ts --workers=1` prüft Suche und Ansicht in der URL mit Zurück/Vorwärts, Favoriten synchron mit der Seitenleiste, ausgeblendete Bereiche, Ladefehler und fehlgeschlagene Aktualisierung mit Retry, Abmelden und Kontowechsel, Tastatur und Command Palette sowie Desktop hell und 390 px dunkel. Mit `PROJECTS_SHOTS=<Ordner>` speichert der Test Screenshots.
+
+## Einstellungen › Bereiche: Suche
+
+- Lokale Suche nach Name oder Schlüssel der bereits geladenen Bereiche: `...fixture.html?scenario=projects&route=/settings/bereiche` (Direktlink mit Suche: `route=/settings/bereiche?q=ops`). Die Suche sendet keine zusätzliche Jira-Anfrage und schreibt keine Bereichs-Einstellungen; Stern und Schalter nutzen dieselben Aktionen wie Seitenleiste und Bereichsübersicht.
+- Leere Bereichsliste: `window.__qaProjectRuleValue = { values: [] }` per `addInitScript` (zusammen mit `__qaProjectRule` wie in `projects.e2e.ts`). Lesefehler der Sitzung: `scenario=session-error`, abgemeldet: `scenario=calendar-offline`.
+- Automatisch: `bunx playwright test tests/browser/project-settings.e2e.ts --workers=1` prüft Direktlink und ungültige `q`-Werte, URL mit Zurück/Vorwärts, keine zusätzlichen GET-Anfragen oder Einstellungs-Schreibzugriffe beim Suchen, Stern und Sichtbarkeit synchron mit der Seitenleiste, Tastatur, Laden, leere Liste, Lade- und Aktualisierungsfehler mit Retry, Sitzungsfehler und Abmeldung sowie Desktop hell und 390 px dunkel. Mit `PROJECT_SETTINGS_SHOTS=<Ordner>` speichert der Test Screenshots.
 
 ## Beschreibung kopieren
 
