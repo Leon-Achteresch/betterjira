@@ -547,7 +547,27 @@ const respond = async (request) => {
     }
     const input = request.data ? JSON.parse(new TextDecoder().decode(new Uint8Array(request.data))) : {};
     window.__qa.writes.push({ path, method: request.method, input });
+    if (scenario === "filters" && /^\/filter(?:\/[^/]+)?$/.test(path) && window.__qaHoldFilterWrite) {
+      window.__qaFilterWriteWaiting = true;
+      await new Promise((resolve) => {
+        window.__qaReleaseFilterWrite = () => {
+          window.__qaHoldFilterWrite = false;
+          window.__qaFilterWriteWaiting = false;
+          window.__qaReleaseFilterWrite = undefined;
+          resolve();
+        };
+      });
+    }
     const filter = window.__qa.filters.find((entry) => path === `/filter/${entry.id}`);
+    if (scenario === "filters" && path === "/filter" && request.method === "POST") {
+      const created = { ...window.__qa.filters[0], ...input, id: String(1000 + nextId++), favourite: false };
+      window.__qa.filters.push(created);
+      return { body: created };
+    }
+    if (scenario === "filters" && filter && request.method === "DELETE") {
+      window.__qa.filters = window.__qa.filters.filter((entry) => entry.id !== filter.id);
+      return { body: {} };
+    }
     if (filter && request.method === "PUT") return { body: Object.assign(filter, input) };
     const issue = issues.find((issue) => path.startsWith(`/issue/${issue.key}/`) || path === `/issue/${issue.key}`);
     if (path.endsWith("/comment") && issue)

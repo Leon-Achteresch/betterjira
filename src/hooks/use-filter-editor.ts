@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "@tanstack/react-router";
+import { useNavigate, useRouter } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { useCreateFilter, useDeleteFilter, useFilterFavourite, useJiraFilter, useUpdateFilter } from "@/hooks/jira/use-jira-filter";
 import { useJqlValidation } from "@/hooks/jira/use-jql-validation";
@@ -14,11 +14,13 @@ type EditorState = { id: string; editing: boolean; draft?: string; applied?: str
 export function useFilterEditor(id: string) {
   const filter = useJiraFilter(id);
   const myself = useJiraMyself();
-  const update = useUpdateFilter(id);
+  const update = useUpdateFilter();
   const create = useCreateFilter();
-  const remove = useDeleteFilter(id);
-  const favourite = useFilterFavourite(id);
+  const remove = useDeleteFilter();
+  const favourite = useFilterFavourite();
   const navigate = useNavigate();
+  const router = useRouter();
+  const isCurrentFilter = () => router.state.location.pathname.replace(/\/+$/, "") === `/filter/${encodeURIComponent(id)}`;
   const [state, setState] = useState<EditorState>({ id, editing: false });
   const scoped = (current: EditorState): EditorState => (current.id === id ? current : { id, editing: false });
   const { editing, draft, applied } = scoped(state);
@@ -32,11 +34,11 @@ export function useFilterEditor(id: string) {
     if (!filter.data) return;
     const { name, jql, description } = filter.data;
     update.mutate(
-      { name, jql, ...(description !== undefined && { description }), ...input },
+      { id, fields: { name, jql, ...(description !== undefined && { description }), ...input } },
       {
         onSuccess: () => {
           reset();
-          toast.success(success);
+          toast.success(success, { description: name });
         },
         onError: (error) => toast.error("Filter konnte nicht gespeichert werden", { description: errorText(error) }),
       },
@@ -72,7 +74,7 @@ export function useFilterEditor(id: string) {
           onSuccess: (created) => {
             reset();
             toast.success(`Filter „${created.name}“ angelegt`);
-            void navigate({ to: "/filter/$id", params: { id: created.id } });
+            if (isCurrentFilter()) void navigate({ to: "/filter/$id", params: { id: created.id } });
           },
         },
       ),
@@ -81,15 +83,15 @@ export function useFilterEditor(id: string) {
     resetCreate: create.reset,
     favourite: !!filter.data?.favourite,
     toggleFavourite: () =>
-      favourite.mutate(!filter.data?.favourite, {
+      favourite.mutate({ id, favourite: !filter.data?.favourite }, {
         onError: (error) => toast.error("Favorit konnte nicht geändert werden", { description: errorText(error) }),
       }),
     togglingFavourite: favourite.isPending,
     remove: () =>
-      remove.mutate(undefined, {
+      remove.mutate(id, {
         onSuccess: () => {
-          toast.success("Filter gelöscht");
-          void navigate({ to: "/" });
+          toast.success("Filter gelöscht", { description: filter.data?.name ?? id });
+          if (isCurrentFilter()) void navigate({ to: "/" });
         },
         onError: (error) => toast.error("Filter konnte nicht gelöscht werden", { description: errorText(error) }),
       }),

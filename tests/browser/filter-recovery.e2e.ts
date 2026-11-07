@@ -6,6 +6,9 @@ type Write = { path: string; method: string; input: { jql?: string; name?: strin
 declare global {
   interface Window {
     __qaFilterRule?: (id: string) => FilterRule;
+    __qaHoldFilterWrite?: boolean;
+    __qaFilterWriteWaiting?: boolean;
+    __qaReleaseFilterWrite?: () => void;
     __qa: { sessionFailure: boolean; searches: string[]; writes: Write[]; filterReads: string[]; commands: string[] };
   }
 }
@@ -47,6 +50,47 @@ const editDraft = async (page: Page, text: string) => {
   await expect(jql(page)).toBeVisible();
   await jql(page).fill(text);
 };
+
+for (const action of ["speichern", "löschen", "kopieren"] as const) {
+  test(`laufende Aktion ${action} für A lässt Filter B samt Entwurf stehen`, async ({ page }) => {
+    await open(page, "/filter/100");
+    await expect(heading(page)).toHaveText("Offene Testtickets");
+    await page.evaluate(() => { window.__qaHoldFilterWrite = true; });
+
+    if (action === "speichern") {
+      await editDraft(page, "project = DEMO ORDER BY key ASC");
+      await main(page).getByRole("button", { name: "Speichern", exact: true }).click();
+    } else {
+      await main(page).getByRole("button", { name: "Filteraktionen" }).click();
+      if (action === "löschen") {
+        await page.getByRole("menuitem", { name: "Löschen…" }).click();
+        await page.getByRole("alertdialog").getByRole("button", { name: "Löschen", exact: true }).click();
+      } else {
+        await page.getByRole("menuitem", { name: "Als neuen Filter speichern…" }).click();
+        const dialog = page.getByRole("dialog", { name: "Als neuen Filter speichern" });
+        await dialog.getByRole("textbox", { name: "Name", exact: true }).fill("Kopie aus A");
+        await dialog.getByRole("button", { name: "Anlegen", exact: true }).click();
+        await page.keyboard.press("Escape");
+      }
+    }
+
+    await expect.poll(() => page.evaluate(() => window.__qaFilterWriteWaiting)).toBe(true);
+    await openSidebarLink(page, "Team-Rückstand");
+    await expect(heading(page)).toHaveText("Team-Rückstand");
+    const readsBeforeCompletion = (await qa(page)).filterReads.filter((id) => id === "200").length;
+    const draft = "project = DEMO AND text ~ eigenerEntwurfB";
+    await editDraft(page, draft);
+    await page.evaluate(() => window.__qaReleaseFilterWrite?.());
+    const success = action === "speichern" ? "Filter gespeichert" : action === "löschen" ? "Filter gelöscht" : "Filter „Kopie aus A“ angelegt";
+    await expect(page.getByText(success, { exact: true })).toBeVisible();
+
+    await expect(page).toHaveURL(/\/filter\/200$/);
+    await expect(heading(page)).toHaveText("Team-Rückstand");
+    await expect(jql(page)).toHaveValue(draft);
+    expect((await qa(page)).filterReads.filter((id) => id === "200")).toHaveLength(readsBeforeCompletion);
+    expect((await qa(page)).writes.some((write) => write.path === "/filter/200")).toBe(false);
+  });
+}
 
 test.beforeEach(async ({ page }) => {
   page.on("pageerror", (error) => {

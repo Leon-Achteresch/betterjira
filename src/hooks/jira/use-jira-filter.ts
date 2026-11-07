@@ -12,9 +12,9 @@ export const useJiraFilter = (id: string) => {
   });
 };
 
-const useInvalidateFilter = (id?: string) => {
+const useInvalidateFilter = () => {
   const queryClient = useQueryClient();
-  return () =>
+  return (id?: string) =>
     Promise.all(
       [jiraKeys.filters, ["jira", "issues"], ...(id ? [jiraKeys.filter(id)] : [])].map((queryKey) =>
         queryClient.invalidateQueries({ queryKey }),
@@ -22,11 +22,11 @@ const useInvalidateFilter = (id?: string) => {
     );
 };
 
-export const useUpdateFilter = (id: string) => {
-  const invalidate = useInvalidateFilter(id);
+export const useUpdateFilter = () => {
+  const invalidate = useInvalidateFilter();
   return useMutation({
-    mutationFn: (input: FilterInput) => Effect.runPromise(updateFilter(id, input)),
-    onSuccess: invalidate,
+    mutationFn: ({ id, fields }: { id: string; fields: FilterInput }) => Effect.runPromise(updateFilter(id, fields)),
+    onSuccess: (_filter, { id }) => invalidate(id),
   });
 };
 
@@ -34,25 +34,25 @@ export const useCreateFilter = () => {
   const invalidate = useInvalidateFilter();
   return useMutation({
     mutationFn: (input: FilterInput) => Effect.runPromise(createFilter(input)),
-    onSuccess: invalidate,
+    onSuccess: () => invalidate(),
   });
 };
 
-export const useDeleteFilter = (id: string) => {
+export const useDeleteFilter = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: () => Effect.runPromise(deleteFilter(id)),
-    onSuccess: () => {
+    mutationFn: (id: string) => Effect.runPromise(deleteFilter(id)),
+    onSuccess: (_result, id) => {
       queryClient.removeQueries({ queryKey: jiraKeys.filter(id) });
       return queryClient.invalidateQueries({ queryKey: jiraKeys.filters });
     },
   });
 };
 
-export const useFilterFavourite = (id: string) => {
-  const invalidate = useInvalidateFilter(id);
+export const useFilterFavourite = () => {
+  const invalidate = useInvalidateFilter();
   return useMutation({
-    mutationFn: (favourite: boolean) => Effect.runPromise(setFilterFavourite(id, favourite)),
-    onSuccess: invalidate,
+    mutationFn: ({ id, favourite }: { id: string; favourite: boolean }) => Effect.runPromise(setFilterFavourite(id, favourite)),
+    onSuccess: (_result, { id }) => invalidate(id),
   });
 };
