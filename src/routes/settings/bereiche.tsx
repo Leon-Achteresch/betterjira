@@ -1,7 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { StarIcon } from "lucide-react";
 import { ProjectAvatar } from "@/components/shell/project-avatar";
-import { Button } from "@/components/ui/button";
+import { FavoriteButton } from "@/components/projects/favorite-button";
 import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemMedia, ItemTitle } from "@/components/ui/item";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
@@ -49,15 +48,7 @@ function BereicheSettings() {
                   <ItemDescription>{project.key}</ItemDescription>
                 </ItemContent>
                 <ItemActions>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-pressed={favorite}
-                    aria-label={favorite ? `${project.name} aus Favoriten entfernen` : `${project.name} favorisieren`}
-                    onClick={() => toggleProject(project.id)}
-                  >
-                    <StarIcon className={favorite ? "fill-current text-amber-500" : "text-muted-foreground"} />
-                  </Button>
+                  <FavoriteButton name={project.name} favorite={favorite} onToggle={() => toggleProject(project.id)} />
                   <Switch
                     checked={shown}
                     onCheckedChange={() => toggleHidden(project.id)}
