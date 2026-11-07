@@ -14,7 +14,7 @@ type Props = Omit<ComponentProps<"input">, "value" | "onChange" | "className"> &
   className?: string;
 };
 
-export function SearchField({ value, onChange, label, placeholder, className, ...inputProps }: Props) {
+export function SearchField({ value, onChange, onKeyDown, label, placeholder, className, ...inputProps }: Props) {
   const reduce = useReducedMotion();
   return (
     <InputGroup className={cn("h-8 rounded-xl", className)}>
@@ -29,7 +29,13 @@ export function SearchField({ value, onChange, label, placeholder, className, ..
         aria-label={label}
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        onKeyDown={(event) => event.key === "Escape" && value && (event.stopPropagation(), onChange(""))}
+        onKeyDown={(event) => {
+          onKeyDown?.(event);
+          if (!event.defaultPrevented && event.key === "Escape" && value) {
+            event.stopPropagation();
+            onChange("");
+          }
+        }}
       />
       <AnimatePresence initial={false}>
         {value && (

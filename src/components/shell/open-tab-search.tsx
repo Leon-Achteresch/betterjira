@@ -23,6 +23,7 @@ type OpenTabSearchProps = {
   onHighlight: (key: string) => void;
   onKeyDown: (event: KeyboardEvent) => void;
   onSelect: (key: string) => void;
+  fallbackFocus: () => HTMLElement | null;
 };
 
 export function OpenTabSearch({
@@ -37,11 +38,13 @@ export function OpenTabSearch({
   onHighlight,
   onKeyDown,
   onSelect,
+  fallbackFocus,
 }: OpenTabSearchProps) {
   const reduce = useReducedMotion();
   const uid = useId();
   const inputRef = useRef<HTMLInputElement>(null);
   const focus = useOverlayReturnFocus({
+    fallbackFocus,
     onOpenAutoFocus: (event) => {
       event.preventDefault();
       inputRef.current?.focus();
@@ -76,9 +79,10 @@ export function OpenTabSearch({
             </DialogClose>
           </Tooltip>
         </div>
-        <div onKeyDown={onKeyDown}>
+        <div>
           <SearchField
             ref={inputRef}
+            onKeyDown={onKeyDown}
             value={query}
             onChange={onQueryChange}
             label="Geöffnete Tickets durchsuchen"

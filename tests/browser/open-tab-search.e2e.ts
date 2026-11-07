@@ -56,6 +56,32 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
+test("Palette gibt beim Schließen der Tab-Suche den Fokus an Suchen zurück", async ({ page }, info) => {
+  const narrow = info.project.name !== "desktop";
+  await openBusy(page, narrow ? 390 : 1440, narrow ? 844 : 900);
+  await openFromPalette(page);
+  await expect(field(page)).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(dialog(page)).toHaveCount(0);
+  await expect(page.locator("header").first().getByRole("button", { name: "Suchen", exact: true })).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("dialog", { name: "Command palette" })).toBeVisible();
+});
+
+test("Suche leeren per Tastatur wählt keinen markierten Tab aus", async ({ page }, info) => {
+  const narrow = info.project.name !== "desktop";
+  await openBusy(page, narrow ? 390 : 1440, narrow ? 844 : 900);
+  await openFromPalette(page);
+  await field(page).fill("DEMO-5");
+  await expect(options(page)).toHaveCount(1);
+  await page.keyboard.press("Tab");
+  await expect(dialog(page).getByRole("button", { name: "Suche leeren" })).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(field(page)).toHaveValue("");
+  await expect(options(page)).toHaveCount(12);
+  await expect(page).toHaveURL(/\/issue\/DEMO-1$/);
+});
+
 test("Weitere Aktionen öffnet die Suche mit allen Tabs in ihrer Reihenfolge", async ({ page }) => {
   await openBusy(page, 390, 844);
   await openFromMenu(page);

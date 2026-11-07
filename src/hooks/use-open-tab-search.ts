@@ -60,5 +60,6 @@ export const useOpenTabSearch = <T extends { key: string; title?: string }>({
     onHighlight: moveTo,
     onKeyDown,
     onSelect: select,
+    fallbackFocus: () => document.querySelector<HTMLElement>('header button[aria-label="Suchen"]'),
   };
 };

@@ -3,9 +3,11 @@ import { useRef } from "react";
 export function useOverlayReturnFocus({
   onOpenAutoFocus,
   onCloseAutoFocus,
+  fallbackFocus,
 }: {
   onOpenAutoFocus?: (event: Event) => void;
   onCloseAutoFocus?: (event: Event) => void;
+  fallbackFocus?: () => HTMLElement | null;
 }) {
   const targets = useRef<HTMLElement[]>([]);
   return {
@@ -20,7 +22,9 @@ export function useOverlayReturnFocus({
     onCloseAutoFocus: (event: Event) => {
       onCloseAutoFocus?.(event);
       if (event.defaultPrevented) return;
-      const target = targets.current.find((element) => element.isConnected);
+      const target = targets.current.find(
+        (element) => element.isConnected && !element.closest("[inert]") && (!fallbackFocus || element !== document.body),
+      ) ?? fallbackFocus?.();
       if (target) {
         event.preventDefault();
         target.focus({ preventScroll: true });
