@@ -8,6 +8,7 @@ if (new URLSearchParams(location.search).get("reduce") === "1") {
 }
 const scenario = new URLSearchParams(location.search).get("scenario");
 const accountId = new URLSearchParams(location.search).get("account") || "qa-user";
+const cloudId = new URLSearchParams(location.search).get("cloud") || "qa-cloud";
 const scheme = matchMedia("(prefers-color-scheme: dark)");
 const applyScheme = () => document.documentElement.classList.toggle("dark", scheme.matches);
 applyScheme();
@@ -293,9 +294,11 @@ if (scenario === "busy") {
   localStorage.setItem("betterjira-workspaces", JSON.stringify(stored));
   if (!localStorage.getItem("betterjira-issue-tabs")) {
     const keys = issues.slice(0, 12).map((issue) => issue.key);
-    localStorage.setItem("betterjira-issue-tabs", JSON.stringify({ state: { keys, pinned: [keys[1]] }, version: 0 }));
+    localStorage.setItem("betterjira-issue-tabs", JSON.stringify({ state: { workspaces: { [id]: { keys, pinned: [keys[1]] } } }, version: 0 }));
   }
 }
+if (scenario === "tabs-legacy" && !localStorage.getItem("betterjira-issue-tabs"))
+  localStorage.setItem("betterjira-issue-tabs", JSON.stringify({ state: { keys: ["DEMO-3", "DEMO-1", "DEMO-2"], pinned: ["DEMO-1"] }, version: 0 }));
 if (scenario === "notifications" || scenario === "notifications-foreign") {
   const minutes = (count) => Date.now() - count * 60000;
   const qaPeople = ["Sam Muster", "Kim Probe", "Jo Test"].map((displayName) => ({ displayName, avatarUrls: author.avatarUrls }));
@@ -589,6 +592,9 @@ const respond = async (request) => {
     window.__qa.myselfCalls++;
     if (window.__qa.myselfDelayMs) await new Promise((resolve) => setTimeout(resolve, window.__qa.myselfDelayMs));
     if (window.__qa.failMyself) return { status: 503, body: { errorMessages: ["Test: Jira vorübergehend nicht erreichbar"] } };
+    const myselfRule = window.__qaMyselfRule?.() ?? {};
+    if (myselfRule.delayMs) await new Promise((resolve) => setTimeout(resolve, myselfRule.delayMs));
+    if (myselfRule.status) return { status: myselfRule.status, body: { errorMessages: [`Test: Jira antwortet mit ${myselfRule.status}`] } };
     return { body: { ...author, accountId } };
   }
   if (path.startsWith("/project/search")) {
@@ -667,6 +673,9 @@ const respond = async (request) => {
   }
   if (issue && url.pathname.includes("/api/2/") && url.searchParams.get("fields") === "description")
     return { body: { fields: { description: wiki[issue.key] } } };
+  const issueRule = issue ? (window.__qaIssueRule?.(issue.key) ?? {}) : {};
+  if (issueRule.delayMs) await new Promise((resolve) => setTimeout(resolve, issueRule.delayMs));
+  if (issueRule.status) return { status: issueRule.status, body: { errorMessages: [`Test: Jira antwortet mit ${issueRule.status}`] } };
   if (issue) return { body: issue };
   return {
     status: 404,
@@ -742,7 +751,7 @@ window.__TAURI_INTERNALS__ = {
         accessToken: "local-test",
         refreshToken: "local-test",
         expiresAt: Date.now() + 3600000,
-        cloudId: "qa-cloud",
+        cloudId,
         siteUrl: "https://example.atlassian.net",
         siteName: "Lokale UI-Testdaten",
       });

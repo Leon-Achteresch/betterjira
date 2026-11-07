@@ -137,3 +137,18 @@ Der vollständige Ablaufbericht einschließlich Vielnutzer, sorgfältigem Leser,
 - Sieben Testbereiche, ein Favorit (Betrieb) und ein in der Seitenleiste ausgeblendeter Bereich (Archiv 2024): `...fixture.html?scenario=projects&route=/bereiche`.
 - `window.__qaProjectRule = () => ({ delayMs, status, values })` steuert die Projektabfrage (verzögern, mit HTTP-Status scheitern, andere Bereiche liefern, etwa für einen Kontowechsel). `window.__qaReads`, per `addInitScript` als Array gesetzt, sammelt alle gelesenen Pfade.
 - Automatisch: `bunx playwright test tests/browser/projects.e2e.ts --workers=1` prüft Suche und Ansicht in der URL mit Zurück/Vorwärts, Favoriten synchron mit der Seitenleiste, ausgeblendete Bereiche, Ladefehler und fehlgeschlagene Aktualisierung mit Retry, Abmelden und Kontowechsel, Tastatur und Command Palette sowie Desktop hell und 390 px dunkel. Mit `PROJECTS_SHOTS=<Ordner>` speichert der Test Screenshots.
+
+## Ticket-Tabs je Konto
+
+Tabs und Pins liegen weiter unter `betterjira-issue-tabs`, jetzt je Arbeitsbereich `JSON.stringify([cloudId, accountId])`. Die alte globale Liste `{ keys, pinned }` wird beim Laden in Quarantäne gelegt und keinem Konto automatisch zugeordnet. Erst nach bestätigter Sitzung und `/myself` zeigt die Kopfleiste Tabs; vorher schreibt keine Aktion.
+
+- Alte globale Tabs: `fixture.html?scenario=tabs-legacy&route=/` (DEMO-3, DEMO-1 angeheftet, DEMO-2). Übernehmen/Verwerfen über den Hinweis in der Kopfleiste oder die Command Palette, jeweils mit „Rückgängig“.
+- Anderes Konto oder andere Instanz: `account=<id>` bzw. `cloud=<id>` an die Fixture-URL hängen.
+- `window.__qaMyselfRule = () => ({ delayMs, status })` verzögert oder bricht `/myself` ab, `window.__qaIssueRule = (key) => ({ delayMs, status })` die Ticketdetails. Per `addInitScript` setzen.
+- `busy` legt die zwölf Tabs bereits im neuen Format für `qa-cloud` / `qa-user` an.
+- `issue-tab-scopes.e2e.ts` prüft A → B → A, gleichen Schlüssel in anderer Instanz, langsame und fehlgeschlagene Kontoprüfung, Abmelden, Laden aus fremdem Pfad, Quarantäne mit Rückgängig, Command Palette und 390 px. `ISSUE_TAB_SCOPE_SHOTS=<Ordner>` speichert Screenshots.
+
+Integration offener PRs:
+
+- #37 (Tab-Suche): `useIssueTabStore((state) => state.keys)` und `useIssueTabs()` bleiben erhalten; `keys`/`pinned` im Store sind nur noch die Sicht des bestätigten Kontos.
+- #41 (schlanke Titel): in `useIssueTabs` nur die Zeile `const issues = useQueries(...)` samt `title:` durch `useIssueTabMetadata(ordered, activeKey)` ersetzen. `useJiraIssue` bleibt importiert, weil `useRememberIssueTab` die ohnehin geladenen Ticketdetails beobachtet; es entsteht keine zweite Titelabfrage.
