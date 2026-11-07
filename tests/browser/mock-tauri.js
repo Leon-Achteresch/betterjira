@@ -600,7 +600,7 @@ const respond = async (request) => {
     const rule = window.__qaSearchRule?.(url.searchParams.get("jql") ?? "", url.searchParams.get("nextPageToken")) ?? {};
     const delayMs = rule.delayMs ?? qa.searchDelayMs;
     if (delayMs) await new Promise((resolve) => setTimeout(resolve, delayMs));
-    if (rule.status) return { status: rule.status, body: { errorMessages: [`Test: Jira antwortet mit ${rule.status}`] } };
+    if (rule.status) return { status: rule.status, headers: rule.headers, body: { errorMessages: [`Test: Jira antwortet mit ${rule.status}`] } };
     if (qa.failSearch) return { status: 400, body: { errorMessages: ["Test: Abfrage nicht möglich"] } };
     const found = rule.keys ? issues.filter((issue) => rule.keys.includes(issue.key)) : issues;
     return { body: { issues: qa.emptySearch ? [] : found, isLast: !rule.nextPageToken, nextPageToken: rule.nextPageToken } };
@@ -768,7 +768,7 @@ window.__TAURI_INTERNALS__ = {
         status: result.status ?? 200,
         statusText: "Test",
         url: entry.request.url,
-        headers: [["content-type", "application/json"]],
+        headers: [["content-type", "application/json"], ...Object.entries(result.headers ?? {})],
         rid: args.rid,
       };
     }

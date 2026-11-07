@@ -1,4 +1,5 @@
 import { isAdfDoc, isBlankAdf } from "./adf";
+import { JiraApiError } from "./client";
 import type { JiraEditField } from "./queries";
 
 export type JiraFieldMeta = Omit<JiraEditField, "operations">;
@@ -65,6 +66,7 @@ export const encode = (kind: Kind, value: unknown) => {
 
 export const jiraErrors = (error: unknown) => {
   if (!error) return { messages: [] as string[], fields: {} as Record<string, string> };
+  if (error instanceof JiraApiError && error.status === 429) return { messages: [error.message], fields: {} as Record<string, string> };
   if ((error as { _tag?: string })._tag === "JiraApiError") {
     try {
       const body = JSON.parse((error as { body: string }).body) as { errorMessages?: string[]; errors?: Record<string, string> };
