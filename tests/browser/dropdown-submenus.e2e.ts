@@ -93,7 +93,7 @@ for (const narrow of [false, true]) {
       await expect(item(page, "Markdown")).toBeFocused();
       await item(page, "Markdown").click();
       await expect(submenu(page)).toHaveCount(0);
-      expect(await copied(page)).toMatch(/^\| .+ \|\n\| --- \|/);
+      await expect.poll(() => copied(page)).toMatch(/^\| .+ \|\n\| --- \|/);
       await expect(page.getByText("Zeilen kopiert")).toBeVisible();
     });
 
@@ -107,7 +107,7 @@ for (const narrow of [false, true]) {
       await expect(item(page, "JQL")).toBeFocused();
       await page.mouse.down();
       await page.mouse.up();
-      expect(await copied(page)).toContain('project = "DEMO"');
+      await expect.poll(() => copied(page)).toContain('project = "DEMO"');
       await expect(page.getByRole("menu")).toHaveCount(0);
     });
 

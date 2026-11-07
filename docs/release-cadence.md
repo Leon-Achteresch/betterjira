@@ -16,4 +16,6 @@ Ein fehlgeschlagener Release wird repariert, bevor die nächste Fünfergruppe ve
 - #28: Verständliche Not-found-Ansicht
 - #26: Durchsuchbare Shortcut-Hilfe
 
-Die gemeinsame Release-Prüfung läuft. Für veröffentlichte Releases prüft `.github/scripts/test-release.ps1 -Tag vX.Y.Z` die Version sowie die Updater-Einträge, Binärdateien und Signaturen aller sieben Plattformvarianten.
+Gemeinsamer Stand: Typecheck, Build und 391 Unit-Tests grün. Browser: 84 bestanden, drei bewusst übersprungen, ein zu früher Zwischenablagevergleich im Test fehlgeschlagen. Nach Warten auf den asynchronen Kopiervorgang sind alle acht betroffenen Browserfälle grün. Anwendungsquellen blieben dabei unverändert. Die Release-Übernahme erfolgt mit PR #58; Veröffentlichung und native Prüfung stehen noch aus.
+
+Für veröffentlichte Releases prüft `.github/scripts/test-release.ps1 -Tag vX.Y.Z` die Version sowie die Updater-Einträge, Binärdateien und Signaturen aller sieben Plattformvarianten. Gegen v0.7.0 ist dieses Prüfskript erfolgreich gelaufen.
