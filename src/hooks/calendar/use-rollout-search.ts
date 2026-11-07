@@ -17,9 +17,10 @@ export function useRolloutSearch(search: KalenderSearch, { rollouts, pending, lo
   const reduce = useReducedMotion();
   const agendaRef = useRef<HTMLElement>(null);
   const text = useUrlText(search.q ?? "", (q) => void navigate({ search: (prev) => ({ ...prev, q: q || undefined }), replace: true }));
-  const [expandedFor, setExpandedFor] = useState<string | null>(null);
+  const [expansion, setExpansion] = useState({ query: text.text, expanded: false });
+  if (expansion.query !== text.text) setExpansion({ query: text.text, expanded: false });
   const results = useMemo(() => searchRollouts(rollouts, text.text), [rollouts, text.text]);
-  const expanded = expandedFor === text.text;
+  const expanded = expansion.query === text.text && expansion.expanded;
 
   return {
     text: text.text,
@@ -29,7 +30,7 @@ export function useRolloutSearch(search: KalenderSearch, { rollouts, pending, lo
     total: results.length,
     canExpand: results.length > ROLLOUT_SEARCH_LIMIT,
     expanded,
-    toggleExpanded: () => setExpandedFor(expanded ? null : text.text),
+    toggleExpanded: () => setExpansion({ query: text.text, expanded: !expanded }),
     agendaRef,
     open: (rollout: Rollout) => {
       onOpen(rollout);

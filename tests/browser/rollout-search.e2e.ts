@@ -66,6 +66,17 @@ test("Suche filtert nur die Trefferliste, Kalender und Tagesagenda bleiben unver
   await expect(monthHeading(page, "November 2026")).toBeVisible();
   await expect(monthHeading(page, "Freitag, 6. November")).toBeVisible();
   await expect(agenda(page).locator("article").filter({ hasText: "Produktion Release 2.4" })).toBeVisible();
+  const shots = process.env.ROLLOUT_SEARCH_SHOTS;
+  if (shots && test.info().project.name === "desktop") {
+    const loaded = await page.evaluate(async () => {
+      await document.fonts.load('16px "Geist Variable"');
+      await document.fonts.ready;
+      await Promise.all(document.getAnimations().filter((animation) => animation.effect?.getComputedTiming().iterations !== Infinity).map((animation) => animation.finished.catch(() => undefined)));
+      return [...document.fonts].some((face) => face.family.includes("Geist") && face.status === "loaded");
+    });
+    expect(loaded).toBe(true);
+    await page.screenshot({ path: `${shots}/desktop-hell.png` });
+  }
 });
 
 test("Mehrere Wörter, Groß/Klein und Sonderzeichen werden wörtlich verglichen", async ({ page }) => {
@@ -116,6 +127,9 @@ test("Längere Trefferliste ist begrenzt und klappt bei neuer Suche wieder ein",
   await expect(page.getByRole("button", { name: "Weniger anzeigen" })).toBeVisible();
 
   await field(page).fill("hotfix-release");
+  await expect(results(page).getByRole("button")).toHaveCount(8);
+  await expect(page.getByRole("button", { name: "Weitere anzeigen (2)" })).toBeVisible();
+  await field(page).fill("hotfix");
   await expect(results(page).getByRole("button")).toHaveCount(8);
   await expect(page.getByRole("button", { name: "Weitere anzeigen (2)" })).toBeVisible();
 });
@@ -194,6 +208,9 @@ test("Tastatur: Treffer per Tab erreichen und mit Enter den Tag wählen", async 
   await page.keyboard.type("migration");
   const target = result(page, "Datenbank Migration");
   await expect(target).toBeVisible();
+  const resetBox = await page.getByRole("button", { name: "Suche leeren", exact: true }).boundingBox();
+  expect(resetBox?.width).toBeGreaterThanOrEqual(32);
+  expect(resetBox?.height).toBeGreaterThanOrEqual(32);
   await page.keyboard.press("Tab");
   await expect(page.getByRole("button", { name: "Suche leeren", exact: true })).toBeFocused();
   await page.keyboard.press("Tab");

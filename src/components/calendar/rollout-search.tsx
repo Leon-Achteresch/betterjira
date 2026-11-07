@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { Rollout } from "@/lib/calendar/model";
 import { resultDate, type RolloutSearchStatus } from "@/lib/calendar/rollout-search";
-import { EASE_OUT, SPRING_PRESS } from "@/lib/ease";
+import { EASE_OUT, SPRING_LAYOUT, SPRING_PRESS } from "@/lib/ease";
 
 type RolloutSearchProps = {
   value: string;
@@ -25,7 +25,7 @@ export function RolloutSearch({ value, onChange, status, results, total, canExpa
   const reduce = useReducedMotion();
   return (
     <section className="flex flex-col gap-3 rounded-xl border bg-card p-4" aria-label={LABEL}>
-      <SearchField value={value} onChange={onChange} label={LABEL} placeholder={LABEL} />
+      <SearchField value={value} onChange={onChange} label={LABEL} placeholder={LABEL} className="[&_input::-webkit-search-cancel-button]:hidden [&_button]:min-h-8 [&_button]:min-w-8" />
       <AnimatePresence initial={false}>
         {status !== "idle" && (
           <motion.div
@@ -53,9 +53,10 @@ export function RolloutSearch({ value, onChange, status, results, total, canExpa
                     : `${total} Treffer in den geladenen Rollouts`}
                 </p>
                 {total > 0 && (
-                  <Stagger role="list" aria-label="Treffer in geladenen Rollouts" className="flex flex-col gap-1">
+                  <Stagger role="list" aria-label="Treffer in geladenen Rollouts" className="relative flex flex-col gap-1">
+                    <AnimatePresence initial={false} mode="popLayout">
                     {results.map((rollout) => (
-                      <StaggerItem key={rollout.id} role="listitem">
+                      <StaggerItem key={rollout.id} role="listitem" layout={reduce ? false : "position"} transition={{ layout: SPRING_LAYOUT }} exit={{ opacity: 0, transition: { duration: 0.12, ease: EASE_OUT } }}>
                         <motion.button
                           type="button"
                           onClick={() => onSelect(rollout)}
@@ -75,10 +76,11 @@ export function RolloutSearch({ value, onChange, status, results, total, canExpa
                         </motion.button>
                       </StaggerItem>
                     ))}
+                    </AnimatePresence>
                   </Stagger>
                 )}
                 {canExpand && (
-                  <Button size="sm" variant="ghost" className="self-start tabular-nums" onClick={onToggleExpanded}>
+                  <Button size="sm" variant="ghost" className="min-h-8 self-start tabular-nums" onClick={onToggleExpanded}>
                     {expanded ? "Weniger anzeigen" : `Weitere anzeigen (${total - results.length})`}
                   </Button>
                 )}
