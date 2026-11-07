@@ -28,4 +28,6 @@ PR #58 wurde vom Besitzer gemergt und v0.8.0 veröffentlicht. Der Paketbau und d
 
 Alle 26 weiteren offenen PRs wurden anschließend nach development integriert: #4, #5, #19, #20, #21, #22, #23, #24, #25, #27, #30, #31, #32, #33, #34, #37, #38, #39, #40, #41, #42, #43, #44, #45, #47 und #48. Release-Übernahme: PR #59.
 
-Build, Typecheck und 690 Unit-Tests sind grün. Die vollständige Browserprüfung wird vor dem Release ausgewertet. Veraltete Tests für global gespeicherte Tabs/Favoriten wurden an die Kontotrennung angepasst. Die Fehler-Injektion im QA-Build wird ausschließlich durch die lokale, nicht versionierte QA-Konfiguration erzeugt; der veröffentlichte Build enthält sie nicht.
+Build, Typecheck und 690 Unit-Tests sind grün. Die vollständige Browserprüfung wird vor dem Release ausgewertet. Veraltete Tests für global gespeicherte Tabs/Favoriten wurden an die Kontotrennung angepasst. Die Fehler-Injektion wird ausschließlich durch die QA-Konfiguration erzeugt; der veröffentlichte Build enthält sie nicht.
+
+Die vollständigen Browserprüfungen laufen für Übernahmen nach main zusätzlich im Windows-CI-Job `browser`, mit einem Worker und Edge in beiden Darstellungen. Bei Fehlern bleiben Bericht, Screenshots und Traces als Artefakt erhalten. `vite.browser-qa.config.ts` ist ausschließlich für diesen Test-Build bestimmt; native Releases verwenden weiterhin `vite.config.ts` und enthalten keine Fehler-Injektion.

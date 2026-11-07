@@ -17,4 +17,26 @@ jobs:
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
       - run: bun run build
-      - run: bun run test
+      - run: bun run test --maxWorkers=1
+
+  browser:
+    if: github.event_name == 'pull_request' && github.base_ref == 'main'
+    needs: frontend
+    runs-on: windows-latest
+    timeout-minutes: 60
+    env:
+      BROWSER_QA_DIRECTORY: ${{ runner.temp }}/betterjira-browser-qa
+    steps:
+      - uses: actions/checkout@v7
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: bunx playwright install msedge
+      - run: bunx vite build --config vite.browser-qa.config.ts --configLoader runner
+      - run: node .github/scripts/derive-browser-fixture.mjs . "$env:BROWSER_QA_DIRECTORY/dist"
+      - run: bunx playwright test --config playwright.browser-qa.config.ts --workers=1
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: browser-release-check
+          path: ${{ runner.temp }}/betterjira-browser-qa
+          retention-days: 7
