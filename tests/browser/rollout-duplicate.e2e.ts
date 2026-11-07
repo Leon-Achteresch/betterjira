@@ -188,6 +188,8 @@ test("Weitere Aktionen sind per Tastatur erreichbar, haben Tooltip und 32 px Tre
   await open(page);
   const before = await snapshot(page);
   const trigger = moreButton(page, "Produktion Release 2.4");
+  await trigger.scrollIntoViewIfNeeded();
+  await settle(page);
   const hits = await trigger.evaluate((button) => {
     const rect = button.getBoundingClientRect();
     const centerX = rect.left + rect.width / 2;
@@ -200,12 +202,22 @@ test("Weitere Aktionen sind per Tastatur erreichbar, haben Tooltip und 32 px Tre
       right: hit(rect.right - 2, centerY),
       width: rect.width,
       height: rect.height,
+      left: rect.left,
+      topEdge: rect.top,
+      rightEdge: rect.right,
+      bottomEdge: rect.bottom,
+      viewportWidth: window.innerWidth,
+      viewportHeight: window.innerHeight,
       separated: buttons.every((item, index) => index === 0 || buttons[index - 1].right <= item.left),
     };
   });
   expect(hits).toMatchObject({ top: true, bottom: true, right: true, separated: true });
   expect(hits.width).toBeGreaterThanOrEqual(32);
   expect(hits.height).toBeGreaterThanOrEqual(32);
+  expect(hits.left).toBeGreaterThanOrEqual(0);
+  expect(hits.topEdge).toBeGreaterThanOrEqual(0);
+  expect(hits.rightEdge).toBeLessThanOrEqual(hits.viewportWidth);
+  expect(hits.bottomEdge).toBeLessThanOrEqual(hits.viewportHeight);
 
   await trigger.hover();
   await expect(page.getByText("Weitere Aktionen", { exact: true })).toBeVisible();
