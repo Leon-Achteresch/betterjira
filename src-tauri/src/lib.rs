@@ -7,6 +7,7 @@ mod oauth;
 mod outlook;
 mod scm;
 mod secrets;
+mod update;
 
 #[cfg(target_os = "macos")]
 fn app_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
@@ -93,7 +94,8 @@ pub fn run() {
             scm::scm_request,
             scm::scm_gh_hosts,
             scm::scm_token_set,
-            scm::scm_token_delete
+            scm::scm_token_delete,
+            update::update_install_version
         ])
         .setup(|app| {
             secrets::init(app.path().app_data_dir()?);
