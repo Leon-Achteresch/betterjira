@@ -1,19 +1,10 @@
-import type { ReactNode } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import { Tooltip } from "@/components/motion/tooltip";
 import { Button } from "@/components/ui/button";
 import { SPRING_PRESS } from "@/lib/ease";
+import type { IconActionProps } from "@/types/icon-action";
 
 const MotionButton = motion.create(Button);
-
-type IconActionProps = {
-  label: string;
-  tooltip: ReactNode;
-  onClick: () => void;
-  pressed?: boolean;
-  className?: string;
-  children: ReactNode;
-};
 
 export function IconAction({ label, tooltip, onClick, pressed, className, children }: IconActionProps) {
   const reduce = useReducedMotion();

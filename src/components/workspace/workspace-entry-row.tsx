@@ -1,4 +1,4 @@
-import { useId, type Ref } from "react";
+import { useId } from "react";
 import { Link } from "@tanstack/react-router";
 import { formatDistanceToNowStrict } from "date-fns";
 import { de } from "date-fns/locale";
@@ -7,18 +7,11 @@ import { BookOpenIcon, FilePenLineIcon, MessageSquareDashedIcon, PinIcon, Sticky
 import { JiraStatusBadge } from "@/components/jira-status-badge";
 import { IconAction } from "@/components/motion/icon-action";
 import { EASE_OUT } from "@/lib/ease";
-import type { WorkspaceEntry } from "@/lib/workspace-page";
+import type { WorkspaceEntryRowProps } from "@/types/workspace-row";
 import { cn } from "@/lib/utils";
 
 const CHIP = "inline-flex items-center gap-1 rounded-xl px-2 py-0.5 text-[0.7rem] font-medium";
 const ROW_ACTION = "text-muted-foreground sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100";
-
-type WorkspaceEntryRowProps = {
-  entry: WorkspaceEntry;
-  linkRef?: Ref<HTMLAnchorElement>;
-  onTogglePin: () => void;
-  onRemoveRecent: () => void;
-};
 
 export function WorkspaceEntryRow({ entry, linkRef, onTogglePin, onRemoveRecent }: WorkspaceEntryRowProps) {
   const reduce = useReducedMotion();

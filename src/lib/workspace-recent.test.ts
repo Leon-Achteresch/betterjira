@@ -88,11 +88,11 @@ describe("Aus Zuletzt entfernen", () => {
     expect(restoreRecentIssue(refilled, tail)).toBe(refilled);
   });
 
-  it("bringt eine zwischenzeitlich aufgeräumte Lesestelle zurück, ohne neuere zu überschreiben", () => {
+  it("behält entfernte Lesestellen auch beim nächsten Öffnen und überschreibt keine neuere", () => {
     const { workspace: next, removed } = removeRecentIssue(opened("A-1", "A-2"), "A-2");
     if (!removed) throw new Error("A-2 fehlt im Verlauf");
     const pruned = rememberIssue(next, issue("N-1"));
-    expect(pruned.contexts?.["A-2"]).toBeUndefined();
+    expect(pruned.contexts?.["A-2"]).toEqual(removed.context);
     const restored = restoreRecentIssue(pruned, removed);
     expect(restored.contexts?.["A-2"]).toEqual(removed.context);
     expect(restored.contexts?.["N-1"]).toEqual(pruned.contexts?.["N-1"]);

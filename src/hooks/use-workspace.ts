@@ -2,6 +2,7 @@ import { Schema } from "effect";
 import { useCallback } from "react";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { useLatestRef } from "@/hooks/use-latest-ref";
 import { useJiraMyself, useJiraSite } from "@/lib/jira/queries";
 import {
   EMPTY_WORKSPACE,
@@ -57,9 +58,10 @@ export function useWorkspace() {
   const site = useJiraSite();
   const myself = useJiraMyself();
   const id =
-    site.data && myself.data
+    site.isSuccess && site.data && myself.isSuccess && myself.data
       ? workspaceId(site.data.cloudId, myself.data.accountId)
       : undefined;
+  const latestId = useLatestRef(id);
   const workspace = useWorkspaceStore((state) =>
     id ? (state.workspaces[id] ?? EMPTY_WORKSPACE) : EMPTY_WORKSPACE,
   );
@@ -67,9 +69,9 @@ export function useWorkspace() {
 
   const updateWorkspace = useCallback(
     (transform: (workspace: Workspace) => Workspace) => {
-      if (id) update(id, transform);
+      if (id && latestId.current === id) update(id, transform);
     },
-    [id, update],
+    [id, update, latestId],
   );
   return { id, workspace, ready: !!id, update: updateWorkspace };
 }
