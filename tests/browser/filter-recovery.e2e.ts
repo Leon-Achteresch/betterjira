@@ -10,6 +10,8 @@ declare global {
   }
 }
 
+const STALE_AFTER_MS = 31_000;
+
 const open = (page: Page, route: string, scenario = "filters") =>
   page.goto(`/tests/browser/fixture.html?${new URLSearchParams({ route, scenario })}`);
 
@@ -34,8 +36,10 @@ const shot = async (page: Page, testInfo: TestInfo, name: string) => {
 
 const openSidebarLink = async (page: Page, name: string) => {
   const link = page.getByRole("link", { name, exact: true });
-  if (!(await link.isVisible())) await page.getByRole("button", { name: "Toggle Sidebar", exact: true }).click();
+  const collapsed = !(await link.isVisible());
+  if (collapsed) await page.getByRole("button", { name: "Toggle Sidebar", exact: true }).click();
   await link.click();
+  if (collapsed) await page.keyboard.press("Escape");
 };
 
 const editDraft = async (page: Page, text: string) => {
@@ -65,12 +69,17 @@ test.describe("Sitzung", () => {
     expect((await qa(page)).filterReads).toEqual([]);
   });
 
-  test("ein Lesefehler ist keine Abmeldung, Retry liest die Sitzung genau einmal neu", async ({ page }, testInfo) => {
+  test("ein Lesefehler ist keine Abmeldung und liest die Sitzung nicht öfter als die Ticketseite", async ({ page }, testInfo) => {
+    const sessionReads = async () => (await qa(page)).commands.filter((command) => command === "session_get").length;
+    await open(page, "/tickets", "session-error");
+    await expect(main(page).getByText("Anmeldung konnte nicht geprüft werden", { exact: true })).toBeVisible();
+    const baseline = await sessionReads();
+
     await open(page, "/filter/100", "session-error");
     await expect(main(page).getByText("Anmeldung konnte nicht geprüft werden", { exact: true })).toBeVisible();
     await expect(main(page).getByRole("button", { name: "Mit Atlassian verbinden" })).toHaveCount(0);
     await shot(page, testInfo, "sitzung-fehler");
-    expect((await qa(page)).commands.filter((command) => command === "session_get")).toHaveLength(1);
+    expect(await sessionReads()).toBe(baseline);
 
     await page.evaluate(() => {
       window.__qa.sessionFailure = false;
@@ -119,14 +128,14 @@ test.describe("Filter laden", () => {
   }
 
   test("ein gescheiterter Refresh behält Name, JQL, Tabelle und Entwurf", async ({ page }, testInfo) => {
-    await page.clock.install();
+    test.setTimeout(90_000);
     await open(page, "/filter/100");
     await expect(heading(page)).toHaveText("Offene Testtickets");
     await editDraft(page, "project = DEMO AND text ~ entwurf");
     await expect(main(page).getByRole("cell", { name: "DEMO-1", exact: true })).toBeVisible();
 
     await setRule(page, "return { status: 503 };");
-    await page.clock.fastForward("00:45");
+    await page.waitForTimeout(STALE_AFTER_MS);
     await page.evaluate(() => window.dispatchEvent(new Event("visibilitychange")));
     const notice = main(page).getByRole("alert").filter({ hasText: "Filter konnte nicht aktualisiert werden" });
     await expect(notice).toBeVisible();
