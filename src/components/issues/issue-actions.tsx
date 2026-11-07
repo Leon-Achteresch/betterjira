@@ -8,12 +8,14 @@ import {
   LinkIcon,
   PaperclipIcon,
   PinIcon,
+  RefreshCwIcon,
   SlidersHorizontalIcon,
   StickyNoteIcon,
   TimerIcon,
 } from "lucide-react";
 import { Tooltip } from "@/components/motion/tooltip";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,10 +33,14 @@ export function IssueActions({
   actions,
   attachmentCount,
   timeSpent,
+  refreshing,
+  onRefresh,
 }: {
   actions: ReturnType<typeof useIssueActions>;
   attachmentCount: number;
   timeSpent?: string;
+  refreshing: boolean;
+  onRefresh: () => void;
 }) {
   const reduce = useReducedMotion();
   return (
@@ -90,6 +96,10 @@ export function IssueActions({
             Entwicklung
           </DropdownMenuItem>
           <DropdownMenuSeparator />
+          <DropdownMenuItem onSelect={onRefresh} disabled={refreshing}>
+            {refreshing ? <Spinner aria-hidden /> : <RefreshCwIcon />}
+            {refreshing ? "Wird aktualisiert …" : "Aktualisieren"}
+          </DropdownMenuItem>
           <DropdownMenuItem onSelect={actions.copyKey}>
             <CopyIcon />
             Schlüssel kopieren

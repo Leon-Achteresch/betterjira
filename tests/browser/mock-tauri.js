@@ -971,6 +971,9 @@ const respond = async (request) => {
     window.__qa.myselfCalls++;
     if (window.__qa.myselfDelayMs) await new Promise((resolve) => setTimeout(resolve, window.__qa.myselfDelayMs));
     if (window.__qa.failMyself) return { status: 503, body: { errorMessages: ["Test: Jira vorübergehend nicht erreichbar"] } };
+    const rule = window.__qaMyselfRule?.() ?? {};
+    if (rule.delayMs) await new Promise((resolve) => setTimeout(resolve, rule.delayMs));
+    if (rule.status) return { status: rule.status, body: { errorMessages: [`Test: Jira antwortet mit ${rule.status}`] } };
     return { body: { ...author, accountId } };
   }
   if (path.startsWith("/project/search")) {
@@ -1113,6 +1116,12 @@ const respond = async (request) => {
   }
   if (issue && url.pathname.includes("/api/2/") && url.searchParams.get("fields") === "description")
     return { body: { fields: { description: wiki[issue.key] } } };
+  if (issue && url.searchParams.get("fields") === "*all") {
+    const rule = window.__qaIssueRule?.(issue.key) ?? {};
+    if (rule.delayMs) await new Promise((resolve) => setTimeout(resolve, rule.delayMs));
+    if (rule.status) return { status: rule.status, body: { errorMessages: [`Test: Jira antwortet mit ${rule.status}`] } };
+    if (rule.summary) return { body: { ...issue, fields: { ...issue.fields, summary: rule.summary } } };
+  }
   if (issue && window.__qa.commentDetailLimit !== undefined)
     return { body: { ...issue, fields: { ...issue.fields, comment: commentWindow(issue) } } };
   if (issue) return { body: issue };

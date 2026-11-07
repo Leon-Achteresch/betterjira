@@ -16,6 +16,8 @@ import { IssueLinksPanel } from "@/components/issues/issue-links-panel";
 import { RemoteLinksPanel } from "@/components/issues/remote-links-panel";
 import { IssueSubtasks } from "@/components/issues/issue-subtasks";
 import { IssueHistoryPanel } from "@/components/issues/issue-history-panel";
+import { IssueLoadError } from "@/components/issues/issue-load-error";
+import { IssueRefreshNotice } from "@/components/issues/issue-refresh-notice";
 import { useIssueReadingPosition } from "@/hooks/use-issue-reading-position";
 import { useIssueActions } from "@/hooks/use-issue-actions";
 import { useIssueDevelopmentPanel } from "@/hooks/scm/use-issue-development-panel";
@@ -23,8 +25,9 @@ import { useIssueHistory } from "@/hooks/jira/use-issue-history";
 import { useIssueLinks } from "@/hooks/jira/use-issue-links";
 import { useRemoteLinks } from "@/hooks/jira/use-remote-links";
 import { useIssueCommentPages } from "@/hooks/jira/use-issue-comment-pages";
+import { useIssueView } from "@/hooks/jira/use-issue-view";
 import { EASE_OUT } from "@/lib/ease";
-import { useJiraIssue, useJiraSite, type JiraIssueDetail } from "@/lib/jira/queries";
+import { useJiraSite, type JiraIssueDetail } from "@/lib/jira/queries";
 import { cn } from "@/lib/utils";
 
 const VITALS = ["assignee", "reporter", "priority", "duedate", "labels"];
@@ -92,7 +95,7 @@ const LAYOUT = {
   body: "flex min-w-0 flex-col gap-10 @5xl:col-start-1 @5xl:row-start-3",
 };
 
-function IssueViewSkeleton() {
+export function IssueViewSkeleton() {
   return (
     <div aria-busy aria-label="Ticket wird geladen" className={LAYOUT.article}>
       <Skeleton className={cn(LAYOUT.bar, "h-9 w-full")} />
@@ -122,32 +125,29 @@ function IssueViewSkeleton() {
 
 export function IssueView({ issueKey, initialTab }: { issueKey: string; initialTab?: IssueDrawerTab }) {
   const site = useJiraSite();
-  const issue = useJiraIssue(issueKey);
+  const view = useIssueView(issueKey);
   const reduce = useReducedMotion();
-  useIssueReadingPosition(issueKey, !!issue.data);
-  const actions = useIssueActions(issue.data, site.data?.siteUrl, initialTab);
+  useIssueReadingPosition(issueKey, !!view.issue);
+  const actions = useIssueActions(view.issue, site.data?.siteUrl, initialTab);
   const history = useIssueHistory(issueKey);
   const links = useIssueLinks(issueKey);
   const remoteLinks = useRemoteLinks(issueKey);
   const commentPages = useIssueCommentPages(
-    issue.data?.key ?? issueKey,
-    issue.data?.fields.comment?.comments ?? [],
-    issue.data?.fields.comment,
+    view.issue?.key ?? issueKey,
+    view.issue?.fields.comment?.comments ?? [],
+    view.issue?.fields.comment,
   );
   const development = useIssueDevelopmentPanel(
     issueKey,
-    issue.data && { projectKey: issue.data.fields.project.key, summary: issue.data.fields.summary },
+    view.issue && { projectKey: view.issue.fields.project.key, summary: view.issue.fields.summary },
   );
 
-  if (issue.error) {
-    return (
-      <p role="alert" className="text-sm text-destructive">
-        {issue.error.message}
-      </p>
-    );
+  if (view.load.phase === "failed") {
+    return <IssueLoadError issueKey={issueKey} problem={view.load.problem} retrying={view.refreshing} onRetry={view.refresh} />;
   }
-  if (!issue.data) return <IssueViewSkeleton />;
-  const { fields } = issue.data;
+  if (view.load.phase === "loading") return <IssueViewSkeleton />;
+  const issue = view.load.data;
+  const { fields } = issue;
   const subtasks = fields.subtasks ?? [];
 
   return (
@@ -177,17 +177,25 @@ export function IssueView({ issueKey, initialTab }: { issueKey: string; initialT
           </>
         )}
         <ChevronRightIcon className="size-3.5 opacity-50" />
-        <span className="font-mono text-xs text-foreground">{issue.data.key}</span>
+        <span className="font-mono text-xs text-foreground">{issue.key}</span>
         <span className="rounded-sm bg-muted px-1.5 py-0.5 text-xs">{fields.issuetype.name}</span>
 
         <IssueActions
           actions={actions}
           attachmentCount={fields.attachment?.length ?? 0}
           timeSpent={fields.timetracking?.timeSpent}
+          refreshing={view.refreshing}
+          onRefresh={view.refresh}
         />
       </motion.div>
       <motion.header variants={reveal(reduce)} className={cn(LAYOUT.header, "flex flex-col gap-5")}>
-        <EditableField issue={issue.data} id="summary">
+        <IssueRefreshNotice
+          problem={view.load.refreshProblem}
+          loadedLabel={view.loadedLabel}
+          retrying={view.refreshing}
+          onRetry={view.refresh}
+        />
+        <EditableField issue={issue} id="summary">
           <h1 className="text-3xl font-semibold tracking-tight text-balance">{fields.summary}</h1>
         </EditableField>
 
@@ -198,12 +206,12 @@ export function IssueView({ issueKey, initialTab }: { issueKey: string; initialT
       </motion.header>
 
       <motion.aside variants={reveal(reduce)} aria-label="Eigenschaften" className={LAYOUT.aside}>
-        <Vitals issue={issue.data} />
+        <Vitals issue={issue} />
       </motion.aside>
 
       <div className={LAYOUT.body}>
         <Section title="Beschreibung">
-          <EditableField issue={issue.data} id="description" className="text-[0.95rem] leading-relaxed">
+          <EditableField issue={issue} id="description" className="text-[0.95rem] leading-relaxed">
             {fields.description ? (
               <FieldValue value={fields.description} />
             ) : (
@@ -214,7 +222,7 @@ export function IssueView({ issueKey, initialTab }: { issueKey: string; initialT
 
         {subtasks.length > 0 && (
           <Section title="Unteraufgaben">
-            <IssueSubtasks key={issue.data.key} subtasks={subtasks} />
+            <IssueSubtasks key={issue.key} subtasks={subtasks} />
           </Section>
         )}
 
@@ -233,7 +241,7 @@ export function IssueView({ issueKey, initialTab }: { issueKey: string; initialT
         </motion.div>
 
         <Section title={`Kommentare · ${commentPages.total ?? commentPages.loaded}`}>
-          <IssueComments key={issue.data.key} issueKey={issue.data.key} pages={commentPages} />
+          <IssueComments key={issue.key} issueKey={issue.key} pages={commentPages} />
         </Section>
 
         <motion.div variants={reveal(reduce)}>
@@ -242,16 +250,16 @@ export function IssueView({ issueKey, initialTab }: { issueKey: string; initialT
       </div>
 
       <IssueDrawer
-        key={issue.data.key}
-        issue={issue.data}
+        key={issue.key}
+        issue={issue}
         open={actions.drawer}
         tab={actions.tab}
         onOpenChange={actions.setDrawer}
         onTabChange={actions.setTab}
         onCloseAutoFocus={actions.restoreFocus}
-        extraFields={richFieldIds(issue.data).map((id) => (
-          <Section key={id} title={issue.data.names[id] ?? id}>
-            <EditableField issue={issue.data} id={id}>
+        extraFields={richFieldIds(issue).map((id) => (
+          <Section key={id} title={issue.names[id] ?? id}>
+            <EditableField issue={issue} id={id}>
               <FieldValue value={fields[id]} />
             </EditableField>
           </Section>

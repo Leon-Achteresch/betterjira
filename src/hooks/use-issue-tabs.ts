@@ -1,10 +1,11 @@
-import { useQueries } from "@tanstack/react-query";
+import { useQueries, useQueryClient } from "@tanstack/react-query";
 import { useMatch, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { addTab, issueKeyFromHref, keepOthers, keepUntil, neighborTab, orderTabs, removeTab } from "@/lib/issue-tabs";
 import { issueQuery, useJiraSite } from "@/lib/jira/queries";
+import { useJiraQueryScope } from "@/hooks/jira/use-jira-query-scope";
 
 type IssueTabsState = {
   keys: string[];
@@ -35,8 +36,10 @@ export const useIssueTabs = () => {
   const activeKey = useMatch({ from: "/issue/$key", shouldThrow: false })?.params.key;
   const navigate = useNavigate();
   const site = useJiraSite();
+  const { scope } = useJiraQueryScope();
+  const queryClient = useQueryClient();
   const ordered = orderTabs(keys, pinned);
-  const issues = useQueries({ queries: ordered.map((key) => ({ ...issueQuery(key), enabled: !!site.data })) });
+  const issues = useQueries({ queries: ordered.map((key) => issueQuery(key, scope, queryClient)) });
 
   const tabs = ordered.map((key, index) => ({
     key,

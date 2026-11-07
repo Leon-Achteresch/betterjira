@@ -272,3 +272,12 @@ Der vollständige Ablaufbericht einschließlich Vielnutzer, sorgfältigem Leser,
 - `...fixture.html?scenario=comment-links&route=/issue/DEMO-1` zeigt zwei QA-Kommentare mit numerischen IDs (`10001`, `10002`), einer davon mit sehr langem Autorennamen. Jeder Kommentar hat die Aktion „Jira-Link zum Kommentar kopieren“; kopiert wird `https://example.atlassian.net/browse/DEMO-1?focusedCommentId=10001#comment-10001`.
 - `window.__qaSiteUrl` (per `addInitScript`) ersetzt die Instanzadresse der simulierten Sitzung, z. B. mit Kontextpfad, leer (keine Verbindung) oder mit Zugangsdaten (wird abgelehnt).
 - Automatisch: `bunx playwright test tests/browser/comment-link.e2e.ts --workers=1` prüft die tatsächlichen Bytes der Zwischenablage, einmaliges Kopieren bei Doppelklick, Tastatur, Fehler der Zwischenablage, fehlende oder ungültige Verbindung, unveränderten Entwurf und Sortierung, neu hinzugefügte Kommentare sowie 390 px hell und dunkel mit reduzierter Bewegung. Mit `COMMENT_LINK_SHOTS=<Ordner>` entstehen Screenshots.
+
+## Ticketansicht nach Ladefehlern
+
+`window.__qaIssueRule = (key) => ({ delayMs, status, summary })` steuert ausschließlich den vollständigen Ticketabruf `GET /issue/{key}?fields=*all`: verzögern, mit HTTP-Status scheitern lassen oder eine geänderte Zusammenfassung liefern. Per `addInitScript` gesetzt wirkt die Regel schon auf den ersten Abruf. `window.__qa.issueReads` zählt die Abrufe.
+
+- Erster Fehler ohne Daten: eigene Erklärung je Ursache (503, 403, 404) mit „Erneut versuchen“. 403/404 werden weder als Abmeldung noch als sicher gelöscht bezeichnet.
+- Fehlgeschlagene Aktualisierung mit geladenem Ticket („Weitere Ticketaktionen“ → „Aktualisieren“ oder nach einem Schreibzugriff): Inhalt, Kommentare, Kommentarentwurf, Editor-DOM und geöffneter Bereich bleiben; Hinweis mit Datenstand und Retry.
+- Sitzung fehlt bzw. ist nicht lesbar: `scenario=calendar-offline` bzw. `scenario=session-error` mit `route=/issue/DEMO-1`.
+- Automatisch: `bunx playwright test tests/browser/issue-recovery.e2e.ts --workers=1`; mit `ISSUE_RECOVERY_SHOTS=<Ordner>` zusätzlich Screenshots.

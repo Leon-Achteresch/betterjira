@@ -1,6 +1,7 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { Effect, Schema } from "effect";
 import { currentSite, jira, jiraAgile, jiraImage, jiraSend, logout, runLogin } from "./client";
+import { withJiraQueryScope, type JiraQueryScope } from "./query-scope";
 
 export const jiraKeys = {
   all: ["jira"] as const,
@@ -20,6 +21,7 @@ export const jiraKeys = {
   filterFavourite: ["jira", "filter-favourite"] as const,
   jqlValidation: (jql: string) => ["jira", "jql-validation", jql] as const,
   issue: (key: string) => ["jira", "issue", key] as const,
+  issueDetail: (key: string, scope: JiraQueryScope | undefined) => ["jira", "issue", key, "detail", scope?.cloudId ?? "", scope?.accountId ?? ""] as const,
   transitions: (key: string) => ["jira", "transitions", key] as const,
   userSearch: (query: string, issueKey: string, assignee: boolean) => ["jira", "user-search", query, issueKey, assignee] as const,
   filters: ["jira", "filters"] as const,
@@ -527,16 +529,13 @@ const IssueDetail = Schema.Struct({
 
 export type JiraIssueDetail = typeof IssueDetail.Type;
 
-export const issueQuery = (key: string) => ({
-  queryKey: jiraKeys.issue(key),
+export const issueQuery = (key: string, scope: JiraQueryScope | undefined, client: QueryClient) => ({
+  queryKey: jiraKeys.issueDetail(key, scope),
+  enabled: !!scope,
+  retryOnMount: false,
   queryFn: ({ signal }: { signal: AbortSignal }) =>
-    Effect.runPromise(jira(`/issue/${encodeURIComponent(key)}?fields=*all&expand=names,editmeta`, IssueDetail), { signal }),
+    Effect.runPromise(withJiraQueryScope(client, scope, jira(`/issue/${encodeURIComponent(key)}?fields=*all&expand=names,editmeta`, IssueDetail)), { signal }),
 });
-
-export const useJiraIssue = (key: string) => {
-  const site = useJiraSite();
-  return useQuery({ ...issueQuery(key), enabled: !!site.data });
-};
 
 const TransitionField = Schema.Struct({
   required: Schema.Boolean,
