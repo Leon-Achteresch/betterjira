@@ -205,9 +205,7 @@ const Sprints = Schema.Array(
 
 export type JiraSprint = (typeof Sprints.Type)[number];
 
-export const BACKLOG = "backlog";
-
-export type BoardSprint = number | typeof BACKLOG;
+export { BACKLOG, type BoardSprint } from "./area-page";
 
 const sprintClause = (board: JiraBoard, sprint?: number) => {
   if (sprint !== undefined) return ` AND sprint = ${sprint}`;

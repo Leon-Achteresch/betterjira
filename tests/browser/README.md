@@ -96,6 +96,14 @@ Der vollständige Ablaufbericht einschließlich Vielnutzer, sorgfältigem Leser,
 - Übersicht und Seitenleiste zeigen einen Lesefehler der Sitzung ebenfalls als „Anmeldung konnte nicht geprüft werden“ mit Retry statt als Abmeldung. Der simulierte Login (`oauth_login`) bricht immer mit „Test: Anmeldung abgebrochen“ ab.
 - Automatisch: `bunx playwright test tests/browser/navigation.e2e.ts tests/browser/session.e2e.ts --workers=1`.
 
+## Bereichsseite und Boards
+
+- Board: `...fixture.html?scenario=board&route=/bereiche/DEMO?board=1`. `window.__qaBoardType = "scrum"` (per `addInitScript`) liefert dasselbe Board als Scrum-Board mit lokalem „Sprint 5“ für Sprint- und Backlog-Wechsel.
+- `window.__qaBoardRule = (path) => ({ delayMs, status })` verzögert oder scheitert Agile-Abrufe unter `/board` (Boardliste: `path === "/board"`, Board-Konfiguration: `path.endsWith("/configuration")`). `window.__qa.boardReads` protokolliert die gelesenen Pfade.
+- Unbekanntes Board: `?route=/bereiche/DEMO?board=999`. Die Seite sagt nur, dass es unter den geladenen Boards fehlt; die Boardliste wird von Jira auf eine Seite (50 Boards) begrenzt geladen.
+- Ungültige Links wie `?board=abc` oder `?sprint=openSprints()` werden verworfen und gelangen nicht in JQL oder Agile-Pfade.
+- Automatisch: `bunx playwright test tests/browser/area-recovery.e2e.ts --workers=1`; mit `AREA_RECOVERY_SHOTS=<Ordner>` zusätzlich Screenshots.
+
 ## Verknüpfte Tickets
 
 `DEMO-1` hat lokale Testverknüpfungen in beide Richtungen (`blocks`, `is blocked by`, `relates to`), ein Ticket ohne Felder (`OPS-7`), einen doppelten Eintrag und eine unlesbare Verknüpfung. `window.__qaIssueLinksRule = (key) => ({ delayMs, status, issuelinks })` steuert die Abfrage `GET /issue/{key}?fields=issuelinks`; `window.__qa.issueReads` protokolliert alle gelesenen Ticketpfade. Automatisch: `bunx playwright test tests/browser/issue-links.e2e.ts --workers=1` (mit `ISSUE_LINKS_SHOTS=<Ordner>` zusätzlich Screenshots).

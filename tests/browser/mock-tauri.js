@@ -741,6 +741,12 @@ const respond = async (request) => {
     const found = rule.keys ? issues.filter((issue) => rule.keys.includes(issue.key)) : issues;
     return { body: { issues: qa.emptySearch ? [] : found, isLast: !rule.nextPageToken, nextPageToken: rule.nextPageToken } };
   }
+  if (path.startsWith("/board")) {
+    window.__qa.boardReads = [...(window.__qa.boardReads ?? []), path + url.search];
+    const rule = window.__qaBoardRule?.(path) ?? {};
+    if (rule.delayMs) await new Promise((resolve) => setTimeout(resolve, rule.delayMs));
+    if (rule.status) return { status: rule.status, body: { errorMessages: [`Test: Jira antwortet mit ${rule.status}`] } };
+  }
   if (scenario === "board" && /^\/board\/\d+\/configuration/.test(path))
     return {
       body: {
@@ -751,8 +757,10 @@ const respond = async (request) => {
         },
       },
     };
+  if (scenario === "board" && /^\/board\/\d+\/sprint/.test(path))
+    return { body: { isLast: true, values: [{ id: 5, name: "Sprint 5", state: "active", boardId: 1 }] } };
   if (scenario === "board" && path.startsWith("/board"))
-    return { body: { values: [{ id: 1, name: "Team-Board", type: "kanban", location: { projectKey: "DEMO" } }] } };
+    return { body: { values: [{ id: 1, name: "Team-Board", type: window.__qaBoardType ?? "kanban", location: { projectKey: "DEMO" } }] } };
   if (path.startsWith("/board")) return { body: { values: [] } };
   if (path.endsWith("/transitions")) return { body: { transitions } };
   if (path.startsWith("/issue/")) window.__qa.issueReads.push(`${path}?fields=${url.searchParams.get("fields") ?? ""}`);
