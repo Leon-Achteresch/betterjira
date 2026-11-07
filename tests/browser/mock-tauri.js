@@ -553,6 +553,29 @@ const createMeta = {
     },
   },
 };
+const qaFilter = (id, name, owner, favourite, account = "qa-user") => ({
+  id,
+  name,
+  jql: "project = DEMO ORDER BY updated DESC",
+  favourite,
+  owner: { accountId: owner, displayName: owner },
+  account,
+});
+const qaFilters =
+  scenario === "filters"
+    ? [
+        qaFilter("101", "Offene Bugs Team", "qa-user", true),
+        qaFilter("102", "Sprint-Review Vorbereitung", "qa-user", false),
+        qaFilter("103", "Rollouts diese Woche", "qa-user", true),
+        qaFilter("104", "Support-Eskalationen", "qa-colleague", true),
+        qaFilter("105", "Meine Rückfragen", "qa-user", false),
+        qaFilter("106", "Release 2026.11 Abnahme", "qa-user", false),
+        qaFilter("107", "Kundenfeedback Q4", "qa-user", false),
+        qaFilter("201", "Backlog des Kollegen", "qa-colleague", true, "qa-colleague"),
+      ]
+    : [];
+const visibleQaFilters = () =>
+  qaFilters.filter((filter) => filter.account === accountId && (filter.owner.accountId === accountId || filter.favourite));
 const callbacks = new Map();
 const linkTypes = {
   blocks: { id: "10000", name: "Blocks", inward: "is blocked by", outward: "blocks" },
@@ -684,7 +707,7 @@ if (scenario === "rollout-duplicate" && localStorage.getItem("betterjira:calenda
     ]),
   );
 }
-window.__qa = { writes: [], issueReads: [], failNextWrite: false, delayMs: 0, issues, wiki, briefing, briefingFailure: false, searches: [], searchDelayMs: 0, failSearch: false, emptySearch: false, sessionFailure: scenario === "session-error", sessionDelayMs: scenario === "session-slow" ? 1500 : 0, commands: [], metaDelay: {}, createFailure: null, opened: [], myselfDelayMs: 0, failMyself: false, myselfCalls: 0 };
+window.__qa = { writes: [], issueReads: [], failNextWrite: false, delayMs: 0, issues, wiki, briefing, briefingFailure: false, searches: [], searchDelayMs: 0, failSearch: false, emptySearch: false, sessionFailure: scenario === "session-error", sessionDelayMs: scenario === "session-slow" ? 1500 : 0, filters: qaFilters, filterRequests: 0, failFilters: new URLSearchParams(location.search).get("fail") === "filters", commands: [], metaDelay: {}, createFailure: null, opened: [], myselfDelayMs: 0, failMyself: false, myselfCalls: 0 };
 window.__qa.outlook = {
   calls: [],
   failNext: false,
@@ -744,6 +767,8 @@ const respond = async (request) => {
       });
       return { status: 201, body: { id, key, self: `https://example.atlassian.net/rest/api/3/issue/${id}` } };
     }
+    const favourite = qaFilters.find((filter) => path === `/filter/${filter.id}/favourite`);
+    if (favourite) favourite.favourite = request.method === "PUT";
     const issue = issues.find((issue) => path.startsWith(`/issue/${issue.key}/`) || path === `/issue/${issue.key}`);
     if (path.endsWith("/comment") && issue)
       issue.fields.comment.comments.push({
@@ -800,7 +825,14 @@ const respond = async (request) => {
     const fields = meta.fields[typeId] ?? [];
     return { body: { startAt: 0, maxResults: 100, total: fields.length, fields } };
   }
-  if (path.startsWith("/filter/my")) return { body: [] };
+
+  if (path.startsWith("/filter/my")) {
+    window.__qa.filterRequests++;
+    if (window.__qa.failFilters) return { status: 503, body: { errorMessages: ["Test: Filter vorübergehend nicht erreichbar"] } };
+    return { body: visibleQaFilters() };
+  }
+  const filter = qaFilters.find((entry) => path === `/filter/${entry.id}`);
+  if (filter) return { body: filter };
   if (path === "/field")
     return {
       body: ["summary", "status", "assignee", "priority", "updated", "issuetype"].map((id) => ({

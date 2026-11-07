@@ -8,6 +8,7 @@ import {
   ExternalLinkIcon,
   FunnelIcon,
   LayoutGridIcon,
+  ListFilterIcon,
   ListIcon,
   SearchIcon,
   SquareKanbanIcon,
@@ -274,10 +275,23 @@ export function AppSidebar() {
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild tooltip="Alle Filter">
+                    <Link
+                      to="/filter"
+                      activeOptions={{ exact: true, includeSearch: false }}
+                      activeProps={{ "data-active": true }}
+                      onClick={() => isMobile && setOpenMobile(false)}
+                    >
+                      <ListFilterIcon className="text-muted-foreground" />
+                      <span>Alle Filter</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
               </SidebarMenu>
               {filters.isPending ? (
                 <MenuSkeleton />
-              ) : filters.error ? (
+              ) : filters.error && !filters.loaded ? (
                 <p role="alert" className="px-2 py-1 text-sm text-destructive">
                   Filter konnten nicht geladen werden
                 </p>

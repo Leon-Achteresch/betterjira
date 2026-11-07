@@ -75,3 +75,8 @@ export const jiraErrors = (error: unknown) => {
   }
   return { messages: [error instanceof Error ? error.message : String(error)], fields: {} as Record<string, string> };
 };
+
+export const jiraErrorText = (error: unknown) => {
+  const { messages, fields } = jiraErrors(error);
+  return messages.concat(Object.values(fields)).join(" ");
+};

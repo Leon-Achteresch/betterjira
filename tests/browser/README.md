@@ -222,3 +222,11 @@ Der vollständige Ablaufbericht einschließlich Vielnutzer, sorgfältigem Leser,
 - Formular: `http://localhost:1420/tests/browser/fixture.html?scenario=create&route=/neu`. Projekte: „Produktentwicklung“ (Aufgabe mit Pflichtfeldern Priorität und Kunde, Fehler mit Pflichtfeld Umgebung, Unteraufgabe nur in Jira), „Betrieb“ (Pflichtfeld Team, nicht unterstützt) und „Archiv ohne Rechte“ (keine Create-Berechtigung).
 - `window.__qa.createFailure = { status, body }` lässt den nächsten `POST /issue` einmalig scheitern, `window.__qa.metaDelay = { "<projektId>": ms }` verzögert die Create-Metadaten, `window.__qa.opened` sammelt geöffnete Jira-Links. Erstellte Tickets bleiben in der Simulation.
 - Automatisch: `bunx playwright test tests/browser/create-issue.e2e.ts --workers=1`; mit `CREATE_ISSUE_SHOTS=<Ordner>` zusätzlich Screenshots.
+
+## Filterübersicht
+
+- Eigene und favorisierte QA-Filter: `...fixture.html?scenario=filters&route=/filter` (sieben Filter, davon drei Favoriten, einer gehört einem anderen Konto). Ansicht über `?ansicht=favoriten`, Suche über `q`.
+- Erster Ladefehler: `&fail=filters`; `window.__qa.failFilters` schaltet Fehler von `/filter/my` zur Laufzeit, `window.__qa.filterRequests` zählt die Abrufe.
+- Favoriten-Schreibzugriffe (`PUT`/`DELETE /filter/{id}/favourite`) bleiben in der Simulation und stehen in `window.__qa.writes`; `failNextWrite` und `delayMs` wirken auch hier.
+- Zweites Konto: `&account=qa-colleague` sieht nur seinen eigenen Filter.
+- Automatisch: `bunx playwright test tests/browser/filter-overview.e2e.ts --workers=1`. Mit `FILTER_SHOTS=<Ordner>` speichert der Test Screenshots und prüft, dass die Schrift geladen ist.
