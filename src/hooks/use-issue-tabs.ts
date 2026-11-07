@@ -1,10 +1,10 @@
-import { useQueries } from "@tanstack/react-query";
 import { useMatch, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { addTab, issueKeyFromHref, keepOthers, keepUntil, neighborTab, orderTabs, removeTab } from "@/lib/issue-tabs";
-import { issueQuery, useJiraSite } from "@/lib/jira/queries";
+import { useIssueTabMetadata } from "@/hooks/jira/use-issue-tab-metadata";
+import { useJiraSite } from "@/lib/jira/queries";
 
 type IssueTabsState = {
   keys: string[];
@@ -36,11 +36,11 @@ export const useIssueTabs = () => {
   const navigate = useNavigate();
   const site = useJiraSite();
   const ordered = orderTabs(keys, pinned);
-  const issues = useQueries({ queries: ordered.map((key) => ({ ...issueQuery(key), enabled: !!site.data })) });
+  const titles = useIssueTabMetadata(ordered, activeKey);
 
   const tabs = ordered.map((key, index) => ({
     key,
-    title: issues[index]?.data?.fields.summary,
+    title: titles[index],
     pinned: pinned.includes(key),
     url: site.data ? `${site.data.siteUrl}/browse/${key}` : undefined,
   }));

@@ -137,3 +137,9 @@ Der vollständige Ablaufbericht einschließlich Vielnutzer, sorgfältigem Leser,
 - Sieben Testbereiche, ein Favorit (Betrieb) und ein in der Seitenleiste ausgeblendeter Bereich (Archiv 2024): `...fixture.html?scenario=projects&route=/bereiche`.
 - `window.__qaProjectRule = () => ({ delayMs, status, values })` steuert die Projektabfrage (verzögern, mit HTTP-Status scheitern, andere Bereiche liefern, etwa für einen Kontowechsel). `window.__qaReads`, per `addInitScript` als Array gesetzt, sammelt alle gelesenen Pfade.
 - Automatisch: `bunx playwright test tests/browser/projects.e2e.ts --workers=1` prüft Suche und Ansicht in der URL mit Zurück/Vorwärts, Favoriten synchron mit der Seitenleiste, ausgeblendete Bereiche, Ladefehler und fehlgeschlagene Aktualisierung mit Retry, Abmelden und Kontowechsel, Tastatur und Command Palette sowie Desktop hell und 390 px dunkel. Mit `PROJECTS_SHOTS=<Ordner>` speichert der Test Screenshots.
+
+## Tab-Titel offener Tickets
+
+- Zwölf offene Tabs: `...fixture.html?scenario=busy&route=/issue/DEMO-1`. Nur das aktive Ticket lädt volle Details (`fields=*all`), die übrigen Tabs fragen ausschließlich `GET /issue/{key}?fields=summary` ab, höchstens vier gleichzeitig.
+- `window.__qaTabTitleRule = (key) => ({ delayMs, status, summary })` (per `addInitScript`) verzögert, scheitert oder ersetzt den Titel einzelner Abrufe. `window.__qaTabTitles` zählt `calls`, `open` und `peak`.
+- Automatisch: `bunx playwright test tests/browser/issue-tab-metadata.e2e.ts --workers=1`; mit `ISSUE_TAB_SHOTS=<Ordner>` zusätzlich Screenshots (prüft vorher, dass Geist geladen ist).
