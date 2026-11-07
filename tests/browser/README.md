@@ -216,3 +216,9 @@ Der vollständige Ablaufbericht einschließlich Vielnutzer, sorgfältigem Leser,
 - Beim ersten Tab erscheint „Zum Inhalt“; Enter fokussiert den benannten Hauptbereich (`main` „Hauptinhalt“) ohne Hash, Verlaufseintrag oder Scrollsprung.
 - Nach einem Seitenwechsel wird der Hauptbereich nur fokussiert, wenn der Fokus durch den Wechsel verloren ging (z. B. Link im Inhalt, Zurück/Vorwärts). Fokus in Seitenleiste, Kopfzeile, Dialogen oder auf „Erneut versuchen“ bleibt stehen, ebenso bei Query-Wechsel und Aktualisieren.
 - Automatisch: `bunx playwright test tests/browser/main-content-focus.e2e.ts --workers=1`.
+
+## Ticket erstellen
+
+- Formular: `http://localhost:1420/tests/browser/fixture.html?scenario=create&route=/neu`. Projekte: „Produktentwicklung“ (Aufgabe mit Pflichtfeldern Priorität und Kunde, Fehler mit Pflichtfeld Umgebung, Unteraufgabe nur in Jira), „Betrieb“ (Pflichtfeld Team, nicht unterstützt) und „Archiv ohne Rechte“ (keine Create-Berechtigung).
+- `window.__qa.createFailure = { status, body }` lässt den nächsten `POST /issue` einmalig scheitern, `window.__qa.metaDelay = { "<projektId>": ms }` verzögert die Create-Metadaten, `window.__qa.opened` sammelt geöffnete Jira-Links. Erstellte Tickets bleiben in der Simulation.
+- Automatisch: `bunx playwright test tests/browser/create-issue.e2e.ts --workers=1`; mit `CREATE_ISSUE_SHOTS=<Ordner>` zusätzlich Screenshots.

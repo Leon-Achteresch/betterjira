@@ -1,5 +1,5 @@
 import { Link, useCanGoBack, useRouter } from "@tanstack/react-router";
-import { ChevronLeft, ChevronRight, Settings } from "lucide-react";
+import { ChevronLeft, ChevronRight, Settings, SquarePenIcon } from "lucide-react";
 import { Tooltip } from "@/components/motion/tooltip";
 import { AppCommandPalette } from "@/components/shell/app-command-palette";
 import { HeaderMoreMenu } from "@/components/shell/header-more-menu";
@@ -13,6 +13,7 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 import { useIssueTabs } from "@/hooks/use-issue-tabs";
 import { useTabHotkeys } from "@/hooks/use-tab-hotkeys";
 import { IS_MAC, USE_CUSTOM_WINDOW_CONTROLS } from "@/lib/platform";
+import { shortcutHint } from "@/lib/shortcuts";
 import { cn } from "@/lib/utils";
 
 export function AppHeader() {
@@ -77,6 +78,17 @@ export function AppHeader() {
         <AppCommandPalette />
       </div>
       <nav className="ml-auto flex shrink-0 items-center gap-0.5 px-1.5 sm:gap-1 sm:px-3" aria-label="Werkzeuge">
+        <Tooltip content={`Ticket erstellen (${shortcutHint("createIssue")})`} side="bottom">
+          <Link
+            to="/neu"
+            aria-label="Ticket erstellen"
+            aria-keyshortcuts="C"
+            className="relative hidden size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground outline-none transition-colors after:absolute after:-inset-0.5 hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring sm:inline-flex"
+            activeProps={{ className: "bg-primary/12 text-foreground" }}
+          >
+            <SquarePenIcon className="size-4" strokeWidth={1.75} />
+          </Link>
+        </Tooltip>
         <WorkQueue />
         <NotificationBell />
         <ThemeToggle className="hidden sm:inline-flex" />
@@ -100,6 +112,7 @@ export function AppHeader() {
           onOpenTab={openTab}
           onCloseTab={closeTab}
           onTogglePin={togglePin}
+          onCreateIssue={() => void router.navigate({ to: "/neu" })}
         />
       </nav>
       {USE_CUSTOM_WINDOW_CONTROLS ? <WindowControls /> : null}

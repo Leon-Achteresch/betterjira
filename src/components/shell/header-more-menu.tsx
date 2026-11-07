@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, EllipsisIcon, PinIcon, PinOffIcon, XIcon } from "lucide-react";
+import { ChevronLeft, ChevronRight, EllipsisIcon, PinIcon, PinOffIcon, SquarePenIcon, XIcon } from "lucide-react";
 import { Tooltip } from "@/components/motion/tooltip";
 import type { IssueTab } from "@/components/shell/issue-tabs";
 import { Button } from "@/components/ui/button";
@@ -27,6 +27,7 @@ type HeaderMoreMenuProps = {
   onOpenTab: (key: string) => void;
   onCloseTab: (key: string) => void;
   onTogglePin: (key: string) => void;
+  onCreateIssue: () => void;
   className?: string;
 };
 
@@ -41,6 +42,7 @@ export function HeaderMoreMenu({
   onOpenTab,
   onCloseTab,
   onTogglePin,
+  onCreateIssue,
   className,
 }: HeaderMoreMenuProps) {
   const theme = useThemeCycle();
@@ -65,6 +67,12 @@ export function HeaderMoreMenu({
         collisionPadding={8}
         className="w-64 motion-reduce:data-open:animate-none motion-reduce:data-closed:animate-none"
       >
+        <DropdownMenuItem onSelect={onCreateIssue}>
+          <SquarePenIcon />
+          Ticket erstellen
+          <DropdownMenuShortcut>{shortcutHint("createIssue")}</DropdownMenuShortcut>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
         <DropdownMenuItem disabled={!canGoBack} onSelect={onBack}>
           <ChevronLeft />
           Zurück
