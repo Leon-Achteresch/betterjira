@@ -5,7 +5,7 @@ import { ROLLOUT_TITLE_MAX_LENGTH } from "./validation";
 export const COPY_SUFFIX = " (Kopie)";
 
 export const copyTitle = (title: string) =>
-  `${title.trim().slice(0, ROLLOUT_TITLE_MAX_LENGTH - COPY_SUFFIX.length).trimEnd()}${COPY_SUFFIX}`;
+  `${title.trim().slice(0, ROLLOUT_TITLE_MAX_LENGTH - COPY_SUFFIX.length).replace(/[\uD800-\uDBFF]$/u, "").trimEnd()}${COPY_SUFFIX}`;
 
 export const rolloutTemplateForm = (rollout: Rollout): RolloutForm => {
   const form = rolloutForm(rollout);

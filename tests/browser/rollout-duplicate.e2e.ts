@@ -194,9 +194,19 @@ test("Weitere Aktionen sind per Tastatur erreichbar, haben Tooltip und 32 px Tre
     const centerX = rect.left + rect.width / 2;
     const centerY = rect.top + rect.height / 2;
     const hit = (x: number, y: number) => document.elementFromPoint(x, y)?.closest("button") === button;
-    return { top: hit(centerX, rect.top - 3), bottom: hit(centerX, rect.bottom + 3), right: hit(rect.right + 3, centerY) };
+    const buttons = [...(button.parentElement?.querySelectorAll("button") ?? [])].map((item) => item.getBoundingClientRect());
+    return {
+      top: hit(centerX, rect.top + 2),
+      bottom: hit(centerX, rect.bottom - 2),
+      right: hit(rect.right - 2, centerY),
+      width: rect.width,
+      height: rect.height,
+      separated: buttons.every((item, index) => index === 0 || buttons[index - 1].right <= item.left),
+    };
   });
-  expect(hits).toEqual({ top: true, bottom: true, right: true });
+  expect(hits).toMatchObject({ top: true, bottom: true, right: true, separated: true });
+  expect(hits.width).toBeGreaterThanOrEqual(32);
+  expect(hits.height).toBeGreaterThanOrEqual(32);
 
   await trigger.hover();
   await expect(page.getByText("Weitere Aktionen", { exact: true })).toBeVisible();

@@ -12,7 +12,7 @@ export function RolloutMoreMenu({ onDuplicate }: RolloutMoreMenuProps) {
     <DropdownMenu>
       <Tooltip content="Weitere Aktionen">
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon-xs" aria-label="Weitere Aktionen" className="relative after:absolute after:-inset-1">
+          <Button variant="ghost" size="icon" aria-label="Weitere Aktionen">
             <EllipsisIcon />
           </Button>
         </DropdownMenuTrigger>

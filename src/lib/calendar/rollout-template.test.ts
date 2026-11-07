@@ -28,6 +28,12 @@ describe("copyTitle", () => {
     expect(title).toHaveLength(ROLLOUT_TITLE_MAX_LENGTH);
     expect(title.endsWith(COPY_SUFFIX)).toBe(true);
   });
+
+  it("does not split an emoji at the title limit", () => {
+    const title = copyTitle("😀".repeat(128));
+    expect(title).toBe("😀".repeat(123) + COPY_SUFFIX);
+    expect(title.length).toBeLessThanOrEqual(ROLLOUT_TITLE_MAX_LENGTH);
+  });
 });
 
 describe("rolloutTemplateForm", () => {

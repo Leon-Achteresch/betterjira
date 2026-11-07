@@ -48,12 +48,12 @@ export function RolloutItem({ rollout, day, linkState, outlookConnected, syncing
         </button>
         <div className="flex shrink-0 items-center gap-0.5 opacity-70 transition-opacity group-hover/rollout:opacity-100 group-focus-within/rollout:opacity-100">
           <Tooltip content="Bearbeiten">
-            <Button variant="ghost" size="icon-xs" aria-label="Bearbeiten" onClick={onEdit}>
+            <Button variant="ghost" size="icon" aria-label="Bearbeiten" onClick={onEdit}>
               <PencilIcon />
             </Button>
           </Tooltip>
           <Tooltip content="Löschen">
-            <Button variant="ghost" size="icon-xs" aria-label="Löschen" onClick={onDelete}>
+            <Button variant="ghost" size="icon" aria-label="Löschen" onClick={onDelete}>
               <Trash2Icon />
             </Button>
           </Tooltip>
