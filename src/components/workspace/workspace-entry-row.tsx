@@ -2,25 +2,24 @@ import { useId } from "react";
 import { Link } from "@tanstack/react-router";
 import { formatDistanceToNowStrict } from "date-fns";
 import { de } from "date-fns/locale";
-import { motion, useReducedMotion } from "motion/react";
-import { BookOpenIcon, FilePenLineIcon, MessageSquareDashedIcon, PinIcon, StickyNoteIcon } from "lucide-react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { BookOpenIcon, FilePenLineIcon, MessageSquareDashedIcon, PinIcon, StickyNoteIcon, XIcon } from "lucide-react";
 import { JiraStatusBadge } from "@/components/jira-status-badge";
-import { Tooltip } from "@/components/motion/tooltip";
-import { Button } from "@/components/ui/button";
-import { SPRING_PRESS } from "@/lib/ease";
-import type { WorkspaceEntry } from "@/lib/workspace-page";
+import { IconAction } from "@/components/motion/icon-action";
+import { EASE_OUT } from "@/lib/ease";
+import type { WorkspaceEntryRowProps } from "@/types/workspace-row";
 import { cn } from "@/lib/utils";
 
-const MotionButton = motion.create(Button);
-
 const CHIP = "inline-flex items-center gap-1 rounded-xl px-2 py-0.5 text-[0.7rem] font-medium";
+const ROW_ACTION = "text-muted-foreground sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100";
 
-export function WorkspaceEntryRow({ entry, onTogglePin }: { entry: WorkspaceEntry; onTogglePin: () => void }) {
+export function WorkspaceEntryRow({ entry, linkRef, onTogglePin, onRemoveRecent }: WorkspaceEntryRowProps) {
   const reduce = useReducedMotion();
   const detailsId = useId();
   return (
     <div className="group flex items-start gap-1 rounded-xl p-1 transition-colors hover:bg-muted/60 has-[a:focus-visible]:bg-muted/60">
       <Link
+        ref={linkRef}
         to="/issue/$key"
         params={{ key: entry.key }}
         aria-label={entry.known ? `${entry.key}: ${entry.summary}` : entry.key}
@@ -74,23 +73,37 @@ export function WorkspaceEntryRow({ entry, onTogglePin }: { entry: WorkspaceEntr
           )}
         </span>
       </Link>
-      <Tooltip content={entry.pinned ? "Lösen" : "Anheften"}>
-        <MotionButton
-          variant="ghost"
-          size="icon"
-          aria-label={`${entry.key} ${entry.pinned ? "lösen" : "anheften"}`}
-          aria-pressed={entry.pinned}
+      <div className="mt-1.5 flex shrink-0 items-center">
+        <IconAction
+          label={`${entry.key} ${entry.pinned ? "lösen" : "anheften"}`}
+          tooltip={entry.pinned ? "Lösen" : "Anheften"}
+          pressed={entry.pinned}
           onClick={onTogglePin}
-          whileTap={reduce ? undefined : { scale: 0.96 }}
-          transition={SPRING_PRESS}
-          className={cn(
-            "mt-1.5 text-muted-foreground sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100",
-            entry.pinned && "text-primary sm:opacity-100",
-          )}
+          className={cn(ROW_ACTION, entry.pinned && "text-primary sm:opacity-100")}
         >
           <PinIcon className={cn(entry.pinned && "fill-current")} />
-        </MotionButton>
-      </Tooltip>
+        </IconAction>
+        <AnimatePresence initial={false}>
+          {entry.recent && (
+            <motion.span
+              key="remove-recent"
+              className="flex"
+              initial={{ opacity: 0, scale: reduce ? 1 : 0.96 }}
+              animate={{ opacity: 1, scale: 1, transition: { duration: 0.16, ease: EASE_OUT } }}
+              exit={{ opacity: 0, scale: reduce ? 1 : 0.96, transition: { duration: 0.12, ease: EASE_OUT } }}
+            >
+              <IconAction
+                label={`${entry.key} aus Zuletzt entfernen`}
+                tooltip="Aus Zuletzt entfernen"
+                onClick={onRemoveRecent}
+                className={ROW_ACTION}
+              >
+                <XIcon />
+              </IconAction>
+            </motion.span>
+          )}
+        </AnimatePresence>
+      </div>
     </div>
   );
 }
