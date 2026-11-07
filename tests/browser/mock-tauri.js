@@ -823,6 +823,23 @@ window.__qa.filters = /^\/filter\/(100|200)/.test(new URLSearchParams(location.s
 window.__qa.filterReads = [];
 window.__qa.commentPageReads = [];
 window.__qa.commentDetailLimit = scenario === "comment-pages" ? 2 : undefined;
+window.__qa.notification = { permission: "denied", answer: "granted", checkDelayMs: 0, failCheck: false, requestDelayMs: 0, failRequest: false, checks: 0, requests: 0, sent: [], ...window.__qaNotificationInit };
+window.Notification = class QaNotification {
+  static get permission() {
+    return "default";
+  }
+  static async requestPermission() {
+    const state = window.__qa.notification;
+    state.requests++;
+    if (state.requestDelayMs) await new Promise((resolve) => setTimeout(resolve, state.requestDelayMs));
+    if (state.failRequest) throw new Error("Test: Systemdialog nicht verfügbar");
+    state.permission = state.answer;
+    return state.answer;
+  }
+  constructor(title, options = {}) {
+    window.__qa.notification.sent.push({ title, body: options.body });
+  }
+};
 window.__qa.outlook = {
   calls: [],
   failNext: false,
@@ -1082,6 +1099,7 @@ const respond = async (request) => {
     const delayMs = rule.delayMs ?? qa.searchDelayMs;
     if (delayMs) await new Promise((resolve) => setTimeout(resolve, delayMs));
     if (rule.status) return { status: rule.status, headers: rule.headers, body: { errorMessages: [`Test: Jira antwortet mit ${rule.status}`] } };
+    if (rule.issues) return { body: { issues: rule.issues, isLast: true } };
     if (qa.failSearch) return { status: 400, body: { errorMessages: ["Test: Abfrage nicht möglich"] } };
     const found = rule.keys ? issues.filter((issue) => rule.keys.includes(issue.key)) : issues;
     return { body: { issues: qa.emptySearch ? [] : found, isLast: !rule.nextPageToken, nextPageToken: rule.nextPageToken } };
@@ -1345,7 +1363,13 @@ window.__TAURI_INTERNALS__ = {
       return;
     }
     if (command.startsWith("plugin:event|")) return;
-    if (command === "plugin:notification|is_permission_granted") return false;
+    if (command === "plugin:notification|is_permission_granted") {
+      const state = window.__qa.notification;
+      state.checks++;
+      if (state.checkDelayMs) await new Promise((resolve) => setTimeout(resolve, state.checkDelayMs));
+      if (state.failCheck) throw "Test: Berechtigung nicht lesbar";
+      return state.permission === "default" ? null : state.permission === "granted";
+    }
     throw new Error(`Nicht simuliertes Tauri-Kommando: ${command}`);
   },
 };

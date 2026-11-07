@@ -331,3 +331,11 @@ Integration offener PRs:
 - Fünf lokale Testanhänge an `DEMO-1` (natürliche Namen, leerer Name, ungültiges Datum, gleiche Größe und gleicher Zeitpunkt) und zwei an `DEMO-2`: `...fixture.html?scenario=attachments&route=/issue/DEMO-1`, dann „Weitere Ticketaktionen“ → „Anhänge“.
 - Bilder der Testanhänge (`qa-att-*`) liefert die Simulation als 1×1-PNG; Uploads (`POST /issue/{key}/attachments`) landen nur im Testticket und in `window.__qa.writes`, `window.__qa.delayMs` verzögert sie.
 - Automatisch: `bunx playwright test tests/browser/attachment-sort.e2e.ts --workers=1`; mit `ATTACHMENT_SORT_SHOTS=<Ordner>` entstehen Screenshots.
+
+## Jira-Aktivitätshinweise
+
+- Einstellung: `...fixture.html?scenario=notifications&route=/settings/benachrichtigungen`. Beide Schalter gelten nur auf diesem Gerät (`localStorage`-Schlüssel `betterjira-activity-alerts`).
+- Die Fixture ersetzt `window.Notification` durch einen Stub. Es öffnet sich nie ein echter Systemhinweis oder Berechtigungsdialog. `window.__qa.notification` steuert und protokolliert: `permission` (`granted`/`denied`/`default`, Standard `denied`), `answer` (Antwort auf die Anfrage), `checkDelayMs`, `failCheck`, `requestDelayMs`, `failRequest`, `checks`, `requests`, `sent`. Per `addInitScript` gesetztes `window.__qaNotificationInit` wirkt schon auf den ersten Abruf.
+- `window.__qaSearchRule` darf zusätzlich `issues` liefern, um lokale Testaktivität (z. B. einen neuen Kommentar) zu simulieren.
+- Automatisch: `bunx playwright test tests/browser/activity-alerts.e2e.ts --workers=1`; mit `ACTIVITY_ALERTS_SHOTS=<Ordner>` entstehen Screenshots.
+- Grenzen: Ob das Betriebssystem einen Hinweis tatsächlich anzeigt, prüft nur ein nativer Tauri-Build. Auf dem Desktop meldet das Tauri-Plugin (2.8.0) die Berechtigung immer als erteilt; „blockiert“ und „noch nicht erlaubt“ kommen nur auf Mobilplattformen bzw. im Stub vor.

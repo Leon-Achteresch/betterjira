@@ -7,6 +7,7 @@ export const Route = createFileRoute("/settings")({
 
 const TABS = [
   { to: "/settings/darstellung", label: "Darstellung" },
+  { to: "/settings/benachrichtigungen", label: "Benachrichtigungen" },
   { to: "/settings/bereiche", label: "Bereiche" },
   { to: "/settings/code-hosting", label: "Code-Hosting" },
   { to: "/settings/briefing", label: "KI-Briefing" },

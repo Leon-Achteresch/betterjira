@@ -24,6 +24,7 @@ import { Route as BereicheKeyRouteImport } from './routes/bereiche/$key'
 import { Route as FilterIdRouteImport } from './routes/filter/$id'
 import { Route as IssueKeyRouteImport } from './routes/issue/$key'
 import { Route as SettingsIndexRouteImport } from './routes/settings/index'
+import { Route as SettingsBenachrichtigungenRouteImport } from './routes/settings/benachrichtigungen'
 import { Route as SettingsBereicheRouteImport } from './routes/settings/bereiche'
 import { Route as SettingsBriefingRouteImport } from './routes/settings/briefing'
 import { Route as SettingsCodeHostingRouteImport } from './routes/settings/code-hosting'
@@ -106,6 +107,12 @@ const SettingsIndexRoute = SettingsIndexRouteImport.update({
   path: '/',
   getParentRoute: () => SettingsRoute,
 } as any)
+const SettingsBenachrichtigungenRoute =
+  SettingsBenachrichtigungenRouteImport.update({
+    id: '/benachrichtigungen',
+    path: '/benachrichtigungen',
+    getParentRoute: () => SettingsRoute,
+  } as any)
 const SettingsBereicheRoute = SettingsBereicheRouteImport.update({
   id: '/bereiche',
   path: '/bereiche',
@@ -151,6 +158,7 @@ export interface FileRoutesByFullPath {
   '/bereiche/$key': typeof BereicheKeyRoute
   '/filter/$id': typeof FilterIdRoute
   '/issue/$key': typeof IssueKeyRoute
+  '/settings/benachrichtigungen': typeof SettingsBenachrichtigungenRoute
   '/settings/bereiche': typeof SettingsBereicheRoute
   '/settings/briefing': typeof SettingsBriefingRoute
   '/settings/code-hosting': typeof SettingsCodeHostingRoute
@@ -173,6 +181,7 @@ export interface FileRoutesByTo {
   '/bereiche/$key': typeof BereicheKeyRoute
   '/filter/$id': typeof FilterIdRoute
   '/issue/$key': typeof IssueKeyRoute
+  '/settings/benachrichtigungen': typeof SettingsBenachrichtigungenRoute
   '/settings/bereiche': typeof SettingsBereicheRoute
   '/settings/briefing': typeof SettingsBriefingRoute
   '/settings/code-hosting': typeof SettingsCodeHostingRoute
@@ -197,6 +206,7 @@ export interface FileRoutesById {
   '/bereiche/$key': typeof BereicheKeyRoute
   '/filter/$id': typeof FilterIdRoute
   '/issue/$key': typeof IssueKeyRoute
+  '/settings/benachrichtigungen': typeof SettingsBenachrichtigungenRoute
   '/settings/bereiche': typeof SettingsBereicheRoute
   '/settings/briefing': typeof SettingsBriefingRoute
   '/settings/code-hosting': typeof SettingsCodeHostingRoute
@@ -222,6 +232,7 @@ export interface FileRouteTypes {
     | '/bereiche/$key'
     | '/filter/$id'
     | '/issue/$key'
+    | '/settings/benachrichtigungen'
     | '/settings/bereiche'
     | '/settings/briefing'
     | '/settings/code-hosting'
@@ -244,6 +255,7 @@ export interface FileRouteTypes {
     | '/bereiche/$key'
     | '/filter/$id'
     | '/issue/$key'
+    | '/settings/benachrichtigungen'
     | '/settings/bereiche'
     | '/settings/briefing'
     | '/settings/code-hosting'
@@ -267,6 +279,7 @@ export interface FileRouteTypes {
     | '/bereiche/$key'
     | '/filter/$id'
     | '/issue/$key'
+    | '/settings/benachrichtigungen'
     | '/settings/bereiche'
     | '/settings/briefing'
     | '/settings/code-hosting'
@@ -401,6 +414,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsIndexRouteImport
       parentRoute: typeof SettingsRoute
     }
+    '/settings/benachrichtigungen': {
+      id: '/settings/benachrichtigungen'
+      path: '/benachrichtigungen'
+      fullPath: '/settings/benachrichtigungen'
+      preLoaderRoute: typeof SettingsBenachrichtigungenRouteImport
+      parentRoute: typeof SettingsRoute
+    }
     '/settings/bereiche': {
       id: '/settings/bereiche'
       path: '/bereiche'
@@ -447,6 +467,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface SettingsRouteChildren {
+  SettingsBenachrichtigungenRoute: typeof SettingsBenachrichtigungenRoute
   SettingsBereicheRoute: typeof SettingsBereicheRoute
   SettingsBriefingRoute: typeof SettingsBriefingRoute
   SettingsCodeHostingRoute: typeof SettingsCodeHostingRoute
@@ -457,6 +478,7 @@ interface SettingsRouteChildren {
 }
 
 const SettingsRouteChildren: SettingsRouteChildren = {
+  SettingsBenachrichtigungenRoute: SettingsBenachrichtigungenRoute,
   SettingsBereicheRoute: SettingsBereicheRoute,
   SettingsBriefingRoute: SettingsBriefingRoute,
   SettingsCodeHostingRoute: SettingsCodeHostingRoute,
