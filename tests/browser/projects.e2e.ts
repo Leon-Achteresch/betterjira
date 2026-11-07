@@ -43,7 +43,7 @@ const chooseSort = async (page: Page, label: string) => {
   await expect(page.getByRole("menu")).toHaveCount(0);
 };
 
-const prefs = (page: Page) => page.evaluate(() => JSON.parse(localStorage.getItem("betterjira-favorites") ?? "{}").state);
+const prefs = (page: Page) => page.evaluate(() => JSON.parse(localStorage.getItem("betterjira-favorites") ?? "{}").state.scopes[JSON.stringify(["qa-cloud", "qa-user"])]);
 
 const sidebar = async (page: Page) => {
   if ((page.viewportSize()?.width ?? 0) < 768) await page.getByRole("button", { name: "Toggle Sidebar" }).click();
@@ -130,7 +130,7 @@ test("Favoriten bleiben mit der Seitenleiste synchron, ohne die Sichtbarkeit zu 
   await page.getByRole("menuitem", { name: "Aus Favoriten entfernen" }).click();
   await closeSidebar(page);
   await expect(list(page).getByRole("button", { name: "Betrieb favorisieren" })).toHaveAttribute("aria-pressed", "false");
-  expect(await prefs(page)).toEqual({ projectIds: ["4"], hiddenProjectIds: ["3"] });
+  expect(await prefs(page)).toEqual({ favoriteIds: ["4"], hiddenIds: ["3"] });
 });
 
 test("Versteckte Bereiche sind auffindbar, gekennzeichnet und öffnen den Bereich", async ({ page }) => {
@@ -146,7 +146,7 @@ test("Versteckte Bereiche sind auffindbar, gekennzeichnet und öffnen den Bereic
   await row.getByRole("link", { name: /Archiv 2024/ }).click();
   await expect(page).toHaveURL(/\/bereiche\/OLD$/);
   await expect(main(page).getByRole("heading", { name: "Archiv 2024" })).toBeVisible();
-  expect(await prefs(page)).toEqual({ projectIds: ["2", "3"], hiddenProjectIds: ["3"] });
+  expect(await prefs(page)).toEqual({ favoriteIds: ["2", "3"], hiddenIds: ["3"] });
 });
 
 test("Ladefehler bietet Retry, eine fehlgeschlagene Aktualisierung behält die Liste", async ({ page }) => {

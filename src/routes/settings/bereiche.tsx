@@ -30,7 +30,7 @@ function BereicheSettings() {
         pending={<ProjectSettingsSkeleton />}
         unconnected={<LoginPrompt description="Melde dich an, um Bereiche zu verwalten." />}
       >
-        <LegacyProjectPrefsNotice legacy={legacy.legacy} accountLabel="dieses Konto" onAdopt={legacy.adopt} onDiscard={legacy.discard} />
+        <LegacyProjectPrefsNotice legacy={legacy.legacy} accountLabel={legacy.accountLabel} onAdopt={legacy.adopt} onDiscard={legacy.discard} />
         <ProjectVisibilitySettings settings={settings} />
       </SessionGate>
     </section>

@@ -147,4 +147,4 @@ jobs:
         shell: pwsh
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: ./.github/scripts/test-release.ps1 -Tag "v${{ needs.version.outputs.version }}"
+        run: ./.github/scripts/test-release.ps1 -Tag "v${{ needs.version.outputs.version }}" -Repository "${{ github.repository }}"

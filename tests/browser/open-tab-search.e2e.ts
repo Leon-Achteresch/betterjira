@@ -104,6 +104,7 @@ test("Suche nach Schlüssel und Titel fragt Jira nicht erneut ab", async ({ page
   await openBusy(page);
   await openFromPalette(page);
   await expect(option(page, "DEMO-3")).toContainText("Übergabe an das Team vorbereiten");
+  for (const key of ORDER) await expect(option(page, key)).not.toContainText("Titel nicht geladen");
   const before = await reads(page);
 
   await field(page).fill("demo-1");
@@ -159,7 +160,8 @@ test("Tastatur und Maus wechseln den Tab und Entwürfe bleiben erhalten", async 
 test("Tabs ohne bekannten Titel sind nur über den Schlüssel auffindbar", async ({ page }) => {
   await page.addInitScript(() => {
     const keys = ["DEMO-1", "DEMO-404", "DEMO-3"];
-    localStorage.setItem("betterjira-issue-tabs", JSON.stringify({ state: { keys, pinned: [] }, version: 0 }));
+    const scope = JSON.stringify(["qa-cloud", "qa-user"]);
+    localStorage.setItem("betterjira-issue-tabs", JSON.stringify({ state: { workspaces: { [scope]: { keys, pinned: [] } } }, version: 0 }));
   });
   await openBusy(page);
   await openFromPalette(page);
@@ -212,7 +214,7 @@ test("Desktop-Ansicht", async ({ page }) => {
   await shoot(page, `desktop-${test.info().project.name}`);
 });
 
-test("Abmelden löst über die Tab-Suche keine Ticketabfrage aus", async ({ page }) => {
+test("Abmelden bietet keine Tab-Suche und löst keine Ticketabfrage aus", async ({ page }) => {
   await openBusy(page, 1440, 900, "/arbeitsplatz");
 
   await page.keyboard.press("Control+k");
@@ -222,11 +224,11 @@ test("Abmelden löst über die Tab-Suche keine Ticketabfrage aus", async ({ page
   await expect(page.getByRole("main").getByText("Nicht angemeldet", { exact: true })).toBeVisible();
   const before = await reads(page);
 
-  await openFromPalette(page);
-  await expect(options(page)).toHaveCount(12);
-  await field(page).fill("demo-1");
-  await expect(options(page)).toHaveCount(4);
+  await page.keyboard.press("Control+k");
+  await expect(palette).toBeVisible();
+  await expect(palette.getByRole("option", { name: /Geöffnete Tickets durchsuchen/ })).toHaveCount(0);
+  await expect(page.getByRole("tablist", { name: "Geöffnete Tickets" }).getByRole("tab")).toHaveCount(0);
   await page.keyboard.press("Escape");
   expect(await reads(page)).toEqual(before);
-  expect(await storedTabs(page)).toMatchObject({ pinned: ["DEMO-2"] });
+  expect(await storedTabs(page)).toMatchObject({ workspaces: { [JSON.stringify(["qa-cloud", "qa-user"])]: { pinned: ["DEMO-2"] } } });
 });

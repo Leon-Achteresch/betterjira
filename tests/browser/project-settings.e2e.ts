@@ -30,7 +30,7 @@ const main = (page: Page) => page.getByRole("main");
 const list = (page: Page) => main(page).getByRole("list", { name: "Bereiche" });
 const rows = (page: Page) => list(page).getByRole("listitem");
 const search = (page: Page) => main(page).getByRole("searchbox", { name: "Bereiche durchsuchen" });
-const prefs = (page: Page) => page.evaluate(() => JSON.parse(localStorage.getItem("betterjira-favorites") ?? "{}").state);
+const prefs = (page: Page) => page.evaluate(() => JSON.parse(localStorage.getItem("betterjira-favorites") ?? "{}").state.scopes[JSON.stringify(["qa-cloud", "qa-user"])]);
 const projectReads = (page: Page) =>
   page.evaluate(() => (window.__qaReads ?? []).filter((path) => path.startsWith("/project/search")).length);
 const prefsWrites = (page: Page) => page.evaluate(() => window.__qaPrefsWrites ?? 0);
@@ -149,7 +149,7 @@ test("Suche filtert lokal, schreibt die URL und folgt Zurück und Vorwärts", as
 
 test("Stern und Sichtbarkeit wirken im Filter sofort in der Seitenleiste", async ({ page }) => {
   await open(page);
-  expect(await prefs(page)).toEqual({ projectIds: ["2"], hiddenProjectIds: ["3"] });
+  expect(await prefs(page)).toEqual({ favoriteIds: ["2"], hiddenIds: ["3"] });
 
   await search(page).fill("mob");
   const mobile = rows(page).filter({ hasText: "Mobile App" });
@@ -174,7 +174,7 @@ test("Stern und Sichtbarkeit wirken im Filter sofort in der Seitenleiste", async
 
   await search(page).fill("ops");
   await expect(rows(page).getByRole("button", { name: "Betrieb favorisieren" })).toHaveAttribute("aria-pressed", "false");
-  expect(await prefs(page)).toEqual({ projectIds: ["4"], hiddenProjectIds: [] });
+  expect(await prefs(page)).toEqual({ favoriteIds: ["4"], hiddenIds: [] });
 });
 
 test("Tastatur: Suche, Stern, Sichtbarkeit und Escape", async ({ page }) => {
@@ -197,7 +197,7 @@ test("Tastatur: Suche, Stern, Sichtbarkeit und Escape", async ({ page }) => {
   await expect(visibility).toBeFocused();
   await page.keyboard.press("Space");
   await expect(visibility).toHaveAttribute("aria-checked", "false");
-  expect(await prefs(page)).toEqual({ projectIds: [], hiddenProjectIds: ["3", "2"] });
+  expect(await prefs(page)).toEqual({ favoriteIds: [], hiddenIds: ["3", "2"] });
 
   await search(page).focus();
   await expect(search(page)).toBeFocused();

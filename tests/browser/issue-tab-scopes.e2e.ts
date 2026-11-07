@@ -130,7 +130,7 @@ test("Fehlgeschlagene Kontoprüfung zeigt keine Tabs und schreibt nichts", async
     window.__qaMyselfRule = () => ({ status: 403 });
   });
   await open(page);
-  await expect(page.getByRole("main").getByText("Die Kontoprüfung für dieses Ticket ist fehlgeschlagen.")).toBeVisible();
+  await expect(page.getByRole("main").getByText("Jira-Konto konnte nicht geprüft werden")).toBeVisible();
   const before = await raw(page);
   await page.keyboard.press("Control+1");
   await expect(tabs(page)).toHaveCount(0);

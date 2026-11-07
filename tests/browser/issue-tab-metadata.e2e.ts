@@ -120,5 +120,5 @@ test("Abmelden bricht wartende Titel-Anfragen ab", async ({ page }) => {
   await page.keyboard.press("Enter");
   await page.waitForTimeout(2500);
   expect(await summaryReads(page)).toHaveLength(4);
-  await expect(tabs(page).getByRole("tab")).toHaveCount(12);
+  await expect(tabs(page).getByRole("tab")).toHaveCount(0);
 });

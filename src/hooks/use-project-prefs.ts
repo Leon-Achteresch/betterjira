@@ -65,7 +65,7 @@ export function useProjectPrefs() {
 export type ProjectPrefsControls = ReturnType<typeof useProjectPrefs>;
 
 export function useLegacyProjectPrefs() {
-  const { scope } = useJiraAccountScope();
+  const { scope, accountLabel } = useJiraAccountScope();
   const legacy = useProjectPrefsStore((state) => (scope === null ? null : state.legacy));
   const adoptLegacy = useProjectPrefsStore((state) => state.adoptLegacy);
   const setLegacy = useProjectPrefsStore((state) => state.setLegacy);
@@ -85,5 +85,5 @@ export function useLegacyProjectPrefs() {
     });
   };
 
-  return { legacy, adopt, discard };
+  return { legacy, adopt, discard, accountLabel };
 }

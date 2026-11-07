@@ -21,3 +21,11 @@ Ein fehlgeschlagener Release wird repariert, bevor die nächste Fünfergruppe ve
 Gemeinsamer Stand: Typecheck, Build und 391 Unit-Tests grün. Browser: 84 bestanden, drei bewusst übersprungen, ein zu früher Zwischenablagevergleich im Test fehlgeschlagen. Nach Warten auf den asynchronen Kopiervorgang sind alle acht betroffenen Browserfälle grün. Anwendungsquellen blieben dabei unverändert. Die Release-Übernahme erfolgt mit PR #58; Veröffentlichung und native Prüfung stehen noch aus.
 
 Für veröffentlichte Releases prüft `.github/scripts/test-release.ps1 -Tag vX.Y.Z` die Version sowie die Updater-Einträge, Binärdateien und Signaturen aller sieben Plattformvarianten. Gegen v0.7.0 ist dieses Prüfskript erfolgreich gelaufen.
+
+## Gemeinsamer Backlog-Release
+
+PR #58 wurde vom Besitzer gemergt und v0.8.0 veröffentlicht. Der Paketbau und der Windows-Starttest waren erfolgreich; die abschließende Prüfung scheiterte am nur unter Windows gesetzten TEMP-Wert. Das Prüfskript verwendet jetzt den plattformübergreifenden temporären Ordner. Die Dateien und das Updater-Manifest von v0.8.0 bestehen damit die Prüfung aller sieben Plattformvarianten.
+
+Alle 26 weiteren offenen PRs wurden anschließend nach development integriert: #4, #5, #19, #20, #21, #22, #23, #24, #25, #27, #30, #31, #32, #33, #34, #37, #38, #39, #40, #41, #42, #43, #44, #45, #47 und #48. Release-Übernahme: PR #59.
+
+Build, Typecheck und 690 Unit-Tests sind grün. Die vollständige Browserprüfung wird vor dem Release ausgewertet. Veraltete Tests für global gespeicherte Tabs/Favoriten wurden an die Kontotrennung angepasst. Die Fehler-Injektion im QA-Build wird ausschließlich durch die lokale, nicht versionierte QA-Konfiguration erzeugt; der veröffentlichte Build enthält sie nicht.

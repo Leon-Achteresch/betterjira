@@ -23,6 +23,7 @@ const setFault = (page: Page, active: boolean) =>
   }, active);
 
 const injectRenderFault = async (page: Page, file: string, name: string) => {
+  await page.addInitScript((target) => { Object.defineProperty(window, "__qaRenderFaultTarget", { value: target, configurable: true }); }, file);
   await page.route(`**/src/${file}*`, async (route) => {
     const response = await route.fetch();
     const original = await response.text();
