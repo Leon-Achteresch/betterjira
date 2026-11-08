@@ -226,6 +226,7 @@ test("Übernahme per Tastatur über die Command Palette", async ({ page }) => {
   await expect(option).toHaveAttribute("aria-selected", "true");
   await page.keyboard.press("Enter");
   await expect(tabs(page)).toHaveText([/^DEMO-1$/, /^DEMO-3/, /^DEMO-2/]);
+  await expect(page.getByRole("dialog", { name: "Command palette", includeHidden: true })).toHaveCount(0);
   await page.keyboard.press("Control+2");
   await expect(page).toHaveURL(/\/issue\/DEMO-3$/);
 });

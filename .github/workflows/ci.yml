@@ -34,6 +34,8 @@ jobs:
       - run: bunx playwright install msedge
       - run: bunx vite build --config vite.browser-qa.config.ts --configLoader runner
       - run: node .github/scripts/derive-browser-fixture.mjs . "$env:BROWSER_QA_DIRECTORY/dist"
+      - name: Overlay-Tastaturabläufe prüfen
+        run: bunx playwright test --config playwright.browser-qa.config.ts tests/browser/attachment-filter.e2e.ts tests/browser/issue-tab-scopes.e2e.ts --grep "Dateiaktionen|Übernahme per Tastatur" --workers=1
       - run: bunx playwright test --config playwright.browser-qa.config.ts --workers=1
       - uses: actions/upload-artifact@v6
         if: always()

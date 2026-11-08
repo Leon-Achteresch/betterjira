@@ -71,9 +71,13 @@ test("Dateiaktionen und Upload bleiben bei aktivem Filter nutzbar", async ({ pag
 
   await search(page).fill("screenshot");
   await page.getByRole("button", { name: "Screenshot Übergabe.png" }).click();
-  await expect(page.getByRole("dialog").getByRole("heading", { name: "Screenshot Übergabe.png" })).toBeVisible();
+  const preview = page.getByRole("dialog", { name: "Screenshot Übergabe.png", exact: true });
+  await expect(preview.getByRole("img", { name: "Screenshot Übergabe.png" })).toBeVisible();
+  await expect(preview.getByRole("button", { name: "Close", exact: true })).toBeFocused();
   await page.keyboard.press("Escape");
-  await expect(page.getByRole("heading", { name: "Screenshot Übergabe.png" })).toHaveCount(0);
+  await expect(preview).toHaveCount(0);
+  await expect(search(page)).toHaveValue("screenshot");
+  await expect(list(page)).toBeVisible();
 
   await page.evaluate(() => (window.__qa.delayMs = 800));
   const upload = page.getByRole("button", { name: "Datei anhängen" });
