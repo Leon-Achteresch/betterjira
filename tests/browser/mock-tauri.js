@@ -1205,6 +1205,8 @@ const respond = async (request) => {
     return { body: { ...issue, fields: { ...issue.fields, comment: commentWindow(issue) } } };
   if (issue) return { body: issue };
   if (/^\/attachment\/(thumbnail|content)\/qa-att-/.test(path)) return { bytes: attachmentSortPixel, contentType: "image/png" };
+  if (scenario === "attachments" && /^\/attachment\/(thumbnail|content)\/att-1$/.test(path))
+    return { bytes: attachmentSortPixel, contentType: "image/png" };
   return {
     status: 404,
     body: { errorMessages: [`Keine Testantwort für ${path}`] },
