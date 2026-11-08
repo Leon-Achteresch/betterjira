@@ -5,6 +5,7 @@ import { useKeyedFocus } from "@/hooks/use-keyed-focus";
 import { useRecentRemoval } from "@/hooks/use-recent-removal";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { RECENT_ISSUE_LIMIT, scopedFieldDraftKeys, togglePinnedIssue, type Workspace } from "@/lib/workspace";
+import { useWorkspaceNoteEditor } from "@/hooks/use-workspace-note-editor";
 import {
   visibleWorkspaceEntries,
   workspaceEmptyState,
@@ -39,6 +40,8 @@ export function useWorkspacePage(search: WorkspacePageSearch) {
   const { refFor, fallbackRef, focus } = useKeyedFocus();
   const removeRecent = useRecentRemoval(id, visibleOf, focus);
   const entries = workspaceEntries(workspace, draftKeys);
+  const visible = visibleWorkspaceEntries(entries, filter, query, sort);
+  const note = useWorkspaceNoteEditor(visible);
 
   return {
     ready,
@@ -47,7 +50,8 @@ export function useWorkspacePage(search: WorkspacePageSearch) {
     sort,
     total: entries.length,
     counts: workspaceFilterCounts(entries),
-    entries: visibleWorkspaceEntries(entries, filter, query, sort),
+    entries: visible,
+    note,
     emptyState: workspaceEmptyState(filter, query),
     recentLimit: RECENT_ISSUE_LIMIT,
     entryRef: refFor,

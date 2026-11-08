@@ -59,6 +59,7 @@ export function ProjectVisibilityContent({ settings }: ProjectVisibilitySettings
             <ProjectVisibilityRow
               key={entry.project.id}
               entry={entry}
+              disabled={settings.disabled}
               onToggleFavorite={() => settings.toggleFavorite(entry.project.id)}
               onToggleHidden={() => settings.toggleHidden(entry.project.id)}
             />

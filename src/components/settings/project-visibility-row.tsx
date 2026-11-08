@@ -7,7 +7,7 @@ import { Switch } from "@/components/ui/switch";
 import { EASE_OUT, SPRING_LAYOUT } from "@/lib/ease";
 import type { ProjectVisibilityRowProps } from "@/types/project-settings";
 
-export function ProjectVisibilityRow({ entry, onToggleFavorite, onToggleHidden, ref }: ProjectVisibilityRowProps) {
+export function ProjectVisibilityRow({ entry, onToggleFavorite, onToggleHidden, disabled, ref }: ProjectVisibilityRowProps) {
   const reduce = useReducedMotion();
   const { project, favorite, hidden } = entry;
   return (
@@ -25,8 +25,8 @@ export function ProjectVisibilityRow({ entry, onToggleFavorite, onToggleHidden, 
           <ItemDescription>{project.key}</ItemDescription>
         </ItemContent>
         <ItemActions>
-          <FavoriteButton name={project.name} favorite={favorite} onToggle={onToggleFavorite} />
-          <Switch checked={!hidden} onCheckedChange={onToggleHidden} aria-label={`${project.name} in Sidebar anzeigen`} />
+          <FavoriteButton name={project.name} favorite={favorite} onToggle={onToggleFavorite} disabled={disabled} />
+          <Switch disabled={disabled} checked={!hidden} onCheckedChange={onToggleHidden} aria-label={`${project.name} in Sidebar anzeigen`} />
         </ItemActions>
       </Item>
     </StaggerItem>

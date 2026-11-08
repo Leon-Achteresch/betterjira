@@ -93,4 +93,14 @@ describe("jiraErrors", () => {
     expect(jiraErrors(new Error("offline"))).toEqual({ messages: ["offline"], fields: {} });
     expect(jiraErrors(null)).toEqual({ messages: [], fields: {} });
   });
+
+  it("zeigt bei Drosselung nur die verständliche Meldung statt der Jira-Antwort", () => {
+    const body = JSON.stringify({ errorMessages: ["Rate limit exceeded"] });
+    const { messages, fields } = jiraErrors(new JiraApiError({ status: 429, body }));
+    expect(messages).toEqual(["Jira begrenzt gerade die Anzahl der Anfragen. Bitte später erneut versuchen."]);
+    expect(fields).toEqual({});
+    expect(jiraErrors(new JiraApiError({ status: 429, body, retryAt: Date.now() + 90_000 })).messages[0]).toMatch(
+      /^Jira begrenzt gerade die Anzahl der Anfragen\. Bitte frühestens ab .+ Uhr erneut versuchen\.$/,
+    );
+  });
 });

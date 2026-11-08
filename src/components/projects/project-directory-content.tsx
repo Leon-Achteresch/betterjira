@@ -58,7 +58,7 @@ export function ProjectDirectoryContent({ directory, query, onQueryChange }: Pro
           {directory.empty === "no-favorites" && (
             <EmptyContent>
               <Button variant="outline" size="sm" asChild>
-                <Link to="/bereiche" search={projectDirectorySearch({ q: query })}>
+                <Link to="/bereiche" search={projectDirectorySearch({ q: query, sort: directory.sort })}>
                   Alle Bereiche zeigen
                 </Link>
               </Button>
@@ -77,7 +77,7 @@ export function ProjectDirectoryContent({ directory, query, onQueryChange }: Pro
       >
         <AnimatePresence initial={false} mode="popLayout">
           {directory.entries.map((entry) => (
-            <ProjectDirectoryRow key={entry.project.id} entry={entry} onToggleFavorite={() => directory.toggleFavorite(entry.project.id)} />
+            <ProjectDirectoryRow key={entry.project.id} entry={entry} disabled={directory.favoriteDisabled} onToggleFavorite={() => directory.toggleFavorite(entry.project.id)} />
           ))}
         </AnimatePresence>
       </motion.ul>

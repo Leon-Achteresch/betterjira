@@ -11,6 +11,7 @@ const PAGE_TITLE = "Diese Ansicht konnte nicht angezeigt werden";
 const APP_TITLE = "betterjira konnte nicht angezeigt werden";
 
 const injectRenderFault = async (page: Page, file: string, name: string) => {
+  await page.addInitScript((target) => { Object.defineProperty(window, "__qaRenderFaultTarget", { value: target, configurable: true }); }, file);
   await page.addInitScript(() => {
     window.__qaRenderFault = true;
   });

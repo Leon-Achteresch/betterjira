@@ -142,7 +142,7 @@ const EMPTY_STATES: Record<WorkspacePageFilter, { title: string; description: st
   },
   notizen: {
     title: "Keine privaten Notizen",
-    description: "Notizen schreibst du im Ticket. Sie bleiben auf diesem Gerät.",
+    description: "Notizen schreibst du im Ticket oder über „Notiz hinzufügen“ an einem Eintrag. Sie bleiben auf diesem Gerät.",
   },
   zuletzt: {
     title: "Noch nichts geöffnet",

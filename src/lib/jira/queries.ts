@@ -1,6 +1,7 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { Effect, Schema } from "effect";
 import { currentSite, jira, jiraAgile, jiraImage, jiraSend, logout, runLogin } from "./client";
+import { withJiraQueryScope, type JiraQueryScope } from "./query-scope";
 
 export const jiraKeys = {
   all: ["jira"] as const,
@@ -17,8 +18,10 @@ export const jiraKeys = {
   issueCount: (jql: string) => ["jira", "issues", "count", jql] as const,
   fieldCatalog: ["jira", "field-catalog"] as const,
   filter: (id: string) => ["jira", "filter", id] as const,
+  filterFavourite: ["jira", "filter-favourite"] as const,
   jqlValidation: (jql: string) => ["jira", "jql-validation", jql] as const,
   issue: (key: string) => ["jira", "issue", key] as const,
+  issueDetail: (key: string, scope: JiraQueryScope | undefined) => ["jira", "issue", key, "detail", scope?.cloudId ?? "", scope?.accountId ?? ""] as const,
   transitions: (key: string) => ["jira", "transitions", key] as const,
   userSearch: (query: string, issueKey: string, assignee: boolean) => ["jira", "user-search", query, issueKey, assignee] as const,
   filters: ["jira", "filters"] as const,
@@ -28,6 +31,10 @@ export const jiraKeys = {
   boardSprints: (id: number) => ["jira", "board-sprints", id] as const,
   boardConfig: (id: number) => ["jira", "board-config", id] as const,
   projectStats: (key: string) => ["jira", "project-stats", key] as const,
+  allProjectStats: ["jira", "project-stats"] as const,
+  createIssueTypes: (projectId: string) => ["jira", "create-meta", projectId] as const,
+  createFields: (projectId: string, issueTypeId: string) => ["jira", "create-meta", projectId, issueTypeId] as const,
+  createPermission: (projectId: string) => ["jira", "create-permission", projectId] as const,
 };
 
 const Myself = Schema.Struct({
@@ -205,9 +212,7 @@ const Sprints = Schema.Array(
 
 export type JiraSprint = (typeof Sprints.Type)[number];
 
-export const BACKLOG = "backlog";
-
-export type BoardSprint = number | typeof BACKLOG;
+export { BACKLOG, type BoardSprint } from "./area-page";
 
 const sprintClause = (board: JiraBoard, sprint?: number) => {
   if (sprint !== undefined) return ` AND sprint = ${sprint}`;
@@ -451,6 +456,13 @@ const IssueUser = Schema.Struct({
   avatarUrls: Schema.Struct({ "48x48": Schema.String }),
 });
 
+export const IssueComment = Schema.Struct({
+  id: Schema.String,
+  author: Schema.optional(IssueUser),
+  body: Schema.Unknown,
+  created: Schema.String,
+});
+
 const IssueDetail = Schema.Struct({
   id: Schema.String,
   key: Schema.String,
@@ -471,9 +483,10 @@ const IssueDetail = Schema.Struct({
       ),
       comment: Schema.optional(
         Schema.Struct({
-          comments: Schema.Array(
-            Schema.Struct({ id: Schema.String, author: Schema.optional(IssueUser), body: Schema.Unknown, created: Schema.String }),
-          ),
+          startAt: Schema.optional(Schema.Number),
+          maxResults: Schema.optional(Schema.Number),
+          total: Schema.optional(Schema.Number),
+          comments: Schema.Array(IssueComment),
         }),
       ),
       attachment: Schema.optional(
@@ -516,16 +529,13 @@ const IssueDetail = Schema.Struct({
 
 export type JiraIssueDetail = typeof IssueDetail.Type;
 
-export const issueQuery = (key: string) => ({
-  queryKey: jiraKeys.issue(key),
+export const issueQuery = (key: string, scope: JiraQueryScope | undefined, client: QueryClient) => ({
+  queryKey: jiraKeys.issueDetail(key, scope),
+  enabled: !!scope,
+  retryOnMount: false,
   queryFn: ({ signal }: { signal: AbortSignal }) =>
-    Effect.runPromise(jira(`/issue/${encodeURIComponent(key)}?fields=*all&expand=names,editmeta`, IssueDetail), { signal }),
+    Effect.runPromise(withJiraQueryScope(client, scope, jira(`/issue/${encodeURIComponent(key)}?fields=*all&expand=names,editmeta`, IssueDetail)), { signal }),
 });
-
-export const useJiraIssue = (key: string) => {
-  const site = useJiraSite();
-  return useQuery({ ...issueQuery(key), enabled: !!site.data });
-};
 
 const TransitionField = Schema.Struct({
   required: Schema.Boolean,

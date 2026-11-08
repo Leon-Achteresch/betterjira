@@ -6,4 +6,5 @@ export type WorkspaceEntryRowProps = {
   linkRef?: Ref<HTMLAnchorElement>;
   onTogglePin: () => void;
   onRemoveRecent: () => void;
+  onEditNote: () => void;
 };

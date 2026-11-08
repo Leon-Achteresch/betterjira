@@ -437,6 +437,8 @@ test("Entfernen per Tastatur setzt den Fokus auf den Nachbarn, Rückgängig stel
   await linkOf(page, "DEMO-6").focus();
   await expect(linkOf(page, "DEMO-6")).toBeFocused();
   await page.keyboard.press("Tab");
+  await expect(page.getByRole("button", { name: "Notiz zu DEMO-6 hinzufügen", exact: true })).toBeFocused();
+  await page.keyboard.press("Tab");
   await expect(page.getByRole("button", { name: "DEMO-6 anheften" })).toBeFocused();
   await page.keyboard.press("Tab");
   await expect(removeButton(page, "DEMO-6")).toBeFocused();

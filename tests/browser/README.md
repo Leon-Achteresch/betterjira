@@ -66,10 +66,11 @@ window.__qa.writes;
 
 Pins, Verlauf und Entwürfe verwenden in dieser Simulation den separaten Arbeitsbereich `qa-cloud` / `qa-user` im lokalen Speicher. Die App speichert diese Daten bewusst je Jira-Konto und Instanz.
 
-
 ## Ticketlisten-Abfragen
 
 `window.__qaSearchRule = (jql, pageToken) => ({ delayMs, status, keys, nextPageToken })` steuert einzelne Suchanfragen: verzögern, mit HTTP-Status scheitern lassen, Treffer auf Schlüssel begrenzen oder eine Folgeseite ankündigen. Per `addInitScript` gesetzt wirkt die Regel schon auf die erste Anfrage. `issue-query-states.e2e.ts` prüft damit Platzhalter nach Abfragewechsel, schnelle Wechsel, fehlgeschlagene Aktualisierung, ersten Ladefehler und fehlgeschlagenes Weiterladen. Mit `ISSUE_QUERY_SHOTS=<Ordner>` speichert der Test Screenshots.
+
+Mit `headers` liefert eine scheiternde Suchregel zusätzlich Antwort-Header, z. B. `{ status: 429, headers: { "retry-after": "120" } }`. `rate-limit.e2e.ts` prüft damit die Drosselung durch Jira: verständliche Meldung mit frühestem Zeitpunkt, keine automatischen Sofort-Wiederholungen, keine Abmeldung, erhaltene Zeilen beim Aktualisieren und Erholung über „Erneut versuchen“. Mit `RATE_LIMIT_SHOTS=<Ordner>` speichert der Test Screenshots (schmales Profil in 390 px).
 
 ## UX-Szenarien
 
@@ -93,6 +94,20 @@ Der vollständige Ablaufbericht einschließlich Vielnutzer, sorgfältigem Leser,
 - Verzögerte Sitzung: `...fixture.html?scenario=session-slow&route=/` (`window.__qa.sessionDelayMs`, Standard 1500 ms in diesem Szenario).
 - Übersicht und Seitenleiste zeigen einen Lesefehler der Sitzung ebenfalls als „Anmeldung konnte nicht geprüft werden“ mit Retry statt als Abmeldung. Der simulierte Login (`oauth_login`) bricht immer mit „Test: Anmeldung abgebrochen“ ab.
 - Automatisch: `bunx playwright test tests/browser/navigation.e2e.ts tests/browser/session.e2e.ts --workers=1`.
+
+## Bereichsseite und Boards
+
+- Board: `...fixture.html?scenario=board&route=/bereiche/DEMO?board=1`. `window.__qaBoardType = "scrum"` (per `addInitScript`) liefert dasselbe Board als Scrum-Board mit lokalem „Sprint 5“ für Sprint- und Backlog-Wechsel.
+- `window.__qaBoardRule = (path) => ({ delayMs, status })` verzögert oder scheitert Agile-Abrufe unter `/board` (Boardliste: `path === "/board"`, Board-Konfiguration: `path.endsWith("/configuration")`). `window.__qa.boardReads` protokolliert die gelesenen Pfade.
+- Unbekanntes Board: `?route=/bereiche/DEMO?board=999`. Die Seite sagt nur, dass es unter den geladenen Boards fehlt; die Boardliste wird von Jira auf eine Seite (50 Boards) begrenzt geladen.
+- Ungültige Links wie `?board=abc` oder `?sprint=openSprints()` werden verworfen und gelangen nicht in JQL oder Agile-Pfade.
+- Automatisch: `bunx playwright test tests/browser/area-recovery.e2e.ts --workers=1`; mit `AREA_RECOVERY_SHOTS=<Ordner>` zusätzlich Screenshots.
+
+## Filter
+
+- Zwei lokale Testfilter (`100` „Offene Testtickets“, `200` „Team-Rückstand“, beide von `qa-user`): `...fixture.html?scenario=filters&route=/filter/100`. Nur `scenario=filters` listet sie in der Seitenleiste; die Detailseite liest sie in jedem Szenario, z. B. `scenario=session-error&route=/filter/100`.
+- `window.__qaFilterRule = (id) => ({ delayMs, status })` lässt `GET /filter/{id}` verzögern oder mit HTTP-Status scheitern. `window.__qa.filterReads` protokolliert gelesene Filter-IDs, Speichern landet als `PUT /filter/{id}` in `window.__qa.writes`.
+- Automatisch: `bunx playwright test tests/browser/filter-recovery.e2e.ts --workers=1` prüft Sitzung langsam/abgemeldet/Lesefehler, ersten 503 mit Retry, 403/404, gescheiterten Refresh mit Entwurf, Wechsel A → B ohne fremden Entwurf und normales Speichern. `FILTER_RECOVERY_SHOTS=<Ordner>` speichert Screenshots.
 
 ## Verknüpfte Tickets
 
@@ -139,6 +154,7 @@ Der vollständige Ablaufbericht einschließlich Vielnutzer, sorgfältigem Leser,
 - Inbox mit lokal gespeicherten QA-Benachrichtigungen: `...fixture.html?scenario=notifications&route=/benachrichtigungen` (Filter über `?ansicht=beobachtet`, `?nur=ungelesen`, `?suche=`). Die Einträge sind reine Testdaten im lokalen Speicher, es werden keine Jira-Benachrichtigungen erzeugt.
 - Fremdes Konto im lokalen Speicher: `scenario=notifications-foreign`. Die Seite zeigt keine Einträge des anderen Kontos.
 - Automatisch: `bunx playwright test tests/browser/notifications.e2e.ts --workers=1`.
+- „Jetzt prüfen“: `window.__qaSearchRule` darf zusätzlich `issues` zurückgeben; die Suche antwortet dann mit genau diesen Test-Tickets, etwa einem frischen Kommentar als neue Aktivität. `notification-refresh.e2e.ts` prüft damit manuellen Abruf, letzten erfolgreichen Stand, keinen doppelten Abruf bei Doppelklick oder gleichzeitigem Poll, Fehler mit Retry bei erhaltenen Filtern, Offline/pausiert, Abmeldung, Tastatur und 390 px dunkel. Mit `NOTIFICATION_REFRESH_SHOTS=<Ordner>` entstehen Screenshots.
 
 ## Pull Requests
 
@@ -166,6 +182,13 @@ Der vollständige Ablaufbericht einschließlich Vielnutzer, sorgfältigem Leser,
 - Automatisch: `bunx playwright test tests/browser/dropdown-submenus.e2e.ts --workers=1` (Projektbreite und 390 px; Mausklick mit Zwischenablage, Mauswechsel zwischen Haupt- und Untermenü, Pfeiltasten/Enter/Escape mit Fokusrückgabe, Statusfilter). Jeder Eintrag muss im Fenster liegen und an seinem Mittelpunkt und beiden Rändern selbst getroffen werden. Mit `DROPDOWN_SUBMENU_SHOTS=<Ordner>` speichert der Test Screenshots.
 - Am 07.11.2026 gegen den gebauten Stand (`vite preview`) geprüft: mit der Korrektur 16 von 16 Tests erfolgreich, mit dem alten `dropdown-menu.tsx` 16 von 16 rot. Auf Desktop war das Untermenü vollständig abgeschnitten, bei 390 px lag es bei x = −74 bzw. reichte bis 436 px. `issue-query-states.e2e.ts` und `header.e2e.ts` laufen weiter durch. Ausnahme ist „Geöffnete Tickets im Menü sind per Tastatur bedienbar“ (390 px, reduziert): Der Test scheitert gelegentlich, weil die Schleife ArrowDown drückt, ohne auf den Fokus zu warten. Für dieses Menü ändert die Korrektur kein CSS.
 - Mausbewegungen im Test laufen schrittweise. Radix erkennt die Richtung zum Untermenü aus aufeinanderfolgenden `pointermove`-Ereignissen; ein einzelner Sprung über das Hauptmenü hinweg schließt ein links liegendes Untermenü, wie bei echter Maus ein abrupter Sprung auch.
+
+## Projektfavoriten je Konto
+
+- Favoriten und ausgeblendete Bereiche gelten je Jira-Instanz und Konto (`cloudId` + `accountId`). Zweites Konto: `&account=qa-colleague`, zweite Instanz: `&cloud=other-cloud`.
+- Einstellungen: `...fixture.html?route=/settings/bereiche`. Alte globale Daten (`betterjira-favorites` mit `projectIds`/`hiddenProjectIds`) erscheinen dort als einmaliges Angebot „Übernehmen“/„Verwerfen“ (mit Rückgängig) und werden nie automatisch einem Konto zugeordnet.
+- `window.__qaMyselfDelayMs` und `window.__qaFailMyself` (per `addInitScript`) verzögern bzw. scheitern die erste Kontoprüfung (`/myself`).
+- Automatisch: `bunx playwright test tests/browser/project-prefs.e2e.ts --workers=1`; mit `PROJECT_PREFS_SHOTS=<Ordner>` zusätzlich Screenshots.
 
 ## Bereichsübersicht
 
@@ -201,3 +224,127 @@ Der vollständige Ablaufbericht einschließlich Vielnutzer, sorgfältigem Leser,
 
 - Direktlink auf eine nicht vorhandene Ansicht: `...fixture.html?route=/gibt-es-nicht?token=test`. Kopfzeile und Seitenleiste bleiben, die Seite zeigt weder Pfad noch Parameter, die URL bleibt unverändert. „Zurück“ erscheint nur nach einer Navigation innerhalb der App.
 - Automatisch: `bunx playwright test tests/browser/not-found.e2e.ts --workers=1`; mit `NOT_FOUND_SHOTS=<Ordner>` zusätzlich Screenshots.
+
+## Tastaturzugang zum Hauptinhalt
+
+- Beim ersten Tab erscheint „Zum Inhalt“; Enter fokussiert den benannten Hauptbereich (`main` „Hauptinhalt“) ohne Hash, Verlaufseintrag oder Scrollsprung.
+- Nach einem Seitenwechsel wird der Hauptbereich nur fokussiert, wenn der Fokus durch den Wechsel verloren ging (z. B. Link im Inhalt, Zurück/Vorwärts). Fokus in Seitenleiste, Kopfzeile, Dialogen oder auf „Erneut versuchen“ bleibt stehen, ebenso bei Query-Wechsel und Aktualisieren.
+- Automatisch: `bunx playwright test tests/browser/main-content-focus.e2e.ts --workers=1`.
+
+## Ticket erstellen
+
+- Formular: `http://localhost:1420/tests/browser/fixture.html?scenario=create&route=/neu`. Projekte: „Produktentwicklung“ (Aufgabe mit Pflichtfeldern Priorität und Kunde, Fehler mit Pflichtfeld Umgebung, Unteraufgabe nur in Jira), „Betrieb“ (Pflichtfeld Team, nicht unterstützt) und „Archiv ohne Rechte“ (keine Create-Berechtigung).
+- `window.__qa.createFailure = { status, body }` lässt den nächsten `POST /issue` einmalig scheitern, `window.__qa.metaDelay = { "<projektId>": ms }` verzögert die Create-Metadaten, `window.__qa.opened` sammelt geöffnete Jira-Links. Erstellte Tickets bleiben in der Simulation.
+- Automatisch: `bunx playwright test tests/browser/create-issue.e2e.ts --workers=1`; mit `CREATE_ISSUE_SHOTS=<Ordner>` zusätzlich Screenshots.
+
+## Filterübersicht
+
+- Eigene und favorisierte QA-Filter: `...fixture.html?scenario=filters&route=/filter` (sieben Filter, davon drei Favoriten, einer gehört einem anderen Konto). Ansicht über `?ansicht=favoriten`, Suche über `q`.
+- Erster Ladefehler: `&fail=filters`; `window.__qa.failFilters` schaltet Fehler von `/filter/my` zur Laufzeit, `window.__qa.filterRequests` zählt die Abrufe.
+- Favoriten-Schreibzugriffe (`PUT`/`DELETE /filter/{id}/favourite`) bleiben in der Simulation und stehen in `window.__qa.writes`; `failNextWrite` und `delayMs` wirken auch hier.
+- Zweites Konto: `&account=qa-colleague` sieht nur seinen eigenen Filter.
+- Automatisch: `bunx playwright test tests/browser/filter-overview.e2e.ts --workers=1`. Mit `FILTER_SHOTS=<Ordner>` speichert der Test Screenshots und prüft, dass die Schrift geladen ist.
+
+## Bereiche sortieren
+
+`http://localhost:1420/tests/browser/fixture.html?scenario=projects&route=/bereiche?sort=name` öffnet die Bereichsübersicht direkt mit Sortierung. Gültige Werte für `sort`: `name`, `schluessel`, `favoriten`; ohne Parameter oder bei unbekanntem Wert gilt die geladene Reihenfolge. `projects.e2e.ts` prüft Reihenfolge je Sortierung, Tastaturbedienung, URL mit Suche und Ansicht, Zurück/Vorwärts, Direktlink, dass Zeilen beim Umordnen nicht neu eingehängt werden und dass keine zusätzlichen Projekt-, Board- oder Ticketanfragen entstehen. Die Fixture-Daten bleiben unverändert.
+
+## Übersicht aktualisieren
+
+- Übersicht: `...fixture.html?route=/`. Der Knopf neben dem Stand lädt Tickets und Profil (bei Favoriten auch die Bereiche) erneut; während des Abrufs löst ein weiterer Klick keinen zweiten Abruf aus.
+- `window.__qaSearchRule = (jql) => jql.includes("resolved >= -7d") ? { status: 400 } : {}` lässt nur die Arbeitsliste scheitern (Teilfehler), zusammen mit `window.__qa.failMyself = true` scheitern alle Abfragen. Geladene Tickets bleiben sichtbar, der Stand bleibt beim letzten erfolgreichen Abruf.
+- Automatisch: `bunx playwright test tests/browser/dashboard-refresh.e2e.ts --workers=1` prüft initiales Laden, Initialfehler mit Retry, Aktualisieren und Doppelklick, vollständigen und teilweisen Refreshfehler mit Retry, leere Liste mit Fehler, offline/online sowie Tastatur und 390 px. `DASHBOARD_SHOTS=<Ordner>` speichert Screenshots.
+
+## Änderungsverlauf im Ticket
+
+- `...fixture.html?route=/issue/DEMO-1`, unten „Änderungsverlauf“ aufklappen. DEMO-1 hat 48 lokale Testeinträge (u. a. mehrere Felder in einer Änderung, gelöschte und unbekannte Person, rohe Feld-ID, Beschreibung mit Markup als Text), DEMO-2 keinen, DEMO-3 drei. Eingeklappt wird nichts abgerufen.
+- `window.__qaHistory.reads` enthält die gesendeten Changelog-Anfragen (`startAt`, `maxResults`, Konto). `window.__qaHistoryRule = (key, startAt, account) => ({ delayMs, status, html, values })` verzögert, lässt einzelne Seiten scheitern oder ersetzt die Einträge.
+- Automatisch: `bunx playwright test tests/browser/issue-history.e2e.ts --workers=1`; mit `ISSUE_HISTORY_SHOTS=<Ordner>` entstehen Screenshots.
+
+## Kommentare nachladen
+
+- Ticket mit 7 lokalen Testkommentaren, von denen die Detailabfrage nur 2 liefert: `...fixture.html?scenario=comment-pages&route=/issue/DEMO-1`. „Weitere Kommentare laden“ ruft `GET /issue/{key}/comment?startAt=…&maxResults=50&orderBy=created` ab, erst nach Klick.
+- `window.__qa.commentDetailLimit` begrenzt die Kommentare der Detailantwort (Szenario: 2), `window.__qa.commentPageReads` protokolliert jede Seitenabfrage (`key`, `startAt`, `maxResults`, `orderBy`).
+- `window.__qaCommentPagesRule = (key, startAt) => ({ delayMs, status, pageSize, startAt, total, comments })` steuert einzelne Seiten: verzögern, mit HTTP-Status scheitern, kürzere Seiten, abweichend bestätigtes `startAt` (Duplikate), `total: null` (Gesamtzahl unbekannt) oder eine leere Seite.
+- Automatisch: `bunx playwright test tests/browser/comment-pages.e2e.ts --workers=1`; mit `COMMENT_PAGES_SHOTS=<Ordner>` zusätzlich Screenshots.
+
+## Link zu einem Kommentar
+
+- `...fixture.html?scenario=comment-links&route=/issue/DEMO-1` zeigt zwei QA-Kommentare mit numerischen IDs (`10001`, `10002`), einer davon mit sehr langem Autorennamen. Jeder Kommentar hat die Aktion „Jira-Link zum Kommentar kopieren“; kopiert wird `https://example.atlassian.net/browse/DEMO-1?focusedCommentId=10001#comment-10001`.
+- `window.__qaSiteUrl` (per `addInitScript`) ersetzt die Instanzadresse der simulierten Sitzung, z. B. mit Kontextpfad, leer (keine Verbindung) oder mit Zugangsdaten (wird abgelehnt).
+- Automatisch: `bunx playwright test tests/browser/comment-link.e2e.ts --workers=1` prüft die tatsächlichen Bytes der Zwischenablage, einmaliges Kopieren bei Doppelklick, Tastatur, Fehler der Zwischenablage, fehlende oder ungültige Verbindung, unveränderten Entwurf und Sortierung, neu hinzugefügte Kommentare sowie 390 px hell und dunkel mit reduzierter Bewegung. Mit `COMMENT_LINK_SHOTS=<Ordner>` entstehen Screenshots.
+
+## Ticketansicht nach Ladefehlern
+
+`window.__qaIssueRule = (key) => ({ delayMs, status, summary })` steuert ausschließlich den vollständigen Ticketabruf `GET /issue/{key}?fields=*all`: verzögern, mit HTTP-Status scheitern lassen oder eine geänderte Zusammenfassung liefern. Per `addInitScript` gesetzt wirkt die Regel schon auf den ersten Abruf. `window.__qa.issueReads` zählt die Abrufe.
+
+- Erster Fehler ohne Daten: eigene Erklärung je Ursache (503, 403, 404) mit „Erneut versuchen“. 403/404 werden weder als Abmeldung noch als sicher gelöscht bezeichnet.
+- Fehlgeschlagene Aktualisierung mit geladenem Ticket („Weitere Ticketaktionen“ → „Aktualisieren“ oder nach einem Schreibzugriff): Inhalt, Kommentare, Kommentarentwurf, Editor-DOM und geöffneter Bereich bleiben; Hinweis mit Datenstand und Retry.
+- Sitzung fehlt bzw. ist nicht lesbar: `scenario=calendar-offline` bzw. `scenario=session-error` mit `route=/issue/DEMO-1`.
+- Automatisch: `bunx playwright test tests/browser/issue-recovery.e2e.ts --workers=1`; mit `ISSUE_RECOVERY_SHOTS=<Ordner>` zusätzlich Screenshots.
+
+## Ticket-Tabs je Konto
+
+Tabs und Pins liegen weiter unter `betterjira-issue-tabs`, jetzt je Arbeitsbereich `JSON.stringify([cloudId, accountId])`. Die alte globale Liste `{ keys, pinned }` wird beim Laden in Quarantäne gelegt und keinem Konto automatisch zugeordnet. Erst nach bestätigter Sitzung und `/myself` zeigt die Kopfleiste Tabs; vorher schreibt keine Aktion.
+
+- Alte globale Tabs: `fixture.html?scenario=tabs-legacy&route=/` (DEMO-3, DEMO-1 angeheftet, DEMO-2). Übernehmen/Verwerfen über den Hinweis in der Kopfleiste ab 640 px, darunter über „Weitere Aktionen“, oder die Command Palette, jeweils mit „Rückgängig“.
+- Anderes Konto oder andere Instanz: `account=<id>` bzw. `cloud=<id>` an die Fixture-URL hängen.
+- `window.__qaMyselfRule = () => ({ delayMs, status })` verzögert oder bricht `/myself` ab, `window.__qaIssueRule = (key) => ({ delayMs, status })` die Ticketdetails. Per `addInitScript` setzen.
+- `window.__qaMyselfGate` kann eine kontrollierte Promise sein. Die langsame Prüfung bleibt bis zu ihrer expliziten Freigabe stehen; das Prüfen der ungeladenen Ansicht hängt dadurch nicht von einer festen Verzögerung ab.
+- `busy` legt die zwölf Tabs bereits im neuen Format für `qa-cloud` / `qa-user` an.
+- `issue-tab-scopes.e2e.ts` prüft A → B → A, gleichen Schlüssel in anderer Instanz, langsame und fehlgeschlagene Kontoprüfung, Abmelden, Laden aus fremdem Pfad, Quarantäne mit Rückgängig, Command Palette und 390 px. `ISSUE_TAB_SCOPE_SHOTS=<Ordner>` speichert Screenshots.
+
+Integration offener PRs:
+
+- #37 (Tab-Suche): `useIssueTabStore((state) => state.keys)` und `useIssueTabs()` bleiben erhalten; `keys`/`pinned` im Store sind nur noch die Sicht des bestätigten Kontos.
+- #41 (schlanke Titel): in `useIssueTabs` die Zeile `const issues = useQueries(...)` samt `title:` durch `useIssueTabMetadata(ordered, activeKey)` ersetzen. Die passiven Detail-Beobachter und Cache-Leser in diesem Hook müssen dann den bestätigten Scope/QueryClient an `issueQuery` übergeben und `jiraKeys.issueDetail(key, scope)` lesen. `useRememberIssueTab` verwendet `useJiraIssue` aus `hooks/jira/use-jira-issue` und beobachtet dieselben Details, ohne eine zweite Titelabfrage.
+- #44 (Ticket-Wiederherstellung): Query-Factory, Scope-Guard und die neuen Query-Hooks sind identisch. Dessen `SessionGate` und Controller mit `useRememberIssueTab` aus diesem PR zusammensetzen; das frühere `onEnter.open` bleibt entfernt.
+
+## Tab-Titel offener Tickets
+
+- Zwölf offene Tabs: `...fixture.html?scenario=busy&route=/issue/DEMO-1`. Nur das aktive Ticket lädt volle Details (`fields=*all`), die übrigen Tabs fragen ausschließlich `GET /issue/{key}?fields=summary` ab, höchstens vier gleichzeitig.
+- `window.__qaTabTitleRule = (key) => ({ delayMs, status, summary })` (per `addInitScript`) verzögert, scheitert oder ersetzt den Titel einzelner Abrufe. `window.__qaTabTitles` zählt `calls`, `open` und `peak`.
+- Automatisch: `bunx playwright test tests/browser/issue-tab-metadata.e2e.ts --workers=1`; mit `ISSUE_TAB_SHOTS=<Ordner>` zusätzlich Screenshots (prüft vorher, dass Geist geladen ist).
+
+## Geöffnete Tickets durchsuchen
+
+- Nach dem Einstieg aus der Palette kehrt der Fokus beim Schließen zu „Suchen“ zurück. Enter auf „Suche leeren“ leert nur das Feld; es öffnet keinen markierten Tab.
+
+- `...fixture.html?scenario=busy` (12 offene Tabs, `DEMO-2` angeheftet). Bei schmalem Fenster über „Weitere Aktionen“ → „Geöffnete Tickets durchsuchen“, auf dem Desktop über die Command Palette (`Strg K`, „Geöffnete Tickets durchsuchen“).
+- Der Dialog filtert nur die bereits geladenen Tabs nach Schlüssel und bekanntem Titel; er lädt nichts aus Jira nach, schließt keine Tabs und ändert keine Pins. Tabs ohne geladenen Titel erscheinen mit „Titel nicht geladen“ und sind über den Schlüssel auffindbar.
+- Automatisch: `bunx playwright test tests/browser/open-tab-search.e2e.ts --workers=1` prüft Reihenfolge, aktiven und angehefteten Tab, Suche ohne zusätzliche `GET /issue`-Anfragen, keinen Treffer mit Zurücksetzen, Tastatur und Maus mit erhaltenem Kommentarentwurf, unbekannte Titel, Wiederöffnen, Abmelden, Escape mit Fokusrückgabe sowie 390 px dunkel mit reduzierter Bewegung. Mit `OPEN_TAB_SEARCH_SHOTS=<Ordner>` speichert der Test Screenshots.
+
+## Ticket-Links in der Command Palette
+
+- Fixture öffnen, `Strg`/`⌘` + `K`, einen Link der simulierten Instanz einfügen, z. B. `https://example.atlassian.net/browse/DEMO-2?focusedCommentId=1#comment-1`. Die Palette zeigt nur „DEMO-2 öffnen“ mit der bekannten Ticket-Vorschau; Enter oder Klick öffnet `/issue/DEMO-2` in BetterJira. Es wird keine externe URL geöffnet.
+- Akzeptiert werden nur `https`-Links mit exakt der Origin der verbundenen Instanz, ohne Zugangsdaten und mit Pfad `/browse/<SCHLÜSSEL>`. Query und Fragment werden verworfen. Fremde oder täuschende Hosts, andere Protokolle, Zugangsdaten, andere Pfade und fehlende Anmeldung (`scenario=calendar-offline`) werden in der Palette erklärt, ohne Query oder Fragment anzuzeigen.
+- Im Link-Modus startet keine Jira-Volltextsuche (`window.__qa.searches` bleibt ohne neuen `text ~`-Eintrag); eine verzögerte frühere Freitextantwort überlagert den Linktreffer nicht.
+- Automatisch: `bunx playwright test tests/browser/ticket-reference.e2e.ts --workers=1`; mit `TICKET_REFERENCE_SHOTS=<Ordner>` zusätzlich Screenshots. Parsergrenzen: `src/lib/ticket-reference.test.ts`.
+
+## Anhänge durchsuchen
+
+- `...fixture.html?scenario=attachments&route=/issue/DEMO-1`, dann „Details“ → „Anhänge“: sieben lokale Testanhänge (Bild, PDF, langer Dokumentname, CSV, ZIP, Anhang ohne Namen und MIME-Typ, PDF-Endung mit `application/octet-stream`). `window.__qaAttachments` (per `addInitScript`) ersetzt die Liste.
+- Suche und Dateityp-Filter arbeiten nur auf den geladenen Metadaten. `window.__qa.opened` enthält extern geöffnete Anhang-URLs; ein Upload wird lokal simuliert und in `window.__qa.writes` protokolliert.
+- Automatisch: `bunx playwright test tests/browser/attachment-filter.e2e.ts --workers=1`; mit `ATTACHMENT_FILTER_SHOTS=<Ordner>` zusätzlich Screenshots.
+
+## Anhänge sortieren
+
+- Fünf lokale Testanhänge an `DEMO-1` (natürliche Namen, leerer Name, ungültiges Datum, gleiche Größe und gleicher Zeitpunkt) und zwei an `DEMO-2`: `...fixture.html?scenario=attachments&route=/issue/DEMO-1`, dann „Weitere Ticketaktionen“ → „Anhänge“.
+- Bilder der Testanhänge (`qa-att-*`) liefert die Simulation als 1×1-PNG; Uploads (`POST /issue/{key}/attachments`) landen nur im Testticket und in `window.__qa.writes`, `window.__qa.delayMs` verzögert sie.
+- Automatisch: `bunx playwright test tests/browser/attachment-sort.e2e.ts --workers=1`; mit `ATTACHMENT_SORT_SHOTS=<Ordner>` entstehen Screenshots.
+
+## Jira-Aktivitätshinweise
+
+- Einstellung: `...fixture.html?scenario=notifications&route=/settings/benachrichtigungen`. Beide Schalter gelten nur auf diesem Gerät (`localStorage`-Schlüssel `betterjira-activity-alerts`).
+- Die Fixture ersetzt `window.Notification` durch einen Stub. Es öffnet sich nie ein echter Systemhinweis oder Berechtigungsdialog. `window.__qa.notification` steuert und protokolliert: `permission` (`granted`/`denied`/`default`, Standard `denied`), `answer` (Antwort auf die Anfrage), `checkDelayMs`, `failCheck`, `requestDelayMs`, `failRequest`, `checks`, `requests`, `sent`. Per `addInitScript` gesetztes `window.__qaNotificationInit` wirkt schon auf den ersten Abruf.
+- `window.__qaSearchRule` darf zusätzlich `issues` liefern, um lokale Testaktivität (z. B. einen neuen Kommentar) zu simulieren.
+- Automatisch: `bunx playwright test tests/browser/activity-alerts.e2e.ts --workers=1`; mit `ACTIVITY_ALERTS_SHOTS=<Ordner>` entstehen Screenshots.
+- Grenzen: Ob das Betriebssystem einen Hinweis tatsächlich anzeigt, prüft nur ein nativer Tauri-Build. Auf dem Desktop meldet das Tauri-Plugin (2.8.0) die Berechtigung immer als erteilt; „blockiert“ und „noch nicht erlaubt“ kommen nur auf Mobilplattformen bzw. im Stub vor.
+
+## Private Notizen im Arbeitsplatz
+
+`http://localhost:1420/tests/browser/fixture.html?scenario=workspace&route=/arbeitsplatz`: Jede Zeile hat die Aktion „Notiz bearbeiten“ bzw. „Notiz hinzufügen“. Der Dialog speichert nur mit „Speichern“ oder Strg/⌘ + Enter in den lokalen Arbeitsbereich des aktuellen Kontos; es entsteht kein Jira-Schreibzugriff (`window.__qa.writes` bleibt leer).
+
+`window.__qa.accountId = "qa-colleague"` lässt die nächste `/myself`-Antwort ein anderes Konto melden, ohne die Seite neu zu laden. Ein `visibilitychange` nach Ablauf der Query-Frische löst den Wechsel aus; `undefined` kehrt zu `qa-user` zurück. Ein zweiter Tab mit derselben Fixture ändert den gemeinsamen lokalen Speicher und simuliert so eine Änderung vor oder während der Bearbeitung. Der Arbeitsplatz übernimmt externe Speicheränderungen auch bei geschlossenem Dialog; während der Bearbeitung bleibt der eigene Entwurf bei einem Konflikt erhalten.
+
+`workspace-notes.e2e.ts` prüft Persistenz, Abgleich mit dem Notizfeld im Ticket, unveränderte Kommentar- und Feldentwürfe, Konto-Bindung von Speichern und Rückgängig, Konflikte, Fokus nach dem Filtern und 390 px hell/dunkel. Mit `WORKSPACE_NOTES_SHOTS=<Ordner>` speichert der Test Screenshots.
