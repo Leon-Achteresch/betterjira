@@ -1,5 +1,13 @@
 # Änderungen
 
+## 0.9.2 – 2026-11-09
+
+### Fehlerbehebung
+
+- unnötige Tab-Retries vermeiden und Browserprüfungen stabilisieren
+- Mock-Änderungen atomar prüfen und abgeglichene Boards frisch halten
+- Boards früher anzeigen und Änderungen gezielt abgleichen
+
 ## 0.9.1 – 2026-11-09
 
 ### Fehlerbehebung
