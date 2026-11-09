@@ -37,18 +37,18 @@ test.beforeEach(async ({ page }) => {
 test("Hauptnavigation markiert die aktive Seite und führt zu den Jira-Tickets", async ({ page }) => {
   await open(page, "/");
   const nav = await showMainNav(page);
-  for (const name of ["Übersicht", "Arbeitsplatz", "Jira-Tickets", "Pull Requests", "Kalender", "Zeiterfassung", "Benachrichtigungen"]) {
+  for (const name of ["Heute", "Arbeitsplatz", "Jira-Tickets", "Pull Requests", "Kalender", "Zeiterfassung", "Benachrichtigungen"]) {
     await expect(nav.getByRole("link", { name, exact: true })).toHaveCount(1);
   }
   await expect(nav.getByRole("link", { name: "Einstellungen" })).toHaveCount(0);
-  await expect(nav.getByRole("link", { name: "Übersicht", exact: true })).toHaveAttribute("aria-current", "page");
+  await expect(nav.getByRole("link", { name: "Heute", exact: true })).toHaveAttribute("aria-current", "page");
 
   await nav.getByRole("link", { name: "Jira-Tickets", exact: true }).click();
   await expect(page).toHaveURL(/\/tickets$/);
   await expect(page.getByRole("heading", { name: "Jira-Tickets", exact: true })).toBeVisible();
   const reopened = await showMainNav(page);
   await expect(reopened.getByRole("link", { name: "Jira-Tickets", exact: true })).toHaveAttribute("aria-current", "page");
-  await expect(reopened.getByRole("link", { name: "Übersicht", exact: true })).not.toHaveAttribute("aria-current", "page");
+  await expect(reopened.getByRole("link", { name: "Heute", exact: true })).not.toHaveAttribute("aria-current", "page");
 
   await reopened.getByRole("link", { name: "Kalender", exact: true }).focus();
   await page.keyboard.press("Enter");

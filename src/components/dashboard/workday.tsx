@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { RefreshStatus } from "@/components/dashboard/refresh-status";
 import { ResumeWork } from "@/components/dashboard/resume-work";
+import { TodayAgenda } from "@/components/dashboard/today-agenda";
 import { AttentionBriefing } from "@/components/attention/attention-briefing";
 import { IssueStatusMenu } from "@/components/issue-status-menu";
 import { ProjectAvatar } from "@/components/shell/project-avatar";
@@ -98,6 +99,7 @@ function Dashboard({ dashboard }: { dashboard: DashboardState }) {
         )}
       </header>
 
+      {freshness.kind === "ready" && <TodayAgenda {...dashboard.agenda} />}
       <ResumeWork />
       <div className={cn(reveal, "delay-75")}>
         <AttentionBriefing {...attention} onRun={attention.run} />

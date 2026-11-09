@@ -226,10 +226,10 @@ export function useAppCommandPalette() {
       })),
     {
       id: "nav:home",
-      label: "Übersicht",
+      label: "Heute",
       group: "Navigation",
       icon: HomeIcon,
-      keywords: ["home", "dashboard", "startseite"],
+      keywords: ["home", "dashboard", "startseite", "übersicht"],
       hint: shortcutHint("home"),
       onSelect: () => void navigate({ to: "/" }),
     },

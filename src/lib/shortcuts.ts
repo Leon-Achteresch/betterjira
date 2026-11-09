@@ -48,7 +48,7 @@ export const SHORTCUTS: Shortcut[] = [
   shortcut("createIssue", "C", "Ticket erstellen", "Allgemein"),
   shortcut("back", IS_MAC ? "Mod+[" : "Alt+ArrowLeft", "Zurück", "Navigation"),
   shortcut("forward", IS_MAC ? "Mod+]" : "Alt+ArrowRight", "Vor", "Navigation"),
-  shortcut("home", ["G", "H"], "Übersicht", "Navigation"),
+  shortcut("home", ["G", "H"], "Heute", "Navigation"),
   shortcut("tickets", ["G", "T"], "Jira-Tickets", "Navigation"),
   shortcut("search", ["G", "S"], "Ticketsuche", "Navigation"),
   shortcut("settings", "Mod+,", "Einstellungen", "Navigation"),
