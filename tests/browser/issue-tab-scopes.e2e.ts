@@ -132,7 +132,7 @@ test("Fehlgeschlagene Kontoprüfung zeigt keine Tabs und schreibt nichts", async
   await open(page);
   await expect(page.getByRole("main").getByText("Jira-Konto konnte nicht geprüft werden")).toBeVisible();
   const before = await raw(page);
-  await page.keyboard.press("Control+1");
+  await page.keyboard.press("ControlOrMeta+1");
   await expect(tabs(page)).toHaveCount(0);
   expect(await raw(page)).toBe(before);
 });
@@ -145,7 +145,7 @@ test("Abmelden blendet Tabs aus; Tab-Shortcut und Strg-Klick ändern danach nich
   await logout(page);
   await expect(tabs(page)).toHaveCount(0);
   const before = await raw(page);
-  await page.keyboard.press("Control+2");
+  await page.keyboard.press("ControlOrMeta+2");
   await page.evaluate(() => {
     const link = document.createElement("a");
     link.href = "/issue/DEMO-3";
@@ -227,7 +227,7 @@ test("Übernahme per Tastatur über die Command Palette", async ({ page }) => {
   await page.keyboard.press("Enter");
   await expect(tabs(page)).toHaveText([/^DEMO-1$/, /^DEMO-3/, /^DEMO-2/]);
   await expect(page.getByRole("dialog", { name: "Command palette", includeHidden: true })).toHaveCount(0);
-  await page.keyboard.press("Control+2");
+  await page.keyboard.press("ControlOrMeta+2");
   await expect(page).toHaveURL(/\/issue\/DEMO-3$/);
 });
 
