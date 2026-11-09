@@ -1,5 +1,11 @@
 # Änderungen
 
+## 0.9.1 – 2026-11-09
+
+### Fehlerbehebung
+
+- alle Statusspalten über Jira-Folgeseiten laden
+
 ## 0.9.0 – 2026-11-08
 
 ### Neu
