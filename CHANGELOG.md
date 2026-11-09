@@ -1,5 +1,23 @@
 # Änderungen
 
+## 0.10.0 – 2026-11-09
+
+### Neu
+
+- Integration mit Profilbildern und gemeinsamen Ticket-Tabs ergänzen
+- Liquid-Glass-Abstufungen und durchgängige Motion-Animationen übernehmen
+- Heute-Seite mit „Heute zu tun“, gruppierte Navigation mit Zähler für Ungelesenes
+
+### Fehlerbehebung
+
+- Profilvorschauen aus der Personenauswahl heraushalten
+- ausgeblendete Listeneinträge sofort aus der Tab-Reihenfolge nehmen
+- Navigation und vollständige Browserprüfung korrigieren
+- Zammad und Motion in der Release-Fixture prüfen
+- Review-Findings zu Agenda und Benachrichtigungen
+- Fokus nach dem Schließen der Notiz nutzt die aktuelle Liste
+- schneller zustellen, pro Abfrage nur ein Hinweis, Ruhezeit pro Ticket
+
 ## 0.9.2 – 2026-11-09
 
 ### Fehlerbehebung
