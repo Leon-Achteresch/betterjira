@@ -1,7 +1,7 @@
 import type { QueryClient } from "@tanstack/react-query";
 import { Effect, Schema, Semaphore } from "effect";
 import { jira } from "./client";
-import { jiraKeys } from "./queries";
+import { jiraKeys } from "./keys";
 import { JiraQueryScopeChanged as IssueTabScopeChanged, jiraQueryScopeMatches, withJiraQueryScope } from "./query-scope";
 
 export { JiraQueryScopeChanged as IssueTabScopeChanged } from "./query-scope";
@@ -28,7 +28,7 @@ export const issueTabMetadataKeys = {
 };
 
 export const fetchIssueTitle = (client: QueryClient, scope: IssueTabScope | undefined, key: string) =>
-  withJiraQueryScope(client, scope, jira(`/issue/${encodeURIComponent(key)}?fields=summary`, IssueTitle).pipe(
+  withJiraQueryScope(client, scope, jira(`/issue/${encodeURIComponent(key)}?fields=summary`, IssueTitle, { retry: false }).pipe(
     Effect.map(({ fields }) => fields.summary),
   )).pipe(titleSlots.withPermits(1));
 

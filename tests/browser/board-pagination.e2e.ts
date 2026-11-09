@@ -9,6 +9,7 @@ declare global {
 test.beforeEach(async ({ page }) => {
   page.on("pageerror", (error) => { throw error; });
   await page.addInitScript(() => {
+    Object.defineProperty(window, "IntersectionObserver", { value: undefined });
     window.__qaBoardPages ??= { tokens: [], fail: false };
     window.__qaSearchRule = (jql, token) => {
       if (!jql.startsWith("filter = 100")) return {};

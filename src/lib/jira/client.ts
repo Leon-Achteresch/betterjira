@@ -239,19 +239,22 @@ const awaitRateLimit = Effect.gen(function* () {
   }
 });
 
-const authedFetch = (path: string, init?: RequestInit) => Effect.gen(function* () {
-  const read = isRetryableRead(path, init?.method);
+export type JiraRequestInit = RequestInit & { retry?: boolean };
+
+const authedFetch = (path: string, init?: JiraRequestInit) => Effect.gen(function* () {
+  const { retry = true, ...requestInit } = init ?? {};
+  const read = isRetryableRead(path, requestInit.method);
   const slots = read ? readSlots : writeSlots;
   for (let attempt = 0; ; attempt++) {
     const response = yield* Effect.gen(function* () {
       yield* awaitRateLimit;
-      const response = yield* authedAttempt(path, init);
+      const response = yield* authedAttempt(path, requestInit);
       if (response.status === 429) {
         rateLimitedUntil = Math.max(rateLimitedUntil, Date.now() + (retryAfterMs(response.headers.get("Retry-After")) || 1000));
       }
       return response;
     }).pipe(slots.withPermits(1));
-    if (!read || !isTransientStatus(response.status) || attempt >= JIRA_READ_RETRIES
+    if (!retry || !read || !isTransientStatus(response.status) || attempt >= JIRA_READ_RETRIES
       || retryAfterMs(response.headers.get("Retry-After")) > JIRA_MAX_AUTO_RETRY_DELAY) return response;
     yield* Effect.promise(() => response.text()).pipe(Effect.ignore);
     yield* Effect.sleep(Math.max(retryAfterMs(response.headers.get("Retry-After")), 250 * 2 ** attempt * (0.8 + Math.random() * 0.4)));
@@ -260,7 +263,7 @@ const authedFetch = (path: string, init?: RequestInit) => Effect.gen(function* (
 
 type ApiVersion = "api/2" | "api/3";
 
-export const jira = <S extends Schema.Decoder<unknown>>(path: string, schema: S, init?: RequestInit, api: ApiVersion = "api/3") =>
+export const jira = <S extends Schema.Decoder<unknown>>(path: string, schema: S, init?: JiraRequestInit, api: ApiVersion = "api/3") =>
   authedFetch(`${api}${path}`, init).pipe(Effect.flatMap(decode(schema)));
 
 export const jiraSend = (path: string, init: RequestInit, api: ApiVersion = "api/3") =>
