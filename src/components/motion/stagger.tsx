@@ -1,5 +1,5 @@
 import type { ComponentProps } from "react";
-import { motion, useReducedMotion, type Variants } from "motion/react";
+import { motion, useIsPresent, useReducedMotion, type Variants } from "motion/react";
 import { EASE_OUT, MOTION_DURATION } from "@/lib/ease";
 
 const container: Variants = {
@@ -29,5 +29,6 @@ export function Stagger(props: ComponentProps<typeof motion.div>) {
 
 export function StaggerItem(props: ComponentProps<typeof motion.div>) {
   const reduce = useReducedMotion();
-  return <motion.div variants={reduce ? fadeItem : item} {...props} />;
+  const present = useIsPresent();
+  return <motion.div variants={reduce ? fadeItem : item} {...props} inert={!present || props.inert} />;
 }

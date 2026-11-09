@@ -167,7 +167,7 @@ test("Fehler beim Anfragen und Lesen lassen sich gezielt wiederholen", async ({ 
   await systemSwitch(page).click();
   await systemSwitch(page).click();
   await expect(permissionStatus(page).getByText("Prüfung fehlgeschlagen", { exact: true })).toBeVisible();
-  await expect(permissionStatus(page).getByText(/erscheinen keine Systemhinweise/)).toBeVisible();
+  await expect(permissionStatus(page).getByText(/Der Berechtigungsstatus konnte nicht gelesen werden.*erscheinen keine Systemhinweise/)).toBeVisible();
   await setNative(page, { failCheck: false });
   await page.getByRole("button", { name: "Erneut prüfen" }).click();
   await expect(permissionStatus(page).getByText("Erlaubt", { exact: true })).toBeVisible();

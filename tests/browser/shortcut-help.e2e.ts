@@ -1,4 +1,5 @@
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
+import { expectMinimumTargetSize } from "./target-size";
 
 const open = (page: Page, route: string) =>
   page.goto(`/tests/browser/fixture.html?${new URLSearchParams({ route })}`);
@@ -49,7 +50,7 @@ test("durchsucht Aktion, Bereich und Tasten und blendet leere Gruppen aus", asyn
   await expect(headings(page)).toHaveText(["Listen"]);
   await expect(rows(page)).toHaveCount(3);
 
-  await searchBox(page).fill("strg+k");
+  await searchBox(page).fill(process.platform === "darwin" ? "cmd+k" : "strg+k");
   await expect(rows(page)).toHaveCount(1);
   await expect(rows(page).first()).toContainText("Suchen und Befehle");
 
@@ -125,8 +126,5 @@ test("bleibt auf kleinen Fenstern bedienbar und scrollt intern", async ({ page }
   await expect(rows(page).last()).toBeInViewport();
   await expect(searchBox(page)).toBeInViewport();
   await expect(dialog(page).getByRole("button", { name: "Schließen" })).toBeInViewport();
-  await expect.poll(async () => {
-    const close = await dialog(page).getByRole("button", { name: "Schließen" }).boundingBox();
-    return close ? Math.round(Math.min(close.width, close.height)) : 0;
-  }).toBeGreaterThanOrEqual(32);
+  await expectMinimumTargetSize(dialog(page).getByRole("button", { name: "Schließen" }));
 });
