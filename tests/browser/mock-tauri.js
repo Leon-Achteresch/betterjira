@@ -1101,7 +1101,7 @@ const respond = async (request) => {
     const delayMs = rule.delayMs ?? qa.searchDelayMs;
     if (delayMs) await new Promise((resolve) => setTimeout(resolve, delayMs));
     if (rule.status) return { status: rule.status, headers: rule.headers, body: { errorMessages: [`Test: Jira antwortet mit ${rule.status}`] } };
-    if (rule.issues) return { body: { issues: rule.issues, isLast: true } };
+    if (rule.issues) return { body: { issues: rule.issues, isLast: !rule.nextPageToken, nextPageToken: rule.nextPageToken } };
     if (qa.failSearch) return { status: 400, body: { errorMessages: ["Test: Abfrage nicht möglich"] } };
     const found = rule.issues ?? (rule.keys ? issues.filter((issue) => rule.keys.includes(issue.key)) : issues);
     return { body: { issues: qa.emptySearch ? [] : found, isLast: !rule.nextPageToken, nextPageToken: rule.nextPageToken } };

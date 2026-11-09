@@ -348,3 +348,7 @@ Integration offener PRs:
 `window.__qa.accountId = "qa-colleague"` lässt die nächste `/myself`-Antwort ein anderes Konto melden, ohne die Seite neu zu laden. Ein `visibilitychange` nach Ablauf der Query-Frische löst den Wechsel aus; `undefined` kehrt zu `qa-user` zurück. Ein zweiter Tab mit derselben Fixture ändert den gemeinsamen lokalen Speicher und simuliert so eine Änderung vor oder während der Bearbeitung. Der Arbeitsplatz übernimmt externe Speicheränderungen auch bei geschlossenem Dialog; während der Bearbeitung bleibt der eigene Entwurf bei einem Konflikt erhalten.
 
 `workspace-notes.e2e.ts` prüft Persistenz, Abgleich mit dem Notizfeld im Ticket, unveränderte Kommentar- und Feldentwürfe, Konto-Bindung von Speichern und Rückgängig, Konflikte, Fokus nach dem Filtern und 390 px hell/dunkel. Mit `WORKSPACE_NOTES_SHOTS=<Ordner>` speichert der Test Screenshots.
+
+## Vollständiges Board
+
+`board-pagination.e2e.ts` simuliert 100 Tickets in der ersten Spalte und ein weiteres Ticket in einer anderen Spalte auf der Folgeseite. Geprüft werden vollständige Karten und Gesamtzahl, ein Folgeseitenfehler ohne erfolgreiches Teilboard und erneutes Laden über „Erneut versuchen“ in beiden Browserprojekten. `src/lib/jira/board.test.ts` deckt zusätzlich drei Seiten, kurze und leere Zwischenseiten, Tokenkodierung, doppelte Tickets, ungültige Folgetokens, Abbruch und Scrum-Sprints ab.
