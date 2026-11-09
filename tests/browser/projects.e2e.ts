@@ -215,6 +215,8 @@ test("Command Palette und Tastatur führen zur Übersicht und in einen Bereich",
 
   await search(page).focus();
   await page.keyboard.type("daten");
+  await expect(page).toHaveURL(/\/bereiche\?q=daten$/);
+  await expect(list(page).getByRole("listitem")).toHaveCount(1);
   await page.keyboard.press("Tab");
   await page.keyboard.press("Tab");
   await expect(sortButton(page)).toBeFocused();
