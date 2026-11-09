@@ -8,6 +8,6 @@ export const invalidateIssueChange = (client: QueryClient, key: string, affectsL
   if (!affectsLists) return;
   void client.invalidateQueries({ queryKey: jiraKeys.myWork, refetchType: "none" });
   void client.invalidateQueries({ queryKey: jiraKeys.allIssues, refetchType: "none" });
-  void client.invalidateQueries({ queryKey: jiraKeys.allBoards, refetchType: "none" });
+  void client.invalidateQueries({ queryKey: jiraKeys.allBoards, type: "inactive", refetchType: "none" });
   scheduleBoardReconcile(client, key);
 };

@@ -250,15 +250,29 @@ export const compileJql = <T>(input: string, schema: JqlSchema<T>, depth = 0): C
       }
       case "=":
       case "in": {
-        const sameDay = field.type === "date";
+        if (field.type === "date") {
+          const days = raw.map((value) => dayStart(parseDate(value, schema.now())));
+          return (item) => {
+            const own = field.values(item);
+            if (own.length === 0) return includesEmpty;
+            return own.some((token) => days.includes(dayStart(Date.parse(token))));
+          };
+        }
         return (item) => {
           const own = tokens(item);
           if (own.length === 0) return includesEmpty;
-          return own.some((token) => literals.some((literal) => (sameDay ? token.startsWith(literal) : token === literal)));
+          return own.some((token) => literals.includes(token));
         };
       }
       case "!=":
       case "not in":
+        if (field.type === "date") {
+          const days = raw.map((value) => dayStart(parseDate(value, schema.now())));
+          return (item) => {
+            const own = field.values(item);
+            return own.length > 0 && !own.some((token) => days.includes(dayStart(Date.parse(token))));
+          };
+        }
         return (item) => {
           const own = tokens(item);
           return own.length > 0 && !own.some((token) => literals.includes(token));

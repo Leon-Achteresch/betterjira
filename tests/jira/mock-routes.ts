@@ -66,6 +66,7 @@ const record = (value: unknown) => (value && typeof value === "object" && !Array
 export const createRoutes = (jira: MockJira, pageLimit = Infinity) => {
   const { dataset } = jira;
   const { me, users, projects, boards, sprints, filters, statuses } = dataset;
+  let nextFilterId = Math.max(19999, ...[...filters.keys()].map(Number)) + 1;
 
   const integer = (value: string | number | null | undefined, fallback: number, name: string) => {
     if (value === null || value === undefined || value === "") return fallback;
@@ -236,7 +237,7 @@ export const createRoutes = (jira: MockJira, pageLimit = Infinity) => {
       pattern: /^\/filter$/,
       handle: ({ body }) => {
         const input = filterInput(body);
-        const id = String(20000 + filters.size);
+        const id = String(nextFilterId++);
         const filter: MockFilter = { self: `${SITE_URL}/rest/api/3/filter/${id}`, id, ...input, favourite: true, owner: me };
         filters.set(id, filter);
         jira.touch();

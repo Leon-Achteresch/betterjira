@@ -234,6 +234,44 @@ describe("Jira-Mock: Mutationen", () => {
     expect(badTransition.status).toBe(400);
   });
 
+  it("behält bestehende Filter beim Erstellen nach einer Löschung bei", async () => {
+    const mock = createJiraMock({ issues: 10, now: () => NOW });
+    const create = (name: string) => send<{ id: string; name: string }>(mock, "POST", "/api/3/filter", { name, jql: "project = PERF" });
+    const first = await create("Filter A");
+    const second = await create("Filter B");
+    expect((await send(mock, "DELETE", `/api/3/filter/${first.body.id}`, {})).status).toBe(204);
+    const third = await create("Filter C");
+    expect(new Set([first.body.id, second.body.id, third.body.id]).size).toBe(3);
+    expect(Number(third.body.id)).toBeGreaterThan(Number(second.body.id));
+    const retained = await call<{ id: string; name: string }>(mock, `/api/3/filter/${second.body.id}`);
+    expect(retained).toMatchObject({ status: 200, body: { id: second.body.id, name: "Filter B" } });
+  });
+
+  it.each(["edit", "transition"].flatMap((operation) => [
+    { operation, invalidField: "colour", invalidValue: "red" },
+    { operation, invalidField: "priority", invalidValue: { id: "unknown" } },
+  ]))("lehnt ungültige $operation-Anfragen für $invalidField ohne Teiländerung ab", async ({ operation, invalidField, invalidValue }) => {
+    const mock = createJiraMock({ issues: 50, projects: ["PERF"], now: () => NOW });
+    const issue = mock.data.issues.find((entry) => (entry.fields.status as Status).name !== "Done")!;
+    const before = structuredClone(issue);
+    const assignee = mock.data.users.find((user) => !issue.watchers.has(user.accountId))!;
+    const fields = { summary: "Atomic-target", assignee: { accountId: assignee.accountId }, [invalidField]: invalidValue };
+    const search = () => mock.jira.search('project = PERF AND summary ~ "Atomic-target"').map((issue) => issue.key);
+    expect(search()).toEqual([]);
+    let response;
+    if (operation === "edit") {
+      response = await send(mock, "PUT", `/api/3/issue/${issue.key}`, { fields });
+    } else {
+      const { body: options } = await call<{ transitions: Transition[] }>(mock, `/api/3/issue/${issue.key}/transitions`);
+      const done = options.transitions.find((entry) => entry.to.name === "Done")!;
+      response = await send(mock, "POST", `/api/3/issue/${issue.key}/transitions`, { transition: { id: done.id }, fields });
+    }
+    expect(response.status).toBe(400);
+    expect(response.body.errors[invalidField]).toBeDefined();
+    expect(issue).toEqual(before);
+    expect(search()).toEqual([]);
+  });
+
   it("simuliert fremde Änderungen deterministisch und sichtbar für Polling-JQL", () => {
     const run = () => {
       let clock = NOW;

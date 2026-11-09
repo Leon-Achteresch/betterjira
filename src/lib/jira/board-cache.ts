@@ -117,7 +117,6 @@ export const reconcileBoards = async (client: QueryClient, keys: readonly string
     if (client.getQueryData(jiraKeys.site) !== site) return;
     const applicable = keys.filter((key) => revision(client, key) === versions.get(key));
     client.setQueryData<BoardData>(queryKey, (current) => current && mergeIssuePages(current, applicable, refreshed.filter((issue) => applicable.includes(issue.key))));
-    void client.invalidateQueries({ queryKey, exact: true, refetchType: "none" });
   }));
 };
 
@@ -147,7 +146,6 @@ export const reconcileSearches = async (client: QueryClient, keys: readonly stri
     if (client.getQueryData(jiraKeys.site) !== site) return;
     const applicable = keys.filter((key) => revision(client, key) === versions.get(key));
     client.setQueryData<InfiniteData<SearchPage>>(query.queryKey, (current) => current && mergeIssuePages(current, applicable, refreshed.filter((issue) => applicable.includes(issue.key))));
-    void client.invalidateQueries({ queryKey: query.queryKey, exact: true, refetchType: "none" });
   }));
 };
 

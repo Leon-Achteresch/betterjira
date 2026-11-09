@@ -337,17 +337,23 @@ export const createMockJira = (dataset: JiraDataset, now: () => number) => {
     }
   };
 
-  const applyFields = (issue: MockIssue, values: Record<string, unknown>, author: JiraUser) => {
-    const items: HistoryItem[] = [];
-    for (const [id, raw] of Object.entries(values)) {
+  const resolveFields = (issue: MockIssue, values: Record<string, unknown>) =>
+    Object.entries(values).map(([id, raw]) => {
       if (!EDITABLE.includes(id)) throw new JiraHttpError(400, [], { [id]: `Field '${id}' cannot be set. It is not on the appropriate screen, or unknown.` });
-      const value = resolveField(id, raw, issue);
+      return [id, resolveField(id, raw, issue)] as const;
+    });
+
+  const applyResolvedFields = (issue: MockIssue, values: ReturnType<typeof resolveFields>, author: JiraUser, items: HistoryItem[] = []) => {
+    for (const [id, value] of values) {
       items.push(change(id, issue.fields[id], value, labelOf));
       issue.fields[id] = value;
-      if (id === "assignee" && value) issue.watchers.add((value as JiraUser).accountId);
+      if (id === "assignee" && value && typeof value === "object" && "accountId" in value && typeof value.accountId === "string") issue.watchers.add(value.accountId);
     }
     record(issue, author, items);
   };
+
+  const applyFields = (issue: MockIssue, values: Record<string, unknown>, author: JiraUser) =>
+    applyResolvedFields(issue, resolveFields(issue, values), author);
 
   const editIssue = (key: string, body: { fields?: Record<string, unknown>; update?: Record<string, { add?: unknown; remove?: unknown; set?: unknown }[]> }, author = me) => {
     const issue = findIssue(key);
@@ -393,15 +399,15 @@ export const createMockJira = (dataset: JiraDataset, now: () => number) => {
     const issue = findIssue(key);
     const target = transitionsFor(issue, false).find((entry) => entry.id === body.transition?.id);
     if (!target) throw new JiraHttpError(400, [`Transition id '${body.transition?.id}' is not valid for this issue.`]);
+    const extra = Object.fromEntries(Object.entries(body.fields ?? {}).filter(([id]) => id !== "resolution"));
+    const resolved = resolveFields(issue, extra);
     const from = issue.fields.status;
     const done = target.to.statusCategory.key === "done";
     issue.fields.status = target.to;
     issue.fields.resolution = done ? dataset.resolution : null;
     issue.fields.resolutiondate = done ? jiraDate(now()) : null;
     const items = [change("status", from, target.to, labelOf)];
-    const extra = Object.fromEntries(Object.entries(body.fields ?? {}).filter(([id]) => id !== "resolution"));
-    record(issue, author, items);
-    if (Object.keys(extra).length > 0) applyFields(issue, extra, author);
+    applyResolvedFields(issue, resolved, author, items);
   };
 
   const transitionTo = (key: string, statusName: string, author = me) => {
