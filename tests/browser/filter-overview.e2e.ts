@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { expectMinimumTargetSize } from "./target-size";
 
 const shots = process.env.FILTER_SHOTS;
 
@@ -189,8 +190,7 @@ test("Command Palette und Seitenleiste fÃ¼hren per Tastatur und bei 390 px zur Ã
   await expect(rows(page)).toHaveCount(7);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   for (const row of await rows(page).all()) {
-    const box = await row.getByRole("button").boundingBox();
-    expect(box && Math.min(box.width, box.height)).toBeGreaterThanOrEqual(32);
+    await expectMinimumTargetSize(row.getByRole("button"));
   }
   await shoot(page, "390");
 });

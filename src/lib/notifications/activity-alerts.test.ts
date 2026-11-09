@@ -3,8 +3,9 @@ import type { JiraNotification } from "@/lib/jira/notifications";
 import {
   activityAlertChannel,
   DEFAULT_ACTIVITY_ALERT_PREFS,
+  alertableItems,
+  alertMessage,
   parseActivityAlertPrefs,
-  systemAlertMessages,
   systemAlertStatus,
   systemAlertStillAllowed,
 } from "./activity-alerts";
@@ -23,7 +24,7 @@ const notification = (id: string): JiraNotification => ({
 
 describe("parseActivityAlertPrefs", () => {
   it("übernimmt gültige Werte", () => {
-    expect(parseActivityAlertPrefs({ inApp: false, system: true })).toEqual({ inApp: false, system: true });
+    expect(parseActivityAlertPrefs({ inApp: false, system: true, watching: true })).toEqual({ inApp: false, system: true, watching: true });
   });
 
   it.each([undefined, null, "kaputt", 42, [], { inApp: "nein", system: 0 }])("fällt bei %j auf die Standardwerte zurück", (value) => {
@@ -31,7 +32,7 @@ describe("parseActivityAlertPrefs", () => {
   });
 
   it("behält gültige Felder und ersetzt nur defekte", () => {
-    expect(parseActivityAlertPrefs({ inApp: "x", system: false, extra: true })).toEqual({ inApp: true, system: false });
+    expect(parseActivityAlertPrefs({ inApp: "x", system: false, extra: true })).toEqual({ inApp: true, system: false, watching: false });
   });
 });
 
@@ -42,10 +43,11 @@ describe("activityAlertChannel", () => {
   });
 
   it("stoppt nur die ausgeschaltete Hinweisart und weicht nicht auf die andere aus", () => {
-    expect(activityAlertChannel(true, { inApp: false, system: true })).toBeNull();
-    expect(activityAlertChannel(false, { inApp: false, system: true })).toBe("system");
-    expect(activityAlertChannel(false, { inApp: true, system: false })).toBeNull();
-    expect(activityAlertChannel(true, { inApp: true, system: false })).toBe("in-app");
+    const prefs = (inApp: boolean, system: boolean) => ({ inApp, system, watching: false });
+    expect(activityAlertChannel(true, prefs(false, true))).toBeNull();
+    expect(activityAlertChannel(false, prefs(false, true))).toBe("system");
+    expect(activityAlertChannel(false, prefs(true, false))).toBeNull();
+    expect(activityAlertChannel(true, prefs(true, false))).toBe("in-app");
   });
 });
 
@@ -64,13 +66,27 @@ describe("systemAlertStillAllowed", () => {
   });
 });
 
-describe("systemAlertMessages", () => {
-  it("zeigt höchstens drei Einträge und fasst den Rest zusammen", () => {
-    const messages = systemAlertMessages(["1", "2", "3", "4", "5"].map(notification));
-    expect(messages).toHaveLength(4);
-    expect(messages[0]).toEqual({ title: "DEMO-1 · Sam", body: "hat kommentiert: Bitte prüfen" });
-    expect(messages[3]).toEqual({ title: "betterjira", body: "2 weitere Benachrichtigungen" });
-    expect(systemAlertMessages([notification("1")])).toHaveLength(1);
+describe("alertMessage", () => {
+  it("fasst eine Abfrage zu genau einem Hinweis zusammen", () => {
+    expect(alertMessage([])).toBeNull();
+    expect(alertMessage([notification("1")])).toEqual({ title: "DEMO-1 · Sam", body: "hat kommentiert: Bitte prüfen", issueKey: "DEMO-1" });
+    const sameIssue = [notification("1"), { ...notification("1"), id: "2", actor: { displayName: "Kim", avatarUrls: { "48x48": "" } } }];
+    expect(alertMessage(sameIssue)).toEqual({ title: "DEMO-1 · Testticket", body: "2 Neuigkeiten von Sam und Kim", issueKey: "DEMO-1" });
+    expect(alertMessage(["1", "2", "3", "4", "5"].map(notification))).toEqual({
+      title: "5 Neuigkeiten in 5 Tickets",
+      body: "DEMO-1, DEMO-2, DEMO-3 und 2 weitere",
+      issueKey: null,
+    });
+  });
+});
+
+describe("alertableItems", () => {
+  it("lässt beobachtete Tickets und Tickets in der Ruhezeit weg", () => {
+    const items = [notification("1"), { ...notification("2"), kind: "watching" as const }, notification("3")];
+    const cooldown = new Map([["DEMO-3", 1_000]]);
+    expect(alertableItems(items, false, cooldown, 2_000).map((item) => item.id)).toEqual(["1"]);
+    expect(alertableItems(items, true, cooldown, 2_000).map((item) => item.id)).toEqual(["1", "2"]);
+    expect(alertableItems(items, false, cooldown, 1_000 + 5 * 60_000).map((item) => item.id)).toEqual(["1", "3"]);
   });
 });
 

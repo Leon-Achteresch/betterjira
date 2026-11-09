@@ -1,3 +1,4 @@
+import { useHelpdeskCommandSearch } from "@/hooks/zammad/use-helpdesk-command-search";
 import { useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useDebouncedValue } from "@tanstack/react-pacer";
@@ -84,6 +85,7 @@ export function useAppCommandPalette() {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [debounced] = useDebouncedValue(query.trim(), { wait: 250 });
+  const helpdesk = useHelpdeskCommandSearch(debounced, open);
   const navigate = useNavigate();
   const { toggleSidebar } = useSidebar();
   const site = useJiraSite();
@@ -164,6 +166,12 @@ export function useAppCommandPalette() {
           },
         ]
       : []),
+    ...(helpdesk.data ?? []).map((ticket) => ({
+      id: `zammad:${ticket.id}`, label: ticket.title, group: "Zammad-Tickets", icon: TicketIcon, keywords: [ticket.number, "zammad", debounced],
+      badge: <span className="text-xs text-muted-foreground tabular-nums">#{ticket.number}</span>,
+      preview: <div className="space-y-3 p-4"><p className="text-xs text-muted-foreground">Zammad · #{ticket.number}</p><p className="font-medium">{ticket.title}</p><p className="text-sm text-muted-foreground">{ticket.state} · {ticket.group}</p></div>,
+      onSelect: () => void navigate({ to: "/helpdesk/$id", params: { id: String(ticket.id) } }),
+    })),
     ...(search.data?.issues ?? [])
       .filter((issue) => !workKeys.has(issue.key) && !rememberedKeys.has(issue.key) && issue.key !== issueKey)
       .map((issue) => ({
@@ -226,10 +234,10 @@ export function useAppCommandPalette() {
       })),
     {
       id: "nav:home",
-      label: "Übersicht",
+      label: "Heute",
       group: "Navigation",
       icon: HomeIcon,
-      keywords: ["home", "dashboard", "startseite"],
+      keywords: ["home", "dashboard", "startseite", "übersicht"],
       hint: shortcutHint("home"),
       onSelect: () => void navigate({ to: "/" }),
     },
@@ -249,6 +257,14 @@ export function useAppCommandPalette() {
       keywords: ["tickets", "vorgänge", "meine", "beobachtet"],
       hint: shortcutHint("tickets"),
       onSelect: () => void navigate({ to: "/tickets" }),
+    },
+    {
+      id: "nav:helpdesk", label: "Zammad-Tickets", group: "Navigation", icon: TicketIcon, keywords: ["support", "helpdesk", "zammad"],
+      onSelect: () => void navigate({ to: "/helpdesk" }),
+    },
+    {
+      id: "action:zammad-create", label: "Zammad-Ticket erstellen", group: "Befehle", icon: TicketIcon, keywords: ["zammad", "neu"],
+      onSelect: () => void navigate({ to: "/helpdesk/neu" }),
     },
     {
       id: "nav:time-tracking",
@@ -456,6 +472,6 @@ export function useAppCommandPalette() {
       setOpen(next);
     },
     setQuery,
-    loading: searching && search.isFetching,
+    loading: (searching && search.isFetching) || (open && debounced.length >= 2 && helpdesk.isFetching),
   };
 }

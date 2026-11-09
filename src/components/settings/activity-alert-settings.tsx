@@ -11,6 +11,8 @@ import { SYSTEM_ALERT_LABELS, type SystemAlertStatus } from "@/lib/notifications
 type ActivityAlertSettingsProps = {
   inApp: boolean;
   onInAppChange: (enabled: boolean) => void;
+  watching: boolean;
+  onWatchingChange: (enabled: boolean) => void;
   system: boolean;
   onSystemChange: (enabled: boolean) => void;
   systemStatus: SystemAlertStatus;
@@ -56,6 +58,16 @@ export function ActivityAlertSettings(props: ActivityAlertSettingsProps) {
             <FieldDescription>Hinweis deines Betriebssystems, wenn betterjira im Hintergrund läuft.</FieldDescription>
           </FieldContent>
           <Switch id="activity-alerts-system" checked={props.system} onCheckedChange={props.onSystemChange} />
+        </Field>
+        <Field orientation="horizontal">
+          <FieldContent>
+            <FieldLabel htmlFor="activity-alerts-watching">Auch beobachtete Tickets</FieldLabel>
+            <FieldDescription>
+              Standardmäßig melden sich nur Tickets, die dir zugewiesen sind, die du erstellt hast oder in denen du erwähnt wirst. Pro
+              Ticket höchstens ein Hinweis alle 5 Minuten.
+            </FieldDescription>
+          </FieldContent>
+          <Switch id="activity-alerts-watching" checked={props.watching} onCheckedChange={props.onWatchingChange} />
         </Field>
       </FieldGroup>
       <AnimatePresence initial={false}>

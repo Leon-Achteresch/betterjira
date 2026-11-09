@@ -1,3 +1,7 @@
+import { useQueries } from "@tanstack/react-query";
+import { useZammadConnection } from "@/hooks/zammad/use-zammad-connection";
+import { ticketOptions, useZammadTicket } from "@/hooks/zammad/use-zammad-queries";
+import { tabTarget, zammadTabKey } from "@/lib/issue-tabs";
 
 import { useMatch, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
@@ -27,28 +31,47 @@ export { useIssueTabStore } from "@/hooks/use-issue-tab-store";
 const useScopedTabs = (id: string | undefined) =>
   useIssueTabStore((state) => (id && state.scope === id ? tabsOf(state, id) : EMPTY_TAB_SET));
 
+const useTicketTabScope = () => {
+  const workspace = useConfirmedWorkspace();
+  const connection = useZammadConnection();
+  return workspace?.id ?? (connection.data ? JSON.stringify(["zammad", connection.data.baseUrl]) : undefined);
+};
+
 export const useIssueTabs = () => {
-  const id = useConfirmedWorkspace()?.id;
+  const id = useTicketTabScope();
   const { keys, pinned } = useScopedTabs(id);
-  const activeKey = useMatch({ from: "/issue/$key", shouldThrow: false })?.params.key;
+  const jiraKey = useMatch({ from: "/issue/$key", shouldThrow: false })?.params.key;
+  const zammadId = useMatch({ from: "/helpdesk/$id", shouldThrow: false })?.params.id;
+  const activeKey = zammadId ? zammadTabKey(zammadId) : jiraKey;
   const navigate = useNavigate();
   const site = useJiraSite();
 
 
   const ordered = orderTabs(keys, pinned);
-  const titles = useIssueTabMetadata(ordered, activeKey);
-
-  const tabs = ordered.map((key, index) => ({
-    key,
-    title: titles[index],
-    pinned: pinned.includes(key),
-    url: site.data ? `${site.data.siteUrl}/browse/${key}` : undefined,
-  }));
+  const jiraKeys = ordered.filter((key) => !key.startsWith("zammad:"));
+  const zammadKeys = ordered.filter((key) => key.startsWith("zammad:"));
+  const titles = useIssueTabMetadata(jiraKeys, jiraKey);
+  const connection = useZammadConnection();
+  const tickets = useQueries({ queries: zammadKeys.map((key) => ({ ...ticketOptions(Number(key.slice(7))), enabled: !!connection.data })) });
+  const tabs = ordered.map((key) => {
+    const source = key.startsWith("zammad:") ? "zammad" as const : "jira" as const;
+    const ticket = tickets[zammadKeys.indexOf(key)]?.data;
+    return {
+      key,
+      source,
+      label: source === "zammad" ? `#${ticket?.number ?? key.slice(7)}` : key,
+      title: source === "zammad" ? ticket?.title : titles[jiraKeys.indexOf(key)],
+      pinned: pinned.includes(key),
+      url: source === "zammad"
+        ? connection.data ? `${connection.data.baseUrl}/#ticket/zoom/${key.slice(7)}` : undefined
+        : site.data ? `${site.data.siteUrl}/browse/${key}` : undefined,
+    };
+  });
 
   const live = () => useIssueTabStore.getState().isCurrent(id);
 
   const openTab = (key: string) => {
-    if (live()) void navigate({ to: "/issue/$key", params: { key } });
+    if (live()) void navigate(tabTarget(key));
   };
 
   const closeTab = (key: string) => {
@@ -80,7 +103,7 @@ export const useIssueTabs = () => {
 };
 
 export const useIssueTabScopeSync = () => {
-  const id = useConfirmedWorkspace()?.id;
+  const id = useTicketTabScope();
   useEffect(() => {
     useIssueTabStore.getState().setScope(id);
   }, [id]);
@@ -96,6 +119,17 @@ export const useRememberIssueTab = (key: string) => {
   useEffect(() => {
     if (id && loaded) useIssueTabStore.getState().remember(id, key);
   }, [id, key, loaded]);
+};
+
+export const useRememberZammadTab = (input: string) => {
+  const id = useTicketTabScope();
+  const number = /^\d+$/.test(input) && Number.isSafeInteger(Number(input)) ? Number(input) : 0;
+  const ticket = useZammadTicket(number);
+  const current = useIssueTabStore((state) => state.scope);
+  const loaded = !!id && current === id && !!ticket.data;
+  useEffect(() => {
+    if (id && loaded) useIssueTabStore.getState().remember(id, zammadTabKey(number));
+  }, [id, number, loaded]);
 };
 
 export const useLegacyIssueTabs = () => {

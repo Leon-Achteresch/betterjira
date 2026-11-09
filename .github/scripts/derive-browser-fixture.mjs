@@ -1,4 +1,4 @@
-import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { cpSync, copyFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 const [repo, out] = process.argv.slice(2);
@@ -14,4 +14,6 @@ const derived = fixture
 mkdirSync(join(out, "tests/browser"), { recursive: true });
 writeFileSync(join(out, "tests/browser/fixture.html"), derived);
 copyFileSync(join(repo, "tests/browser/mock-tauri.js"), join(out, "tests/browser/mock-tauri.js"));
+copyFileSync(join(repo, "tests/browser/mock-zammad.js"), join(out, "tests/browser/mock-zammad.js"));
+cpSync(join(repo, "tests/browser/avatars"), join(out, "tests/browser/avatars"), { recursive: true });
 console.log(`Fixture: ${entry} + ${styles.length} CSS`);

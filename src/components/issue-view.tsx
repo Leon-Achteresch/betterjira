@@ -1,3 +1,5 @@
+import { JiraHelpdeskLinks } from "@/components/zammad/jira-helpdesk-links";
+import { useJiraHelpdesk } from "@/hooks/zammad/use-jira-helpdesk";
 import { type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { formatDistanceToNowStrict } from "date-fns";
@@ -127,6 +129,7 @@ export function IssueView({ issueKey, initialTab }: { issueKey: string; initialT
   const site = useJiraSite();
   const view = useIssueView(issueKey);
   const reduce = useReducedMotion();
+  const helpdesk = useJiraHelpdesk(view.issue);
   useIssueReadingPosition(issueKey, !!view.issue);
   const actions = useIssueActions(view.issue, site.data?.siteUrl, initialTab);
   const history = useIssueHistory(issueKey);
@@ -219,6 +222,8 @@ export function IssueView({ issueKey, initialTab }: { issueKey: string; initialT
             )}
           </EditableField>
         </Section>
+
+        <JiraHelpdeskLinks references={helpdesk} />
 
         {subtasks.length > 0 && (
           <Section title="Unteraufgaben">

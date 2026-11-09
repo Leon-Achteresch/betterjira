@@ -204,7 +204,7 @@ test("Einstieg über Kopfleiste und Command Palette", async ({ page }) => {
   await page.locator("header").getByRole("button", { name: "Suchen" }).click();
   const palette = page.getByRole("dialog", { name: "Command palette" });
   await palette.getByRole("combobox").fill("Ticket erstellen");
-  await expect(palette.getByRole("option", { name: /Ticket erstellen/ })).toBeVisible();
+  await expect(palette.getByRole("option", { name: /^Ticket erstellen(?:\s|$)/ })).toBeVisible();
 });
 
 test("Bei 390 px bleibt das Formular ohne Seitenüberlauf bedienbar", async ({ page }) => {

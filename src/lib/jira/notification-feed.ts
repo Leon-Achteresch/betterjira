@@ -33,6 +33,10 @@ const FIELD_TITLES: Record<string, string> = {
   Link: "hat eine Verknüpfung geändert",
 };
 
+const NOISE_FIELDS = new Set(["Rank", "RemoteIssueLink", "timespent", "timeestimate", "timeoriginalestimate", "WorklogId", "Workflow"]);
+
+export const isNoiseChange = (items: ReadonlyArray<{ field: string }>) => items.every((item) => NOISE_FIELDS.has(item.field));
+
 export const describeChanges = (items: ReadonlyArray<ChangeItem>, me: string) => {
   const assignee = items.find((item) => item.field === "assignee");
   if (assignee?.to === me) return { title: "hat dir ein Ticket zugewiesen", body: "", kind: "direct" as const };

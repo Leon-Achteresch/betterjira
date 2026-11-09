@@ -179,14 +179,17 @@ test("Tastatur erreicht und löst Aktualisieren aus, schmale Ansicht ohne Überl
   expect(Math.round(box!.width * 100) / 100).toBeGreaterThanOrEqual(32);
   expect(Math.round(box!.height * 100) / 100).toBeGreaterThanOrEqual(32);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await setRule(page, { delayMs: 600 });
   const before = await workRequests(page);
   await refreshButton(page).focus();
   await expect(refreshButton(page)).toBeFocused();
   await page.keyboard.press("Enter");
+  await expect(status(page)).toContainText("Wird aktualisiert");
   await expect.poll(() => workRequests(page)).toBe(before + 1);
   await expect(refreshButton(page)).toBeFocused();
   await expect(status(page)).toHaveText(/^Stand/);
   await shot(page, "narrow");
+  await expect(refreshButton(page)).not.toHaveAttribute("aria-disabled", "true");
   await setRule(page, { status: 400 });
   await page.keyboard.press("Enter");
   await expect(status(page)).toContainText("Tickets nicht aktualisiert");

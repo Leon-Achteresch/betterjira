@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { expectMinimumTargetSize } from "./target-size";
 
 declare global {
   interface Window {
@@ -208,9 +209,7 @@ test("Tastatur: Treffer per Tab erreichen und mit Enter den Tag wählen", async 
   await page.keyboard.type("migration");
   const target = result(page, "Datenbank Migration");
   await expect(target).toBeVisible();
-  const resetBox = await page.getByRole("button", { name: "Suche leeren", exact: true }).boundingBox();
-  expect(resetBox?.width).toBeGreaterThanOrEqual(32);
-  expect(resetBox?.height).toBeGreaterThanOrEqual(32);
+  await expectMinimumTargetSize(page.getByRole("button", { name: "Suche leeren", exact: true }));
   await page.keyboard.press("Tab");
   await expect(page.getByRole("button", { name: "Suche leeren", exact: true })).toBeFocused();
   await page.keyboard.press("Tab");

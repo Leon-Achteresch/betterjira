@@ -1,3 +1,4 @@
+import { zammadInvoke } from "./mock-zammad.js";
 if (new URLSearchParams(location.search).get("reduce") === "1") {
   const originalMatchMedia = window.matchMedia.bind(window);
   window.matchMedia = (query) => {
@@ -121,6 +122,12 @@ const issues = Array.from({ length: scenario === "busy" ? 35 : scenario === "wor
     worklog: { total: 0, worklogs: [] },
   },
 }));
+if (scenario?.startsWith("zammad")) {
+  issues[0].names.customfield_10041 = "Helpdesk Ticketnummer";
+  issues[0].names.customfield_10042 = "Helpdesk Ticket";
+  issues[0].fields.customfield_10041 = "20043776";
+  issues[0].fields.customfield_10042 = "[common solutions Helpdesk|https://helpdesk.example.com/#ticket/zoom/41]";
+}
 if (scenario === "comment-links")
   issues[0].fields.comment.comments = [
     { id: "10001", author, created: "2026-11-02T10:00:00Z", body: paragraph("Erster QA-Kommentar mit numerischer ID.") },
@@ -1243,6 +1250,7 @@ window.__TAURI_INTERNALS__ = {
   unregisterCallback: () => {},
   invoke: async (command, args = {}) => {
     window.__qa.commands.push(command);
+    if (command.startsWith("zammad_")) return zammadInvoke(command, args);
     if (command === "session_get" && scenario === "scm-offline") return null;
     if (command === "scm_gh_hosts" && scmScenario) return JSON.stringify(window.__qaScm.hosts);
     if (command === "scm_request" && scmScenario) return scmRespond(args);

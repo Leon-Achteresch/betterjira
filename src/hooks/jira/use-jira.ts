@@ -153,6 +153,7 @@ const MyWorkPage = Schema.Struct({
         }),
         project: Schema.Struct({ id: Schema.String, key: Schema.String, name: Schema.String }),
         priority: Schema.optional(Schema.NullOr(Schema.Struct({ name: Schema.String }))),
+        duedate: Schema.optional(Schema.NullOr(Schema.String)),
       }),
     }),
   ),
@@ -167,7 +168,7 @@ export const useJiraMyWork = () => {
     queryFn: ({ signal }) => {
       const params = new URLSearchParams({
         jql: "assignee = currentUser() AND (statusCategory != Done OR resolved >= -7d) ORDER BY updated DESC",
-        fields: "summary,status,updated,project,priority",
+        fields: "summary,status,updated,project,priority,duedate",
         maxResults: "100",
       });
       return Effect.runPromise(jira(`/search/jql?${params}`, MyWorkPage), { signal });

@@ -1,6 +1,6 @@
 import { Effect, Schema } from "effect";
 import { jira } from "./client";
-import { describeChanges, type SearchableFeedItem } from "./notification-feed";
+import { describeChanges, isNoiseChange, type SearchableFeedItem } from "./notification-feed";
 import { jiraKeys } from "./queries";
 
 export type JiraNotification = SearchableFeedItem & {
@@ -91,7 +91,7 @@ export const fetchActivity = (me: string, since: number) =>
           ? [{ ...base, id: `${issue.key}:created`, title: "hat ein Ticket erstellt", body: issue.fields.summary, actor: reporter, created: Date.parse(issue.fields.created) }]
           : [];
       const changes = (issue.changelog?.histories ?? [])
-        .filter((history) => history.author && history.author.accountId !== me && isNew(history.created))
+        .filter((history) => history.author && history.author.accountId !== me && isNew(history.created) && !isNoiseChange(history.items))
         .map((history) => ({ ...base, ...describeChanges(history.items, me), id: `h:${history.id}`, actor: history.author!, created: Date.parse(history.created) }));
       const comments = (issue.fields.comment?.comments ?? [])
         .filter((comment) => comment.author && comment.author.accountId !== me && isNew(comment.created))

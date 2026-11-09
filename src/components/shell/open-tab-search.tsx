@@ -117,7 +117,7 @@ export function OpenTabSearch({
                       role="option"
                       aria-selected={isHighlighted}
                       aria-current={isActive ? "page" : undefined}
-                      title={tab.title ? `${tab.key} · ${tab.title}` : tab.key}
+                      title={tab.title ? `${tab.label ?? tab.key} · ${tab.title}` : (tab.label ?? tab.key)}
                       onPointerMove={() => !isHighlighted && onHighlight(tab.key)}
                       onClick={() => onSelect(tab.key)}
                       className={cn(
@@ -135,7 +135,7 @@ export function OpenTabSearch({
                       <span className="w-3.5 shrink-0">
                         {tab.pinned ? <PinIcon aria-hidden className="size-3.5 text-muted-foreground" /> : null}
                       </span>
-                      <span className="shrink-0 font-medium text-foreground tabular-nums">{tab.key}</span>{" "}
+                      <span className="shrink-0 font-medium text-foreground tabular-nums">{tab.label ?? tab.key}</span>{" "}
                       {tab.title ? (
                         <span className="min-w-0 flex-1 truncate">{tab.title}</span>
                       ) : (

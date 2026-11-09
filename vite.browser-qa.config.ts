@@ -22,6 +22,15 @@ export default mergeConfig(base({ command: "build", mode: "production" }), {
     },
   }],
   cacheDir: join(directory, "cache"),
-  build: { outDir: join(directory, "dist"), emptyOutDir: true },
+  build: {
+    outDir: join(directory, "dist"),
+    emptyOutDir: true,
+    rolldownOptions: {
+      input: {
+        app: join(import.meta.dirname, "index.html"),
+        motion: join(import.meta.dirname, "tests/browser/motion-fixture.html"),
+      },
+    },
+  },
   test: { cache: false, maxWorkers: 1 },
 });

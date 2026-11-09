@@ -35,4 +35,9 @@ describe("searchOpenTabs", () => {
   it("behält die übrigen Tab-Felder", () => {
     expect(searchOpenTabs(tabs, "ops")[0]).toBe(tabs[1]);
   });
+
+  it("findet Zammad-Tickets über ihre öffentliche Nummer", () => {
+    const ticket = { key: "zammad:41", label: "#20043776", title: "Kundenportal" };
+    expect(searchOpenTabs([...tabs, ticket], "20043776 portal")).toEqual([ticket]);
+  });
 });

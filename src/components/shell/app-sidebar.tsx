@@ -54,6 +54,7 @@ import { useJiraSite, type JiraProject } from "@/lib/jira/queries";
 import { useProfileMenu } from "@/hooks/jira/use-profile-menu";
 import { useProjectStats } from "@/hooks/jira/use-project-stats";
 import { useSidebarSearch } from "@/hooks/use-sidebar-search";
+import { useOwnedUnreadCount } from "@/hooks/notifications/use-notification-store";
 import type { ProjectPrefsControls } from "@/hooks/use-project-prefs";
 import { cn } from "@/lib/utils";
 
@@ -218,17 +219,18 @@ export function AppSidebar() {
   const profile = useProfileMenu();
   const { projects, filters } = search;
   const { isMobile, setOpenMobile } = useSidebar();
+  const unread = useOwnedUnreadCount();
 
   return (
     <Sidebar className="top-(--app-header-height) h-[calc(100svh-var(--app-header-height))] border-r-sidebar-border/60">
       <SidebarHeader className="gap-3 pt-3">
-        <PrimaryNav />
+        <PrimaryNav counts={{ notifications: unread }} />
         {site.data && (
           <div className="relative">
             <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
             <SidebarInput
               type="search"
-              placeholder="Suchen"
+              placeholder="Bereiche und Filter filtern"
               aria-label="Bereiche und Filter suchen"
               className="rounded-lg border-transparent bg-sidebar-accent/60 pl-8 focus-visible:bg-background"
               value={search.query}

@@ -97,7 +97,7 @@ test("per Tastatur bedienbar und bei 390 px ohne Überlauf", async ({ page }, te
   await search(page).focus();
   await page.keyboard.type("export");
   await expect(visibleNames(page)).toHaveText(["export.csv"]);
-  await page.keyboard.press("Control+A");
+  await page.keyboard.press("ControlOrMeta+A");
   await page.keyboard.press("Backspace");
   await expect(search(page)).toHaveValue("");
   await kind(page, "Alle").focus();
