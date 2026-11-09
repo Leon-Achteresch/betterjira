@@ -1,8 +1,9 @@
 import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
+import { useJiraProjectBoards } from "@/hooks/jira/use-jira-board";
 import { useJiraSession } from "@/hooks/jira/use-jira-session";
 import { type BoardSprint, areaContent, areaJql, areaSubtitle } from "@/lib/jira/area-page";
 import { jiraErrors } from "@/lib/jira/field-values";
-import { useJiraProjectBoards, useJiraProjects } from "@/lib/jira/queries";
+import { useJiraProjects } from "@/lib/jira/queries";
 
 export function useAreaPage() {
   const { key } = useParams({ from: "/bereiche/$key" });
