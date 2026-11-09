@@ -12,6 +12,7 @@ import { IssuePreviewTooltip } from "@/components/issues/issue-preview";
 import { BoardSkeleton } from "@/components/issues/board-skeleton";
 import { LoadFailed, RefreshFailed } from "@/components/issues/load-recovery";
 import { Skeleton } from "@/components/ui/skeleton";
+import { BoardPagination } from "@/components/issues/board-pagination";
 import { Spinner } from "@/components/ui/spinner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -600,7 +601,7 @@ function Board({
           <div className="ml-auto flex flex-wrap items-center justify-end gap-1">
             {sprints.data && (
               <span className="mr-2 text-sm text-muted-foreground tabular-nums" aria-live="polite">
-                {insights.count === allIssues.length ? allIssues.length : `${insights.count} von ${allIssues.length}`} Vorgänge
+                {insights.count === allIssues.length ? allIssues.length : `${insights.count} von ${allIssues.length}`} Vorgänge{sprints.hasNextPage ? " geladen" : ""}
               </span>
             )}
             <FilterMenu scope={String(board.id)} issues={allIssues} label="Board filtern" />
@@ -621,7 +622,7 @@ function Board({
         )}
       </div>
       <AnimatePresence initial={false}>
-        {!backlog && sprints.data && sprints.isError && (
+        {!backlog && sprints.data && sprints.isError && !sprints.isFetchNextPageError && (
           <RefreshFailed
             key="board-refresh"
             title="Board konnte nicht aktualisiert werden. Angezeigt wird der zuletzt geladene Stand."
@@ -687,6 +688,16 @@ function Board({
           )}
         </div>
       ))}
+      {!backlog && sprints.data && (
+        <BoardPagination
+          hasMore={sprints.hasNextPage}
+          fetching={sprints.isFetching}
+          error={sprints.isFetchNextPageError ? sprints.error?.message : undefined}
+          sentinelRef={sprints.sentinelRef}
+          onLoadMore={sprints.loadMore}
+          onRetry={() => { if (!sprints.isFetching) void (sprints.isFetchNextPageError ? sprints.fetchNextPage({ cancelRefetch: false }) : sprints.refetch()); }}
+        />
+      )}
       </div>
       <AnimatePresence>
         {showInsights && (

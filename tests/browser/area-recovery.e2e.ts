@@ -117,7 +117,8 @@ test("Fehlgeschlagene Aktualisierung behält Board und Karten und kennzeichnet d
   await expect(card(page)).toBeVisible();
 
   await setBoardRule(page, 'return path === "/board" || path.endsWith("/configuration") ? { status: 503 } : {};');
-  await page.clock.setSystemTime(Date.now() + 31_000);
+  await page.clock.setSystemTime(Date.now() + 61_000);
+  await page.evaluate(() => { window.__qaSearchRule = () => ({ status: 503 }); });
   await page.evaluate(() => window.dispatchEvent(new Event("visibilitychange")));
 
   const boards = alertWith(page, "Boards konnten nicht aktualisiert werden");
@@ -129,6 +130,7 @@ test("Fehlgeschlagene Aktualisierung behält Board und Karten und kennzeichnet d
   await shot(page, testInfo, "aktualisierung-fehlgeschlagen");
 
   await setBoardRule(page, "return {};");
+  await page.evaluate(() => { window.__qaSearchRule = undefined; });
   await boards.getByRole("button", { name: "Erneut versuchen" }).click();
   await expect(boards).toHaveCount(0);
   await board.getByRole("button", { name: "Erneut versuchen" }).click();

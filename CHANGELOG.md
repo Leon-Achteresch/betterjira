@@ -1,5 +1,64 @@
 # Änderungen
 
+## 0.9.1 – 2026-11-09
+
+### Fehlerbehebung
+
+- alle Statusspalten über Jira-Folgeseiten laden
+
+## 0.9.0 – 2026-11-08
+
+### Neu
+
+- persönliche Notizen direkt in der Übersicht bearbeiten
+- Bereichsübersicht sortierbar
+- Ticket-Tabs je Jira-Konto und Instanz speichern
+- Ticketansicht nach Lade- und Aktualisierungsfehlern wiederherstellen
+- Jira-Link zu einzelnem Kommentar kopieren
+- weitere Kommentare seitenweise nachladen
+- bereits geladene Anhaenge lokal sortieren
+- check activity on demand
+- open Jira ticket links from the command palette
+- geöffnete Ticket-Tabs durchsuchen und wechseln
+- Jira-Aktivitätshinweise in App und System getrennt steuern
+- Projektfavoriten und ausgeblendete Bereiche je Jira-Konto speichern
+- Unteraufgaben-Übersicht mit Filter Alle/Offen
+- lokale Suche und Dateityp-Filter im Anhangsbereich
+- Zum-Inhalt-Link und Fokusführung zum Hauptinhalt
+- manuelles Aktualisieren mit ehrlichem Datenstand
+- geladene Kommentare lokal durchsuchen
+- Änderungsverlauf im Ticket aufklappbar anzeigen
+- durchsuchbare Übersicht eigener und favorisierter Filter
+- Tickets in der App erstellen
+
+### Fehlerbehebung
+
+- Bilddaten für die Anhangsvorschau bereitstellen
+- Browser-Testverzeichnis nach Runner-Start festlegen
+- Kontoziel anzeigen und kombinierte Browserprüfungen aktualisieren
+- Kontocaches, Bereichseinstellungen und gemeinsame Aktionen verbinden
+- temporären Ordner plattformübergreifend bestimmen
+- Sortiersteuerung und Navigation sauber anbinden
+- aktuelle Notizen und sichere Kontoaktionen bewahren
+- bind actions and loaded details to the confirmed account
+- isolate cached details by account and preserve recovery state
+- guard permalink encoding and settle browser checks
+- resume cached pages when comment total grows
+- preserve scope and recover incomplete page reads
+- reject metadata after account scope changes
+- reset sorting and verify settled layouts
+- Tab-Titel schlank per summary statt voller Ticketdetails laden
+- preserve keyboard actions and restore dialog focus
+- Sitzungs-, Board- und Linkfehler verständlich wiederherstellen
+- check active session before system delivery
+- bind pending writes to their originating filter
+- Drosselung mit Retry-After verständlich melden statt sofort zu wiederholen
+- Detailseite bei Sitzungs- und Ladefehlern wiederherstellbar
+- refresh cached history after ticket changes
+- fill short Jira pages without skipping changes
+- discard non-text route search parameters
+- recover from project loading failures
+
 ## 0.8.0 – 2026-11-07
 
 ### Neu

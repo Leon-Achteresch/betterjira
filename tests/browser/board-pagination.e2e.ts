@@ -35,6 +35,8 @@ test.beforeEach(async ({ page }) => {
 test("Board lädt mehr als 100 Tickets und befüllt die Spalten aus Folgeseiten", async ({ page }) => {
   await page.goto("/tests/browser/fixture.html?scenario=board&route=/bereiche/DEMO?board=1");
   const main = page.getByRole("main");
+  await expect(main.getByText("100 Vorgänge geladen", { exact: true })).toBeVisible();
+  await main.getByRole("button", { name: "Weitere Vorgänge laden", exact: true }).click();
   await expect(main.getByText("101 Vorgänge", { exact: true })).toBeVisible();
   await expect(main.getByRole("link", { name: "Support Request 100", exact: true })).toHaveCount(1);
   await expect(main.getByRole("link", { name: "Support Request 101", exact: true })).toHaveCount(1);
@@ -44,17 +46,19 @@ test("Board lädt mehr als 100 Tickets und befüllt die Spalten aus Folgeseiten"
   await expect(main.getByRole("alert")).toHaveCount(0);
 });
 
-test("Folgeseitenfehler zeigt Retry und niemals ein erfolgreiches Teilboard", async ({ page }) => {
+test("Folgeseitenfehler erhält die geladenen Karten und erlaubt Retry", async ({ page }) => {
   await page.addInitScript(() => {
     window.__qaBoardPages = { tokens: [], fail: true };
   });
   await page.goto("/tests/browser/fixture.html?scenario=board&route=/bereiche/DEMO?board=1");
   const main = page.getByRole("main");
-  const error = main.getByRole("alert").filter({ hasText: "Board konnte nicht geladen werden" });
+  await expect(main.getByText("100 Vorgänge geladen", { exact: true })).toBeVisible();
+  await main.getByRole("button", { name: "Weitere Vorgänge laden", exact: true }).click();
+  const error = main.getByRole("alert").filter({ hasText: "Weitere Vorgänge konnten nicht geladen werden" });
   await expect(error).toBeVisible();
-  await expect(main.getByRole("link", { name: "Support Request 1", exact: true })).toHaveCount(0);
+  await expect(main.getByRole("link", { name: "Support Request 1", exact: true })).toHaveCount(1);
   await page.evaluate(() => { window.__qaBoardPages.fail = false; });
-  await error.getByRole("button", { name: "Erneut versuchen" }).click();
+  await main.getByRole("button", { name: "Erneut versuchen", exact: true }).click();
   await expect(main.getByText("101 Vorgänge", { exact: true })).toBeVisible();
   await expect(error).toHaveCount(0);
 });
