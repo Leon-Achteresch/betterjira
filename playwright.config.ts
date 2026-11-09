@@ -11,7 +11,7 @@ export default defineConfig({
   expect: { timeout: 15_000 },
   use: {
     baseURL: `http://127.0.0.1:${port}`,
-    channel: "msedge",
+    channel: process.env.E2E_BROWSER_CHANNEL ?? "msedge",
     timezoneId: "Europe/Berlin",
     trace: "retain-on-failure",
   },

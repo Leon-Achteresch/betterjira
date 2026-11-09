@@ -1,0 +1,18 @@
+export const zammadKeys = {
+  all: ["zammad"] as const,
+  connection: ["zammad", "connection"] as const,
+  person: (id: number) => ["zammad", "person", id] as const,
+  avatar: (hash: string) => ["zammad", "avatar", hash] as const,
+  user: ["zammad", "user"] as const,
+  commandSearch: (text: string) => ["zammad", "command-search", text] as const,
+  searches: ["zammad", "search"] as const,
+  search: (query: string) => ["zammad", "search", query] as const,
+  resolve: (number: string) => ["zammad", "resolve", number] as const,
+  ticket: (id: number) => ["zammad", "ticket", id] as const,
+  articles: (id: number) => ["zammad", "ticket", id, "articles"] as const,
+  tags: (id: number) => ["zammad", "ticket", id, "tags"] as const,
+  time: (id: number) => ["zammad", "ticket", id, "time"] as const,
+  links: (id: number) => ["zammad", "ticket", id, "links"] as const,
+  metadata: (resource: string) => ["zammad", "metadata", resource] as const,
+  users: (query: string) => ["zammad", "users", query] as const,
+};

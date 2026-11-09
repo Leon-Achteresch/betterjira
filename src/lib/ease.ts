@@ -73,3 +73,13 @@ export const SPRING_CARD = {
   damping: 30,
   mass: 0.8,
 } as const;
+
+export const MOTION_DURATION = {
+  feedback: 0.16,
+  enter: 0.24,
+  exit: 0.12,
+  stagger: 0.03,
+} as const;
+
+export const FADE_IN = { duration: MOTION_DURATION.enter, ease: EASE_OUT } as const;
+export const FADE_OUT = { duration: MOTION_DURATION.exit, ease: EASE_OUT } as const;

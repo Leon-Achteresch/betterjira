@@ -9,8 +9,8 @@ import { fetchActivity, notificationKey, type JiraNotification } from "@/lib/jir
 import { useJiraMyself } from "@/lib/jira/queries";
 import { openNotification, useNotificationOwner, useNotifications, useOwnedUnreadCount } from "./use-notification-store";
 
-const BASE_INTERVAL = 30_000;
-const MAX_INTERVAL = 5 * 60_000;
+const BASE_INTERVAL = 10_000;
+const MAX_INTERVAL = 60_000;
 let quietPolls = 0;
 
 const pollInterval = () => (document.hasFocus() ? BASE_INTERVAL : Math.min(BASE_INTERVAL * 2 ** quietPolls, MAX_INTERVAL));

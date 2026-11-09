@@ -1,3 +1,4 @@
+import { zammadInvoke } from "./mock-zammad.js";
 if (new URLSearchParams(location.search).get("reduce") === "1") {
   const originalMatchMedia = window.matchMedia.bind(window);
   window.matchMedia = (query) => {
@@ -7,6 +8,7 @@ if (new URLSearchParams(location.search).get("reduce") === "1") {
   };
 }
 const scenario = new URLSearchParams(location.search).get("scenario");
+const attentionPort = Number(new URLSearchParams(location.search).get("attentionPort") ?? 8743);
 const accountId = new URLSearchParams(location.search).get("account") || "qa-user";
 const scheme = matchMedia("(prefers-color-scheme: dark)");
 const applyScheme = () => document.documentElement.classList.toggle("dark", scheme.matches);
@@ -119,6 +121,12 @@ const issues = Array.from({ length: scenario === "busy" ? 35 : scenario === "wor
     worklog: { total: 0, worklogs: [] },
   },
 }));
+if (scenario?.startsWith("zammad")) {
+  issues[0].names.customfield_10041 = "Helpdesk Ticketnummer";
+  issues[0].names.customfield_10042 = "Helpdesk Ticket";
+  issues[0].fields.customfield_10041 = "20043776";
+  issues[0].fields.customfield_10042 = "[common solutions Helpdesk|https://helpdesk.example.com/#ticket/zoom/41]";
+}
 if (scenario === "busy") {
   issues[0].fields.description = {
     type: "doc",
@@ -170,7 +178,7 @@ if (scenario === "board") {
   let seed = 7;
   const pick = (list) => list[(seed = (seed * 9301 + 49297) % 233280) % list.length];
   issues.length = 0;
-  for (let index = 0; index < 64; index++) {
+  for (let index = 0; index < (window.__qaBoardIssueCount ?? 64); index++) {
     const statusIndex = [0, 1, 1, 1, 2, 2, 3, 4, 5, 5, 5][index % 11];
     const labels = labelPool.filter(() => pick([0, 0, 0, 1]) === 1).slice(0, 2);
     issues.push({
@@ -663,6 +671,14 @@ const respond = async (request) => {
     if (rule.status) return { status: rule.status, body: { errorMessages: [`Test: Jira antwortet mit ${rule.status}`] } };
     if (qa.failSearch) return { status: 400, body: { errorMessages: ["Test: Abfrage nicht möglich"] } };
     const found = rule.keys ? issues.filter((issue) => rule.keys.includes(issue.key)) : issues;
+    if (scenario === "board") {
+      const offset = Number(url.searchParams.get("nextPageToken") ?? 0);
+      const size = Number(url.searchParams.get("maxResults") ?? 100);
+      const keys = [...(url.searchParams.get("jql") ?? "").matchAll(/"(DEMO-\d+)"/g)].map((match) => match[1]);
+      const filtered = keys.length ? found.filter((issue) => keys.includes(issue.key)) : found;
+      const next = offset + size < filtered.length ? String(offset + size) : undefined;
+      return { body: { issues: qa.emptySearch ? [] : filtered.slice(offset, offset + size), isLast: !next, nextPageToken: next } };
+    }
     return { body: { issues: qa.emptySearch ? [] : found, isLast: !rule.nextPageToken, nextPageToken: rule.nextPageToken } };
   }
   if (scenario === "board" && /^\/board\/\d+\/configuration/.test(path))
@@ -735,6 +751,7 @@ window.__TAURI_INTERNALS__ = {
   unregisterCallback: () => {},
   invoke: async (command, args = {}) => {
     window.__qa.commands.push(command);
+    if (command.startsWith("zammad_")) return zammadInvoke(command, args);
     if (command === "session_get" && scenario === "scm-offline") return null;
     if (command === "scm_gh_hosts" && scmScenario) return JSON.stringify(window.__qaScm.hosts);
     if (command === "scm_request" && scmScenario) return scmRespond(args);
@@ -790,7 +807,7 @@ window.__TAURI_INTERNALS__ = {
     if (command === "oauth_cancel") return null;
     if (command === "scm_gh_hosts") return JSON.stringify(window.__qaGhHosts ?? []);
     if (command === "attention_read") return scenario === "ai" ? JSON.stringify(window.__qa.briefing) : null;
-    if (command === "attention_serve") return 8743;
+    if (command === "attention_serve") return attentionPort;
     if (command === "attention_trigger") {
       if (window.__qa.briefingFailure) throw new Error("Test: Agent vorübergehend nicht erreichbar");
       window.__qa.attentionRequest = JSON.parse(args.body);
@@ -807,7 +824,7 @@ window.__TAURI_INTERNALS__ = {
             callbacks.get(listener.handler)?.({ event: listener.event, payload: null });
         }
       }, 1000);
-      return;
+      return null;
     }
     if (command === "plugin:event|listen") {
       const id = ++listenerId;

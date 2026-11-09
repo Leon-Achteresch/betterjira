@@ -21,6 +21,9 @@ import { Route as ZeiterfassungRouteImport } from './routes/zeiterfassung'
 import { Route as BereicheIndexRouteImport } from './routes/bereiche/index'
 import { Route as BereicheKeyRouteImport } from './routes/bereiche/$key'
 import { Route as FilterIdRouteImport } from './routes/filter/$id'
+import { Route as HelpdeskIndexRouteImport } from './routes/helpdesk/index'
+import { Route as HelpdeskIdRouteImport } from './routes/helpdesk/$id'
+import { Route as HelpdeskNeuRouteImport } from './routes/helpdesk/neu'
 import { Route as IssueKeyRouteImport } from './routes/issue/$key'
 import { Route as SettingsIndexRouteImport } from './routes/settings/index'
 import { Route as SettingsBereicheRouteImport } from './routes/settings/bereiche'
@@ -90,6 +93,21 @@ const FilterIdRoute = FilterIdRouteImport.update({
   path: '/filter/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const HelpdeskIndexRoute = HelpdeskIndexRouteImport.update({
+  id: '/helpdesk/',
+  path: '/helpdesk/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HelpdeskIdRoute = HelpdeskIdRouteImport.update({
+  id: '/helpdesk/$id',
+  path: '/helpdesk/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HelpdeskNeuRoute = HelpdeskNeuRouteImport.update({
+  id: '/helpdesk/neu',
+  path: '/helpdesk/neu',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IssueKeyRoute = IssueKeyRouteImport.update({
   id: '/issue/$key',
   path: '/issue/$key',
@@ -143,6 +161,8 @@ export interface FileRoutesByFullPath {
   '/zeiterfassung': typeof ZeiterfassungRoute
   '/bereiche/$key': typeof BereicheKeyRoute
   '/filter/$id': typeof FilterIdRoute
+  '/helpdesk/$id': typeof HelpdeskIdRoute
+  '/helpdesk/neu': typeof HelpdeskNeuRoute
   '/issue/$key': typeof IssueKeyRoute
   '/settings/bereiche': typeof SettingsBereicheRoute
   '/settings/briefing': typeof SettingsBriefingRoute
@@ -151,6 +171,7 @@ export interface FileRoutesByFullPath {
   '/settings/updates': typeof SettingsUpdatesRoute
   '/settings/verbindungen': typeof SettingsVerbindungenRoute
   '/bereiche/': typeof BereicheIndexRoute
+  '/helpdesk/': typeof HelpdeskIndexRoute
   '/settings/': typeof SettingsIndexRoute
 }
 export interface FileRoutesByTo {
@@ -164,6 +185,8 @@ export interface FileRoutesByTo {
   '/zeiterfassung': typeof ZeiterfassungRoute
   '/bereiche/$key': typeof BereicheKeyRoute
   '/filter/$id': typeof FilterIdRoute
+  '/helpdesk/$id': typeof HelpdeskIdRoute
+  '/helpdesk/neu': typeof HelpdeskNeuRoute
   '/issue/$key': typeof IssueKeyRoute
   '/settings/bereiche': typeof SettingsBereicheRoute
   '/settings/briefing': typeof SettingsBriefingRoute
@@ -172,6 +195,7 @@ export interface FileRoutesByTo {
   '/settings/updates': typeof SettingsUpdatesRoute
   '/settings/verbindungen': typeof SettingsVerbindungenRoute
   '/bereiche': typeof BereicheIndexRoute
+  '/helpdesk': typeof HelpdeskIndexRoute
   '/settings': typeof SettingsIndexRoute
 }
 export interface FileRoutesById {
@@ -187,6 +211,8 @@ export interface FileRoutesById {
   '/zeiterfassung': typeof ZeiterfassungRoute
   '/bereiche/$key': typeof BereicheKeyRoute
   '/filter/$id': typeof FilterIdRoute
+  '/helpdesk/$id': typeof HelpdeskIdRoute
+  '/helpdesk/neu': typeof HelpdeskNeuRoute
   '/issue/$key': typeof IssueKeyRoute
   '/settings/bereiche': typeof SettingsBereicheRoute
   '/settings/briefing': typeof SettingsBriefingRoute
@@ -195,6 +221,7 @@ export interface FileRoutesById {
   '/settings/updates': typeof SettingsUpdatesRoute
   '/settings/verbindungen': typeof SettingsVerbindungenRoute
   '/bereiche/': typeof BereicheIndexRoute
+  '/helpdesk/': typeof HelpdeskIndexRoute
   '/settings/': typeof SettingsIndexRoute
 }
 export interface FileRouteTypes {
@@ -211,6 +238,8 @@ export interface FileRouteTypes {
     | '/zeiterfassung'
     | '/bereiche/$key'
     | '/filter/$id'
+    | '/helpdesk/$id'
+    | '/helpdesk/neu'
     | '/issue/$key'
     | '/settings/bereiche'
     | '/settings/briefing'
@@ -219,6 +248,7 @@ export interface FileRouteTypes {
     | '/settings/updates'
     | '/settings/verbindungen'
     | '/bereiche/'
+    | '/helpdesk/'
     | '/settings/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -232,6 +262,8 @@ export interface FileRouteTypes {
     | '/zeiterfassung'
     | '/bereiche/$key'
     | '/filter/$id'
+    | '/helpdesk/$id'
+    | '/helpdesk/neu'
     | '/issue/$key'
     | '/settings/bereiche'
     | '/settings/briefing'
@@ -240,6 +272,7 @@ export interface FileRouteTypes {
     | '/settings/updates'
     | '/settings/verbindungen'
     | '/bereiche'
+    | '/helpdesk'
     | '/settings'
   id:
     | '__root__'
@@ -254,6 +287,8 @@ export interface FileRouteTypes {
     | '/zeiterfassung'
     | '/bereiche/$key'
     | '/filter/$id'
+    | '/helpdesk/$id'
+    | '/helpdesk/neu'
     | '/issue/$key'
     | '/settings/bereiche'
     | '/settings/briefing'
@@ -262,6 +297,7 @@ export interface FileRouteTypes {
     | '/settings/updates'
     | '/settings/verbindungen'
     | '/bereiche/'
+    | '/helpdesk/'
     | '/settings/'
   fileRoutesById: FileRoutesById
 }
@@ -277,8 +313,11 @@ export interface RootRouteChildren {
   ZeiterfassungRoute: typeof ZeiterfassungRoute
   BereicheKeyRoute: typeof BereicheKeyRoute
   FilterIdRoute: typeof FilterIdRoute
+  HelpdeskIdRoute: typeof HelpdeskIdRoute
+  HelpdeskNeuRoute: typeof HelpdeskNeuRoute
   IssueKeyRoute: typeof IssueKeyRoute
   BereicheIndexRoute: typeof BereicheIndexRoute
+  HelpdeskIndexRoute: typeof HelpdeskIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -365,6 +404,27 @@ declare module '@tanstack/react-router' {
       path: '/filter/$id'
       fullPath: '/filter/$id'
       preLoaderRoute: typeof FilterIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/helpdesk/': {
+      id: '/helpdesk/'
+      path: '/helpdesk'
+      fullPath: '/helpdesk/'
+      preLoaderRoute: typeof HelpdeskIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/helpdesk/$id': {
+      id: '/helpdesk/$id'
+      path: '/helpdesk/$id'
+      fullPath: '/helpdesk/$id'
+      preLoaderRoute: typeof HelpdeskIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/helpdesk/neu': {
+      id: '/helpdesk/neu'
+      path: '/helpdesk/neu'
+      fullPath: '/helpdesk/neu'
+      preLoaderRoute: typeof HelpdeskNeuRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/issue/$key': {
@@ -462,8 +522,11 @@ const rootRouteChildren: RootRouteChildren = {
   ZeiterfassungRoute: ZeiterfassungRoute,
   BereicheKeyRoute: BereicheKeyRoute,
   FilterIdRoute: FilterIdRoute,
+  HelpdeskIdRoute: HelpdeskIdRoute,
+  HelpdeskNeuRoute: HelpdeskNeuRoute,
   IssueKeyRoute: IssueKeyRoute,
   BereicheIndexRoute: BereicheIndexRoute,
+  HelpdeskIndexRoute: HelpdeskIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

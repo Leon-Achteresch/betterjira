@@ -4,6 +4,7 @@ import { RouterProvider, createRouter } from "@tanstack/react-router";
 import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { JiraApiError, NotAuthenticated } from "@/lib/jira/client";
 import { jiraKeys } from "@/lib/jira/queries";
+import { isTransientStatus } from "@/lib/jira/request-policy";
 import { routeTree } from "./routeTree.gen";
 import "./index.css";
 
@@ -12,7 +13,7 @@ const resetOnLogout = (error: unknown) => {
 };
 
 const isPermanent = (error: unknown) =>
-  error instanceof NotAuthenticated || (error instanceof JiraApiError && error.status >= 400 && error.status < 500 && error.status !== 408 && error.status !== 429);
+  error instanceof NotAuthenticated || (error instanceof JiraApiError && (isTransientStatus(error.status) || (error.status >= 400 && error.status < 500 && error.status !== 408)));
 
 const queryClient: QueryClient = new QueryClient({
   defaultOptions: {

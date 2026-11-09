@@ -1,33 +1,51 @@
-"use client"
+"use client";
 
-import { Collapsible as CollapsiblePrimitive } from "radix-ui"
+import type { ComponentProps } from "react";
+import { Collapsible as CollapsiblePrimitive } from "radix-ui";
+import {
+  OverlayMotionProvider,
+  OverlayPresence,
+  OverlaySurface,
+} from "@/components/motion/overlay-presence";
+import { useOverlayState } from "@/components/motion/use-overlay-state";
 
-function Collapsible({
-  ...props
-}: React.ComponentProps<typeof CollapsiblePrimitive.Root>) {
-  return <CollapsiblePrimitive.Root data-slot="collapsible" {...props} />
+function Collapsible(props: ComponentProps<typeof CollapsiblePrimitive.Root>) {
+  const state = useOverlayState(props);
+  return (
+    <OverlayMotionProvider open={state.open}>
+      <CollapsiblePrimitive.Root
+        data-slot="collapsible"
+        {...props}
+        {...state}
+      />
+    </OverlayMotionProvider>
+  );
 }
 
-function CollapsibleTrigger({
-  ...props
-}: React.ComponentProps<typeof CollapsiblePrimitive.CollapsibleTrigger>) {
+function CollapsibleTrigger(
+  props: ComponentProps<typeof CollapsiblePrimitive.Trigger>,
+) {
   return (
-    <CollapsiblePrimitive.CollapsibleTrigger
-      data-slot="collapsible-trigger"
-      {...props}
-    />
-  )
+    <CollapsiblePrimitive.Trigger data-slot="collapsible-trigger" {...props} />
+  );
 }
 
 function CollapsibleContent({
+  children,
   ...props
-}: React.ComponentProps<typeof CollapsiblePrimitive.CollapsibleContent>) {
+}: ComponentProps<typeof CollapsiblePrimitive.Content>) {
   return (
-    <CollapsiblePrimitive.CollapsibleContent
-      data-slot="collapsible-content"
-      {...props}
-    />
-  )
+    <OverlayPresence>
+      <CollapsiblePrimitive.Content
+        forceMount
+        asChild
+        data-slot="collapsible-content"
+        {...props}
+      >
+        <OverlaySurface>{children}</OverlaySurface>
+      </CollapsiblePrimitive.Content>
+    </OverlayPresence>
+  );
 }
 
-export { Collapsible, CollapsibleTrigger, CollapsibleContent }
+export { Collapsible, CollapsibleTrigger, CollapsibleContent };

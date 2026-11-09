@@ -78,6 +78,9 @@ test("Suche und Ansicht stehen in der URL und folgen Zurück und Vorwärts", asy
   await page.goForward();
   await expect(page).toHaveURL(/ansicht=favoriten/);
 
+  const reads = await page.evaluate(() => window.__qaReads ?? []);
+  expect(reads.filter((path) => path.startsWith("/board"))).toEqual([]);
+
   await list(page).getByRole("link", { name: /Betrieb/ }).click();
   await expect(page).toHaveURL(/\/bereiche\/OPS$/);
   await page.goBack();
@@ -89,9 +92,6 @@ test("Suche und Ansicht stehen in der URL und folgen Zurück und Vorwärts", asy
   await main(page).getByRole("button", { name: "Suche zurücksetzen" }).click();
   await expect(search(page)).toHaveValue("");
   await expect(list(page).getByRole("listitem")).toHaveCount(1);
-
-  const reads = await page.evaluate(() => window.__qaReads ?? []);
-  expect(reads.filter((path) => path.startsWith("/board"))).toEqual([]);
 });
 
 test("Favoriten bleiben mit der Seitenleiste synchron, ohne die Sichtbarkeit zu ändern", async ({ page }) => {
@@ -195,6 +195,7 @@ test("Command Palette und Tastatur führen zur Übersicht und in einen Bereich",
 
   await search(page).focus();
   await page.keyboard.type("daten");
+  await expect(list(page).getByRole("listitem")).toHaveCount(1);
   await page.keyboard.press("Tab");
   await page.keyboard.press("Tab");
   await expect(list(page).getByRole("link", { name: /Datenplattform/ })).toBeFocused();

@@ -157,6 +157,7 @@ test("Geöffnete Tickets im Menü sind per Tastatur bedienbar", async ({ page })
     const name = await page.evaluate(() => document.activeElement?.textContent ?? "");
     if (name.startsWith("DEMO-6")) break;
     await page.keyboard.press("ArrowDown");
+    await expect.poll(() => page.evaluate(() => document.activeElement?.textContent ?? "")).not.toBe(name);
   }
   await expect(page.getByRole("menuitemradio", { name: /^DEMO-6 / })).toBeFocused();
   await page.keyboard.press("Enter");

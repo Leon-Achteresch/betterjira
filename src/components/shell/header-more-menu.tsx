@@ -1,4 +1,11 @@
-import { ChevronLeft, ChevronRight, EllipsisIcon, PinIcon, PinOffIcon, XIcon } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  EllipsisIcon,
+  PinIcon,
+  PinOffIcon,
+  XIcon,
+} from "lucide-react";
 import { Tooltip } from "@/components/motion/tooltip";
 import type { IssueTab } from "@/components/shell/issue-tabs";
 import { Button } from "@/components/ui/button";
@@ -30,7 +37,8 @@ type HeaderMoreMenuProps = {
   className?: string;
 };
 
-const scrollIntoView = (node: HTMLElement | null) => node?.scrollIntoView({ block: "nearest" });
+const scrollIntoView = (node: HTMLElement | null) =>
+  node?.scrollIntoView({ block: "nearest" });
 
 export function HeaderMoreMenu({
   canGoBack,
@@ -54,7 +62,10 @@ export function HeaderMoreMenu({
             size="icon-sm"
             aria-label="Weitere Aktionen"
             data-tauri-drag-region="false"
-            className={cn("relative after:absolute after:-inset-0.5", className)}
+            className={cn(
+              "relative after:absolute after:-inset-0.5",
+              className,
+            )}
           >
             <EllipsisIcon />
           </Button>
@@ -79,7 +90,10 @@ export function HeaderMoreMenu({
           <>
             <DropdownMenuSeparator />
             <DropdownMenuGroup aria-labelledby="header-open-tabs">
-              <DropdownMenuLabel id="header-open-tabs" className="flex items-center">
+              <DropdownMenuLabel
+                id="header-open-tabs"
+                className="flex items-center"
+              >
                 Geöffnete Tickets
                 <span className="ml-auto tabular-nums">{tabs.length}</span>
               </DropdownMenuLabel>
@@ -93,13 +107,27 @@ export function HeaderMoreMenu({
                     key={tab.key}
                     value={tab.key}
                     ref={tab.key === activeKey ? scrollIntoView : undefined}
-                    title={tab.title ? `${tab.key} · ${tab.title}` : tab.key}
+                    title={
+                      tab.title
+                        ? `${tab.label ?? tab.key} · ${tab.title}`
+                        : (tab.label ?? tab.key)
+                    }
                     className="min-h-8"
                   >
-                    {tab.pinned ? <PinIcon className="size-3.5 text-muted-foreground" /> : null}
-                    <span className="shrink-0 font-medium">{tab.key}</span>{" "}
-                    {tab.title ? <span className="truncate text-muted-foreground">{tab.title}</span> : null}
-                    {tab.pinned ? <span className="sr-only">(angeheftet)</span> : null}
+                    {tab.pinned ? (
+                      <PinIcon className="size-3.5 text-muted-foreground" />
+                    ) : null}
+                    <span className="shrink-0 font-medium">
+                      {tab.label ?? tab.key}
+                    </span>{" "}
+                    {tab.title ? (
+                      <span className="truncate text-muted-foreground">
+                        {tab.title}
+                      </span>
+                    ) : null}
+                    {tab.pinned ? (
+                      <span className="sr-only">(angeheftet)</span>
+                    ) : null}
                   </DropdownMenuRadioItem>
                 ))}
               </DropdownMenuRadioGroup>
@@ -111,12 +139,23 @@ export function HeaderMoreMenu({
             <DropdownMenuSeparator />
             <DropdownMenuItem onSelect={() => onTogglePin(activeTab.key)}>
               {activeTab.pinned ? <PinOffIcon /> : <PinIcon />}
-              {activeTab.pinned ? `${activeTab.key} lösen` : `${activeTab.key} anheften`}
+              {activeTab.pinned
+                ? `${activeTab.label ?? activeTab.key} lösen`
+                : `${activeTab.label ?? activeTab.key} anheften`}
             </DropdownMenuItem>
-            <DropdownMenuItem disabled={activeTab.pinned} onSelect={() => onCloseTab(activeTab.key)}>
+            <DropdownMenuItem
+              disabled={activeTab.pinned}
+              onSelect={() => onCloseTab(activeTab.key)}
+            >
               <XIcon />
-              {activeTab.pinned ? "Angeheftet, zum Schließen lösen" : `${activeTab.key} schließen`}
-              {activeTab.pinned ? null : <DropdownMenuShortcut>{shortcutHint("closeTab")}</DropdownMenuShortcut>}
+              {activeTab.pinned
+                ? "Angeheftet, zum Schließen lösen"
+                : `${activeTab.label ?? activeTab.key} schließen`}
+              {activeTab.pinned ? null : (
+                <DropdownMenuShortcut>
+                  {shortcutHint("closeTab")}
+                </DropdownMenuShortcut>
+              )}
             </DropdownMenuItem>
           </>
         ) : null}

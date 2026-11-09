@@ -15,6 +15,7 @@ type RunInput = {
   webhookUrl: string;
   siteUrl: string;
   me: { accountId: string; displayName: string };
+  port: number;
 };
 
 export const useAttentionRun = () => {
@@ -33,8 +34,8 @@ export const useAttentionRun = () => {
   const ready = !!siteUrl && !!me && !!scope && !!server.data && !server.error && isAttentionWebhook(webhookUrl);
 
   const mutation = useMutation({
-    mutationFn: ({ runId, webhookUrl: url, siteUrl: urlOfSite, me: person }: RunInput) =>
-      Effect.runPromise(triggerAttention(url, { runId, siteUrl: urlOfSite, me: person })),
+    mutationFn: ({ runId, webhookUrl: url, siteUrl: urlOfSite, me: person, port }: RunInput) =>
+      Effect.runPromise(triggerAttention(url, { runId, siteUrl: urlOfSite, me: person }, port)),
     onError: (error, input) => {
       fail(input.scope, input.runId, error.message);
       if (useAttentionSettings.getState().pendingRunId === input.runId) clearPending();
@@ -44,7 +45,7 @@ export const useAttentionRun = () => {
 
   const { mutate } = mutation;
   const run = useCallback(() => {
-    if (!ready || !scope || !siteUrl || !me) return;
+    if (!ready || !scope || !siteUrl || !me || !server.data) return;
     const settings = useAttentionSettings.getState();
     const owners = useAttentionRunHistory.getState().owners;
     const result = queryClient.getQueryData<AttentionResult | null>(attentionKeys.result);
@@ -53,8 +54,8 @@ export const useAttentionRun = () => {
     const runId = crypto.randomUUID();
     remember(runId, scope);
     markTriggered(runId);
-    mutate({ runId, scope, webhookUrl, siteUrl, me });
-  }, [ready, scope, siteUrl, me?.accountId, me?.displayName, queryClient, remember, markTriggered, mutate, webhookUrl]);
+    mutate({ runId, scope, webhookUrl, siteUrl, me, port: server.data });
+  }, [ready, scope, siteUrl, me?.accountId, me?.displayName, server.data, queryClient, remember, markTriggered, mutate, webhookUrl]);
 
   return {
     isPending: mutation.isPending && mutation.variables?.scope === scope,

@@ -1,6 +1,7 @@
+import { JiraLogo, GithubLogo, BitbucketLogo, OutlookLogo } from "@/components/brands/service-logos";
 import { Link } from "@tanstack/react-router";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { ArrowUpRightIcon, CalendarIcon, GitBranchIcon, LogInIcon, RotateCwIcon, ShieldCheckIcon, WifiIcon, WifiOffIcon, XIcon } from "lucide-react";
+import { ArrowUpRightIcon, GitBranchIcon, LogInIcon, RotateCwIcon, ShieldCheckIcon, WifiIcon, WifiOffIcon, XIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { Stagger, StaggerItem } from "@/components/motion/stagger";
 import { Button } from "@/components/ui/button";
@@ -95,7 +96,7 @@ function JiraCard({ jira, online }: { jira: ConnectionsOverviewModel["jira"]; on
   const { check } = jira;
   return (
     <ConnectionCard
-      icon={ShieldCheckIcon}
+      icon={JiraLogo}
       title="Jira"
       status={jira.status}
       actions={jira.sessionStatus === "pending" ? undefined : <JiraActions jira={jira} />}
@@ -162,7 +163,7 @@ function ScmCard({ scm }: { scm: ConnectionsOverviewModel["scm"] }) {
           {scm.connections.map((connection) => (
             <li key={connection.id} className="flex flex-col gap-0.5 rounded-xl bg-muted/50 px-3 py-2">
               <span className="font-medium">
-                {connection.label} <span className="font-normal text-muted-foreground">· {connection.kind}</span>
+                {connection.kind === "GitHub" ? <GithubLogo aria-hidden className="mr-2 inline size-4" /> : <BitbucketLogo aria-hidden className="mr-2 inline size-4" />}{connection.label} <span className="font-normal text-muted-foreground">· {connection.kind}</span>
               </span>
               <span className="break-words text-muted-foreground">
                 {connection.host}
@@ -184,7 +185,7 @@ function ScmCard({ scm }: { scm: ConnectionsOverviewModel["scm"] }) {
 function OutlookCard({ outlook }: { outlook: ConnectionsOverviewModel["outlook"] }) {
   return (
     <ConnectionCard
-      icon={CalendarIcon}
+      icon={OutlookLogo}
       title="Outlook-Kalender"
       status={outlook.status}
       actions={

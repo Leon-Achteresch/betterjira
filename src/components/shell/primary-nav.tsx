@@ -1,5 +1,6 @@
+import { JiraLogo, ZammadLogo } from "@/components/brands/service-logos";
 import { Link } from "@tanstack/react-router";
-import { BellIcon, BriefcaseIcon, CalendarDaysIcon, GitPullRequestIcon, HouseIcon, TicketIcon, TimerIcon } from "lucide-react";
+import { BellIcon, BriefcaseIcon, CalendarDaysIcon, GitPullRequestIcon, HouseIcon, TimerIcon } from "lucide-react";
 import { LayoutGroup, motion, useReducedMotion } from "motion/react";
 import { SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from "@/components/ui/sidebar";
 import { SPRING_LAYOUT } from "@/lib/ease";
@@ -7,7 +8,8 @@ import { SPRING_LAYOUT } from "@/lib/ease";
 const ITEMS = [
   { to: "/", label: "Übersicht", icon: HouseIcon, activeOptions: { exact: true } },
   { to: "/arbeitsplatz", label: "Arbeitsplatz", icon: BriefcaseIcon, activeOptions: { includeSearch: false } },
-  { to: "/tickets", label: "Jira-Tickets", icon: TicketIcon, activeOptions: { includeSearch: false } },
+  { to: "/tickets", label: "Jira-Tickets", icon: JiraLogo, activeOptions: { includeSearch: false } },
+  { to: "/helpdesk", label: "Zammad-Tickets", icon: ZammadLogo, activeOptions: { includeSearch: false } },
   { to: "/pull-requests", label: "Pull Requests", icon: GitPullRequestIcon, activeOptions: { includeSearch: false } },
   { to: "/kalender", label: "Kalender", icon: CalendarDaysIcon, activeOptions: {} },
   { to: "/zeiterfassung", label: "Zeiterfassung", icon: TimerIcon, activeOptions: { includeSearch: false } },
@@ -40,7 +42,7 @@ export function PrimaryNav() {
                           className="absolute inset-y-1.5 left-0 w-0.5 rounded-full bg-primary"
                         />
                       )}
-                      <item.icon className={isActive ? "text-foreground" : "text-muted-foreground"} />
+                      <item.icon aria-hidden className={isActive ? "text-foreground" : "text-muted-foreground"} />
                       <span>{item.label}</span>
                     </>
                   )}
