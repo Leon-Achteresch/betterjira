@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from "react";
+import { useJiraProjectBoards } from "@/hooks/jira/use-jira-board";
 import { Link, useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import {
@@ -49,7 +50,7 @@ import {
   SidebarMenuSkeleton,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { useJiraProjectBoards, useJiraSite, type JiraProject } from "@/lib/jira/queries";
+import { useJiraSite, type JiraProject } from "@/lib/jira/queries";
 import { useProfileMenu } from "@/hooks/jira/use-profile-menu";
 import { useProjectStats } from "@/hooks/jira/use-project-stats";
 import { useSidebarSearch } from "@/hooks/use-sidebar-search";

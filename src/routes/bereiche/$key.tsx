@@ -50,16 +50,13 @@ import { useBoardFilters } from "@/hooks/use-board-filters";
 import { useAreaPage } from "@/hooks/jira/use-area-page";
 import { EASE_OUT } from "@/lib/ease";
 import { boardLanes } from "@/lib/board-lanes";
+import { type JiraBoard, type JiraSprint } from "@/lib/jira/board";
+import { useJiraBacklogJql, useJiraBoard, useJiraBoardSprints } from "@/hooks/jira/use-jira-board";
 import { BACKLOG, type BoardSprint, parseAreaSearch } from "@/lib/jira/area-page";
 import { jiraErrors } from "@/lib/jira/field-values";
 import {
-  type JiraBoard,
-  type JiraSprint,
   type JiraTransitionRequest,
   transitionsQuery,
-  useJiraBacklogJql,
-  useJiraBoard,
-  useJiraBoardSprints,
   useJiraTransitions,
 } from "@/lib/jira/queries";
 import { cn } from "@/lib/utils";
