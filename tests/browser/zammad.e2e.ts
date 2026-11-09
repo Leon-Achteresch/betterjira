@@ -59,8 +59,9 @@ test("Ticket bearbeiten, Antwort und Anhänge, Tags mit Undo, Zeit und Verknüpf
   });
   await page.getByRole("button", { name: "Intern kommentieren" }).click();
   await expect(
-    page.getByText("Die Ursache ist gefunden.", { exact: true }),
+    page.getByRole("article", { name: "Interner Kommentar", exact: true }).getByText("Die Ursache ist gefunden.", { exact: true }),
   ).toBeVisible();
+  await expect(page.getByRole("textbox", { name: "Nachricht", exact: true })).toHaveValue("");
   await page.getByLabel("Neuer Tag", { exact: true }).fill("geprüft");
   await page.getByRole("button", { name: "Hinzufügen", exact: true }).click();
   await expect(

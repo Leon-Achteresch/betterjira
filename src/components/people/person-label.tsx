@@ -21,6 +21,7 @@ type PersonProps = VariantProps<typeof avatarVariants> & {
   className?: string;
   avatarOnly?: boolean;
   subtitle?: string;
+  preview?: boolean;
 };
 
 export function PersonLabel({
@@ -34,37 +35,40 @@ export function PersonLabel({
   className,
   avatarOnly,
   subtitle,
+  preview = true,
 }: PersonProps) {
-  return (
-    <HoverCard>
-      <HoverCardTrigger asChild>
-        <span
-          tabIndex={0}
-          className={cn(
-            "inline-flex min-w-0 items-center gap-2.5 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring",
-            className,
-          )}
-        >
-          <Avatar className={avatarVariants({ size })}>
-            <AvatarImage src={avatarUrl} alt={`Profilbild von ${name}`} />
-            <AvatarFallback className="bg-info/10 text-[11px] font-medium text-info">
-              {initials}
-            </AvatarFallback>
-          </Avatar>
-          {!avatarOnly && (
-            <span className="min-w-0">
-              <span className="block truncate text-[13px] font-medium leading-5">
-                {name}
-              </span>
-              {subtitle && (
-                <span className="block truncate text-xs font-normal text-muted-foreground">
-                  {subtitle}
-                </span>
-              )}
+  const identity = (
+    <span
+      tabIndex={preview ? 0 : undefined}
+      className={cn(
+        "inline-flex min-w-0 items-center gap-2.5 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        className,
+      )}
+    >
+      <Avatar className={avatarVariants({ size })}>
+        <AvatarImage src={avatarUrl} alt={`Profilbild von ${name}`} />
+        <AvatarFallback className="bg-info/10 text-[11px] font-medium text-info">
+          {initials}
+        </AvatarFallback>
+      </Avatar>
+      {!avatarOnly && (
+        <span className="min-w-0">
+          <span className="block truncate text-[13px] font-medium leading-5">
+            {name}
+          </span>
+          {subtitle && (
+            <span className="block truncate text-xs font-normal text-muted-foreground">
+              {subtitle}
             </span>
           )}
         </span>
-      </HoverCardTrigger>
+      )}
+    </span>
+  );
+  if (!preview) return identity;
+  return (
+    <HoverCard>
+      <HoverCardTrigger asChild>{identity}</HoverCardTrigger>
       <HoverCardContent className="w-72 p-4" align="start">
         <div className="flex items-center gap-3">
           <Avatar className="size-10">

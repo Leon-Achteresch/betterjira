@@ -42,7 +42,7 @@ export function UserPicker({
             {triggerLabel ? (
               triggerLabel
             ) : person ? (
-              <PersonLabel {...person} size="sm" />
+              <PersonLabel {...person} size="sm" preview={false} />
             ) : (
               model.label || "Person auswählen"
             )}
@@ -72,6 +72,7 @@ export function UserPicker({
               >
                 <PersonLabel
                   {...user.person}
+                  preview={false}
                   subtitle={user.email ?? undefined}
                 />
               </Button>
