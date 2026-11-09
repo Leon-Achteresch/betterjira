@@ -269,24 +269,28 @@ function DropdownMenuSubTrigger({
 
 function DropdownMenuSubContent({
   className,
+  collisionPadding = 8,
   children,
   ...props
 }: React.ComponentProps<typeof DropdownMenuPrimitive.SubContent>) {
   return (
-    <OverlayPresence>
-      <DropdownMenuPrimitive.SubContent
-        forceMount
-        asChild
-        data-slot="dropdown-menu-sub-content"
-        className={cn(
-          "z-50 min-w-[96px] origin-(--radix-dropdown-menu-content-transform-origin) overflow-hidden rounded-2xl glass p-1 text-popover-foreground shadow-lg ring-1 ring-foreground/10",
-          className,
-        )}
-        {...props}
-      >
-        <OverlaySurface>{children}</OverlaySurface>
-      </DropdownMenuPrimitive.SubContent>
-    </OverlayPresence>
+    <DropdownMenuPrimitive.Portal forceMount>
+      <OverlayPresence>
+        <DropdownMenuPrimitive.SubContent
+          forceMount
+          asChild
+          data-slot="dropdown-menu-sub-content"
+          collisionPadding={collisionPadding}
+          className={cn(
+            "z-50 max-h-(--radix-dropdown-menu-content-available-height) min-w-[96px] origin-(--radix-dropdown-menu-content-transform-origin) overflow-x-hidden overflow-y-auto rounded-2xl glass p-1 text-popover-foreground shadow-lg ring-1 ring-foreground/10 data-[side=left]:translate-x-[max(0px,calc(100%_-_var(--radix-dropdown-menu-content-available-width)))] data-[side=right]:translate-x-[min(0px,calc(var(--radix-dropdown-menu-content-available-width)_-_100%))]",
+            className,
+          )}
+          {...props}
+        >
+          <OverlaySurface>{children}</OverlaySurface>
+        </DropdownMenuPrimitive.SubContent>
+      </OverlayPresence>
+    </DropdownMenuPrimitive.Portal>
   );
 }
 

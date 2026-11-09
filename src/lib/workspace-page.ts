@@ -120,6 +120,13 @@ const ENTRY_ORDERS: Record<WorkspacePageSort, EntryOrder> = {
 export const sortWorkspaceEntries = (entries: readonly WorkspaceEntry[], sort: WorkspacePageSort): WorkspaceEntry[] =>
   [...entries].sort(ENTRY_ORDERS[sort]);
 
+export const visibleWorkspaceEntries = (
+  entries: readonly WorkspaceEntry[],
+  filter: WorkspacePageFilter,
+  query: string,
+  sort: WorkspacePageSort,
+) => sortWorkspaceEntries(filterWorkspaceEntries(entries, filter, query), sort);
+
 const EMPTY_STATES: Record<WorkspacePageFilter, { title: string; description: string }> = {
   alle: {
     title: "Noch kein Arbeitskontext",
@@ -135,7 +142,7 @@ const EMPTY_STATES: Record<WorkspacePageFilter, { title: string; description: st
   },
   notizen: {
     title: "Keine privaten Notizen",
-    description: "Notizen schreibst du im Ticket. Sie bleiben auf diesem Gerät.",
+    description: "Notizen schreibst du im Ticket oder über „Notiz hinzufügen“ an einem Eintrag. Sie bleiben auf diesem Gerät.",
   },
   zuletzt: {
     title: "Noch nichts geöffnet",

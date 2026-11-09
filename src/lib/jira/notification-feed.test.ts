@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   countUnread,
   describeChanges,
+  isNoiseChange,
   filterFeed,
   groupByIssue,
   inboxKindOf,
@@ -107,5 +108,12 @@ describe("inboxSearchOf", () => {
     expect(inboxSearchOf({ ansicht: "fremd", nur: "alle", suche: "  ", extra: 1 })).toEqual({});
     expect(inboxKindOf(inboxSearchOf({ ansicht: "beobachtet" }))).toBe("watching");
     expect(inboxKindOf({})).toBe("direct");
+  });
+});
+
+describe("isNoiseChange", () => {
+  it("erkennt reine Hintergrundänderungen", () => {
+    expect(isNoiseChange([{ field: "Rank" }, { field: "timespent" }])).toBe(true);
+    expect(isNoiseChange([{ field: "Rank" }, { field: "status" }])).toBe(false);
   });
 });

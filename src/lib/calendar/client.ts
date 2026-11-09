@@ -1,5 +1,5 @@
 import { Effect, Schema, Semaphore } from "effect";
-import { openUrl } from "@tauri-apps/plugin-opener";
+import { openExternalLink } from "../external-links/client";
 import { RolloutDraft } from "./model";
 import { getOutlookAccount, removeOutlookEvent, upsertOutlookEvent } from "./outlook";
 import { CalendarError, calendarError, loadRollouts, setOutlookAccountId, writeRollouts } from "./storage";
@@ -54,7 +54,5 @@ export const connectOutlook = () => Effect.gen(function* () {
 
 export const disconnectOutlook = setOutlookAccountId(null).pipe(writeLock.withPermits(1));
 
-export const openCalendarIssue = (url: string) => Effect.tryPromise({
-  try: () => openUrl(url),
-  catch: calendarError("Das verknüpfte Ticket konnte nicht geöffnet werden."),
-});
+export const openCalendarIssue = (url: string) =>
+  openExternalLink(url).pipe(Effect.mapError(calendarError("Das verknüpfte Ticket konnte nicht geöffnet werden.")));

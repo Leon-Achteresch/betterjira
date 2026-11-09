@@ -1,4 +1,5 @@
 import { formatDistanceToNowStrict } from "date-fns";
+import { useJiraProjectBoards } from "@/hooks/jira/use-jira-board";
 import { de } from "date-fns/locale";
 import { FunnelIcon, SquareKanbanIcon } from "lucide-react";
 import { AdfContent } from "@/components/adf-content";
@@ -7,10 +8,12 @@ import { JiraUserLabel } from "@/components/jira-user-avatar";
 import { ProjectAvatar } from "@/components/shell/project-avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { isJiraUser } from "@/lib/jira/user";
-import { useJiraIssue, useJiraIssues, useJiraProjectBoards, type JiraProject } from "@/lib/jira/queries";
+import { useJiraIssues, type JiraProject } from "@/lib/jira/queries";
+import { useJiraIssue } from "@/hooks/jira/use-jira-issue";
 
 export function IssuePreview({ issueKey }: { issueKey: string }) {
   const issue = useJiraIssue(issueKey);
+  if (issue.scopeError) return <p className="text-sm text-muted-foreground">Die Kontoprüfung für die Ticketvorschau ist fehlgeschlagen.</p>;
   if (issue.isPending) {
     return (
       <div className="grid gap-3">

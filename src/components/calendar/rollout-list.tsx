@@ -2,16 +2,9 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import type { OutlookAccount, OutlookCalendarEvent, Rollout } from "@/lib/calendar/model";
 import { outlookLinkState } from "@/lib/calendar/presentation";
 import { EASE_OUT, SPRING_LAYOUT } from "@/lib/ease";
+import type { RolloutActions } from "@/types/calendar";
 import { OutlookEventItem } from "./outlook-event-item";
 import { RolloutItem } from "./rollout-item";
-
-export type RolloutActions = {
-  onEdit: (rollout: Rollout) => void;
-  onDelete: (rollout: Rollout) => void;
-  onSync: (rollout: Rollout) => void;
-  onOpenOutlook: (eventId: string) => void;
-  onOpenIssue: (rollout: Rollout, key: string) => void;
-};
 
 type RolloutListProps = RolloutActions & {
   rollouts: readonly Rollout[];
@@ -21,7 +14,7 @@ type RolloutListProps = RolloutActions & {
   syncingId: string | null | undefined;
 };
 
-export function RolloutList({ rollouts, events = [], day, account, syncingId, onEdit, onDelete, onSync, onOpenOutlook, onOpenIssue }: RolloutListProps) {
+export function RolloutList({ rollouts, events = [], day, account, syncingId, onEdit, onDuplicate, onDelete, onSync, onOpenOutlook, onOpenIssue }: RolloutListProps) {
   const reduce = useReducedMotion();
   const enter = { opacity: 0, y: reduce ? 0 : 6 };
   return (
@@ -42,6 +35,7 @@ export function RolloutList({ rollouts, events = [], day, account, syncingId, on
               outlookConnected={!!account}
               syncing={syncingId === rollout.id}
               onEdit={() => onEdit(rollout)}
+              onDuplicate={() => onDuplicate(rollout)}
               onDelete={() => onDelete(rollout)}
               onSync={() => onSync(rollout)}
               onOpenOutlook={() => rollout.outlookEventId && onOpenOutlook(rollout.outlookEventId)}

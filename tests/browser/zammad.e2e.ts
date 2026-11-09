@@ -310,6 +310,9 @@ test("Ohne Jira-Anmeldung bleiben Helpdesk-Tickets bedienbar; Trennen leert den 
       name: "Anmeldung am Kundenportal nicht möglich",
     }),
   ).toBeVisible();
+  await expect(
+    page.getByRole("tablist", { name: "Geöffnete Tickets" }).getByRole("tab", { name: /20043776/ }),
+  ).toHaveAttribute("href", "/helpdesk/41");
   await page.getByRole("link", { name: "Einstellungen", exact: true }).click();
   await page.getByRole("link", { name: "Verbindungen", exact: true }).click();
   const settings = page.getByRole("region", { name: "Zammad", exact: true });

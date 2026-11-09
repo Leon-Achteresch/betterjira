@@ -1,6 +1,7 @@
 export const JIRA_READ_CONCURRENCY = 6;
 export const JIRA_WRITE_CONCURRENCY = 2;
 export const JIRA_READ_RETRIES = 2;
+export const JIRA_MAX_AUTO_RETRY_DELAY = 5000;
 
 export const retryAfterMs = (value: string | null, now = Date.now()) => {
   if (!value) return 0;

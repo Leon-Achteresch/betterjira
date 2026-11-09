@@ -1,10 +1,21 @@
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { ArrowDownWideNarrowIcon, CheckIcon, ChevronDownIcon, InfoIcon, FileTextIcon, Trash2Icon } from "lucide-react";
+import {
+  ArrowDownWideNarrowIcon,
+  CheckIcon,
+  ChevronDownIcon,
+  InfoIcon,
+  FileTextIcon,
+  SearchIcon,
+  Trash2Icon,
+} from "lucide-react";
 import { formatDistanceToNowStrict } from "date-fns";
 import { de } from "date-fns/locale";
 import { AdfContent } from "@/components/adf-content";
+import { IssueCommentPages } from "@/components/issue-comment-pages";
 import { JiraUserLabel } from "@/components/jira-user-avatar";
+import { CommentLinkAction } from "@/components/issues/comment-link-action";
 import { Button } from "@/components/ui/button";
+import { SearchField } from "@/components/motion/search-field";
 import { Tooltip } from "@/components/motion/tooltip";
 import {
   DropdownMenu,
@@ -12,36 +23,118 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Kbd } from "@/components/ui/kbd";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { useIssueComments } from "@/hooks/use-issue-comments";
+import type { IssueCommentPages as CommentPages } from "@/hooks/jira/use-issue-comment-pages";
+import { useCommentLink } from "@/hooks/jira/use-comment-link";
 import { EASE_OUT } from "@/lib/ease";
+import { commentSearchSummary } from "@/lib/jira/comment-search";
 import { IS_MAC } from "@/lib/platform";
 import { COMMENT_TEMPLATES } from "@/lib/workspace";
-import type { JiraIssueDetail } from "@/lib/jira/queries";
-
-type Comment = NonNullable<JiraIssueDetail["fields"]["comment"]>["comments"][number];
-
-export function IssueComments({ issueKey, comments }: { issueKey: string; comments: readonly Comment[] }) {
-  const editor = useIssueComments(issueKey, comments);
+export function IssueComments({
+  issueKey,
+  pages,
+}: {
+  issueKey: string;
+  pages: CommentPages;
+}) {
+  const editor = useIssueComments(issueKey, pages.comments);
+  const link = useCommentLink(issueKey);
   const reduce = useReducedMotion();
+  const pageControl = pages.visible && <IssueCommentPages pages={pages} />;
 
   return (
     <div className="flex flex-col gap-6">
-      {comments.length === 0 ? (
+      {pages.comments.length === 0 && !pages.visible ? (
         <p className="text-sm text-muted-foreground">Noch keine Kommentare.</p>
       ) : (
         <div className="flex flex-col gap-4">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="self-end text-muted-foreground"
-            onClick={editor.toggleOrder}
-            aria-pressed={editor.newestFirst}
-          >
-            <ArrowDownWideNarrowIcon />
-            {editor.newestFirst ? "Neueste zuerst" : "Älteste zuerst"}
-          </Button>
+          <div className="flex items-center justify-end gap-1">
+            <Tooltip
+              content={
+                editor.search.open ? (
+                  <span className="flex items-center gap-1.5">
+                    Suche schließen <Kbd>Esc</Kbd>
+                  </span>
+                ) : (
+                  "Geladene Kommentare durchsuchen"
+                )
+              }
+            >
+              <Button
+                ref={editor.search.toggleRef}
+                type="button"
+                variant="ghost"
+                size="icon"
+                aria-label={editor.search.open ? "Kommentarsuche schließen" : "Geladene Kommentare durchsuchen"}
+                aria-expanded={editor.search.open}
+                aria-controls={editor.search.open ? `comment-search-${issueKey}` : undefined}
+                className={editor.search.open ? "bg-muted text-foreground" : "text-muted-foreground"}
+                onClick={editor.search.toggle}
+              >
+                <SearchIcon />
+              </Button>
+            </Tooltip>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-muted-foreground"
+              onClick={editor.toggleOrder}
+              aria-pressed={editor.newestFirst}
+            >
+              <ArrowDownWideNarrowIcon />
+              {editor.newestFirst ? "Neueste zuerst" : "Älteste zuerst"}
+            </Button>
+          </div>
+          <AnimatePresence initial={false}>
+            {editor.search.open && (
+              <motion.div
+                key="comment-search"
+                id={`comment-search-${issueKey}`}
+                role="search"
+                initial={{ opacity: 0, y: reduce ? 0 : -4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, transition: { duration: 0.12 } }}
+                transition={{ duration: 0.18, ease: EASE_OUT }}
+                onKeyDown={editor.search.onKeyDown}
+                className="flex flex-col gap-1.5"
+              >
+                <SearchField
+                  autoFocus
+                  inputRef={editor.search.inputRef}
+                  value={editor.search.query}
+                  onChange={editor.search.setQuery}
+                  label="Geladene Kommentare durchsuchen"
+                  placeholder="Text oder Person suchen …"
+                />
+                <p role="status" className="text-xs text-muted-foreground tabular-nums">
+                  {commentSearchSummary(editor.comments.length, editor.search.loaded, editor.search.query)}
+                </p>
+              </motion.div>
+            )}
+          </AnimatePresence>
+          <AnimatePresence initial={false}>
+            {editor.search.open && editor.search.query.trim() && editor.comments.length === 0 && (
+              <motion.div
+                key="comment-search-empty"
+                initial={{ opacity: 0, y: reduce ? 0 : 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, transition: { duration: 0.12 } }}
+                transition={{ duration: 0.18, ease: EASE_OUT }}
+                className="flex flex-col items-start gap-3 rounded-2xl border border-dashed p-4"
+              >
+                <p className="text-sm text-muted-foreground text-balance">
+                  Kein geladener Kommentar enthält „{editor.search.query.trim()}“ im Text oder Namen.
+                </p>
+                <Button type="button" variant="outline" size="sm" onClick={editor.search.reset}>
+                  Suche zurücksetzen
+                </Button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+          {editor.newestFirst && pageControl}
           <ol className="flex flex-col gap-6">
             <AnimatePresence initial={false}>
               {editor.comments.map((comment) => (
@@ -55,22 +148,26 @@ export function IssueComments({ issueKey, comments }: { issueKey: string; commen
                   className="flex flex-col gap-2"
                 >
                   <div className="flex items-center gap-2 text-sm">
-                    <JiraUserLabel user={comment.author} />
-                    <span
-                      className="text-xs text-muted-foreground"
-                      title={new Date(comment.created).toLocaleString("de-DE")}
-                    >
-                      {formatDistanceToNowStrict(new Date(comment.created), {
-                        locale: de,
-                        addSuffix: true,
-                      })}
-                    </span>
+                    <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1 [overflow-wrap:anywhere]">
+                      <JiraUserLabel user={comment.author} />
+                      <span
+                        className="text-xs text-muted-foreground"
+                        title={new Date(comment.created).toLocaleString("de-DE")}
+                      >
+                        {formatDistanceToNowStrict(new Date(comment.created), {
+                          locale: de,
+                          addSuffix: true,
+                        })}
+                      </span>
+                    </div>
+                    <CommentLinkAction available={link.available(comment.id)} onCopy={() => void link.copy(comment.id)} />
                   </div>
                   <AdfContent doc={comment.body} className="pl-8" />
                 </motion.li>
               ))}
             </AnimatePresence>
           </ol>
+          {!editor.newestFirst && pageControl}
         </div>
       )}
       <form

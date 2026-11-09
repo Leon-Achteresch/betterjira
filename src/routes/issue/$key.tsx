@@ -1,27 +1,31 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { IssueView } from "@/components/issue-view";
-import { useIssueTabStore } from "@/hooks/use-issue-tabs";
-import { useJiraSite } from "@/lib/jira/queries";
+import { IssueView, IssueViewSkeleton } from "@/components/issue-view";
 import { LoginPrompt } from "@/components/shell/login-prompt";
+import { SessionGate } from "@/components/shell/session-gate";
+import { useJiraSession } from "@/hooks/jira/use-jira-session";
+import { useRememberIssueTab } from "@/hooks/use-issue-tabs";
 
 export const Route = createFileRoute("/issue/$key")({
   validateSearch: (search: Record<string, unknown>): { bereich?: "zeit" } => (search.bereich === "zeit" ? { bereich: "zeit" } : {}),
-  onEnter: ({ params }) => useIssueTabStore.getState().open(params.key),
   component: Issue,
 });
 
 function Issue() {
   const { key } = Route.useParams();
   const { bereich } = Route.useSearch();
-  const site = useJiraSite();
+  const session = useJiraSession();
+  useRememberIssueTab(key);
 
   return (
     <div className="@container mx-auto flex w-full max-w-6xl flex-col p-8">
-      {!site.isPending && !site.data ? (
-        <LoginPrompt description="Melde dich an, um Tickets zu sehen." />
-      ) : (
+      <SessionGate
+        session={session}
+        className="flex flex-col"
+        pending={<IssueViewSkeleton />}
+        unconnected={<LoginPrompt description="Melde dich an, um Tickets zu sehen." />}
+      >
         <IssueView key={key} issueKey={key} initialTab={bereich === "zeit" ? "time" : undefined} />
-      )}
+      </SessionGate>
     </div>
   );
 }

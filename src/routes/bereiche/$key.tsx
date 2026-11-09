@@ -4,12 +4,14 @@ import { useMutationState, useQueryClient } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { useTransitionFlow } from "@/components/issue-status-menu";
-import { ArrowRightLeftIcon, ChartColumnStackedIcon, BookmarkIcon, CalendarIcon, ChevronRightIcon, ClockIcon, Columns3Icon, FilterIcon, FlagIcon, ListChecksIcon, TagIcon, Trash2Icon, UserRoundIcon } from "lucide-react";
+import { ArrowRightLeftIcon, ChartColumnStackedIcon, BookmarkIcon, CalendarIcon, ChevronRightIcon, ClockIcon, Columns3Icon, FilterIcon, FlagIcon, ListChecksIcon, ListIcon, SearchXIcon, TagIcon, Trash2Icon, TriangleAlertIcon, UserRoundIcon } from "lucide-react";
 import { JiraUserAvatar } from "@/components/jira-user-avatar";
 import { ProjectAvatar } from "@/components/shell/project-avatar";
 import { IssueTable } from "@/components/issue-table";
 import { IssuePreviewTooltip } from "@/components/issues/issue-preview";
 import { BoardSkeleton } from "@/components/issues/board-skeleton";
+import { LoadFailed, RefreshFailed } from "@/components/issues/load-recovery";
+import { Skeleton } from "@/components/ui/skeleton";
 import { BoardPagination } from "@/components/issues/board-pagination";
 import { Spinner } from "@/components/ui/spinner";
 import { Badge } from "@/components/ui/badge";
@@ -46,77 +48,111 @@ import { DisplayMenu } from "@/components/issues/display-menu";
 import { StatusIcon } from "@/components/issues/status-icon";
 import { PriorityIcon } from "@/components/issues/priority-icon";
 import { useBoardFilters } from "@/hooks/use-board-filters";
+import { useAreaPage } from "@/hooks/jira/use-area-page";
 import { EASE_OUT } from "@/lib/ease";
 import { boardLanes } from "@/lib/board-lanes";
+import { type JiraBoard, type JiraSprint } from "@/lib/jira/board";
+import { useJiraBacklogJql, useJiraBoard, useJiraBoardSprints } from "@/hooks/jira/use-jira-board";
+import { BACKLOG, type BoardSprint, parseAreaSearch } from "@/lib/jira/area-page";
+import { jiraErrors } from "@/lib/jira/field-values";
 import {
-  BACKLOG,
-  type BoardSprint,
-  type JiraBoard,
-  type JiraSprint,
   type JiraTransitionRequest,
   transitionsQuery,
-  useJiraBacklogJql,
-  useJiraBoard,
-  useJiraBoardSprints,
-  useJiraProjectBoards,
-  useJiraProjects,
-  useJiraSite,
   useJiraTransitions,
 } from "@/lib/jira/queries";
 import { cn } from "@/lib/utils";
 import { LoginPrompt } from "@/components/shell/login-prompt";
+import { SessionGate } from "@/components/shell/session-gate";
 
 export const Route = createFileRoute("/bereiche/$key")({
-  validateSearch: (search: Record<string, unknown>): { board?: number; sprint?: BoardSprint } => ({
-    ...(typeof search.board === "number" && { board: search.board }),
-    ...((typeof search.sprint === "number" || search.sprint === BACKLOG) && { sprint: search.sprint }),
-  }),
+  validateSearch: parseAreaSearch,
   component: Bereich,
 });
 
 function Bereich() {
-  const { key } = Route.useParams();
-  const { board: boardId, sprint: sprintId } = Route.useSearch();
-  const navigate = Route.useNavigate();
-  const site = useJiraSite();
-  const projects = useJiraProjects();
-  const boards = useJiraProjectBoards(key);
-  const project = projects.data?.find((p) => p.key === key);
-  const board = boards.data?.values.find((b) => b.id === boardId);
+  const page = useAreaPage();
+  const reduce = useReducedMotion();
+  const { content } = page;
+  const showsBoard = page.session.status === "connected" && content.kind === "board";
   const title = (
     <div className="flex min-w-0 items-center gap-2">
-      {project && <ProjectAvatar project={project} />}
-      <h1 className="truncate text-lg font-semibold">{project?.name ?? key}</h1>
-      <span className="truncate text-sm text-muted-foreground">
-        {boardId === undefined ? `${key} · Alle Vorgänge` : `${key} · ${board?.name ?? ""}`}
-      </span>
+      {page.project && <ProjectAvatar project={page.project} />}
+      <h1 className="truncate text-lg font-semibold">{page.project?.name ?? page.key}</h1>
+      <span className="truncate text-sm text-muted-foreground">{page.subtitle}</span>
     </div>
+  );
+  const showAll = (
+    <Button variant="ghost" onClick={page.showAll}>
+      <ListIcon />
+      Alle Vorgänge anzeigen
+    </Button>
   );
 
   return (
     <div className="flex flex-col gap-4 p-6">
-      {!board && title}
-      {!site.isPending && !site.data ? (
-        <LoginPrompt description="Melde dich an, um Bereiche zu sehen." />
-      ) : boardId === undefined ? (
-        <IssueTable key={key} jql={`project = "${key}" ORDER BY updated DESC`} />
-      ) : boards.error ? (
-        <p role="alert" className="text-sm text-destructive">
-          Boards konnten nicht geladen werden: {boards.error.message}
-        </p>
-      ) : board ? (
-        <Board
-          key={board.id}
-          board={board}
-          title={title}
-          sprintId={sprintId}
-          onSprintChange={(sprint) => navigate({ search: (prev) => ({ ...prev, sprint }) })}
-        />
-      ) : boards.isPending ? (
-        <BoardSkeleton />
-      ) : (
-        <p className="text-muted-foreground">Board nicht gefunden.</p>
-      )}
+      {!showsBoard && title}
+      <SessionGate
+        session={page.session}
+        className="flex min-w-0 flex-col gap-4"
+        pending={page.boardId === undefined ? <Skeleton className="h-64 w-full" /> : <BoardSkeleton />}
+        unconnected={<LoginPrompt description="Melde dich an, um Bereiche zu sehen." />}
+      >
+        <AnimatePresence initial={false}>
+          {page.boards.refreshFailed && content.kind === "board" && (
+            <RefreshFailed
+              key="boards-refresh"
+              title="Boards konnten nicht aktualisiert werden. Angezeigt wird der zuletzt geladene Stand."
+              detail={page.boards.errorMessage}
+              retrying={page.boards.retrying}
+              onRetry={page.boards.retry}
+            />
+          )}
+        </AnimatePresence>
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div
+            key={content.kind}
+            initial={{ opacity: 0, y: reduce ? 0 : 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, transition: { duration: 0.12, ease: EASE_OUT } }}
+            transition={{ duration: 0.2, ease: EASE_OUT }}
+            className="min-w-0"
+          >
+            {content.kind === "all" ? (
+              <IssueTable key={page.key} jql={page.allJql} />
+            ) : content.kind === "board" ? (
+              <Board
+                key={content.board.id}
+                board={content.board}
+                title={title}
+                sprintId={page.sprint}
+                onSprintChange={page.changeSprint}
+              />
+            ) : content.kind === "error" ? (
+              <LoadFailed
+                icon={<TriangleAlertIcon />}
+                title="Boards konnten nicht geladen werden"
+                description={`Die Boardliste von ${page.key} ist gerade nicht lesbar. Deine Anmeldung ist davon nicht betroffen.`}
+                detail={page.boards.errorMessage}
+                retrying={page.boards.retrying}
+                onRetry={page.boards.retry}
+                action={showAll}
+              />
+            ) : content.kind === "missing" ? (
+              <LoadFailed
+                icon={<SearchXIcon />}
+                title="Board nicht verfügbar"
+                description={`Board ${page.boardId} ist nicht unter den geladenen Boards von ${page.key}. Es kann verschoben, gelöscht oder für dich nicht sichtbar sein.`}
+                detail={page.boards.refreshFailed ? page.boards.errorMessage : undefined}
+                retrying={page.boards.retrying}
+                onRetry={page.boards.retry}
+                action={showAll}
+              />
+            ) : (
+              <BoardSkeleton />
+            )}
+          </motion.div>
+        </AnimatePresence>
+      </SessionGate>
     </div>
   );
 }
@@ -585,20 +621,52 @@ function Board({
           </div>
         )}
       </div>
+      <AnimatePresence initial={false}>
+        {!backlog && sprints.data && sprints.isError && !sprints.isFetchNextPageError && (
+          <RefreshFailed
+            key="board-refresh"
+            title="Board konnte nicht aktualisiert werden. Angezeigt wird der zuletzt geladene Stand."
+            detail={jiraErrors(sprints.error).messages.join(" ")}
+            retrying={sprints.isFetching}
+            onRetry={() => void sprints.refetch()}
+          />
+        )}
+      </AnimatePresence>
       {backlog ? (
-        backlogJql.error ? (
-          <p role="alert" className="text-sm text-destructive">
-            {backlogJql.error.message}
-          </p>
-        ) : backlogJql.data ? (
+        backlogJql.data ? (
           <IssueTable jql={backlogJql.data} />
+        ) : backlogJql.error ? (
+          <LoadFailed
+            icon={<TriangleAlertIcon />}
+            title="Backlog konnte nicht geladen werden"
+            description="Die Board-Konfiguration ist gerade nicht lesbar."
+            detail={jiraErrors(backlogJql.error).messages.join(" ")}
+            retrying={backlogJql.isFetching}
+            onRetry={() => void backlogJql.refetch()}
+          />
         ) : (
           <Spinner />
         )
       ) : sprints.error && !sprints.data ? (
-        <p role="alert" className="text-sm text-destructive">
-          {sprints.error.message}
-        </p>
+        <LoadFailed
+          icon={<TriangleAlertIcon />}
+          title="Board konnte nicht geladen werden"
+          description={
+            sprintId === undefined
+              ? "Die Vorgänge dieses Boards sind gerade nicht lesbar."
+              : `Die Vorgänge von Sprint ${sprintId} sind gerade nicht lesbar. Den Sprint gibt es möglicherweise auf diesem Board nicht.`
+          }
+          detail={jiraErrors(sprints.error).messages.join(" ")}
+          retrying={sprints.isFetching}
+          onRetry={() => void sprints.refetch()}
+          action={
+            sprintId !== undefined && (
+              <Button variant="ghost" onClick={() => onSprintChange(undefined)}>
+                Aktive Sprints anzeigen
+              </Button>
+            )
+          }
+        />
       ) : !sprints.data ? (
         <BoardSkeleton />
       ) : data.length === 0 ? (
@@ -624,7 +692,7 @@ function Board({
         <BoardPagination
           hasMore={sprints.hasNextPage}
           fetching={sprints.isFetching}
-          error={sprints.error?.message}
+          error={sprints.isFetchNextPageError ? sprints.error?.message : undefined}
           sentinelRef={sprints.sentinelRef}
           onLoadMore={sprints.loadMore}
           onRetry={() => { if (!sprints.isFetching) void (sprints.isFetchNextPageError ? sprints.fetchNextPage({ cancelRefetch: false }) : sprints.refetch()); }}

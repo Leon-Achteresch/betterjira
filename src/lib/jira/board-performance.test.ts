@@ -120,6 +120,10 @@ describe("large-board query budgets", () => {
     expect(data?.pages).toHaveLength(3);
     expect(data?.pages[0].issues[0].fields.summary).toBe("Changed 1");
     expect(data?.pages.flatMap((page) => page.issues)).toHaveLength(300);
+    expect(client.getQueryState(jiraKeys.board(1))?.isInvalidated).toBe(false);
+    client.getQueryCache().onFocus();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(requests).toHaveLength(1);
     unsubscribe();
   });
 

@@ -10,6 +10,7 @@ if (new URLSearchParams(location.search).get("reduce") === "1") {
 const scenario = new URLSearchParams(location.search).get("scenario");
 const attentionPort = Number(new URLSearchParams(location.search).get("attentionPort") ?? 8743);
 const accountId = new URLSearchParams(location.search).get("account") || "qa-user";
+const cloudId = new URLSearchParams(location.search).get("cloud") || "qa-cloud";
 const scheme = matchMedia("(prefers-color-scheme: dark)");
 const applyScheme = () => document.documentElement.classList.toggle("dark", scheme.matches);
 applyScheme();
@@ -44,7 +45,7 @@ const projects =
       ].map(([id, key, name]) => ({ ...project, id, key, name }))
     : [project];
 if (scenario === "projects" && !localStorage.getItem("betterjira-favorites"))
-  localStorage.setItem("betterjira-favorites", JSON.stringify({ state: { projectIds: ["2"], hiddenProjectIds: ["3"] }, version: 0 }));
+  localStorage.setItem("betterjira-favorites", JSON.stringify({ state: { scopes: { [JSON.stringify([cloudId, accountId])]: { favoriteIds: ["2"], hiddenIds: ["3"] } }, legacy: null }, version: 0 }));
 const paragraph = (text) => ({
   type: "doc",
   version: 1,
@@ -55,7 +56,7 @@ const titles = [
   "Tastaturbedienung im Editor verbessern",
   "Übergabe an das Team vorbereiten",
 ];
-const issues = Array.from({ length: scenario === "busy" ? 35 : scenario === "workspace" ? 12 : scenario === "ai" ? 8 : 3 }, (_, index) => ({
+const issues = Array.from({ length: scenario === "busy" ? 35 : scenario === "workspace" || scenario === "subtasks" ? 12 : scenario === "ai" ? 8 : 3 }, (_, index) => ({
   id: String(index + 1),
   key: `DEMO-${index + 1}`,
   names: {
@@ -127,6 +128,16 @@ if (scenario?.startsWith("zammad")) {
   issues[0].fields.customfield_10041 = "20043776";
   issues[0].fields.customfield_10042 = "[common solutions Helpdesk|https://helpdesk.example.com/#ticket/zoom/41]";
 }
+if (scenario === "comment-links")
+  issues[0].fields.comment.comments = [
+    { id: "10001", author, created: "2026-11-02T10:00:00Z", body: paragraph("Erster QA-Kommentar mit numerischer ID.") },
+    {
+      id: "10002",
+      author: { ...author, accountId: "qa-long-name", displayName: "Maximiliane Alexandra Beispielhaft-Langnamige von und zu Testdorf (Qualitätssicherung Nord)" },
+      created: "2026-11-04T10:00:00Z",
+      body: paragraph("Zweiter QA-Kommentar mit sehr langem Autorennamen."),
+    },
+  ];
 if (scenario === "busy") {
   issues[0].fields.description = {
     type: "doc",
@@ -147,6 +158,55 @@ if (scenario === "busy") {
 }
 if (window.__qaDescriptions)
   for (const issue of issues) if (issue.key in window.__qaDescriptions) issue.fields.description = window.__qaDescriptions[issue.key];
+if (scenario === "subtasks") {
+  const subtaskStatuses = [
+    { id: "11", name: "Zu erledigen", statusCategory: { key: "new", colorName: "blue-gray" } },
+    { id: "3", name: "In Arbeit", statusCategory: { key: "indeterminate", colorName: "yellow" } },
+    { id: "4", name: "Erledigt", statusCategory: { key: "done", colorName: "green" } },
+    { id: "99", name: "Erledigt (Import)", statusCategory: { key: "undefined", colorName: "medium-gray" } },
+  ];
+  const subtaskOf = (issue, statusIndex) => {
+    issue.fields.status = subtaskStatuses[statusIndex];
+    return { id: issue.id, key: issue.key, fields: { summary: issue.fields.summary, status: issue.fields.status } };
+  };
+  issues.slice(2, 11).forEach((issue, index) => {
+    issue.fields.summary = `Teilschritt ${index + 3} umsetzen`;
+  });
+  issues[0].fields.subtasks = [1, 2, 0, 2, 3, 1, 2, 0, 2, 2].map((statusIndex, index) => subtaskOf(issues[index + 1], statusIndex));
+  issues[1].fields.subtasks = [subtaskOf(issues[11], 2)];
+}
+if (scenario === "comments") {
+  const person = (accountId, displayName) => ({ accountId, displayName, avatarUrls: author.avatarUrls });
+  const sam = person("qa-sam", "Sam Muster");
+  const kim = person("qa-kim", "Kim Probe");
+  issues[0].fields.comment.comments.push(
+    {
+      id: "c3",
+      author: sam,
+      created: "2026-11-03T08:30:00Z",
+      body: {
+        type: "doc",
+        version: 1,
+        content: [
+          { type: "paragraph", content: [{ type: "text", text: "Rückfrage zum Rollout:" }, { type: "hardBreak" }, { type: "text", text: "Staging ist freigegeben." }] },
+          { type: "bulletList", content: [{ type: "listItem", content: [{ type: "paragraph", content: [{ type: "text", text: "Preis (netto) + 19 % [offen]" }] }] }] },
+        ],
+      },
+    },
+    {
+      id: "c4",
+      author: kim,
+      created: "2026-11-05T14:00:00Z",
+      body: paragraph("Sieht gut aus, ich übernehme die Dokumentation."),
+    },
+    {
+      id: "c5",
+      author: sam,
+      created: "2026-11-05T16:45:00Z",
+      body: { type: "doc", version: 1, content: [{ type: "paragraph", content: [{ type: "text", text: "Danke " }, { type: "mention", attrs: { id: "qa-kim", text: "@Kim Probe" } }, { type: "text", text: "!" }] }] },
+    },
+  );
+}
 const boardStatuses = [
   { id: "10", name: "Triage", statusCategory: { key: "new", colorName: "blue-gray" } },
   { id: "11", name: "Zu erledigen", statusCategory: { key: "new", colorName: "blue-gray" } },
@@ -205,6 +265,18 @@ if (scenario === "board") {
     });
   }
 }
+if (scenario === "attachments") {
+  const attachment = (id, filename, mimeType, size) => ({ id, filename, mimeType, size, created: "2026-11-03T09:00:00Z", author });
+  issues[0].fields.attachment = window.__qaAttachments ?? [
+    attachment("att-1", "Screenshot Übergabe.png", "image/png", 245_000),
+    attachment("att-2", "Angebot (final) [v2].pdf", "application/pdf", 1_840_000),
+    attachment("att-3", "Protokoll_Abstimmung_Team_mit_sehr_langem_Dateinamen_der_umbrechen_muss_2026-11-03.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", 38_000),
+    attachment("att-4", "export.csv", "text/csv", 2_100),
+    attachment("att-5", "archiv.zip", "application/zip", 5_300_000),
+    attachment("att-6", "", "", 512),
+    attachment("att-7", "bericht.pdf", "application/octet-stream", 92_000),
+  ];
+}
 if (scenario === "time-tracking") {
   const other = { accountId: "qa-other", displayName: "Sam Muster", avatarUrls: author.avatarUrls };
   const entries = [
@@ -220,6 +292,40 @@ if (scenario === "time-tracking") {
     issues[index].fields.worklog.total++;
   }
 }
+if (scenario === "comment-pages") {
+  for (let index = 3; index <= 7; index++)
+    issues[0].fields.comment.comments.push({
+      id: `c${index}`,
+      author,
+      created: `2026-11-05T1${index}:00:00Z`,
+      body: paragraph(`Verlaufseintrag ${index}: nachgeladener Testkommentar.`),
+    });
+}
+const sortedComments = (issue) =>
+  [...issue.fields.comment.comments].sort((a, b) => Date.parse(a.created) - Date.parse(b.created));
+const commentWindow = (issue) => {
+  const all = sortedComments(issue);
+  const limit = window.__qa.commentDetailLimit;
+  return { startAt: 0, maxResults: limit, total: all.length, comments: all.slice(0, limit) };
+};
+const attachmentSortFixture = (id, filename, mimeType, size, created) => ({ id, filename, mimeType, size, created, author });
+if (scenario === "attachment-sort") {
+  issues[0].fields.attachment = [
+    attachmentSortFixture("qa-att-1", "Bericht 10.pdf", "application/pdf", 2400000, "2026-11-03T08:00:00.000+0000"),
+    attachmentSortFixture("qa-att-2", "bericht 2.pdf", "application/pdf", 512, "2026-11-05T10:00:00.000+0100"),
+    attachmentSortFixture("qa-att-3", "Screenshot.png", "image/png", 48000, "kein-datum"),
+    attachmentSortFixture("qa-att-4", "", "text/plain", 2048, "2026-11-01T09:00:00.000+0000"),
+    attachmentSortFixture("qa-att-5", "Anhang.txt", "text/plain", 2048, "2026-11-05T09:00:00.000+0000"),
+  ];
+  issues[1].fields.attachment = [
+    attachmentSortFixture("qa-att-6", "zeta.txt", "text/plain", 1, "2026-11-02T09:00:00.000+0000"),
+    attachmentSortFixture("qa-att-7", "alpha.txt", "text/plain", 5, "2026-11-04T09:00:00.000+0000"),
+  ];
+}
+const attachmentSortPixel = Uint8Array.from(
+  atob("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="),
+  (char) => char.charCodeAt(0),
+);
 const wiki = Object.fromEntries(
   issues.map((issue) => [issue.key, "h2. Beschreibung\n\nVorhandener Text für die Bearbeitung."]),
 );
@@ -303,9 +409,11 @@ if (scenario === "busy") {
   localStorage.setItem("betterjira-workspaces", JSON.stringify(stored));
   if (!localStorage.getItem("betterjira-issue-tabs")) {
     const keys = issues.slice(0, 12).map((issue) => issue.key);
-    localStorage.setItem("betterjira-issue-tabs", JSON.stringify({ state: { keys, pinned: [keys[1]] }, version: 0 }));
+    localStorage.setItem("betterjira-issue-tabs", JSON.stringify({ state: { workspaces: { [id]: { keys, pinned: [keys[1]] } } }, version: 0 }));
   }
 }
+if (scenario === "tabs-legacy" && !localStorage.getItem("betterjira-issue-tabs"))
+  localStorage.setItem("betterjira-issue-tabs", JSON.stringify({ state: { keys: ["DEMO-3", "DEMO-1", "DEMO-2"], pinned: ["DEMO-1"] }, version: 0 }));
 if (scenario === "notifications" || scenario === "notifications-foreign") {
   const minutes = (count) => Date.now() - count * 60000;
   const qaPeople = ["Sam Muster", "Kim Probe", "Jo Test"].map((displayName) => ({ displayName, avatarUrls: author.avatarUrls }));
@@ -383,6 +491,16 @@ const scmGithub = {
     CLOSED: [],
   },
 };
+if (scmScenario === "scm-checks")
+  scmGithub["qa/design-system"].OPEN.push(
+    scmGraphPullRequest("qa/design-system", 14, "Icons ohne Prüfdaten", "OPEN", 12, {
+      commits: { nodes: [{ commit: { statusCheckRollup: null } }] },
+    }),
+    scmGraphPullRequest("qa/design-system", 15, "Fokusrahmen schärfen", "OPEN", 30, {
+      commits: { nodes: [{ commit: { statusCheckRollup: { state: "QA_UNBEKANNT" } } }] },
+    }),
+    scmGraphPullRequest("qa/design-system", 16, "Changelog ergänzen", "OPEN", 40, { commits: { nodes: [] } }),
+  );
 const scmCloud = {
   OPEN: [
     {
@@ -504,6 +622,76 @@ if (scenario === "workspace") {
     );
   }
 }
+const createProjects = [
+  project,
+  { ...project, id: "2", key: "OPS", name: "Betrieb" },
+  { ...project, id: "3", key: "LOCK", name: "Archiv ohne Rechte" },
+];
+const metaField = (fieldId, name, schema, extra = {}) => ({ fieldId, key: fieldId, name, required: true, schema, operations: ["set"], ...extra });
+const baseFields = [
+  metaField("summary", "Zusammenfassung", { type: "string", system: "summary" }),
+  metaField("issuetype", "Vorgangstyp", { type: "issuetype", system: "issuetype" }),
+  metaField("project", "Projekt", { type: "project", system: "project" }),
+  metaField("reporter", "Melder", { type: "user", system: "reporter" }, { hasDefaultValue: true }),
+];
+const createMeta = {
+  1: {
+    types: [
+      { id: "10001", name: "Aufgabe", subtask: false, iconUrl: "/logo.svg" },
+      { id: "10002", name: "Fehler", subtask: false, iconUrl: "/logo.svg" },
+      { id: "10003", name: "Unteraufgabe", subtask: true, iconUrl: "/logo.svg" },
+    ],
+    fields: {
+      10001: [
+        ...baseFields,
+        metaField("description", "Beschreibung", { type: "string", system: "description" }, { required: false }),
+        metaField("priority", "Priorität", { type: "priority", system: "priority" }, {
+          allowedValues: [{ id: "2", name: "Hoch" }, { id: "3", name: "Mittel" }],
+        }),
+        metaField("customfield_kunde", "Kunde", { type: "string", custom: "com.atlassian.jira.plugin.system.customfieldtypes:textfield" }),
+      ],
+      10002: [
+        ...baseFields,
+        metaField("description", "Beschreibung", { type: "string", system: "description" }, { required: false }),
+        metaField("customfield_umgebung", "Umgebung", { type: "option", custom: "com.atlassian.jira.plugin.system.customfieldtypes:select" }, {
+          allowedValues: [{ id: "e1", value: "Produktion" }, { id: "e2", value: "Test" }],
+        }),
+      ],
+    },
+  },
+  2: {
+    types: [{ id: "20001", name: "Störung", subtask: false, iconUrl: "/logo.svg" }],
+    fields: {
+      20001: [
+        ...baseFields,
+        metaField("customfield_team", "Team", { type: "team", custom: "com.atlassian.teams:rm-teams-custom-field-team" }),
+      ],
+    },
+  },
+};
+const qaFilter = (id, name, owner, favourite, account = "qa-user") => ({
+  id,
+  name,
+  jql: "project = DEMO ORDER BY updated DESC",
+  favourite,
+  owner: { accountId: owner, displayName: owner },
+  account,
+});
+const qaFilters =
+  scenario === "filters"
+    ? [
+        qaFilter("101", "Offene Bugs Team", "qa-user", true),
+        qaFilter("102", "Sprint-Review Vorbereitung", "qa-user", false),
+        qaFilter("103", "Rollouts diese Woche", "qa-user", true),
+        qaFilter("104", "Support-Eskalationen", "qa-colleague", true),
+        qaFilter("105", "Meine Rückfragen", "qa-user", false),
+        qaFilter("106", "Release 2026.11 Abnahme", "qa-user", false),
+        qaFilter("107", "Kundenfeedback Q4", "qa-user", false),
+        qaFilter("201", "Backlog des Kollegen", "qa-colleague", true, "qa-colleague"),
+      ]
+    : [];
+const visibleQaFilters = () =>
+  window.__qa.filters.filter((filter) => (filter.account ?? accountId) === accountId && (filter.owner.accountId === accountId || filter.favourite));
 const callbacks = new Map();
 const linkTypes = {
   blocks: { id: "10000", name: "Blocks", inward: "is blocked by", outward: "blocks" },
@@ -538,6 +726,36 @@ const issueLinks = {
     ];
   },
 };
+const remoteLinks = {
+  "DEMO-1": [
+    {
+      id: 10000,
+      globalId: "appId=qa&pageId=1",
+      application: { type: "com.atlassian.confluence", name: "Confluence" },
+      relationship: "Wiki-Seite",
+      object: {
+        url: "https://example.atlassian.net/wiki/spaces/QA/pages/1",
+        title: "Übergabe-Checkliste für das Release",
+        summary: "Lokale Testseite: Ablauf, Verantwortliche und Rückfallplan.",
+        icon: { url16x16: "https://example.atlassian.net/wiki/icon.png" },
+      },
+    },
+    {
+      id: 10001,
+      relationship: "Spezifikation",
+      object: {
+        url: "https://specs.example.test/editor/tastatur-und-fokusfuehrung-im-mehrzeiligen-editor-mit-sehr-langem-pfad",
+        title: "Tastaturbedienung im Editor: vollständige Spezifikation mit allen Sonderfällen für Fokus, Auswahl und Rückgängig",
+        summary: "Sehr lange Beschreibung zum Testen des Umbruchs: <b>kein HTML</b> wird ausgeführt, Inhalte erscheinen als Text.",
+        status: { resolved: true },
+      },
+    },
+    { id: 10002, relationship: "Skript", object: { url: "javascript:alert(1)", title: "Ungültiges Protokoll" } },
+    { id: 10003, object: { title: "Ziel fehlt" } },
+    { id: 10004, object: { url: "https://qa:geheim@intranet.example.test/doc", title: "Ziel mit Zugangsdaten" } },
+    { id: 10005 },
+  ],
+};
 const listeners = new Map();
 let listenerId = 0;
 let callbackId = 0;
@@ -571,13 +789,73 @@ if (scenario === "rollout-search" && localStorage.getItem("betterjira:calendar:r
     ]),
   );
 }
-window.__qa = { writes: [], issueReads: [], failNextWrite: false, delayMs: 0, issues, wiki, briefing, briefingFailure: false, searches: [], searchDelayMs: 0, failSearch: false, emptySearch: false, sessionFailure: scenario === "session-error", sessionDelayMs: scenario === "session-slow" ? 1500 : 0, commands: [], myselfDelayMs: 0, failMyself: false, myselfCalls: 0 };
+if (scenario === "rollout-duplicate" && localStorage.getItem("betterjira:calendar:rollouts:v1") === null) {
+  localStorage.setItem("betterjira:calendar:outlook:v1", "ABC123");
+  localStorage.setItem(
+    "betterjira:calendar:rollouts:v1",
+    JSON.stringify([
+      {
+        id: "00000000-0000-4000-8000-000000000101",
+        title: "Produktion Release 2.4",
+        start: "2026-11-06T13:00:00.000Z",
+        end: "2026-11-06T14:30:00.000Z",
+        notes: "Monitoring beobachten\nRollback vorbereiten",
+        issues: [{ key: "DEMO-1", summary: "QA-Testticket DEMO-1" }],
+        siteUrl: "https://example.atlassian.net",
+        reminderMinutes: 60,
+        outlookEventId: "DUP-OUTLOOK-1",
+        outlookAccountId: "ABC123",
+        outlookWebLink: "https://outlook.example.invalid/DUP-OUTLOOK-1",
+      },
+      {
+        id: "00000000-0000-4000-8000-000000000102",
+        title: "Partner-Rollout",
+        start: "2026-11-06T15:00:00.000Z",
+        end: "2026-11-06T16:00:00.000Z",
+        notes: "Freigabe beim Partner einholen",
+        issues: [{ key: "EXT-4", summary: "QA-Testticket der fremden Site" }],
+        siteUrl: "https://andere-firma.example.atlassian.net",
+        reminderMinutes: 1440,
+        outlookEventId: null,
+        outlookAccountId: null,
+        outlookWebLink: null,
+      },
+    ]),
+  );
+}
+window.__qa = { reads: [], writes: [], issueReads: [], failNextWrite: false, delayMs: 0, issues, wiki, briefing, briefingFailure: false, searches: [], searchDelayMs: 0, failSearch: false, emptySearch: false, sessionFailure: scenario === "session-error", sessionDelayMs: scenario === "session-slow" ? 1500 : 0, filters: qaFilters, filterRequests: 0, failFilters: new URLSearchParams(location.search).get("fail") === "filters", commands: [], metaDelay: {}, createFailure: null, opened: [], myselfDelayMs: window.__qaMyselfDelayMs ?? 0, failMyself: window.__qaFailMyself ?? false, myselfCalls: 0 };
+window.__qa.filters = /^\/filter\/(100|200)/.test(new URLSearchParams(location.search).get("route") ?? "") ? [
+  { id: "100", name: "Offene Testtickets", jql: "project = DEMO AND statusCategory != Done ORDER BY updated DESC", favourite: true, owner: author },
+  { id: "200", name: "Team-Rückstand", jql: "project = DEMO ORDER BY created DESC", favourite: false, owner: author },
+] : qaFilters;
+window.__qa.filterReads = [];
+window.__qa.commentPageReads = [];
+window.__qa.commentDetailLimit = scenario === "comment-pages" ? 2 : undefined;
+window.__qa.notification = { permission: "denied", answer: "granted", checkDelayMs: 0, failCheck: false, requestDelayMs: 0, failRequest: false, checks: 0, requests: 0, sent: [], ...window.__qaNotificationInit };
+window.Notification = class QaNotification {
+  static get permission() {
+    return "default";
+  }
+  static async requestPermission() {
+    const state = window.__qa.notification;
+    state.requests++;
+    if (state.requestDelayMs) await new Promise((resolve) => setTimeout(resolve, state.requestDelayMs));
+    if (state.failRequest) throw new Error("Test: Systemdialog nicht verfügbar");
+    state.permission = state.answer;
+    return state.answer;
+  }
+  constructor(title, options = {}) {
+    window.__qa.notification.sent.push({ title, body: options.body });
+  }
+};
 window.__qa.outlook = {
   calls: [],
   failNext: false,
   account: { id: "ABC123", displayName: "Lokaler Outlook-Testkalender", email: "outlook@example.com" },
   events: [{ id: "AAAA", title: "Externer Outlook-Termin", start: "2026-11-06T10:00:00.000Z", end: "2026-11-06T11:00:00.000Z", webLink: "", isAllDay: false }],
 };
+if (scenario === "rollout-duplicate")
+  window.__qa.outlook.events.push({ id: "DUP-OUTLOOK-1", rolloutId: "00000000-0000-4000-8000-000000000101", title: "Produktion Release 2.4", start: "2026-11-06T13:00:00.000Z", end: "2026-11-06T14:30:00.000Z", webLink: "", isAllDay: false });
 window.__qaUpdates = {
   installed: [],
   restarts: 0,
@@ -586,6 +864,69 @@ window.__qaUpdates = {
     { tag_name: "v0.6.0", published_at: "2026-11-06T17:18:31Z", draft: false, prerelease: false },
     { tag_name: "v0.5.0", published_at: "2026-11-06T12:49:31Z", draft: false, prerelease: false },
   ],
+};
+const historyPeople = {
+  alex: author,
+  sam: { accountId: "qa-sam", displayName: "Sam Muster", avatarUrls: author.avatarUrls },
+  former: { accountId: "qa-former", displayName: "Ehemaliger Nutzer", active: false },
+};
+const historyDay = (index) => new Date(Date.UTC(2026, 8, 1 + index, 8 + (index % 9), 15)).toISOString();
+const historyItem = (field, fromString, toString, extra = {}) => ({ field, fieldtype: "jira", fromString, toString, ...extra });
+const historyFor = (count) =>
+  Array.from({ length: count }, (_, index) => ({
+    id: String(10001 + index),
+    created: historyDay(index),
+    author: index % 3 === 0 ? historyPeople.sam : historyPeople.alex,
+    items: [
+      index % 2 === 0
+        ? historyItem("status", index % 4 === 0 ? "Zu erledigen" : "In Arbeit", index % 4 === 0 ? "In Arbeit" : "Review", { from: "1", to: "3" })
+        : historyItem("priority", "Mittel", "Hoch", { from: "3", to: "2" }),
+    ],
+  }));
+const history = { "DEMO-1": historyFor(45), "DEMO-2": [], "DEMO-3": historyFor(3) };
+history["DEMO-1"].push(
+  {
+    id: "10046",
+    created: "2026-11-01T09:30:00.000Z",
+    items: [historyItem("labels", null, "Barrierefreiheit"), { field: "customfield_10099", fieldtype: "custom", from: "10044", to: "10045" }],
+  },
+  {
+    id: "10047",
+    created: "2026-11-02T14:05:00.000Z",
+    author: historyPeople.former,
+    items: [
+      historyItem(
+        "description",
+        "Erste Fassung der Anforderungen.",
+        Array.from({ length: 8 }, (_, line) => `Zeile ${line + 1}: <img src=x onerror="window.__qaHistoryXss=true"> Die Beschreibung wurde umfassend überarbeitet.`).join("\n"),
+      ),
+      { field: "WorklogId", fieldtype: "jira", to: "20077", toString: "20077" },
+    ],
+  },
+  {
+    id: "10048",
+    created: "2026-11-04T09:45:00.000Z",
+    author: historyPeople.sam,
+    items: [
+      historyItem("status", "Review", "In Arbeit", { from: "12", to: "3" }),
+      historyItem("assignee", "Alex Beispiel", "Sam Muster", { from: "qa-user", to: "qa-sam" }),
+      historyItem("priority", "Mittel", "Hoch", { from: "3", to: "2" }),
+      historyItem("timeestimate", "14400", "5400"),
+    ],
+  },
+);
+window.__qaHistory = { reads: [], history };
+const respondHistory = async (key, url) => {
+  const startAt = Number(url.searchParams.get("startAt") ?? 0);
+  const maxResults = Number(url.searchParams.get("maxResults") ?? 100);
+  window.__qaHistory.reads.push({ key, startAt, maxResults, account: accountId });
+  const rule = window.__qaHistoryRule?.(key, startAt, accountId) ?? {};
+  if (rule.delayMs) await new Promise((resolve) => setTimeout(resolve, rule.delayMs));
+  if (rule.status) return { status: rule.status, body: rule.html ? `<html><body>Fehler ${rule.status}</body></html>` : { errorMessages: [`Test: Jira antwortet mit ${rule.status}`] } };
+  const all = rule.values ?? (key in history ? history[key] : undefined);
+  if (!all) return { status: 404, body: { errorMessages: ["Issue does not exist or you do not have permission to see it."] } };
+  const values = all.slice(startAt, startAt + Math.min(maxResults, rule.pageSize ?? maxResults));
+  return { body: { startAt, maxResults, total: all.length, isLast: startAt + values.length >= all.length, values } };
 };
 const respond = async (request) => {
   const url = new URL(request.url);
@@ -602,8 +943,69 @@ const respond = async (request) => {
         body: { errorMessages: ["Test: Jira vorübergehend nicht erreichbar"] },
       };
     }
+    const uploadTarget = path.match(/^\/issue\/([^/]+)\/attachments$/);
+    if (uploadTarget) {
+      const target = issues.find((issue) => issue.key === uploadTarget[1]);
+      const text = new TextDecoder().decode(new Uint8Array(request.data ?? []));
+      const names = [...text.matchAll(/filename="([^"]*)"/g)].map((match) => match[1]);
+      const added = names.map((filename) =>
+        attachmentSortFixture(`qa-upload-${++nextId}`, filename, "text/plain", 1, new Date().toISOString()),
+      );
+      target?.fields.attachment.push(...added);
+      window.__qa.writes.push({ path, method: request.method, input: { files: names } });
+      return { body: added };
+    }
     const input = request.data ? JSON.parse(new TextDecoder().decode(new Uint8Array(request.data))) : {};
+    if (path === "/issue" && window.__qa.createFailure) {
+      const failure = window.__qa.createFailure;
+      window.__qa.createFailure = null;
+      window.__qa.writes.push({ path, method: request.method, input, failed: failure.status });
+      return failure;
+    }
     window.__qa.writes.push({ path, method: request.method, input });
+    if (path === "/issue" && request.method === "POST") {
+      const target = createProjects.find((entry) => entry.id === input.fields.project.id) ?? project;
+      const key = `${target.key}-${issues.length + 1}`;
+      const id = String(10000 + issues.length + 1);
+      issues.push({
+        ...issues[0],
+        id,
+        key,
+        fields: {
+          ...issues[0].fields,
+          summary: input.fields.summary,
+          project: target,
+          description: input.fields.description ?? null,
+          comment: { total: 0, comments: [] },
+          worklog: { total: 0, worklogs: [] },
+        },
+      });
+      return { status: 201, body: { id, key, self: `https://example.atlassian.net/rest/api/3/issue/${id}` } };
+    }
+    const favourite = qaFilters.find((filter) => path === `/filter/${filter.id}/favourite`);
+    if (favourite) favourite.favourite = request.method === "PUT";
+    if (scenario === "filters" && /^\/filter(?:\/[^/]+)?$/.test(path) && window.__qaHoldFilterWrite) {
+      window.__qaFilterWriteWaiting = true;
+      await new Promise((resolve) => {
+        window.__qaReleaseFilterWrite = () => {
+          window.__qaHoldFilterWrite = false;
+          window.__qaFilterWriteWaiting = false;
+          window.__qaReleaseFilterWrite = undefined;
+          resolve();
+        };
+      });
+    }
+    const filter = window.__qa.filters.find((entry) => path === `/filter/${entry.id}`);
+    if (scenario === "filters" && path === "/filter" && request.method === "POST") {
+      const created = { ...window.__qa.filters[0], ...input, id: String(1000 + nextId++), favourite: false };
+      window.__qa.filters.push(created);
+      return { body: created };
+    }
+    if (scenario === "filters" && filter && request.method === "DELETE") {
+      window.__qa.filters = window.__qa.filters.filter((entry) => entry.id !== filter.id);
+      return { body: {} };
+    }
+    if (filter && request.method === "PUT") return { body: Object.assign(filter, input) };
     const issue = issues.find((issue) => path.startsWith(`/issue/${issue.key}/`) || path === `/issue/${issue.key}`);
     if (path.endsWith("/comment") && issue)
       issue.fields.comment.comments.push({
@@ -633,19 +1035,54 @@ const respond = async (request) => {
     return { status: 204 };
   }
   window.__qaReads?.push(path);
+  window.__qa.reads.push(path);
   if (path === "/myself") {
+    if (window.__qaMyselfGate) await window.__qaMyselfGate;
     window.__qa.myselfCalls++;
     if (window.__qa.myselfDelayMs) await new Promise((resolve) => setTimeout(resolve, window.__qa.myselfDelayMs));
     if (window.__qa.failMyself) return { status: 503, body: { errorMessages: ["Test: Jira vorübergehend nicht erreichbar"] } };
-    return { body: { ...author, accountId } };
+    const rule = window.__qaMyselfRule?.() ?? {};
+    if (rule.delayMs) await new Promise((resolve) => setTimeout(resolve, rule.delayMs));
+    if (rule.status) return { status: rule.status, body: { errorMessages: [`Test: Jira antwortet mit ${rule.status}`] } };
+    return { body: { ...author, accountId: window.__qa.accountId ?? accountId } };
   }
   if (path.startsWith("/project/search")) {
+    if (window.__qaProjectFailure) return { status: 503, body: { errorMessages: ["Test: Projekte konnten nicht geladen werden"] } };
     const rule = window.__qaProjectRule?.() ?? {};
     if (rule.delayMs) await new Promise((resolve) => setTimeout(resolve, rule.delayMs));
     if (rule.status) return { status: rule.status, body: { errorMessages: [`Test: Jira antwortet mit ${rule.status}`] } };
-    return { body: { isLast: true, values: rule.values ?? window.__qaProjects ?? projects } };
+    return { body: { isLast: true, values: rule.values ?? window.__qaProjects ?? (scenario === "create" ? createProjects : projects) } };
   }
-  if (path.startsWith("/filter/my")) return { body: [] };
+  if (path === "/mypermissions") {
+    const allowed = url.searchParams.get("projectId") !== "3";
+    return { body: { permissions: { CREATE_ISSUES: { key: "CREATE_ISSUES", havePermission: allowed } } } };
+  }
+  const createMetaPath = /^\/issue\/createmeta\/([^/]+)\/issuetypes(?:\/([^/]+))?$/.exec(path);
+  if (createMetaPath) {
+    const [, projectId, typeId] = createMetaPath;
+    const delay = window.__qa.metaDelay[projectId];
+    if (delay) await new Promise((resolve) => setTimeout(resolve, delay));
+    const meta = createMeta[projectId] ?? { types: [], fields: {} };
+    if (!typeId) return { body: { startAt: 0, maxResults: 100, total: meta.types.length, issueTypes: meta.types } };
+    const fields = meta.fields[typeId] ?? [];
+    return { body: { startAt: 0, maxResults: 100, total: fields.length, fields } };
+  }
+
+  if (path.startsWith("/filter/my")) {
+    window.__qaFilterListReads = (window.__qaFilterListReads ?? 0) + 1;
+    window.__qa.filterRequests++;
+    if (window.__qa.failFilters) return { status: 503, body: { errorMessages: ["Test: Filter vorübergehend nicht erreichbar"] } };
+    return { body: visibleQaFilters() };
+  }
+  const filterId = path.match(/^\/filter\/([^/]+)$/)?.[1];
+  if (filterId) {
+    window.__qa.filterReads.push(filterId);
+    const rule = window.__qaFilterRule?.(filterId) ?? {};
+    if (rule.delayMs) await new Promise((resolve) => setTimeout(resolve, rule.delayMs));
+    if (rule.status) return { status: rule.status, body: { errorMessages: [`Test: Jira antwortet mit ${rule.status}`] } };
+    const filter = window.__qa.filters.find((entry) => entry.id === filterId);
+    if (filter) return { body: filter };
+  }
   if (path === "/field")
     return {
       body: ["summary", "status", "assignee", "priority", "updated", "issuetype"].map((id) => ({
@@ -662,15 +1099,19 @@ const respond = async (request) => {
         clauseNames: [id],
       })),
     };
+  const historyMatch = path.match(/^\/issue\/([^/]+)\/changelog$/);
+  if (historyMatch) return respondHistory(decodeURIComponent(historyMatch[1]), url);
   if (path.startsWith("/search/jql")) {
     const qa = window.__qa;
     qa.searches.push(url.searchParams.get("jql"));
     const rule = window.__qaSearchRule?.(url.searchParams.get("jql") ?? "", url.searchParams.get("nextPageToken")) ?? {};
+    await rule.waitFor;
     const delayMs = rule.delayMs ?? qa.searchDelayMs;
     if (delayMs) await new Promise((resolve) => setTimeout(resolve, delayMs));
-    if (rule.status) return { status: rule.status, body: { errorMessages: [`Test: Jira antwortet mit ${rule.status}`] } };
+    if (rule.status) return { status: rule.status, headers: rule.headers, body: { errorMessages: [`Test: Jira antwortet mit ${rule.status}`] } };
+    if (rule.issues) return { body: { issues: rule.issues, isLast: !rule.nextPageToken, nextPageToken: rule.nextPageToken } };
     if (qa.failSearch) return { status: 400, body: { errorMessages: ["Test: Abfrage nicht möglich"] } };
-    const found = rule.keys ? issues.filter((issue) => rule.keys.includes(issue.key)) : issues;
+    const found = rule.issues ?? (rule.keys ? issues.filter((issue) => rule.keys.includes(issue.key)) : issues);
     if (scenario === "board") {
       const offset = Number(url.searchParams.get("nextPageToken") ?? 0);
       const size = Number(url.searchParams.get("maxResults") ?? 100);
@@ -680,6 +1121,12 @@ const respond = async (request) => {
       return { body: { issues: qa.emptySearch ? [] : filtered.slice(offset, offset + size), isLast: !next, nextPageToken: next } };
     }
     return { body: { issues: qa.emptySearch ? [] : found, isLast: !rule.nextPageToken, nextPageToken: rule.nextPageToken } };
+  }
+  if (path.startsWith("/board")) {
+    window.__qa.boardReads = [...(window.__qa.boardReads ?? []), path + url.search];
+    const rule = window.__qaBoardRule?.(path) ?? {};
+    if (rule.delayMs) await new Promise((resolve) => setTimeout(resolve, rule.delayMs));
+    if (rule.status) return { status: rule.status, body: { errorMessages: [`Test: Jira antwortet mit ${rule.status}`] } };
   }
   if (scenario === "board" && /^\/board\/\d+\/configuration/.test(path))
     return {
@@ -691,11 +1138,21 @@ const respond = async (request) => {
         },
       },
     };
+  if (scenario === "board" && /^\/board\/\d+\/sprint/.test(path))
+    return { body: { isLast: true, values: [{ id: 5, name: "Sprint 5", state: "active", boardId: 1 }] } };
   if (scenario === "board" && path.startsWith("/board"))
-    return { body: { values: [{ id: 1, name: "Team-Board", type: "kanban", location: { projectKey: "DEMO" } }] } };
+    return { body: { values: [{ id: 1, name: "Team-Board", type: window.__qaBoardType ?? "kanban", location: { projectKey: "DEMO" } }] } };
   if (path.startsWith("/board")) return { body: { values: [] } };
   if (path.endsWith("/transitions")) return { body: { transitions } };
   if (path.startsWith("/issue/")) window.__qa.issueReads.push(`${path}?fields=${url.searchParams.get("fields") ?? ""}`);
+
+  const remoteLinkPath = path.match(/^\/issue\/([^/]+)\/remotelink$/);
+  if (remoteLinkPath) {
+    const rule = window.__qaRemoteLinksRule?.(remoteLinkPath[1]) ?? {};
+    if (rule.delayMs) await new Promise((resolve) => setTimeout(resolve, rule.delayMs));
+    if (rule.status) return { status: rule.status, body: { errorMessages: [`Test: Jira antwortet mit ${rule.status}`] } };
+    return { body: rule.links ?? remoteLinks[remoteLinkPath[1]] ?? [] };
+  }
 
   const worklogPath = path.match(/^\/issue\/([^/]+)\/worklog$/);
   if (worklogPath) {
@@ -714,7 +1171,38 @@ const respond = async (request) => {
       .map((entry) => ({ ...entry, timeSpentSeconds: entry.timeSpentSeconds ?? seconds(entry.timeSpent) }));
     return { body: { startAt, maxResults, total: all.length, worklogs: all.slice(startAt, startAt + maxResults) } };
   }
+  const commentPath = path.match(/^\/issue\/([^/]+)\/comment$/);
+  if (commentPath) {
+    const target = issues.find((issue) => issue.id === commentPath[1] || issue.key === commentPath[1]);
+    const key = target?.key ?? commentPath[1];
+    const startAt = Number(url.searchParams.get("startAt") ?? 0);
+    const maxResults = Number(url.searchParams.get("maxResults") ?? 100);
+    window.__qa.commentPageReads.push({ key, startAt, maxResults, orderBy: url.searchParams.get("orderBy") });
+    const rule = window.__qaCommentPagesRule?.(key, startAt) ?? {};
+    if (rule.delayMs) await new Promise((resolve) => setTimeout(resolve, rule.delayMs));
+    if (rule.status) return { status: rule.status, body: { errorMessages: [`Test: Jira antwortet mit ${rule.status}`] } };
+    if (!target) return { status: 404, body: { errorMessages: [`Test: ${key} nicht gefunden`] } };
+    const all = sortedComments(target);
+    const from = rule.startAt ?? startAt;
+    const size = Math.min(rule.pageSize ?? maxResults, maxResults);
+    const total = rule.total === null ? undefined : (rule.total ?? all.length);
+    return { body: { startAt: from, maxResults: rule.maxResults ?? size, total, comments: rule.omitComments ? undefined : (rule.comments ?? all.slice(from, from + size)) } };
+  }
   const issue = issues.find((issue) => path === `/issue/${issue.key}`);
+  if (issue && url.searchParams.get("fields") === "summary") {
+    const stats = (window.__qaTabTitles ??= { calls: [], open: 0, peak: 0 });
+    const rule = window.__qaTabTitleRule?.(issue.key) ?? {};
+    stats.calls.push(issue.key);
+    stats.open++;
+    stats.peak = Math.max(stats.peak, stats.open);
+    try {
+      if (rule.delayMs) await new Promise((resolve) => setTimeout(resolve, rule.delayMs));
+      if (rule.status) return { status: rule.status, body: { errorMessages: [`Test: Jira antwortet mit ${rule.status}`] } };
+      return { body: { id: issue.id, key: issue.key, fields: { summary: rule.summary ?? issue.fields.summary } } };
+    } finally {
+      stats.open--;
+    }
+  }
   if (issue && url.searchParams.get("fields") === "issuelinks") {
     const rule = window.__qaIssueLinksRule?.(issue.key) ?? {};
     if (rule.delayMs) await new Promise((resolve) => setTimeout(resolve, rule.delayMs));
@@ -723,7 +1211,18 @@ const respond = async (request) => {
   }
   if (issue && url.pathname.includes("/api/2/") && url.searchParams.get("fields") === "description")
     return { body: { fields: { description: wiki[issue.key] } } };
+  if (issue && url.searchParams.get("fields") === "*all") {
+    const rule = window.__qaIssueRule?.(issue.key) ?? {};
+    if (rule.delayMs) await new Promise((resolve) => setTimeout(resolve, rule.delayMs));
+    if (rule.status) return { status: rule.status, body: { errorMessages: [`Test: Jira antwortet mit ${rule.status}`] } };
+    if (rule.summary) return { body: { ...issue, fields: { ...issue.fields, summary: rule.summary } } };
+  }
+  if (issue && window.__qa.commentDetailLimit !== undefined)
+    return { body: { ...issue, fields: { ...issue.fields, comment: commentWindow(issue) } } };
   if (issue) return { body: issue };
+  if (/^\/attachment\/(thumbnail|content)\/qa-att-/.test(path)) return { bytes: attachmentSortPixel, contentType: "image/png" };
+  if (scenario === "attachments" && /^\/attachment\/(thumbnail|content)\/att-1$/.test(path))
+    return { bytes: attachmentSortPixel, contentType: "image/png" };
   return {
     status: 404,
     body: { errorMessages: [`Keine Testantwort für ${path}`] },
@@ -755,8 +1254,16 @@ window.__TAURI_INTERNALS__ = {
     if (command === "session_get" && scenario === "scm-offline") return null;
     if (command === "scm_gh_hosts" && scmScenario) return JSON.stringify(window.__qaScm.hosts);
     if (command === "scm_request" && scmScenario) return scmRespond(args);
+    if (command === "plugin:opener|open_url" && scenario === "attachments") {
+      (window.__qa.opened ??= []).push(args.url);
+      return null;
+    }
     if (command === "plugin:opener|open_url" && scmScenario) {
       window.__qaScm.opened.push(args.url);
+      return null;
+    }
+    if (command === "plugin:opener|open_url") {
+      window.__qa.opened.push(args.url);
       return null;
     }
     if (command === "outlook_request") {
@@ -799,12 +1306,16 @@ window.__TAURI_INTERNALS__ = {
         accessToken: "local-test",
         refreshToken: "local-test",
         expiresAt: Date.now() + 3600000,
-        cloudId: "qa-cloud",
-        siteUrl: "https://example.atlassian.net",
+        cloudId,
+        siteUrl: window.__qaSiteUrl ?? "https://example.atlassian.net",
         siteName: "Lokale UI-Testdaten",
       });
     if (command === "oauth_login") throw "Test: Anmeldung abgebrochen";
     if (command === "oauth_cancel") return null;
+    if (command === "plugin:opener|open_url") {
+      window.__qa.opened.push(args.url);
+      return null;
+    }
     if (command === "scm_gh_hosts") return JSON.stringify(window.__qaGhHosts ?? []);
     if (command === "attention_read") return scenario === "ai" ? JSON.stringify(window.__qa.briefing) : null;
     if (command === "attention_serve") return attentionPort;
@@ -855,7 +1366,7 @@ window.__TAURI_INTERNALS__ = {
         status: result.status ?? 200,
         statusText: "Test",
         url: entry.request.url,
-        headers: [["content-type", "application/json"]],
+        headers: [["content-type", result.contentType ?? "application/json"], ...Object.entries(result.headers ?? {})],
         rid: args.rid,
       };
     }
@@ -866,14 +1377,20 @@ window.__TAURI_INTERNALS__ = {
         return [1];
       }
       entry.sent = true;
-      return [...new TextEncoder().encode(JSON.stringify(entry.result.body ?? {})), 0];
+      return [...(entry.result.bytes ?? new TextEncoder().encode(JSON.stringify(entry.result.body ?? {}))), 0];
     }
     if (command.startsWith("plugin:http|fetch_cancel")) {
       requests.delete(args.rid);
       return;
     }
     if (command.startsWith("plugin:event|")) return;
-    if (command === "plugin:notification|is_permission_granted") return false;
+    if (command === "plugin:notification|is_permission_granted") {
+      const state = window.__qa.notification;
+      state.checks++;
+      if (state.checkDelayMs) await new Promise((resolve) => setTimeout(resolve, state.checkDelayMs));
+      if (state.failCheck) throw "Test: Berechtigung nicht lesbar";
+      return state.permission === "default" ? null : state.permission === "granted";
+    }
     throw new Error(`Nicht simuliertes Tauri-Kommando: ${command}`);
   },
 };

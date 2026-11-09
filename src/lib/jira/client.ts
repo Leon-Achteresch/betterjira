@@ -2,7 +2,9 @@ import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { fetch } from "@tauri-apps/plugin-http";
 import { Data, Effect, Fiber, Schema, Semaphore } from "effect";
-import { isRetryableRead, isTransientStatus, JIRA_READ_CONCURRENCY, JIRA_READ_RETRIES, JIRA_WRITE_CONCURRENCY, retryAfterMs } from "./request-policy";
+import { isRetryableRead, isTransientStatus, JIRA_READ_CONCURRENCY, JIRA_READ_RETRIES, JIRA_MAX_AUTO_RETRY_DELAY, JIRA_WRITE_CONCURRENCY, retryAfterMs } from "./request-policy";
+
+import { rateLimitMessage, retryAtFrom } from "./retry-after";
 
 const CLIENT_ID: string | undefined = import.meta.env.VITE_ATLASSIAN_CLIENT_ID;
 const CLIENT_SECRET: string | undefined = import.meta.env.VITE_ATLASSIAN_CLIENT_SECRET;
@@ -17,8 +19,9 @@ const SCOPES =
 
 export class JiraAuthError extends Data.TaggedError("JiraAuthError")<{ message: string; cause?: unknown }> {}
 export class NotAuthenticated extends Data.TaggedError("NotAuthenticated")<{}> {}
-export class JiraApiError extends Data.TaggedError("JiraApiError")<{ status: number; body: string; retryAfterMs?: number }> {
+export class JiraApiError extends Data.TaggedError("JiraApiError")<{ status: number; body: string; retryAfterMs?: number; retryAt?: number; handledRetries?: boolean }> {
   override get message() {
+    if (this.status === 429) return rateLimitMessage(this.retryAt, Date.now());
     return `Jira antwortet mit ${this.status}${this.body ? `: ${this.body.slice(0, 300)}` : ""}`;
   }
 }
@@ -52,11 +55,18 @@ const send = (url: string, init?: RequestInit) =>
     catch: authError("Atlassian ist nicht erreichbar"),
   });
 
+const apiError = (response: Response, body: string) => new JiraApiError({
+  status: response.status, body,
+  retryAfterMs: retryAfterMs(response.headers.get("Retry-After")),
+  retryAt: retryAtFrom(response.headers.get("Retry-After"), Date.now()),
+  handledRetries: isTransientStatus(response.status),
+});
+
 const decode = <S extends Schema.Decoder<unknown>>(schema: S) =>
   Effect.fnUntraced(function* (response: Response) {
     if (!response.ok) {
       const body = yield* Effect.promise(() => response.text());
-      return yield* new JiraApiError({ status: response.status, body, retryAfterMs: retryAfterMs(response.headers.get("Retry-After")) });
+      return yield* apiError(response, body);
     }
     const json = yield* Effect.tryPromise({ try: () => response.json(), catch: authError("Ungültige Antwort von Atlassian") });
     return yield* Schema.decodeUnknownEffect(schema)(json);
@@ -220,22 +230,32 @@ const authedAttempt = (path: string, init?: RequestInit) =>
   });
 
 const awaitRateLimit = Effect.gen(function* () {
-  while (rateLimitedUntil > Date.now()) yield* Effect.sleep(rateLimitedUntil - Date.now());
+  while (rateLimitedUntil > Date.now()) {
+    const remaining = rateLimitedUntil - Date.now();
+    if (remaining > JIRA_MAX_AUTO_RETRY_DELAY) {
+      return yield* new JiraApiError({ status: 429, body: "", retryAt: rateLimitedUntil, retryAfterMs: remaining, handledRetries: true });
+    }
+    yield* Effect.sleep(remaining);
+  }
 });
 
-const authedFetch = (path: string, init?: RequestInit) => Effect.gen(function* () {
-  const read = isRetryableRead(path, init?.method);
+export type JiraRequestInit = RequestInit & { retry?: boolean };
+
+const authedFetch = (path: string, init?: JiraRequestInit) => Effect.gen(function* () {
+  const { retry = true, ...requestInit } = init ?? {};
+  const read = isRetryableRead(path, requestInit.method);
   const slots = read ? readSlots : writeSlots;
   for (let attempt = 0; ; attempt++) {
     const response = yield* Effect.gen(function* () {
       yield* awaitRateLimit;
-      const response = yield* authedAttempt(path, init);
+      const response = yield* authedAttempt(path, requestInit);
       if (response.status === 429) {
         rateLimitedUntil = Math.max(rateLimitedUntil, Date.now() + (retryAfterMs(response.headers.get("Retry-After")) || 1000));
       }
       return response;
     }).pipe(slots.withPermits(1));
-    if (!read || !isTransientStatus(response.status) || attempt >= JIRA_READ_RETRIES) return response;
+    if (!retry || !read || !isTransientStatus(response.status) || attempt >= JIRA_READ_RETRIES
+      || retryAfterMs(response.headers.get("Retry-After")) > JIRA_MAX_AUTO_RETRY_DELAY) return response;
     yield* Effect.promise(() => response.text()).pipe(Effect.ignore);
     yield* Effect.sleep(Math.max(retryAfterMs(response.headers.get("Retry-After")), 250 * 2 ** attempt * (0.8 + Math.random() * 0.4)));
   }
@@ -243,7 +263,7 @@ const authedFetch = (path: string, init?: RequestInit) => Effect.gen(function* (
 
 type ApiVersion = "api/2" | "api/3";
 
-export const jira = <S extends Schema.Decoder<unknown>>(path: string, schema: S, init?: RequestInit, api: ApiVersion = "api/3") =>
+export const jira = <S extends Schema.Decoder<unknown>>(path: string, schema: S, init?: JiraRequestInit, api: ApiVersion = "api/3") =>
   authedFetch(`${api}${path}`, init).pipe(Effect.flatMap(decode(schema)));
 
 export const jiraSend = (path: string, init: RequestInit, api: ApiVersion = "api/3") =>
@@ -251,7 +271,7 @@ export const jiraSend = (path: string, init: RequestInit, api: ApiVersion = "api
     const response = yield* authedFetch(`${api}${path}`, init);
     if (response.ok) return;
     const body = yield* Effect.promise(() => response.text());
-    return yield* new JiraApiError({ status: response.status, body, retryAfterMs: retryAfterMs(response.headers.get("Retry-After")) });
+    return yield* apiError(response, body);
   });
 
 export const jiraAgile = <S extends Schema.Decoder<unknown>>(path: string, schema: S) =>
@@ -260,7 +280,7 @@ export const jiraAgile = <S extends Schema.Decoder<unknown>>(path: string, schem
 export const jiraImage = (path: string) =>
   Effect.gen(function* () {
     const response = yield* authedFetch(`api/3${path}`, { headers: { Accept: "image/*" } });
-    if (!response.ok) return yield* new JiraApiError({ status: response.status, body: "" });
+    if (!response.ok) return yield* apiError(response, "");
     const blob = yield* Effect.tryPromise({ try: () => response.blob(), catch: authError("Bild konnte nicht geladen werden") });
     return yield* Effect.tryPromise({
       try: () =>

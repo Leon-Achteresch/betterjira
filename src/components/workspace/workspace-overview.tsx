@@ -1,3 +1,4 @@
+import type { Ref } from "react";
 import { Link } from "@tanstack/react-router";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { ArrowDownUpIcon, InboxIcon, SearchIcon } from "lucide-react";
@@ -29,10 +30,14 @@ type WorkspaceOverviewProps = {
   entries: readonly WorkspaceEntry[];
   emptyState: { title: string; description: string };
   recentLimit: number;
+  entryRef: (key: string) => Ref<HTMLAnchorElement>;
+  searchRef: Ref<HTMLInputElement>;
   searchFor: (filter: WorkspacePageFilter) => WorkspacePageSearch;
   onQueryChange: (value: string) => void;
   onSortChange: (value: string) => void;
   onTogglePin: (entry: WorkspaceEntry) => void;
+  onRemoveRecent: (entry: WorkspaceEntry) => void;
+  onEditNote: (entry: WorkspaceEntry) => void;
 };
 
 export function WorkspaceOverview(props: WorkspaceOverviewProps) {
@@ -61,6 +66,7 @@ export function WorkspaceOverview(props: WorkspaceOverviewProps) {
               <SearchIcon />
             </InputGroupAddon>
             <InputGroupInput
+              ref={props.searchRef} data-workspace-search
               type="search"
               aria-label="Arbeitsplatz durchsuchen"
               placeholder="Ticket, Notiz oder Entwurf …"
@@ -127,7 +133,13 @@ export function WorkspaceOverview(props: WorkspaceOverviewProps) {
                 transition={SPRING_LAYOUT}
                 exit={{ opacity: 0, transition: { duration: 0.12, ease: EASE_OUT } }}
               >
-                <WorkspaceEntryRow entry={entry} onTogglePin={() => props.onTogglePin(entry)} />
+                <WorkspaceEntryRow
+                  entry={entry}
+                  linkRef={props.entryRef(entry.key)}
+                  onTogglePin={() => props.onTogglePin(entry)}
+                  onRemoveRecent={() => props.onRemoveRecent(entry)}
+                  onEditNote={() => props.onEditNote(entry)}
+                />
               </StaggerItem>
             ))}
           </AnimatePresence>

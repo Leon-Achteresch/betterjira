@@ -1,12 +1,15 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Effect, Schema } from "effect";
-import { currentSite, jira, jiraAgile, jiraImage, jiraSend, logout, runLogin } from "@/lib/jira/client";
-
-export { jiraKeys } from "@/lib/jira/keys";
-import { jiraKeys } from "@/lib/jira/keys";
 import { invalidateIssueChange } from "@/lib/jira/mutation-cache";
 import { patchBoardIssue, rollbackBoardPatches } from "@/lib/jira/board-cache";
 import { deduplicateMutation } from "@/lib/jira/deduplicate-mutation";
+import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
+import { Effect, Schema } from "effect";
+import { currentSite, jira, jiraImage, jiraSend, logout, runLogin } from "@/lib/jira/client";
+import { JiraStatus } from "@/lib/jira/status";
+import { JiraUser } from "@/lib/jira/user";
+import { withJiraQueryScope, type JiraQueryScope } from "@/lib/jira/query-scope";
+
+export { jiraKeys } from "@/lib/jira/keys";
+import { jiraKeys } from "@/lib/jira/keys";
 
 const Myself = Schema.Struct({
   accountId: Schema.String,
@@ -76,17 +79,6 @@ export const useJiraAvatar = (url: string) => {
   });
 };
 
-const JiraStatus = Schema.Struct({
-  id: Schema.String,
-  name: Schema.String,
-  statusCategory: Schema.Struct({ key: Schema.String, colorName: Schema.String }),
-});
-
-const JiraUser = Schema.Struct({
-  displayName: Schema.String,
-  avatarUrls: Schema.Struct({ "48x48": Schema.String }),
-});
-
 const IssuePage = Schema.Struct({
   issues: Schema.Array(
     Schema.Struct({
@@ -131,80 +123,6 @@ export const useJiraFilters = () => {
 
 export type JiraFilter = (typeof Filters.Type)[number];
 
-const BoardPage = Schema.Struct({
-  values: Schema.Array(
-    Schema.Struct({
-      id: Schema.Number,
-      name: Schema.String,
-      type: Schema.String,
-      location: Schema.optional(Schema.Struct({ projectKey: Schema.optional(Schema.String) })),
-    }),
-  ),
-});
-
-export const useJiraProjectBoards = (key: string) => {
-  const site = useJiraSite();
-  return useQuery({
-    queryKey: jiraKeys.projectBoards(key),
-    queryFn: ({ signal }) =>
-      Effect.runPromise(
-        jiraAgile(`/board?projectLocation=${encodeURIComponent(key)}&maxResults=50`, BoardPage).pipe(
-          Effect.map(({ values }) => ({ values: values.filter((board) => board.location?.projectKey === key) })),
-        ),
-        { signal },
-      ),
-    enabled: !!site.data,
-  });
-};
-
-export type JiraBoard = (typeof BoardPage.Type)["values"][number];
-
-export type { JiraSprint } from "@/lib/jira/board";
-import { Sprints } from "@/lib/jira/board";
-import type { JiraSprint } from "@/lib/jira/board";
-import { boardConfigQuery } from "@/lib/jira/board-query";
-export { useJiraBoard } from "@/hooks/jira/use-jira-board";
-export const BACKLOG = "backlog";
-
-export type BoardSprint = number | typeof BACKLOG;
-
-export const useJiraBacklogJql = (board: JiraBoard) => {
-  const site = useJiraSite();
-  return useQuery({
-    ...boardConfigQuery(board.id),
-    select: (config) =>
-      `filter = ${config.filter.id} AND (sprint is EMPTY OR sprint not in openSprints() AND sprint not in futureSprints()) AND statusCategory != Done ORDER BY Rank ASC`,
-    enabled: !!site.data,
-  });
-};
-
-const SprintPage = Schema.Struct({ values: Sprints, isLast: Schema.optional(Schema.Boolean) });
-
-const MAX_SPRINT_PAGES = 20;
-
-const boardSprints = (boardId: number) =>
-  Effect.gen(function* () {
-    const sprints: JiraSprint[] = [];
-    for (let page = 0; page < MAX_SPRINT_PAGES; page++) {
-      const { values, isLast } = yield* jiraAgile(
-        `/board/${boardId}/sprint?state=active,future,closed&maxResults=50&startAt=${sprints.length}`,
-        SprintPage,
-      );
-      sprints.push(...values);
-      if (isLast !== false || values.length === 0) break;
-    }
-    return sprints;
-  });
-
-export const useJiraBoardSprints = (board: JiraBoard) => {
-  const site = useJiraSite();
-  return useQuery({
-    queryKey: jiraKeys.boardSprints(board.id),
-    queryFn: ({ signal }) => Effect.runPromise(boardSprints(board.id), { signal }),
-    enabled: !!site.data && board.type === "scrum",
-  });
-};
-
 export const useJiraLogin = () => {
   const queryClient = useQueryClient();
   return useMutation({
@@ -235,6 +153,7 @@ const MyWorkPage = Schema.Struct({
         }),
         project: Schema.Struct({ id: Schema.String, key: Schema.String, name: Schema.String }),
         priority: Schema.optional(Schema.NullOr(Schema.Struct({ name: Schema.String }))),
+        duedate: Schema.optional(Schema.NullOr(Schema.String)),
       }),
     }),
   ),
@@ -249,7 +168,7 @@ export const useJiraMyWork = () => {
     queryFn: ({ signal }) => {
       const params = new URLSearchParams({
         jql: "assignee = currentUser() AND (statusCategory != Done OR resolved >= -7d) ORDER BY updated DESC",
-        fields: "summary,status,updated,project,priority",
+        fields: "summary,status,updated,project,priority,duedate",
         maxResults: "100",
       });
       return Effect.runPromise(jira(`/search/jql?${params}`, MyWorkPage), { signal });
@@ -279,6 +198,13 @@ const IssueUser = Schema.Struct({
   avatarUrls: Schema.Struct({ "48x48": Schema.String }),
 });
 
+export const IssueComment = Schema.Struct({
+  id: Schema.String,
+  author: Schema.optional(IssueUser),
+  body: Schema.Unknown,
+  created: Schema.String,
+});
+
 const IssueDetail = Schema.Struct({
   id: Schema.String,
   key: Schema.String,
@@ -299,9 +225,10 @@ const IssueDetail = Schema.Struct({
       ),
       comment: Schema.optional(
         Schema.Struct({
-          comments: Schema.Array(
-            Schema.Struct({ id: Schema.String, author: Schema.optional(IssueUser), body: Schema.Unknown, created: Schema.String }),
-          ),
+          startAt: Schema.optional(Schema.Number),
+          maxResults: Schema.optional(Schema.Number),
+          total: Schema.optional(Schema.Number),
+          comments: Schema.Array(IssueComment),
         }),
       ),
       attachment: Schema.optional(
@@ -344,16 +271,13 @@ const IssueDetail = Schema.Struct({
 
 export type JiraIssueDetail = typeof IssueDetail.Type;
 
-export const issueQuery = (key: string) => ({
-  queryKey: jiraKeys.issue(key),
+export const issueQuery = (key: string, scope: JiraQueryScope | undefined, client: QueryClient) => ({
+  queryKey: jiraKeys.issueDetail(key, scope),
+  enabled: !!scope,
+  retryOnMount: false,
   queryFn: ({ signal }: { signal: AbortSignal }) =>
-    Effect.runPromise(jira(`/issue/${encodeURIComponent(key)}?fields=*all&expand=names,editmeta`, IssueDetail), { signal }),
+    Effect.runPromise(withJiraQueryScope(client, scope, jira(`/issue/${encodeURIComponent(key)}?fields=*all&expand=names,editmeta`, IssueDetail)), { signal }),
 });
-
-export const useJiraIssue = (key: string) => {
-  const site = useJiraSite();
-  return useQuery({ ...issueQuery(key), enabled: !!site.data });
-};
 
 const TransitionField = Schema.Struct({
   required: Schema.Boolean,

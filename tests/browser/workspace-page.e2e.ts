@@ -227,8 +227,8 @@ const chooseSort = async (page: Page, label: string) => {
   await page.getByRole("option", { name: label, exact: true }).click();
   await expect(sortControl(page)).toContainText(label);
 };
-const settle = async (page: Page) => {
-  await page.mouse.move(0, 0);
+const settle = async (page: Page, preservePointer = false) => {
+  if (!preservePointer) await page.mouse.move(0, 0);
   await expect
     .poll(() => rows(page).evaluateAll((items) => items.every((item) => getComputedStyle(item).transform === "none")))
     .toBe(true);
@@ -359,5 +359,187 @@ test("Sortierung ist per Tastatur und bei 390 px in hell und dunkel bedienbar", 
       .toBe(colorScheme === "dark");
     await settle(page);
     if (shots) await page.screenshot({ path: `${shots}/${test.info().project.name}-sort-390-${colorScheme}.png` });
+  }
+});
+
+const rowOf = (page: Page, key: string) =>
+  rows(page).filter({ has: page.getByRole("link", { name: new RegExp(`^${key}(:|$)`) }) });
+const linkOf = (page: Page, key: string) => list(page).getByRole("link", { name: new RegExp(`^${key}(:|$)`) });
+const removeButton = (page: Page, key: string) => page.getByRole("button", { name: `${key} aus Zuletzt entfernen` });
+const removedToast = (page: Page, key: string) =>
+  page.locator("[data-sonner-toast]").filter({ hasText: `${key} aus Zuletzt entfernt` });
+const undo = (page: Page, key: string) => removedToast(page, key).getByRole("button", { name: "Rückgängig" });
+const recentOf = async (page: Page, account = own) =>
+  ((await stored(page))[account]?.recent ?? []).map((issue: { key: string }) => issue.key);
+const fieldDrafts = (page: Page) => page.evaluate(() => localStorage.getItem("betterjira-field-drafts"));
+const removeRecent = async (page: Page, key: string) => {
+  await rowOf(page, key).hover();
+  await removeButton(page, key).click();
+};
+const DEFAULT_RECENT = Array.from({ length: 10 }, (_, index) => `DEMO-${index + 1}`);
+
+test("Aus Zuletzt entfernen ändert nur den Verlauf und erhält Notiz, Entwürfe, Pins und Lesestellen", async ({ page }) => {
+  await page.addInitScript(() => {
+    window.__qaReads = [];
+  });
+  await open(page);
+  const before = await stored(page);
+  const draftsBefore = await fieldDrafts(page);
+  const readsBefore = await page.evaluate(() => window.__qaReads?.length ?? 0);
+  await expect(removeButton(page, "OPS-7")).toHaveCount(0);
+  await settle(page);
+  await page.getByRole("main").evaluate((element) => element.scrollTo({ top: 0, behavior: "instant" }));
+  await rowOf(page, "DEMO-1").hover();
+  await removeButton(page, "DEMO-1").hover();
+  await expect(page.getByRole("tooltip", { name: "Aus Zuletzt entfernen", exact: true })).toBeVisible();
+  await settle(page, true);
+  await expect(removeButton(page, "DEMO-1")).toHaveCSS("opacity", "1");
+  if (shots) await page.screenshot({ path: `${shots}/${test.info().project.name}-remove-recent-action.png` });
+
+  for (const key of ["DEMO-2", "DEMO-3", "DEMO-4"]) {
+    await removeRecent(page, key);
+    await expect(removeButton(page, key)).toHaveCount(0);
+    await expect(rowOf(page, key)).toHaveCount(1);
+    await expect(linkOf(page, key)).toBeFocused();
+  }
+  await removeRecent(page, "DEMO-1");
+  await expect(rowOf(page, "DEMO-1")).toHaveCount(0);
+
+  for (const name of ["Alle 10", "Angeheftet 2", "Entwürfe 3", "Notizen 1", "Zuletzt 6"])
+    await expect(filters(page).getByRole("link", { name })).toBeVisible();
+  await expect(rowOf(page, "DEMO-2").getByText("Feldentwurf")).toBeVisible();
+  await expect(rowOf(page, "DEMO-3").getByText("QA-Entwurf: Rückfrage zur Übergabe noch offen")).toBeVisible();
+  await expect(rowOf(page, "DEMO-4").getByText("QA-Notiz: vor Freigabe mit Team abstimmen")).toBeVisible();
+  await expect(page.getByRole("button", { name: "DEMO-2 lösen" })).toHaveAttribute("aria-pressed", "true");
+
+  const after = await stored(page);
+  expect(await recentOf(page)).toEqual(DEFAULT_RECENT.filter((key) => !["DEMO-1", "DEMO-2", "DEMO-3", "DEMO-4"].includes(key)));
+  expect({ ...after[own], recent: before[own].recent }).toEqual(before[own]);
+  expect(after[own].contexts["DEMO-1"].scrollTop).toBe(640);
+  expect(after[colleague]).toEqual(before[colleague]);
+  expect(await fieldDrafts(page)).toBe(draftsBefore);
+
+  await filters(page).getByRole("link", { name: /^Zuletzt/ }).click();
+  await expect(rows(page)).toHaveCount(6);
+  for (const key of ["DEMO-1", "DEMO-2", "DEMO-3", "DEMO-4"]) await expect(rowOf(page, key)).toHaveCount(0);
+  await filters(page).getByRole("link", { name: /^Entwürfe/ }).click();
+  await expect(rows(page)).toHaveCount(3);
+  await filters(page).getByRole("link", { name: /^Angeheftet/ }).click();
+  await expect(rowOf(page, "DEMO-2")).toHaveCount(1);
+
+  const reads = await page.evaluate((from) => (window.__qaReads ?? []).slice(from), readsBefore);
+  expect(reads.filter((path) => /^\/(search|issue)/.test(path))).toEqual([]);
+});
+
+test("Entfernen per Tastatur setzt den Fokus auf den Nachbarn, Rückgängig stellt die Stelle wieder her", async ({ page }) => {
+  await open(page);
+  expect(await recentOf(page)).toEqual(DEFAULT_RECENT);
+  await linkOf(page, "DEMO-6").focus();
+  await expect(linkOf(page, "DEMO-6")).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(page.getByRole("button", { name: "Notiz zu DEMO-6 hinzufügen", exact: true })).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(page.getByRole("button", { name: "DEMO-6 anheften" })).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(removeButton(page, "DEMO-6")).toBeFocused();
+  await expect(page.getByRole("tooltip").filter({ hasText: "Aus Zuletzt entfernen" })).toBeVisible();
+  await page.keyboard.press("Enter");
+
+  await expect(rowOf(page, "DEMO-6")).toHaveCount(0);
+  await expect(linkOf(page, "DEMO-7")).toBeFocused();
+  await expect(filters(page).getByRole("link", { name: "Zuletzt 9" })).toBeVisible();
+  await undo(page, "DEMO-6").click();
+
+  await expect(filters(page).getByRole("link", { name: "Zuletzt 10" })).toBeVisible();
+  await expect(rowOf(page, "DEMO-6")).toHaveCount(1);
+  expect(await recentOf(page)).toEqual(DEFAULT_RECENT);
+  await expect.poll(() => order(page)).toEqual([...DEFAULT_RECENT, "OPS-7"]);
+});
+
+test("Fokus folgt der sortierten Reihenfolge und fällt zuletzt auf die Suche zurück", async ({ page }) => {
+  await open(page, "/arbeitsplatz?art=zuletzt&sort=schluessel");
+  await expect.poll(() => order(page)).toEqual(DEFAULT_RECENT);
+  await removeRecent(page, "DEMO-9");
+  await expect(linkOf(page, "DEMO-10")).toBeFocused();
+  await removeRecent(page, "DEMO-10");
+  await expect(linkOf(page, "DEMO-8")).toBeFocused();
+
+  await search(page).fill("DEMO-8");
+  await expect(rows(page)).toHaveCount(1);
+  await removeRecent(page, "DEMO-8");
+  await expect(page.getByText("Kein passender Arbeitskontext")).toBeVisible();
+  await expect(search(page)).toBeFocused();
+  await search(page).fill("");
+  await expect(search(page)).toBeFocused();
+
+  await filters(page).getByRole("link", { name: /^Notizen/ }).click();
+  await expect(page).toHaveURL(/art=notizen/);
+  await expect(rows(page)).toHaveCount(1);
+  await expect(search(page)).not.toBeFocused();
+  await expect(list(page).locator(":focus")).toHaveCount(0);
+});
+
+test("Rückgängig behält inzwischen geöffnete Tickets und dupliziert keinen Schlüssel", async ({ page }) => {
+  await open(page);
+  await removeRecent(page, "DEMO-6");
+  await expect(rowOf(page, "DEMO-6")).toHaveCount(0);
+  await linkOf(page, "DEMO-7").click();
+  await expect(page).toHaveURL(/\/issue\/DEMO-7$/);
+  await page.goBack();
+  await expect(page).toHaveURL(/\/arbeitsplatz$/);
+  const reopened = ["DEMO-7", ...DEFAULT_RECENT.filter((key) => key !== "DEMO-6" && key !== "DEMO-7")];
+  await expect.poll(() => recentOf(page)).toEqual(reopened);
+  await undo(page, "DEMO-6").click();
+  await expect
+    .poll(() => recentOf(page))
+    .toEqual(["DEMO-7", "DEMO-1", "DEMO-2", "DEMO-3", "DEMO-4", "DEMO-5", "DEMO-6", "DEMO-8", "DEMO-9", "DEMO-10"]);
+  await expect(filters(page).getByRole("link", { name: "Zuletzt 10" })).toBeVisible();
+});
+
+test("Rückgängig schreibt nach Abmelden nur ins Ursprungskonto", async ({ page }) => {
+  await open(page);
+  const before = await stored(page);
+  await removeRecent(page, "DEMO-6");
+  await expect(rowOf(page, "DEMO-6")).toHaveCount(0);
+
+  await page.locator("header").first().getByRole("button", { name: "Suchen" }).click();
+  const palette = page.getByRole("dialog", { name: "Command palette" });
+  await palette.getByRole("combobox").fill("Abmelden");
+  await palette.getByRole("option", { name: /Abmelden/ }).click();
+  await expect(page.getByRole("main").getByText("Nicht angemeldet", { exact: true })).toBeVisible();
+  await undo(page, "DEMO-6").click();
+
+  await expect.poll(() => recentOf(page)).toEqual(DEFAULT_RECENT);
+  const after = await stored(page);
+  expect(Object.keys(after).sort()).toEqual(Object.keys(before).sort());
+  expect(after[own]).toEqual(before[own]);
+  expect(after[colleague]).toEqual(before[colleague]);
+});
+
+test("Entfernen ist bei 390 px in hell und dunkel bedienbar", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await open(page);
+  const button = removeButton(page, "DEMO-6");
+  await expect(button).toBeVisible();
+  const box = await button.boundingBox();
+  expect(box?.width).toBeGreaterThanOrEqual(32);
+  expect(box?.height).toBeGreaterThanOrEqual(32);
+  await button.click();
+  await expect(rowOf(page, "DEMO-6")).toHaveCount(0);
+  await expect(linkOf(page, "DEMO-7")).toBeFocused();
+  await expect(removedToast(page, "DEMO-6")).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+
+  for (const colorScheme of ["light", "dark"] as const) {
+    await page.emulateMedia({ colorScheme });
+    await expect
+      .poll(() => page.evaluate(() => document.documentElement.classList.contains("dark")))
+      .toBe(colorScheme === "dark");
+    await page.mouse.move(0, 0);
+    await page.getByRole("main").evaluate((element) => element.scrollTo({ top: 0, behavior: "instant" }));
+    await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
+    await expect(page.getByRole("tooltip")).toHaveCount(0);
+    await settle(page);
+    if (shots) await page.screenshot({ path: `${shots}/${test.info().project.name}-remove-recent-390-${colorScheme}.png` });
   }
 });

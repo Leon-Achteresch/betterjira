@@ -1,11 +1,13 @@
-import { useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useFieldDraftStore } from "@/hooks/use-field-drafts";
+import { useKeyedFocus } from "@/hooks/use-keyed-focus";
+import { useRecentRemoval } from "@/hooks/use-recent-removal";
 import { useWorkspace } from "@/hooks/use-workspace";
-import { RECENT_ISSUE_LIMIT, scopedFieldDraftKeys, togglePinnedIssue } from "@/lib/workspace";
+import { RECENT_ISSUE_LIMIT, scopedFieldDraftKeys, togglePinnedIssue, type Workspace } from "@/lib/workspace";
+import { useWorkspaceNoteEditor } from "@/hooks/use-workspace-note-editor";
 import {
-  filterWorkspaceEntries,
-  sortWorkspaceEntries,
+  visibleWorkspaceEntries,
   workspaceEmptyState,
   workspaceEntries,
   workspaceFilterCounts,
@@ -30,7 +32,16 @@ export function useWorkspacePage(search: WorkspacePageSearch) {
     setSyncedQuery(urlQuery);
     setQuery(urlQuery);
   }
-  const entries = workspaceEntries(workspace, scopedFieldDraftKeys(Object.keys(fieldDrafts), id));
+  const draftKeys = useMemo(() => scopedFieldDraftKeys(Object.keys(fieldDrafts), id), [fieldDrafts, id]);
+  const visibleOf = useCallback(
+    (from: Workspace) => visibleWorkspaceEntries(workspaceEntries(from, draftKeys), filter, query, sort),
+    [draftKeys, filter, query, sort],
+  );
+  const { refFor, fallbackRef, focus } = useKeyedFocus();
+  const removeRecent = useRecentRemoval(id, visibleOf, focus);
+  const entries = workspaceEntries(workspace, draftKeys);
+  const visible = visibleWorkspaceEntries(entries, filter, query, sort);
+  const note = useWorkspaceNoteEditor(visible);
 
   return {
     ready,
@@ -39,9 +50,12 @@ export function useWorkspacePage(search: WorkspacePageSearch) {
     sort,
     total: entries.length,
     counts: workspaceFilterCounts(entries),
-    entries: sortWorkspaceEntries(filterWorkspaceEntries(entries, filter, query), sort),
+    entries: visible,
+    note,
     emptyState: workspaceEmptyState(filter, query),
     recentLimit: RECENT_ISSUE_LIMIT,
+    entryRef: refFor,
+    searchRef: fallbackRef,
     searchFor: (next: WorkspacePageFilter) => workspacePageSearch(next, query, sort),
     changeQuery: (value: string) => {
       setQuery(value);
@@ -54,6 +68,7 @@ export function useWorkspacePage(search: WorkspacePageSearch) {
     },
     togglePin: (entry: WorkspaceEntry) =>
       update((current) => togglePinnedIssue(current, { key: entry.key, summary: entry.summary })),
+    removeRecent: (entry: WorkspaceEntry) => removeRecent(entry.key),
   };
 }
 

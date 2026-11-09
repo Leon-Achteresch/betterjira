@@ -87,6 +87,26 @@ describe("Jira transport request budgets", () => {
     expect(http).toHaveBeenCalledTimes(sent);
   });
 
+  it("allows background reads to opt out of transport retries without forwarding the policy to HTTP", async () => {
+    const { jira } = await import("./client");
+    http.mockResolvedValue(new Response("unavailable", { status: 503 }));
+    const failed = Effect.runPromise(jira("/background", Result, { retry: false })).catch((error: unknown) => error);
+    await vi.runAllTimersAsync();
+    expect(await failed).toMatchObject({ status: 503 });
+    expect(http).toHaveBeenCalledTimes(1);
+    expect(http.mock.calls[0][1]).not.toHaveProperty("retry");
+  });
+
+  it("reports a long cooldown immediately instead of hiding the error behind a long retry", async () => {
+    const { jira } = await import("./client");
+    http.mockResolvedValue(new Response("limit", { status: 429, headers: { "Retry-After": "120" } }));
+    const failed = Effect.runPromise(jira("/read", Result)).catch((error: unknown) => error);
+    await vi.advanceTimersByTimeAsync(10);
+    expect(await failed).toMatchObject({ status: 429 });
+    await expect(Effect.runPromise(jira("/queued", Result))).rejects.toMatchObject({ status: 429 });
+    expect(http).toHaveBeenCalledTimes(1);
+  });
+
   it("does not retry schema or permission errors", async () => {
     const { jira } = await import("./client");
     http.mockResolvedValueOnce(new Response("forbidden", { status: 403 }));

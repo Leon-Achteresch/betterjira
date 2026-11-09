@@ -1,5 +1,7 @@
 import { useAttentionStatus } from "@/hooks/attention/use-attention-status";
+import { useDeviceOnline } from "@/hooks/connections/use-device-online";
 import { useJiraSession } from "@/hooks/jira/use-jira-session";
+import { dashboardFreshness, freshnessSource } from "@/lib/dashboard-freshness";
 import {
   useJiraLogin,
   useJiraMyWork,
@@ -7,8 +9,9 @@ import {
   useJiraProjects,
   type JiraWorkIssue,
 } from "@/lib/jira/queries";
-import { useProjectPrefs } from "@/lib/project-prefs";
+import { useProjectPrefs } from "@/hooks/use-project-prefs";
 import { workdayGreeting } from "@/lib/workday";
+import { useTodayAgenda } from "@/hooks/use-today-agenda";
 
 export function useDashboard() {
   const session = useJiraSession();
@@ -17,7 +20,9 @@ export function useDashboard() {
   const projects = useJiraProjects();
   const login = useJiraLogin();
   const attention = useAttentionStatus();
-  const favoriteIds = useProjectPrefs((state) => state.projectIds);
+  const { favoriteIds } = useProjectPrefs();
+  const online = useDeviceOnline();
+  const showsFavorites = favoriteIds.length > 0;
   const now = new Date();
   const firstName = myself.data?.displayName.split(" ")[0];
   const issues = work.data?.issues ?? [];
@@ -25,6 +30,7 @@ export function useDashboard() {
   const next = issues.filter((issue) => issue.fields.status.statusCategory.key === "new");
   const done = issues.filter((issue) => issue.fields.status.statusCategory.key === "done");
   const open = [...active, ...next];
+  const agenda = useTodayAgenda({ active, open });
   const groups = new Map<string, JiraWorkIssue[]>();
   for (const issue of open)
     groups.set(issue.fields.project.key, [...(groups.get(issue.fields.project.key) ?? []), issue]);
@@ -39,11 +45,25 @@ export function useDashboard() {
         fraction: activeCount / group.length,
       };
     });
+  const freshness = dashboardFreshness({
+    primary: freshnessSource("Tickets", work),
+    secondary: [freshnessSource("Profil", myself), ...(showsFavorites ? [freshnessSource("Favoriten", projects)] : [])],
+    online,
+  });
+  const refresh = () => {
+    if (session.status !== "connected" || (freshness.kind === "ready" && freshness.refreshing)) return;
+    void work.refetch({ cancelRefetch: false });
+    void myself.refetch({ cancelRefetch: false });
+    if (showsFavorites) void projects.refetch({ cancelRefetch: false });
+  };
   return {
     session,
     login,
     attention,
-    work,
+    agenda,
+    freshness,
+    refresh,
+    now,
     active,
     next,
     done,

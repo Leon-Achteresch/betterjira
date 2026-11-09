@@ -1,19 +1,24 @@
-import { Effect, Schema } from "effect";
+import { Data, Effect, Schema } from "effect";
 import type { InfiniteData } from "@tanstack/react-query";
-import { jira } from "./client";
-import type { JiraFieldInfo } from "./search";
+import { jira, jiraAgile } from "./client";
+import { fetchFields, type JiraFieldInfo } from "./search";
 import { quoteJql } from "./jql";
 
-const JiraStatus = Schema.Struct({
-  id: Schema.String,
-  name: Schema.String,
-  statusCategory: Schema.Struct({ key: Schema.String, colorName: Schema.String }),
+import { JiraStatus } from "./status";
+import { JiraUser } from "./user";
+
+export const BoardPage = Schema.Struct({
+  values: Schema.Array(
+    Schema.Struct({
+      id: Schema.Number,
+      name: Schema.String,
+      type: Schema.String,
+      location: Schema.optional(Schema.Struct({ projectKey: Schema.optional(Schema.String) })),
+    }),
+  ),
 });
 
-const JiraUser = Schema.Struct({
-  displayName: Schema.String,
-  avatarUrls: Schema.Struct({ "48x48": Schema.String }),
-});
+export type JiraBoard = (typeof BoardPage.Type)["values"][number];
 
 export const BoardConfiguration = Schema.Struct({
   filter: Schema.Struct({ id: Schema.String }),
@@ -128,12 +133,9 @@ export const boardGroups = (data: BoardData) => {
   const metadata = data.pages[0]?.metadata;
   if (!metadata) return [];
   const { config, sprintField, flaggedField, pointsField, sprintId, boardId } = metadata;
-  const seen = new Set<string>();
-  const cards = data.pages.flatMap((page) => page.issues).filter((issue) => {
-    if (seen.has(issue.id)) return false;
-    seen.add(issue.id);
-    return true;
-  }).map((issue, index) => {
+  const byId = new Map<string, BoardIssue>();
+  for (const page of data.pages) for (const issue of page.issues) byId.set(issue.id, issue);
+  const cards = [...byId.values()].map((issue, index) => {
     const points = pointsField ? issue.fields[pointsField] : undefined;
     const flagged = flaggedField ? issue.fields[flaggedField] : undefined;
     return { ...issue, rank: index + 1, points: typeof points === "number" ? points : undefined, flagged: Array.isArray(flagged) && flagged.length > 0 };
@@ -166,3 +168,43 @@ export const boardGroups = (data: BoardData) => {
   return [...groups.values()].map(({ sprint, cards }) => ({ sprint, columns: columns(cards) }));
 };
 
+
+const SprintPage = Schema.Struct({ values: Sprints, isLast: Schema.optional(Schema.Boolean) });
+
+const MAX_SPRINT_PAGES = 20;
+
+export const boardSprints = (boardId: number) =>
+  Effect.gen(function* () {
+    const sprints: JiraSprint[] = [];
+    for (let page = 0; page < MAX_SPRINT_PAGES; page++) {
+      const { values, isLast } = yield* jiraAgile(
+        `/board/${boardId}/sprint?state=active,future,closed&maxResults=50&startAt=${sprints.length}`,
+        SprintPage,
+      );
+      sprints.push(...values);
+      if (isLast !== false || values.length === 0) break;
+    }
+    return sprints;
+  });
+
+
+export class BoardPaginationError extends Data.TaggedError("BoardPaginationError")<{ message: string }> {}
+
+export const boardWithIssues = (board: JiraBoard, sprintId?: number) => Effect.gen(function* () {
+  const [config, fields] = yield* Effect.all([
+    jiraAgile(`/board/${board.id}/configuration`, BoardConfiguration), fetchFields,
+  ], { concurrency: "unbounded" });
+  const pages: BoardPage[] = [];
+  const tokens = new Set<string>();
+  let token: string | undefined;
+  while (true) {
+    const page = yield* fetchBoardPage(board, config, fields, sprintId, token);
+    pages.push(page);
+    if (page.isLast === true || (!page.nextPageToken && page.isLast !== false)) return boardGroups({ pages, pageParams: [] });
+    if (!page.nextPageToken || tokens.has(page.nextPageToken)) {
+      return yield* new BoardPaginationError({ message: "Jira liefert keine gültige Folgeseite für das Board. Bitte erneut versuchen." });
+    }
+    tokens.add(page.nextPageToken);
+    token = page.nextPageToken;
+  }
+});

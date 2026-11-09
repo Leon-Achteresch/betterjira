@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 
 const BOARD = "/tests/browser/fixture.html?scenario=board&route=/bereiche/DEMO?board=1";
 
-test("large board shows page one, loads further pages and reuses metadata", async ({ page }) => {
+test("large board shows page one, loads further pages and reuses metadata", async ({ page }, testInfo) => {
   await page.addInitScript(() => {
     Object.defineProperty(window, "__qaBoardIssueCount", { value: 350 });
     Object.defineProperty(window, "__qaReads", { value: [] });
@@ -12,6 +12,10 @@ test("large board shows page one, loads further pages and reuses metadata", asyn
   await expect(page.getByText("100 Vorgänge geladen", { exact: true })).toBeVisible();
   await expect(page.getByText("DEMO-1", { exact: true })).toBeVisible();
   await expect(page.getByText("DEMO-350", { exact: true })).toHaveCount(0);
+  if (process.env.BOARD_PERF_SHOTS) {
+    await page.evaluate(() => document.fonts.ready);
+    await page.screenshot({ path: `${process.env.BOARD_PERF_SHOTS}/${testInfo.project.name}.png` });
+  }
   const load = page.getByRole("button", { name: "Weitere Vorgänge laden", exact: true });
   await load.click();
   await expect(page.getByText("200 Vorgänge geladen", { exact: true })).toBeVisible();

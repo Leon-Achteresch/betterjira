@@ -59,6 +59,23 @@ describe("Mock-JQL", () => {
     expect(compileJql("status = Done", schema).dynamic).toBe(false);
   });
 
+  it.each(["2026-11-09", "2026/11/09", "2026-11-09 10:00"])("normalisiert Datumsgleichheit und Ungleichheit: %s", (date) => {
+    expect(keys(`updated = "${date}"`)).toEqual(["A-1"]);
+    expect(keys(`updated != "${date}"`)).toEqual(["A-3", "A-2"]);
+    expect(keys(`updated in ("${date}", -1d)`)).toEqual(["A-3", "A-1"]);
+    expect(keys(`updated not in ("${date}", -1d)`)).toEqual(["A-2"]);
+  });
+
+  it("wertet relative Datumswerte und leere Werte bei Datumsgleichheit konsistent aus", () => {
+    expect(keys("updated = -1d")).toEqual(["A-3"]);
+    expect(keys("updated != -1d")).toEqual(["A-2", "A-1"]);
+    const nullable = { ...schema, fields: { ...schema.fields, updated: { ...schema.fields.updated, values: (item: Item) => item.key === "A-2" ? [] : [item.updated] } } };
+    const filter = (jql: string) => items.filter(compileJql(jql, nullable).matches).map((item) => item.key);
+    expect(filter('updated in (EMPTY, "2026/11/09")')).toEqual(["A-1", "A-2"]);
+    expect(filter('updated != "2026/11/09"')).toEqual(["A-3"]);
+    expect(() => keys('updated = "invalid-date"')).toThrow(JqlError);
+  });
+
   it("löst gespeicherte Filter auf und sortiert nach dem Default", () => {
     expect(keys("filter = 7 ORDER BY rank")).toEqual(["A-2", "A-3"]);
     expect(keys("labels = ux")).toEqual(["A-3", "A-1"]);

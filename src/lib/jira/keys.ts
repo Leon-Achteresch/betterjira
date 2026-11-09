@@ -1,7 +1,8 @@
+import type { JiraQueryScope } from "./query-scope";
+
 export const jiraKeys = {
   all: ["jira"] as const,
   allIssues: ["jira", "issues"] as const,
-  allIssueCounts: ["jira", "issues", "count"] as const,
   allBoards: ["jira", "board"] as const,
   attachment: (variant: string, id: string) => ["jira", "attachment", variant, id] as const,
   wiki: (key: string, field: string) => ["jira", "wiki", key, field] as const,
@@ -14,8 +15,10 @@ export const jiraKeys = {
   issueCount: (jql: string) => ["jira", "issues", "count", jql] as const,
   fieldCatalog: ["jira", "field-catalog"] as const,
   filter: (id: string) => ["jira", "filter", id] as const,
+  filterFavourite: ["jira", "filter-favourite"] as const,
   jqlValidation: (jql: string) => ["jira", "jql-validation", jql] as const,
   issue: (key: string) => ["jira", "issue", key] as const,
+  issueDetail: (key: string, scope: JiraQueryScope | undefined) => ["jira", "issue", key, "detail", scope?.cloudId ?? "", scope?.accountId ?? ""] as const,
   transitions: (key: string) => ["jira", "transitions", key] as const,
   userSearch: (query: string, issueKey: string, assignee: boolean) => ["jira", "user-search", query, issueKey, assignee] as const,
   filters: ["jira", "filters"] as const,
@@ -24,10 +27,14 @@ export const jiraKeys = {
   board: (id: number, sprint?: number) => ["jira", "board", id, sprint ?? "open"] as const,
   boardSprints: (id: number) => ["jira", "board-sprints", id] as const,
   boardConfig: (id: number) => ["jira", "board-config", id] as const,
+  projectStats: (key: string) => ["jira", "project-stats", key] as const,
+  allProjectStats: ["jira", "project-stats"] as const,
+  createIssueTypes: (projectId: string) => ["jira", "create-meta", projectId] as const,
+  createFields: (projectId: string, issueTypeId: string) => ["jira", "create-meta", projectId, issueTypeId] as const,
+  createPermission: (projectId: string) => ["jira", "create-permission", projectId] as const,
+  allIssueCounts: ["jira", "issues", "count"] as const,
   boardReconcile: (id: number, sprint: number | undefined, keys: readonly string[], token?: string) =>
     ["jira", "board-reconcile", id, sprint ?? "open", [...keys].sort(), token ?? "first"] as const,
   searchReconcile: (jql: string, fields: readonly string[], keys: readonly string[], token?: string) =>
     ["jira", "search-reconcile", jql, fields, [...keys].sort(), token ?? "first"] as const,
-  projectStats: (key: string) => ["jira", "project-stats", key] as const,
 };
-

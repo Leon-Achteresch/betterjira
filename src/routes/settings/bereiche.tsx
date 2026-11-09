@@ -1,65 +1,38 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { ProjectAvatar } from "@/components/shell/project-avatar";
-import { FavoriteButton } from "@/components/projects/favorite-button";
-import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemMedia, ItemTitle } from "@/components/ui/item";
-import { Spinner } from "@/components/ui/spinner";
-import { Switch } from "@/components/ui/switch";
-import { useJiraProjects, useJiraSite } from "@/lib/jira/queries";
-import { useProjectPrefs } from "@/lib/project-prefs";
+import { ProjectSettingsSkeleton } from "@/components/settings/project-settings-skeleton";
+import { ProjectVisibilitySettings } from "@/components/settings/project-visibility-settings";
 import { LoginPrompt } from "@/components/shell/login-prompt";
+import { SessionGate } from "@/components/shell/session-gate";
+import { useJiraSession } from "@/hooks/jira/use-jira-session";
+import { useProjectSettings } from "@/hooks/jira/use-project-settings";
+import { parseProjectSettingsSearch } from "@/lib/project-settings-search";
+import { LegacyProjectPrefsNotice } from "@/components/settings/project-prefs-settings";
+import { useLegacyProjectPrefs } from "@/hooks/use-project-prefs";
 
 export const Route = createFileRoute("/settings/bereiche")({
+  validateSearch: (search: Record<string, unknown>) => parseProjectSettingsSearch(search),
   component: BereicheSettings,
 });
 
 function BereicheSettings() {
-  const site = useJiraSite();
-  const projects = useJiraProjects();
-  const { projectIds: favoriteIds, hiddenProjectIds, toggleProject, toggleHidden } = useProjectPrefs();
+  const session = useJiraSession();
+  const settings = useProjectSettings(Route.useSearch());
+  const legacy = useLegacyProjectPrefs();
 
   return (
     <section className="flex w-full flex-col gap-4">
       <div>
-        <h2 className="text-lg font-medium">Bereiche</h2>
+        <h2 className="text-lg font-medium text-balance">Bereiche</h2>
         <p className="text-muted-foreground">Lege fest, welche Bereiche in der Sidebar erscheinen.</p>
       </div>
-      {!site.isPending && !site.data ? (
-        <LoginPrompt description="Melde dich an, um Bereiche zu verwalten." />
-      ) : projects.isPending ? (
-        <Spinner />
-      ) : projects.error ? (
-        <p role="alert" className="text-sm text-destructive">
-          {projects.error.message}
-        </p>
-      ) : projects.data.length === 0 ? (
-        <p className="text-muted-foreground">Keine Bereiche gefunden</p>
-      ) : (
-        <ItemGroup className="max-w-xl">
-          {projects.data.map((project) => {
-            const favorite = favoriteIds.includes(project.id);
-            const shown = !hiddenProjectIds.includes(project.id);
-            return (
-              <Item key={project.id} variant="outline" size="sm">
-                <ItemMedia>
-                  <ProjectAvatar project={project} />
-                </ItemMedia>
-                <ItemContent>
-                  <ItemTitle>{project.name}</ItemTitle>
-                  <ItemDescription>{project.key}</ItemDescription>
-                </ItemContent>
-                <ItemActions>
-                  <FavoriteButton name={project.name} favorite={favorite} onToggle={() => toggleProject(project.id)} />
-                  <Switch
-                    checked={shown}
-                    onCheckedChange={() => toggleHidden(project.id)}
-                    aria-label={`${project.name} in Sidebar anzeigen`}
-                  />
-                </ItemActions>
-              </Item>
-            );
-          })}
-        </ItemGroup>
-      )}
+      <SessionGate
+        session={session}
+        pending={<ProjectSettingsSkeleton />}
+        unconnected={<LoginPrompt description="Melde dich an, um Bereiche zu verwalten." />}
+      >
+        <LegacyProjectPrefsNotice legacy={legacy.legacy} accountLabel={legacy.accountLabel} onAdopt={legacy.adopt} onDiscard={legacy.discard} />
+        <ProjectVisibilitySettings settings={settings} />
+      </SessionGate>
     </section>
   );
 }

@@ -83,11 +83,13 @@ const openMenuByKeyboard = async (page: Page) => {
 };
 
 const focusCopyItem = async (page: Page) => {
-  for (let step = 0; step < 12; step++) {
-    if (await copyItem(page).evaluate((element) => element === document.activeElement)) break;
-    const previous = await page.evaluate(() => document.activeElement?.textContent ?? "");
+  const items = menu(page).locator('[role="menuitem"]:not([data-disabled])');
+  await menu(page).press("Home");
+  const count = await items.count();
+  for (let step = 0; step < count; step++) {
+    await expect(items.nth(step)).toBeFocused();
+    if (await copyItem(page).evaluate((element) => element === document.activeElement)) return;
     await page.keyboard.press("ArrowDown");
-    await expect.poll(() => page.evaluate(() => document.activeElement?.textContent ?? "")).not.toBe(previous);
   }
   await expect(copyItem(page)).toBeFocused();
 };

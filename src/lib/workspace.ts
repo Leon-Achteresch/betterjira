@@ -36,6 +36,7 @@ export const EMPTY_WORKSPACE: Workspace = {
   contexts: {},
 };
 export const RECENT_ISSUE_LIMIT = 50;
+export const WORKSPACE_STORAGE_KEY = "betterjira-workspaces";
 
 export const workspaceId = (cloudId: string, accountId: string) => JSON.stringify([cloudId, accountId]);
 
@@ -53,7 +54,9 @@ export const rememberIssue = (
     ...retainedKeys,
   ]);
   const contexts = Object.fromEntries(
-    Object.entries(workspace.contexts ?? {}).filter(([key, entry]) => retained.has(key) || entry.note.trim()),
+    Object.entries(workspace.contexts ?? {}).filter(([key, entry]) =>
+      retained.has(key) || entry.note.trim() || (Number.isFinite(entry.scrollTop) && entry.scrollTop > 0),
+    ),
   );
   return {
     ...workspace,

@@ -10,6 +10,8 @@ const openBusy = async (page: Page, width: number) => {
 
 const header = (page: Page) => page.locator("header").first();
 const tools = (page: Page) => page.getByRole("navigation", { name: "Werkzeuge" });
+const issueTab = (page: Page, key: string) =>
+  page.getByRole("tablist", { name: "Geöffnete Tickets" }).getByRole("tab", { name: new RegExp(`^${key}(?!\\d)`) });
 
 const headerCollisions = (page: Page) =>
   page.evaluate(() => {
@@ -147,17 +149,20 @@ test("Weitere Aktionen verwalten geöffnete Tickets bei 390 px ohne Tastenkürze
 test("Geöffnete Tickets im Menü sind per Tastatur bedienbar", async ({ page }) => {
   await openBusy(page, 390);
   const more = tools(page).getByRole("button", { name: "Weitere Aktionen" });
+  const menuItems = page.getByRole("menu").locator('[role^="menuitem"]:not([aria-disabled="true"])');
   await more.focus();
   await page.keyboard.press("Enter");
   await expect(page.getByRole("menu")).toBeVisible();
+  await expect(menuItems.first()).toBeFocused();
   if (await page.evaluate(() => matchMedia("(prefers-reduced-motion: reduce)").matches)) {
     expect(await page.getByRole("menu").evaluate((menu) => getComputedStyle(menu).animationName)).toBe("none");
   }
+  const focusedText = () => page.evaluate(() => document.activeElement?.textContent ?? "");
   for (let step = 0; step < 20; step++) {
-    const name = await page.evaluate(() => document.activeElement?.textContent ?? "");
+    const name = await focusedText();
     if (name.startsWith("DEMO-6")) break;
     await page.keyboard.press("ArrowDown");
-    await expect.poll(() => page.evaluate(() => document.activeElement?.textContent ?? "")).not.toBe(name);
+    await expect.poll(focusedText).not.toBe(name);
   }
   await expect(page.getByRole("menuitemradio", { name: /^DEMO-6 / })).toBeFocused();
   await page.keyboard.press("Enter");
@@ -167,6 +172,7 @@ test("Geöffnete Tickets im Menü sind per Tastatur bedienbar", async ({ page })
 
   await page.keyboard.press("Enter");
   await expect(page.getByRole("menu")).toBeVisible();
+  await expect(menuItems.first()).toBeFocused();
   await page.keyboard.press("Escape");
   await expect(page.getByRole("menu")).toBeHidden();
   await expect(more).toBeFocused();
@@ -234,4 +240,32 @@ test("Ticket-Tabs bleiben bei 390 px per Tastatur wechselbar", async ({ page }) 
   await page.keyboard.press("Control+Tab");
   await expect(page).not.toHaveURL(/\/issue\/DEMO-1$/);
   await expect(page).toHaveURL(/\/issue\/DEMO-/);
+});
+
+test("Mittelklick schließt Ticket-Tab ohne neues Fenster", async ({ page }) => {
+  await openBusy(page, 1440);
+  const popups: string[] = [];
+  page.context().on("page", (popup) => popups.push(popup.url()));
+
+  await issueTab(page, "DEMO-8").click({ button: "middle" });
+  await expect(issueTab(page, "DEMO-8")).toHaveCount(0);
+  await issueTab(page, "DEMO-2").click({ button: "middle" });
+  await page.waitForTimeout(300);
+  await expect(issueTab(page, "DEMO-2")).toHaveCount(1);
+  await expect(page).toHaveURL(/\/issue\/DEMO-1$/);
+  expect(popups).toEqual([]);
+});
+
+test("Wechsel von Ticket zu Ticket öffnet einen Tab", async ({ page }) => {
+  await openBusy(page, 1440);
+  await expect(page).toHaveURL(/\/issue\/DEMO-1$/);
+  await page.getByRole("button", { name: "DEMO-5 schließen" }).click({ force: true });
+  await expect(issueTab(page, "DEMO-5")).toHaveCount(0);
+
+  await page.keyboard.press("Control+k");
+  const palette = page.getByRole("dialog", { name: "Command palette" });
+  await palette.getByRole("combobox").fill("DEMO-5");
+  await palette.getByRole("option", { name: /DEMO-5(?!\d)/ }).first().click();
+  await expect(page).toHaveURL(/\/issue\/DEMO-5$/);
+  await expect(issueTab(page, "DEMO-5")).toHaveAttribute("aria-selected", "true");
 });
