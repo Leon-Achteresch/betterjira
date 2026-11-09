@@ -8,6 +8,8 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "test": "vitest run",
+    "test:jira": "vitest run src/lib/jira tests/jira",
+    "mock:jira": "bun tests/jira/serve.ts",
     "test:e2e": "playwright test",
     "test:outlook": "powershell.exe -NoProfile -NonInteractive -STA -File tests/native/outlook.integration.ps1 -RunLive",
     "tauri": "tauri",

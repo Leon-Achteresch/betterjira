@@ -1,7 +1,11 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
+import { boardQuery, boardConfigQuery } from "@/lib/jira/board-query";
+import { boardGroups, type BoardIdentity } from "@/lib/jira/board";
+import { useLoadMoreOnIntersection } from "@/hooks/use-load-more-on-intersection";
+import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Effect } from "effect";
 import { jiraAgile } from "@/lib/jira/client";
-import { BoardPage, BoardConfiguration, boardSprints, boardWithIssues, type JiraBoard } from "@/lib/jira/board";
+import { BoardPage, boardSprints, type JiraBoard } from "@/lib/jira/board";
 import { jiraKeys, useJiraSite } from "@/lib/jira/queries";
 
 export const useJiraProjectBoards = (key: string) => {
@@ -22,8 +26,7 @@ export const useJiraProjectBoards = (key: string) => {
 export const useJiraBacklogJql = (board: JiraBoard) => {
   const site = useJiraSite();
   return useQuery({
-    queryKey: jiraKeys.boardConfig(board.id),
-    queryFn: ({ signal }) => Effect.runPromise(jiraAgile(`/board/${board.id}/configuration`, BoardConfiguration), { signal }),
+    ...boardConfigQuery(board.id),
     select: (config) =>
       `filter = ${config.filter.id} AND (sprint is EMPTY OR sprint not in openSprints() AND sprint not in futureSprints()) AND statusCategory != Done ORDER BY Rank ASC`,
     enabled: !!site.data,
@@ -39,11 +42,15 @@ export const useJiraBoardSprints = (board: JiraBoard) => {
   });
 };
 
-export const useJiraBoard = (board: JiraBoard, sprintId?: number, enabled = true) => {
+export const useJiraBoard = (board: BoardIdentity, sprintId?: number, enabled = true) => {
   const site = useJiraSite();
-  return useQuery({
-    queryKey: jiraKeys.board(board.id, sprintId),
-    queryFn: ({ signal }) => Effect.runPromise(boardWithIssues(board, sprintId), { signal }),
+  const client = useQueryClient();
+  const query = useInfiniteQuery({
+    ...boardQuery(client, board, sprintId),
     enabled: !!site.data && enabled,
   });
+  const data = useMemo(() => query.data ? boardGroups(query.data) : undefined, [query.data]);
+  const loadMore = () => { if (!query.isFetching) void query.fetchNextPage({ cancelRefetch: false }); };
+  const sentinelRef = useLoadMoreOnIntersection(enabled && query.hasNextPage && !query.isFetching && !query.error, loadMore);
+  return { ...query, data, sentinelRef, loadMore };
 };

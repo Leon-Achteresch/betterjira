@@ -52,6 +52,7 @@ const choose = async (page: Page, size: string) => {
 };
 
 test.beforeEach(async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
   page.on("pageerror", (error) => {
     throw error;
   });
