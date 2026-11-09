@@ -1,5 +1,6 @@
 import { useRef, useState, type KeyboardEvent } from "react";
 import { toast } from "sonner";
+import { useLatestRef } from "@/hooks/use-latest-ref";
 import { useWorkspace, useWorkspaceStorageSync, useWorkspaceStore } from "@/hooks/use-workspace";
 import { EMPTY_WORKSPACE } from "@/lib/workspace";
 import type { WorkspaceEntry } from "@/lib/workspace-page";
@@ -17,6 +18,7 @@ import {
 const entrySelector = (key: string) => `[data-workspace-entry="${CSS.escape(key)}"]`;
 
 export function useWorkspaceNoteEditor(visible: readonly WorkspaceEntry[]) {
+  const latestVisible = useLatestRef(visible);
   const { id, workspace } = useWorkspace();
   const updateScope = useWorkspaceStore((state) => state.update);
   const [edit, setEdit] = useState<NoteEdit | null>(null);
@@ -87,7 +89,7 @@ export function useWorkspaceNoteEditor(visible: readonly WorkspaceEntry[]) {
       if (!origin) return;
       const target = noteFocusKey(
         origin.order,
-        visible.map((item) => item.key),
+        latestVisible.current.map((item) => item.key),
         origin.key,
       );
       const element =
