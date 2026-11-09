@@ -187,6 +187,7 @@ test("Tastatur erreicht und löst Aktualisieren aus, schmale Ansicht ohne Überl
   await expect(refreshButton(page)).toBeFocused();
   await expect(status(page)).toHaveText(/^Stand/);
   await shot(page, "narrow");
+  await expect(refreshButton(page)).not.toHaveAttribute("aria-disabled", "true");
   await setRule(page, { status: 400 });
   await page.keyboard.press("Enter");
   await expect(status(page)).toContainText("Tickets nicht aktualisiert");
