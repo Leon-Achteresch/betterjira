@@ -30,7 +30,7 @@ export function RouteNotFound({ canGoBack, onBack, onHome }: RouteNotFoundProps)
           <EmptyContent className="flex-row flex-wrap justify-center">
             <Button autoFocus className="rounded-xl" onClick={onHome}>
               <HouseIcon data-icon="inline-start" />
-              Zur Übersicht
+              Zu Heute
             </Button>
             {canGoBack && (
               <Button variant="outline" className="rounded-xl" onClick={onBack}>

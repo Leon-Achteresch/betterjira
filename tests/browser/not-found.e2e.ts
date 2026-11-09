@@ -51,7 +51,7 @@ test("unbekannter Direktlink zeigt Hinweis in der Shell ohne Umleitung und ohne 
   expect(text).not.toContain("gibt-es-nicht");
   expect(text).not.toContain("Not Found");
   await expect(view(page).getByRole("button", { name: "Zurück", exact: true })).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Zur Übersicht" })).toBeFocused();
+  await expect(page.getByRole("button", { name: "Zu Heute" })).toBeFocused();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await shot(page, testInfo, "direktlink");
 
@@ -98,7 +98,7 @@ test("390 px dunkel mit reduzierter Bewegung ohne Überlauf", async ({ page }, t
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   const transform = await heading.evaluate((element) => getComputedStyle(element.closest("[style]") ?? element).transform);
   expect(["none", "matrix(1, 0, 0, 1, 0, 0)"]).toContain(transform);
-  const box = await page.getByRole("button", { name: "Zur Übersicht" }).boundingBox();
+  const box = await page.getByRole("button", { name: "Zu Heute" }).boundingBox();
   expect(box?.height ?? 0).toBeGreaterThanOrEqual(32);
   await shot(page, testInfo, "390-dunkel");
 });

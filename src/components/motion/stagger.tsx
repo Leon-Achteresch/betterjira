@@ -1,8 +1,10 @@
 import type { ComponentProps } from "react";
 import { motion, useReducedMotion, type Variants } from "motion/react";
-import { EASE_OUT } from "@/lib/ease";
+import { EASE_OUT, MOTION_DURATION } from "@/lib/ease";
 
-const container: Variants = { show: { transition: { staggerChildren: 0.03 } } };
+const container: Variants = {
+  show: { transition: { staggerChildren: MOTION_DURATION.stagger } },
+};
 
 const item: Variants = {
   hidden: { opacity: 0, y: 8 },
@@ -15,7 +17,14 @@ const fadeItem: Variants = {
 };
 
 export function Stagger(props: ComponentProps<typeof motion.div>) {
-  return <motion.div variants={container} initial="hidden" animate="show" {...props} />;
+  return (
+    <motion.div
+      variants={container}
+      initial="hidden"
+      animate="show"
+      {...props}
+    />
+  );
 }
 
 export function StaggerItem(props: ComponentProps<typeof motion.div>) {

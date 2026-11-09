@@ -27,6 +27,8 @@ const open = (page: Page, route: string, scenario = "notifications") =>
 
 const inAppSwitch = (page: Page) => page.getByRole("switch", { name: "Popups in der App" });
 const systemSwitch = (page: Page) => page.getByRole("switch", { name: "Systemhinweise" });
+const watchingSwitch = (page: Page) => page.getByRole("switch", { name: "Auch beobachtete Tickets" });
+const inAppToast = (page: Page) => page.getByText("DEMO-1 · Kim Probe", { exact: true });
 const permissionStatus = (page: Page) => page.getByRole("region", { name: "Status der Systemhinweise" });
 const bell = (page: Page) => page.getByRole("button", { name: /^Benachrichtigungen(, \d+ ungelesen)?$/ });
 const qa = (page: Page) => page.evaluate(() => (window as unknown as QaWindow).__qa.notification);
@@ -106,8 +108,8 @@ test("Standardwerte, eigener Tab und Persistenz pro Gerät", async ({ page }) =>
   await inAppSwitch(page).click();
   await expect(inAppSwitch(page)).not.toBeChecked();
   expect(JSON.parse((await page.evaluate((key) => localStorage.getItem(key), STORAGE_KEY)) ?? "null")).toEqual({
-    state: { inApp: false, system: true },
-    version: 1,
+    state: { inApp: false, system: true, watching: false },
+    version: 2,
   });
 
   await open(page, "/settings/benachrichtigungen");
@@ -185,7 +187,7 @@ test("Ausgeschaltete Systemhinweise lesen und fordern keine Berechtigung an", as
 test("Popups in der App: an zeigt den Hinweis, aus bleibt still, Inbox und Glocke bleiben aktuell", async ({ page }) => {
   await withActivity(page);
   await open(page, "/benachrichtigungen");
-  await expect(page.getByText("DEMO-1 · Kim Probe hat einen Kommentar hinzugefügt")).toBeVisible();
+  await expect(inAppToast(page)).toBeVisible();
   await expect(bell(page)).toHaveAccessibleName("Benachrichtigungen, 10 ungelesen");
   expect(await qa(page)).toMatchObject({ checks: 0, requests: 0, sent: [] });
 });
@@ -197,7 +199,7 @@ test("Popups in der App aus: keine Zustellung, Inbox und Glocke trotzdem aktuell
   await expect(bell(page)).toHaveAccessibleName("Benachrichtigungen, 10 ungelesen");
   await expect(page.getByRole("button", { name: "DEMO-1 öffnen" }).first()).toBeVisible();
   await page.waitForTimeout(500);
-  await expect(page.getByText("DEMO-1 · Kim Probe hat einen Kommentar hinzugefügt")).toHaveCount(0);
+  await expect(inAppToast(page)).toHaveCount(0);
   expect(await qa(page)).toMatchObject({ checks: 0, requests: 0, sent: [] });
 });
 
@@ -205,7 +207,7 @@ test("Systemhinweise im Hintergrund: an stellt zu, aus ruft nichts Natives auf",
   await withActivity(page, { focused: false, native: { permission: "granted" } });
   await open(page, "/benachrichtigungen");
   await expect(bell(page)).toHaveAccessibleName("Benachrichtigungen, 10 ungelesen");
-  await expect(page.getByText("DEMO-1 · Kim Probe hat einen Kommentar hinzugefügt")).toHaveCount(0);
+  await expect(inAppToast(page)).toHaveCount(0);
   await expect.poll(async () => (await qa(page)).sent).toEqual([{ title: "DEMO-1 · Kim Probe", body: "hat einen Kommentar hinzugefügt: Neue Rückfrage qa-neu-1" }]);
   expect((await qa(page)).requests).toBe(0);
 });
@@ -262,8 +264,10 @@ test("Tastatur, 390 px, dunkel und reduzierte Bewegung", async ({ page }) => {
   await page.keyboard.press("Space");
   await expect(page.getByRole("button", { name: "Systemhinweise erlauben" })).toBeVisible();
   await page.keyboard.press("Tab");
+  await expect(watchingSwitch(page)).toBeFocused();
+  await page.keyboard.press("Tab");
   await expect(page.getByRole("button", { name: "Systemhinweise erlauben" })).toBeFocused();
-  for (const target of [inAppSwitch(page), systemSwitch(page), page.getByRole("button", { name: "Systemhinweise erlauben" })]) {
+  for (const target of [inAppSwitch(page), systemSwitch(page), watchingSwitch(page), page.getByRole("button", { name: "Systemhinweise erlauben" })]) {
     const box = await target.evaluate((element) => {
       const rect = element.getBoundingClientRect();
       const after = getComputedStyle(element, "::after");

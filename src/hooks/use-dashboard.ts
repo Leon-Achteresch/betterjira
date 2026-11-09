@@ -11,6 +11,7 @@ import {
 } from "@/lib/jira/queries";
 import { useProjectPrefs } from "@/hooks/use-project-prefs";
 import { workdayGreeting } from "@/lib/workday";
+import { useTodayAgenda } from "@/hooks/use-today-agenda";
 
 export function useDashboard() {
   const session = useJiraSession();
@@ -29,6 +30,7 @@ export function useDashboard() {
   const next = issues.filter((issue) => issue.fields.status.statusCategory.key === "new");
   const done = issues.filter((issue) => issue.fields.status.statusCategory.key === "done");
   const open = [...active, ...next];
+  const agenda = useTodayAgenda({ active, open });
   const groups = new Map<string, JiraWorkIssue[]>();
   for (const issue of open)
     groups.set(issue.fields.project.key, [...(groups.get(issue.fields.project.key) ?? []), issue]);
@@ -58,6 +60,7 @@ export function useDashboard() {
     session,
     login,
     attention,
+    agenda,
     freshness,
     refresh,
     now,

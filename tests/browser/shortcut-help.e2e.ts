@@ -55,7 +55,7 @@ test("durchsucht Aktion, Bereich und Tasten und blendet leere Gruppen aus", asyn
 
   await searchBox(page).fill("g h");
   await expect(rows(page)).toHaveCount(1);
-  await expect(rows(page).first()).toContainText("Übersicht");
+  await expect(rows(page).first()).toContainText("Heute");
   await shot(page, testInfo, "treffer");
 
   await searchBox(page).fill("");
