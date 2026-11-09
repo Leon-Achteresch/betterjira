@@ -66,7 +66,7 @@ export function PrimaryNav({ counts }: { counts: NavCounts }) {
                                 className="absolute inset-y-1.5 left-0 w-0.5 rounded-full bg-primary"
                               />
                             )}
-                            <item.icon className={isActive ? "text-foreground" : "text-muted-foreground"} />
+                            <item.icon aria-hidden className={isActive ? "text-foreground" : "text-muted-foreground"} />
                             <span>{item.label}</span>
                           </>
                         )}

@@ -125,6 +125,8 @@ test("bleibt auf kleinen Fenstern bedienbar und scrollt intern", async ({ page }
   await expect(rows(page).last()).toBeInViewport();
   await expect(searchBox(page)).toBeInViewport();
   await expect(dialog(page).getByRole("button", { name: "Schließen" })).toBeInViewport();
-  const close = await dialog(page).getByRole("button", { name: "Schließen" }).boundingBox();
-  expect(Math.min(close?.width ?? 0, close?.height ?? 0)).toBeGreaterThanOrEqual(32);
+  await expect.poll(async () => {
+    const close = await dialog(page).getByRole("button", { name: "Schließen" }).boundingBox();
+    return close ? Math.round(Math.min(close.width, close.height)) : 0;
+  }).toBeGreaterThanOrEqual(32);
 });
