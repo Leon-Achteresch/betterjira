@@ -3,13 +3,15 @@ import { useActivityAlertPrefs } from "./use-activity-alert-prefs";
 import { useRequestSystemNotificationPermission, useSystemNotificationPermission } from "./use-system-notification-permission";
 
 export const useActivityAlertSettings = () => {
-  const { inApp, system, setInApp, setSystem } = useActivityAlertPrefs();
+  const { inApp, system, watching, setInApp, setSystem, setWatching } = useActivityAlertPrefs();
   const permission = useSystemNotificationPermission(system);
   const request = useRequestSystemNotificationPermission();
 
   return {
     inApp,
     onInAppChange: setInApp,
+    watching,
+    onWatchingChange: setWatching,
     system,
     onSystemChange: (enabled: boolean) => {
       request.reset();

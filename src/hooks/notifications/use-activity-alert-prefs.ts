@@ -12,6 +12,7 @@ type ActivityAlertState = ActivityAlertPrefs & {
   systemEpoch: number;
   setInApp: (inApp: boolean) => void;
   setSystem: (system: boolean) => void;
+  setWatching: (watching: boolean) => void;
 };
 
 export const useActivityAlertPrefs = create<ActivityAlertState>()(
@@ -21,11 +22,12 @@ export const useActivityAlertPrefs = create<ActivityAlertState>()(
       systemEpoch: 0,
       setInApp: (inApp) => set({ inApp }),
       setSystem: (system) => set(({ systemEpoch }) => ({ system, systemEpoch: systemEpoch + 1 })),
+      setWatching: (watching) => set({ watching }),
     }),
     {
       name: ACTIVITY_ALERT_STORAGE_KEY,
       version: ACTIVITY_ALERT_STORAGE_VERSION,
-      partialize: ({ inApp, system }) => ({ inApp, system }),
+      partialize: ({ inApp, system, watching }) => ({ inApp, system, watching }),
       migrate: parseActivityAlertPrefs,
       merge: (persisted, current) => ({ ...current, ...parseActivityAlertPrefs(persisted) }),
     },

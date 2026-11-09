@@ -2,13 +2,13 @@ import { Option, Schema } from "effect";
 import type { StatusLabel } from "@/lib/connections/status";
 import type { JiraNotification } from "@/lib/jira/notifications";
 
-const ActivityAlertPrefs = Schema.Struct({ inApp: Schema.Boolean, system: Schema.Boolean });
+const ActivityAlertPrefs = Schema.Struct({ inApp: Schema.Boolean, system: Schema.Boolean, watching: Schema.Boolean });
 export type ActivityAlertPrefs = typeof ActivityAlertPrefs.Type;
 
-export const DEFAULT_ACTIVITY_ALERT_PREFS: ActivityAlertPrefs = { inApp: true, system: true };
+export const DEFAULT_ACTIVITY_ALERT_PREFS: ActivityAlertPrefs = { inApp: true, system: true, watching: false };
 
 export const ACTIVITY_ALERT_STORAGE_KEY = "betterjira-activity-alerts";
-export const ACTIVITY_ALERT_STORAGE_VERSION = 1;
+export const ACTIVITY_ALERT_STORAGE_VERSION = 2;
 
 const decodeStored = Schema.decodeUnknownOption(Schema.Record(Schema.String, Schema.Unknown));
 const decodeFlag = Schema.decodeUnknownOption(Schema.Boolean);
@@ -19,6 +19,7 @@ export const parseActivityAlertPrefs = (value: unknown): ActivityAlertPrefs => {
   return {
     inApp: Option.getOrElse(decodeFlag(stored.inApp), () => DEFAULT_ACTIVITY_ALERT_PREFS.inApp),
     system: Option.getOrElse(decodeFlag(stored.system), () => DEFAULT_ACTIVITY_ALERT_PREFS.system),
+    watching: Option.getOrElse(decodeFlag(stored.watching), () => DEFAULT_ACTIVITY_ALERT_PREFS.watching),
   };
 };
 
@@ -34,15 +35,37 @@ export type SystemAlertGate = { system: boolean; systemEpoch: number; owner: str
 export const systemAlertStillAllowed = (before: SystemAlertGate, now: SystemAlertGate) =>
   now.system && now.systemEpoch === before.systemEpoch && now.owner !== null && now.owner === before.owner;
 
-export const MAX_ACTIVITY_ALERTS = 3;
+export const ALERT_COOLDOWN_MS = 5 * 60_000;
 
-export const systemAlertMessages = (fresh: readonly JiraNotification[]) => {
-  const shown = fresh.slice(0, MAX_ACTIVITY_ALERTS).map((item) => ({
-    title: `${item.issueKey} · ${item.actor.displayName}`,
-    body: `${item.title}: ${item.body}`,
-  }));
-  const rest = fresh.length - shown.length;
-  return rest > 0 ? [...shown, { title: "betterjira", body: `${rest} weitere Benachrichtigungen` }] : shown;
+export const alertableItems = (
+  fresh: readonly JiraNotification[],
+  watching: boolean,
+  lastAlerted: ReadonlyMap<string, number>,
+  now: number,
+) =>
+  fresh
+    .filter((item) => (watching || item.kind === "direct") && now - (lastAlerted.get(item.issueKey) ?? -Infinity) >= ALERT_COOLDOWN_MS)
+    .sort((a, b) => b.created - a.created);
+
+const listFormat = new Intl.ListFormat("de", { type: "conjunction" });
+
+const listNames = (names: readonly string[]) =>
+  names.length <= 3 ? listFormat.format(names) : `${names.slice(0, 3).join(", ")} und ${names.length - 3} weitere`;
+
+export type AlertMessage = { title: string; body: string; issueKey: string | null };
+
+export const alertMessage = (items: readonly JiraNotification[]): AlertMessage | null => {
+  const [first] = items;
+  if (!first) return null;
+  if (items.length === 1) {
+    return { title: `${first.issueKey} · ${first.actor.displayName}`, body: first.body ? `${first.title}: ${first.body}` : first.title, issueKey: first.issueKey };
+  }
+  const issues = [...new Set(items.map((item) => item.issueKey))];
+  if (issues.length === 1) {
+    const actors = [...new Set(items.map((item) => item.actor.displayName))];
+    return { title: `${first.issueKey} · ${first.summary}`, body: `${items.length} Neuigkeiten von ${listNames(actors)}`, issueKey: first.issueKey };
+  }
+  return { title: `${items.length} Neuigkeiten in ${issues.length} Tickets`, body: listNames(issues), issueKey: null };
 };
 
 export const SystemPermission = Schema.Literals(["granted", "denied", "prompt"]);

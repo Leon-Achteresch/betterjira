@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { JiraNotification } from "@/lib/jira/notifications";
 import { useActivityAlertPrefs } from "./use-activity-alert-prefs";
-import { deliverActivityAlerts } from "./use-notification-poller";
+import { alertCooldown, deliverActivityAlerts } from "./use-notification-poller";
 import { useNotifications } from "./use-notification-store";
 
 const native = vi.hoisted(() => ({
@@ -25,7 +25,7 @@ const notification = (id: string): JiraNotification => ({
   actor: { displayName: "Sam", avatarUrls: { "48x48": "" } },
 });
 
-const openIssue = () => undefined;
+const openIssue = { issue: () => undefined, inbox: () => undefined };
 
 const deferred = <T,>() => {
   let resolve: (value: T) => void = () => undefined;
@@ -40,19 +40,37 @@ beforeEach(() => {
   native.requestPermission.mockReset();
   native.sendNotification.mockReset();
   sonner.toast.mockReset();
-  useActivityAlertPrefs.setState({ inApp: true, system: true, systemEpoch: 0 });
+  useActivityAlertPrefs.setState({ inApp: true, system: true, watching: false, systemEpoch: 0 });
+  alertCooldown.clear();
   useNotifications.setState({ owner: "konto-a", items: [], checkedAt: 1 });
 });
 
 describe("deliverActivityAlerts", () => {
   it("zeigt mit Standardwerten Popups in der App und Systemhinweise im Hintergrund", async () => {
     await deliverActivityAlerts(["1", "2", "3", "4"].map(notification), true, openIssue);
-    expect(sonner.toast).toHaveBeenCalledTimes(3);
+    expect(sonner.toast).toHaveBeenCalledTimes(1);
+    expect(sonner.toast).toHaveBeenCalledWith("4 Neuigkeiten in 4 Tickets", expect.anything());
     expect(native.isPermissionGranted).not.toHaveBeenCalled();
 
     await deliverActivityAlerts(["5", "6", "7", "8"].map(notification), false, openIssue);
-    expect(native.sendNotification).toHaveBeenCalledTimes(4);
+    expect(native.sendNotification).toHaveBeenCalledTimes(1);
     expect(native.requestPermission).not.toHaveBeenCalled();
+  });
+
+  it("meldet dasselbe Ticket innerhalb der Ruhezeit nur einmal", async () => {
+    await deliverActivityAlerts([notification("1")], false, openIssue, undefined, 0);
+    await deliverActivityAlerts([{ ...notification("1"), id: "x" }], false, openIssue, undefined, 60_000);
+    expect(native.sendNotification).toHaveBeenCalledTimes(1);
+    await deliverActivityAlerts([{ ...notification("1"), id: "y" }], false, openIssue, undefined, 6 * 60_000);
+    expect(native.sendNotification).toHaveBeenCalledTimes(2);
+  });
+
+  it("meldet beobachtete Tickets nur, wenn das eingeschaltet ist", async () => {
+    await deliverActivityAlerts([{ ...notification("1"), kind: "watching" }], false, openIssue);
+    expect(native.sendNotification).not.toHaveBeenCalled();
+    useActivityAlertPrefs.getState().setWatching(true);
+    await deliverActivityAlerts([{ ...notification("2"), kind: "watching" }], false, openIssue);
+    expect(native.sendNotification).toHaveBeenCalledTimes(1);
   });
 
   it("bleibt bei ausgeschalteten Popups still, ohne auf Systemhinweise auszuweichen", async () => {
