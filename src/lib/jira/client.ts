@@ -2,11 +2,16 @@ import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { fetch } from "@tauri-apps/plugin-http";
 import { Data, Effect, Fiber, Schema, Semaphore } from "effect";
+import { isRetryableRead, isTransientStatus, JIRA_READ_CONCURRENCY, JIRA_READ_RETRIES, JIRA_MAX_AUTO_RETRY_DELAY, JIRA_WRITE_CONCURRENCY, retryAfterMs } from "./request-policy";
+
 import { rateLimitMessage, retryAtFrom } from "./retry-after";
 
 const CLIENT_ID: string | undefined = import.meta.env.VITE_ATLASSIAN_CLIENT_ID;
 const CLIENT_SECRET: string | undefined = import.meta.env.VITE_ATLASSIAN_CLIENT_SECRET;
 const refreshLock = Semaphore.makeUnsafe(1);
+const readSlots = Semaphore.makeUnsafe(JIRA_READ_CONCURRENCY);
+const writeSlots = Semaphore.makeUnsafe(JIRA_WRITE_CONCURRENCY);
+let rateLimitedUntil = 0;
 const CALLBACK_PORT = 8742;
 const REDIRECT_URI = `http://localhost:${CALLBACK_PORT}/callback`;
 const SCOPES =
@@ -14,7 +19,7 @@ const SCOPES =
 
 export class JiraAuthError extends Data.TaggedError("JiraAuthError")<{ message: string; cause?: unknown }> {}
 export class NotAuthenticated extends Data.TaggedError("NotAuthenticated")<{}> {}
-export class JiraApiError extends Data.TaggedError("JiraApiError")<{ status: number; body: string; retryAt?: number }> {
+export class JiraApiError extends Data.TaggedError("JiraApiError")<{ status: number; body: string; retryAfterMs?: number; retryAt?: number; handledRetries?: boolean }> {
   override get message() {
     if (this.status === 429) return rateLimitMessage(this.retryAt, Date.now());
     return `Jira antwortet mit ${this.status}${this.body ? `: ${this.body.slice(0, 300)}` : ""}`;
@@ -30,6 +35,7 @@ const Session = Schema.Struct({
   siteName: Schema.String,
 });
 type Session = typeof Session.Type;
+let cachedSession: Session | undefined;
 
 const TokenResponse = Schema.Struct({
   access_token: Schema.String,
@@ -49,8 +55,12 @@ const send = (url: string, init?: RequestInit) =>
     catch: authError("Atlassian ist nicht erreichbar"),
   });
 
-const apiError = (response: Response, body: string) =>
-  new JiraApiError({ status: response.status, body, retryAt: retryAtFrom(response.headers.get("retry-after"), Date.now()) });
+const apiError = (response: Response, body: string) => new JiraApiError({
+  status: response.status, body,
+  retryAfterMs: retryAfterMs(response.headers.get("Retry-After")),
+  retryAt: retryAtFrom(response.headers.get("Retry-After"), Date.now()),
+  handledRetries: isTransientStatus(response.status),
+});
 
 const decode = <S extends Schema.Decoder<unknown>>(schema: S) =>
   Effect.fnUntraced(function* (response: Response) {
@@ -80,27 +90,30 @@ const requestTokens = Effect.fnUntraced(function* (grant: Record<string, string>
 });
 
 const loadSession = Effect.gen(function* () {
+  if (cachedSession) return cachedSession;
   const raw = yield* Effect.tryPromise({
     try: () => invoke<string | null>("session_get"),
     catch: authError("Anmeldedaten konnten nicht gelesen werden"),
   });
   if (raw === null) return yield* new NotAuthenticated();
-  return yield* Effect.try(() => JSON.parse(raw)).pipe(
+  const session = yield* Effect.try(() => JSON.parse(raw)).pipe(
     Effect.flatMap(Schema.decodeUnknownEffect(Session)),
     Effect.mapError(() => new NotAuthenticated()),
   );
+  cachedSession = session;
+  return session;
 });
 
 const saveSession = (session: Session) =>
   Effect.tryPromise({
     try: () => invoke("session_set", { value: JSON.stringify(session) }),
     catch: authError("Anmeldedaten konnten nicht gespeichert werden"),
-  });
+  }).pipe(Effect.tap(() => Effect.sync(() => { cachedSession = session; })));
 
-const deleteSession = Effect.tryPromise({
+const deleteSession = Effect.sync(() => { cachedSession = undefined; }).pipe(Effect.andThen(Effect.tryPromise({
   try: () => invoke("session_delete"),
   catch: authError("Anmeldedaten konnten nicht gelöscht werden"),
-});
+})));
 
 const awaitCallback = Effect.fnUntraced(function* (authorizeUrl: string) {
   const raw = yield* Effect.tryPromise({
@@ -197,7 +210,7 @@ export const currentSite = validSession().pipe(
   Effect.catchTag("NotAuthenticated", () => Effect.succeed(null)),
 );
 
-const authedFetch = (path: string, init?: RequestInit) =>
+const authedAttempt = (path: string, init?: RequestInit) =>
   Effect.gen(function* () {
     const call = (session: Session) =>
       send(`https://api.atlassian.com/ex/jira/${session.cloudId}/rest/${path}`, {
@@ -215,6 +228,35 @@ const authedFetch = (path: string, init?: RequestInit) =>
     const renewed = yield* validSession(session.accessToken);
     return yield* call(renewed);
   });
+
+const awaitRateLimit = Effect.gen(function* () {
+  while (rateLimitedUntil > Date.now()) {
+    const remaining = rateLimitedUntil - Date.now();
+    if (remaining > JIRA_MAX_AUTO_RETRY_DELAY) {
+      return yield* new JiraApiError({ status: 429, body: "", retryAt: rateLimitedUntil, retryAfterMs: remaining, handledRetries: true });
+    }
+    yield* Effect.sleep(remaining);
+  }
+});
+
+const authedFetch = (path: string, init?: RequestInit) => Effect.gen(function* () {
+  const read = isRetryableRead(path, init?.method);
+  const slots = read ? readSlots : writeSlots;
+  for (let attempt = 0; ; attempt++) {
+    const response = yield* Effect.gen(function* () {
+      yield* awaitRateLimit;
+      const response = yield* authedAttempt(path, init);
+      if (response.status === 429) {
+        rateLimitedUntil = Math.max(rateLimitedUntil, Date.now() + (retryAfterMs(response.headers.get("Retry-After")) || 1000));
+      }
+      return response;
+    }).pipe(slots.withPermits(1));
+    if (!read || !isTransientStatus(response.status) || attempt >= JIRA_READ_RETRIES
+      || retryAfterMs(response.headers.get("Retry-After")) > JIRA_MAX_AUTO_RETRY_DELAY) return response;
+    yield* Effect.promise(() => response.text()).pipe(Effect.ignore);
+    yield* Effect.sleep(Math.max(retryAfterMs(response.headers.get("Retry-After")), 250 * 2 ** attempt * (0.8 + Math.random() * 0.4)));
+  }
+});
 
 type ApiVersion = "api/2" | "api/3";
 

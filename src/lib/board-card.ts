@@ -1,9 +1,8 @@
-import type { Effect } from "effect";
-import type { boardWithIssues } from "@/lib/jira/board";
+import type { boardGroups } from "@/lib/jira/board";
 import { type FilterValues, UNASSIGNED } from "@/lib/board-filters";
 import type { InsightItem } from "@/lib/board-insights";
 
-export type BoardColumn = Effect.Success<ReturnType<typeof boardWithIssues>>[number]["columns"][number];
+export type BoardColumn = ReturnType<typeof boardGroups>[number]["columns"][number];
 export type BoardCard = BoardColumn["issues"][number];
 
 export const cardValues = ({ fields }: BoardCard): FilterValues => ({

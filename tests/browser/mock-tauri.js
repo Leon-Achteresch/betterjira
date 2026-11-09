@@ -7,6 +7,7 @@ if (new URLSearchParams(location.search).get("reduce") === "1") {
   };
 }
 const scenario = new URLSearchParams(location.search).get("scenario");
+const attentionPort = Number(new URLSearchParams(location.search).get("attentionPort") ?? 8743);
 const accountId = new URLSearchParams(location.search).get("account") || "qa-user";
 const cloudId = new URLSearchParams(location.search).get("cloud") || "qa-cloud";
 const scheme = matchMedia("(prefers-color-scheme: dark)");
@@ -230,7 +231,7 @@ if (scenario === "board") {
   let seed = 7;
   const pick = (list) => list[(seed = (seed * 9301 + 49297) % 233280) % list.length];
   issues.length = 0;
-  for (let index = 0; index < 64; index++) {
+  for (let index = 0; index < (window.__qaBoardIssueCount ?? 64); index++) {
     const statusIndex = [0, 1, 1, 1, 2, 2, 3, 4, 5, 5, 5][index % 11];
     const labels = labelPool.filter(() => pick([0, 0, 0, 1]) === 1).slice(0, 2);
     issues.push({
@@ -1104,6 +1105,14 @@ const respond = async (request) => {
     if (rule.issues) return { body: { issues: rule.issues, isLast: !rule.nextPageToken, nextPageToken: rule.nextPageToken } };
     if (qa.failSearch) return { status: 400, body: { errorMessages: ["Test: Abfrage nicht möglich"] } };
     const found = rule.issues ?? (rule.keys ? issues.filter((issue) => rule.keys.includes(issue.key)) : issues);
+    if (scenario === "board") {
+      const offset = Number(url.searchParams.get("nextPageToken") ?? 0);
+      const size = Number(url.searchParams.get("maxResults") ?? 100);
+      const keys = [...(url.searchParams.get("jql") ?? "").matchAll(/"(DEMO-\d+)"/g)].map((match) => match[1]);
+      const filtered = keys.length ? found.filter((issue) => keys.includes(issue.key)) : found;
+      const next = offset + size < filtered.length ? String(offset + size) : undefined;
+      return { body: { issues: qa.emptySearch ? [] : filtered.slice(offset, offset + size), isLast: !next, nextPageToken: next } };
+    }
     return { body: { issues: qa.emptySearch ? [] : found, isLast: !rule.nextPageToken, nextPageToken: rule.nextPageToken } };
   }
   if (path.startsWith("/board")) {
@@ -1301,7 +1310,7 @@ window.__TAURI_INTERNALS__ = {
     }
     if (command === "scm_gh_hosts") return JSON.stringify(window.__qaGhHosts ?? []);
     if (command === "attention_read") return scenario === "ai" ? JSON.stringify(window.__qa.briefing) : null;
-    if (command === "attention_serve") return 8743;
+    if (command === "attention_serve") return attentionPort;
     if (command === "attention_trigger") {
       if (window.__qa.briefingFailure) throw new Error("Test: Agent vorübergehend nicht erreichbar");
       window.__qa.attentionRequest = JSON.parse(args.body);
@@ -1318,7 +1327,7 @@ window.__TAURI_INTERNALS__ = {
             callbacks.get(listener.handler)?.({ event: listener.event, payload: null });
         }
       }, 1000);
-      return;
+      return null;
     }
     if (command === "plugin:event|listen") {
       const id = ++listenerId;

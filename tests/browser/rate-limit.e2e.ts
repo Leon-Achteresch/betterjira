@@ -50,6 +50,7 @@ test.beforeEach(async ({ page }) => {
 test("Drosselung beim ersten Laden nennt den frühesten Zeitpunkt, bleibt angemeldet und erholt sich per Retry", async ({
   page,
 }, testInfo) => {
+  await page.clock.install();
   await page.addInitScript(() => {
     window.__qaSearchRule = () => ({ status: 429, headers: { "retry-after": "120" } });
   });
@@ -64,6 +65,7 @@ test("Drosselung beim ersten Laden nennt den frühesten Zeitpunkt, bleibt angeme
   await shot(page, testInfo, "erstfehler");
 
   await setRule(page, "return {};");
+  await page.clock.fastForward(120_000);
   await error.getByRole("button", { name: "Erneut versuchen" }).click();
   await expect(row(page, "DEMO-3")).toBeVisible();
   await expect(error).toHaveCount(0);
