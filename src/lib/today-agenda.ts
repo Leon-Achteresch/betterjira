@@ -1,4 +1,4 @@
-import { differenceInCalendarDays, format, isSameDay, isWeekend } from "date-fns";
+import { differenceInCalendarDays, format, isSameDay, isWeekend, parseISO } from "date-fns";
 
 export type AgendaTone = "urgent" | "normal";
 
@@ -48,11 +48,11 @@ const inboxItem = (unread: number): AgendaItem[] =>
 
 const dueItems = (open: readonly AgendaIssue[], now: Date): AgendaItem[] => {
   const due = open
-    .filter((issue) => issue.fields.duedate && differenceInCalendarDays(new Date(issue.fields.duedate), now) <= 0)
+    .filter((issue) => issue.fields.duedate && differenceInCalendarDays(parseISO(issue.fields.duedate), now) <= 0)
     .sort((a, b) => a.fields.duedate!.localeCompare(b.fields.duedate!));
   const [first] = due;
   if (!first) return [];
-  const overdue = differenceInCalendarDays(new Date(first.fields.duedate!), now) < 0;
+  const overdue = differenceInCalendarDays(parseISO(first.fields.duedate!), now) < 0;
   return [
     {
       id: "due",

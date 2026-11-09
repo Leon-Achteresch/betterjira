@@ -11,7 +11,7 @@ export const useTodayAgenda = ({ active, open }: Pick<AgendaInput, "active" | "o
   const directUnread = useOwnedNotifications().filter((item) => !item.read && item.kind === "direct").length;
   const rollouts = useRollouts();
   const worklogs = useMyWorklogs(resolveTimeRange({ zeitraum: "tag" }, now));
-  const loggedSeconds = worklogs.pending || worklogs.error ? null : (worklogs.summary?.seconds ?? null);
+  const loggedSeconds = worklogs.pending || worklogs.error || !worklogs.coverage.complete ? null : (worklogs.summary?.seconds ?? null);
 
   const select = (item: AgendaItem) => {
     if (item.target === "inbox") return void navigate({ to: "/benachrichtigungen" });

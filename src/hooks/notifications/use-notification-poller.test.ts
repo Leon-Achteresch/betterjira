@@ -65,6 +65,13 @@ describe("deliverActivityAlerts", () => {
     expect(native.sendNotification).toHaveBeenCalledTimes(2);
   });
 
+  it("setzt die Ruhezeit beim Kontowechsel zurück", async () => {
+    await deliverActivityAlerts([notification("1")], false, openIssue, undefined, 0);
+    useNotifications.setState({ owner: "konto-b" });
+    await deliverActivityAlerts([{ ...notification("1"), id: "x" }], false, openIssue, () => "konto-b", 60_000);
+    expect(native.sendNotification).toHaveBeenCalledTimes(2);
+  });
+
   it("meldet beobachtete Tickets nur, wenn das eingeschaltet ist", async () => {
     await deliverActivityAlerts([{ ...notification("1"), kind: "watching" }], false, openIssue);
     expect(native.sendNotification).not.toHaveBeenCalled();

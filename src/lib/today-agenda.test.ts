@@ -44,6 +44,12 @@ describe("todayAgenda", () => {
     expect(items).toEqual([]);
   });
 
+  it("liest Fälligkeitsdaten als lokalen Kalendertag", () => {
+    const due = (duedate: string) => todayAgenda({ ...empty, open: [issue("A-1", now, duedate)] }).map((item) => item.title);
+    expect(due("2026-11-09")).toEqual(["A-1 ist heute fällig"]);
+    expect(due("2026-11-10")).toEqual([]);
+  });
+
   it("zeigt gebuchte Zeit als ruhigen Hinweis", () => {
     expect(todayAgenda({ ...empty, loggedSeconds: 9000 })).toMatchObject([{ id: "time", tone: "normal", title: "2,5 h heute gebucht" }]);
   });

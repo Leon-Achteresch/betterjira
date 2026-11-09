@@ -21,6 +21,7 @@ import { openNotification, useNotificationOwner, useNotifications, useOwnedUnrea
 const POLL_INTERVAL = 20_000;
 
 export const alertCooldown = new Map<string, number>();
+let cooldownOwner: string | null = null;
 
 export type AlertTargets = { issue: (key: string) => void; inbox: () => void };
 
@@ -62,6 +63,10 @@ export const deliverActivityAlerts = (
   now = Date.now(),
 ): Promise<void> => {
   if (fresh.length === 0 || currentOwner() === null || currentOwner() !== storedOwner()) return Promise.resolve();
+  if (cooldownOwner !== currentOwner()) {
+    alertCooldown.clear();
+    cooldownOwner = currentOwner();
+  }
   const prefs = useActivityAlertPrefs.getState();
   const channel = activityAlertChannel(focused, prefs);
   if (!channel) return Promise.resolve();
