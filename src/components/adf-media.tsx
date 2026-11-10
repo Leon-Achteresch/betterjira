@@ -159,9 +159,12 @@ export function AdfMediaSingle({ node, media }: { node: AdfNode; media: AdfMedia
   const child = node.content?.find((entry) => entry.type === "media");
   const box = mediaSingleBox(node.attrs, child?.attrs);
   const attachment = child && media.matches.get(child);
+  const unmatchable = !child || child.attrs?.type !== "file";
   return (
     <div data-adf-media-single className="min-w-0">
-      {media.pending ? (
+      {unmatchable ? (
+        <MissingChip name={child && mediaAltText(child)} />
+      ) : media.pending ? (
         <PendingSingle box={box} />
       ) : !child || !attachment ? (
         <MissingChip name={child && mediaAltText(child)} />

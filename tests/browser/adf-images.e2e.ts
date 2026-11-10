@@ -113,9 +113,20 @@ test("öffnet die Großansicht per Klick und Tastatur, ohne die Beschreibung zu 
 });
 
 test("Klick auf Hinweis-Chip öffnet keinen Editor", async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.assign(window, { __qaRenderedRule: () => ({ delayMs: 1500 }) });
+    new MutationObserver(() => {
+      for (const single of document.querySelectorAll<HTMLElement>("[data-adf-media-single]"))
+        if (single.querySelector('[data-adf-media="pending"]')) single.dataset.qaSawPending = "true";
+    }).observe(document, { childList: true, subtree: true });
+  });
   await page.goto(ISSUE("DEMO-1"));
   const missing = media(description(page), "missing").filter({ hasText: "extern-beschreibung.png" });
   await expect(missing).toContainText("Anhang nicht verfügbar");
+  await expect(pending(description(page), "single")).toHaveCount(2);
+  await expect(media(description(page), "image", "46883")).toBeVisible();
+  await expect(description(page).locator('[data-adf-media-single][data-qa-saw-pending="true"]')).toHaveCount(2);
+  await expect(description(page).locator("[data-adf-media-single]").filter({ hasText: "extern-beschreibung.png" })).not.toHaveAttribute("data-qa-saw-pending", "true");
   await missing.click();
   await page.waitForTimeout(300);
   await expect(editor(page)).toHaveCount(0);
@@ -181,7 +192,7 @@ test("zeigt Skeletons in Zielgröße, solange die gerenderte Fassung lädt", asy
   await page.addInitScript(() => Object.assign(window, { __qaRenderedRule: () => ({ delayMs: 2000 }) }));
   await page.goto(ISSUE("DEMO-1"));
   const singles = pending(description(page), "single");
-  await expect(singles).toHaveCount(3);
+  await expect(singles).toHaveCount(2);
   const box = await singles.first().boundingBox();
   expect(Math.round(box!.width)).toBe(480);
   expect(Math.round(box!.height)).toBe(240);
@@ -207,6 +218,12 @@ test("zeigt Hinweis-Chips, wenn die gerenderte Fassung scheitert", async ({ page
   await expect(description(page).locator('[data-adf-media="pending"]')).toHaveCount(0);
   await expect(media(description(page), "image")).toHaveCount(0);
   await expect(anhang(description(page))).toHaveCount(0);
+
+  await page.evaluate(() => Object.assign(window, { __qaRenderedRule: () => ({}) }));
+  await page.getByRole("button", { name: "Weitere Ticketaktionen" }).click();
+  await page.getByRole("menuitem", { name: "Aktualisieren" }).click();
+  await expect(media(description(page), "image", "46883")).toBeVisible();
+  await expect(media(description(page), "missing")).toHaveCount(1);
 });
 
 test("lädt nach Aktualisieren mit neuem Stand die gerenderte Fassung neu", async ({ page }) => {
