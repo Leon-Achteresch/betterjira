@@ -333,6 +333,15 @@ Integration offener PRs:
 - Bilder der Testanhänge (`qa-att-*`) liefert die Simulation als 1×1-PNG; Uploads (`POST /issue/{key}/attachments`) landen nur im Testticket und in `window.__qa.writes`, `window.__qa.delayMs` verzögert sie.
 - Automatisch: `bunx playwright test tests/browser/attachment-sort.e2e.ts --workers=1`; mit `ATTACHMENT_SORT_SHOTS=<Ordner>` entstehen Screenshots.
 
+## Bilder in Beschreibung und Kommentaren
+
+- `...fixture.html?scenario=adf-images&route=/issue/DEMO-1`: acht lokale Testanhänge mit numerischen IDs (`46883` bis `46890`: drei Bilder, ein PDF, ein Kommentarbild, ein Bild, das mit 404 scheitert, eine Text- und eine CSV-Datei). Die Beschreibung hat zwei `mediaSingle` (480 px fest und 50 % der Spalte), eine `mediaGroup` (Vorschaubild, PDF als Datei-Chip, scheiterndes Bild als Datei-Chip) und ein externes Bild als Hinweis „Anhang nicht verfügbar“, danach Fülltext für die Prüfung des späten Ladens.
+- Die Detailabfrage liefert vier Kommentare: einen mit Bild und einen mit zwei Inline-Dateien, die über `data-media-services-id` und relative Links zugeordnet werden (die ADF-Reihenfolge ist absichtlich umgekehrt). Der fünfte kommt über „Weitere Kommentare laden“ mit `expand=renderedBody` und hat eine abweichende Zahl: ein Bild über den Dateinamen, ein Inline-Anhang als Datei-Chip, zwei Hinweise „Anhang nicht verfügbar“ (einer davon für ein externes Bild, das nie geladen wird).
+- `...route=/issue/DEMO-1?bereich=zeit`: ein Eintrag im Arbeitsprotokoll mit Media zeigt zweimal „[Anhang]“, weil dort keine gerenderte Fassung vorgesehen ist.
+- Die gerenderte Fassung (`GET /issue/{key}?fields=description,comment&expand=renderedFields`) ist lokales Test-HTML; die App durchsucht es nur nach Anhangs-IDs und zeigt es nie an. `window.__qa.renderedReads` protokolliert diese Abfragen (`key`, `expand`), `window.__qa.commentPageExpands` den `expand`-Wert jeder Kommentarseite. `DEMO-2` hat keine Media-Knoten und löst keine solche Abfrage aus.
+- `window.__qaRenderedRule = (key) => ({ delayMs, status })` verzögert die gerenderte Fassung (Skeleton in Zielgröße bzw. Chip-Skeleton) oder lässt sie scheitern (dann Hinweis-Chips), `window.__qaAttachmentRule = (id) => ({ delayMs })` verzögert einzelne Bildabrufe (Skeleton in Zielgröße). Beides per `addInitScript` setzen. `window.__qaAdfImagesRevise()` setzt einen neuen Stand (`fields.updated`, Beschreibung und gerenderte Fassung); danach „Weitere Ticketaktionen“ → „Aktualisieren“. Dateien ohne Bild öffnen über den simulierten Opener; die Ziele stehen in `window.__qa.opened`.
+- Automatisch: `bunx playwright test tests/browser/adf-images.e2e.ts --workers=1`.
+
 ## Jira-Aktivitätshinweise
 
 - Einstellung: `...fixture.html?scenario=notifications&route=/settings/benachrichtigungen`. Beide Schalter gelten nur auf diesem Gerät (`localStorage`-Schlüssel `betterjira-activity-alerts`).
