@@ -279,7 +279,8 @@ export const jiraAgile = <S extends Schema.Decoder<unknown>>(path: string, schem
 
 export const jiraImage = (path: string) =>
   Effect.gen(function* () {
-    const response = yield* authedFetch(`api/3${path}`, { headers: { Accept: "image/*" } });
+    // Jira answers Accept: image/* with 406 for attachment content and thumbnails.
+    const response = yield* authedFetch(`api/3${path}`, { headers: { Accept: "*/*" } });
     if (!response.ok) return yield* apiError(response, "");
     const blob = yield* Effect.tryPromise({ try: () => response.blob(), catch: authError("Bild konnte nicht geladen werden") });
     return yield* Effect.tryPromise({

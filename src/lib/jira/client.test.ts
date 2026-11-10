@@ -116,3 +116,12 @@ describe("Jira transport request budgets", () => {
     expect(http).toHaveBeenCalledTimes(2);
   });
 });
+
+describe("Jira image downloads", () => {
+  it("asks for any content type, because Jira answers Accept: image/* with 406", async () => {
+    const { jiraImage } = await import("./client");
+    http.mockResolvedValueOnce(new Response("", { status: 404 }));
+    await expect(Effect.runPromise(jiraImage("/attachment/content/1?redirect=false"))).rejects.toMatchObject({ status: 404 });
+    expect(new Headers(http.mock.calls[0][1].headers).get("Accept")).toBe("*/*");
+  });
+});
