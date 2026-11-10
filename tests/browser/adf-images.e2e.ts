@@ -19,7 +19,7 @@ const media = (scope: Locator, kind: "image" | "file" | "missing", id?: string) 
   scope.locator(id ? `[data-adf-media="${kind}"][data-attachment-id="${id}"]` : `[data-adf-media="${kind}"]`);
 const pending = (scope: Locator, kind: "single" | "chip") => scope.locator(`[data-adf-media="pending"][data-adf-pending="${kind}"]`);
 const anhang = (scope: Locator) => scope.getByText("[Anhang]", { exact: true });
-const editor = (page: Page) => page.getByRole("textbox", { name: "Text bearbeiten" });
+const editor = (page: Page) => page.getByRole("textbox", { name: "Beschreibung" });
 const scroller = (page: Page) => page.locator("#app-scroll");
 const rem = (page: Page) => page.evaluate(() => parseFloat(getComputedStyle(document.documentElement).fontSize));
 

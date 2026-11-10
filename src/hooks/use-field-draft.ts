@@ -2,7 +2,7 @@ import { useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import { useJiraEditIssue, useJiraEditIssueWiki } from "@/hooks/jira/use-issue-mutations";
 import { useJiraMyself, useJiraSite } from "@/lib/jira/queries";
 import { encode, jiraErrors } from "@/lib/jira/field-values";
-import { fieldDraftId } from "@/lib/field-draft";
+import { adfDraftField, fieldDraftId, parseAdfDraft } from "@/lib/field-draft";
 import { useFieldDraftStore } from "@/hooks/use-field-drafts";
 
 function useScopedFieldDraft(issueKey: string, field: string) {
@@ -18,6 +18,10 @@ export function useFieldDraftPresence(issueKey: string, field: string) {
   return useScopedFieldDraft(issueKey, field).draft !== undefined;
 }
 
+export function useAdfFieldDraftPresence(issueKey: string, field: string) {
+  return useFieldDraftPresence(issueKey, adfDraftField(field));
+}
+
 export function useFieldDraft({
   issueKey,
   field,
@@ -28,10 +32,10 @@ export function useFieldDraft({
   issueKey: string;
   field: string;
   initial: string;
-  mode: "text" | "wiki";
+  mode: "text" | "wiki" | "adf";
   onClose: () => void;
 }) {
-  const { id, draft } = useScopedFieldDraft(issueKey, field);
+  const { id, draft } = useScopedFieldDraft(issueKey, mode === "adf" ? adfDraftField(field) : field);
   const write = useFieldDraftStore((state) => state.write);
   const discardDraft = useFieldDraftStore((state) => state.discard);
   const complete = useFieldDraftStore((state) => state.complete);
@@ -60,6 +64,7 @@ export function useFieldDraft({
     setNotice(undefined);
     try {
       if (mode === "wiki") await wikiEdit.mutateAsync({ [field]: submitted.text });
+      else if (mode === "adf") await edit.mutateAsync({ [field]: encode("richtext", parseAdfDraft(submitted.text)) });
       else await edit.mutateAsync({ [field]: encode("text", submitted.text) });
       if (complete(id, submitted)) onClose();
       else setNotice("Gespeichert. Deine neueren Änderungen bleiben als Entwurf erhalten.");
