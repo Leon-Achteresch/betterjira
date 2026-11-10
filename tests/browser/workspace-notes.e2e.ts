@@ -57,6 +57,10 @@ const storage = async (page: Page) => {
   };
 };
 
+// Raw storage without the test-side migration: proves the app itself migrated and saved the legacy drafts.
+const rawWorkspaces = (page: Page): Promise<Record<string, StoredWorkspace>> =>
+  page.evaluate(() => JSON.parse(localStorage.getItem("betterjira-workspaces") ?? "{}").state.workspaces);
+
 const settle = async (page: Page) => {
   await page.mouse.move(0, 0);
   const state = await page.evaluate(async () => {
@@ -118,6 +122,11 @@ test("Notiz im Arbeitsplatz bearbeiten bleibt lokal, persistent und mit dem Tick
   expect(after.workspaces[colleague]).toEqual(before.workspaces[colleague]);
   expect(after.fieldDrafts).toBe(before.fieldDrafts);
   expect(await jiraWrites(page)).toBe(0);
+  const raw = await rawWorkspaces(page);
+  for (const [account, key] of [[own, "DEMO-3"], [colleague, "DEMO-12"]]) {
+    expect(raw[account].drafts ?? {}).toEqual({});
+    expect(raw[account].commentDrafts?.[key]).toBeDefined();
+  }
 
   await open(page);
   await expect(row(page, "DEMO-4")).toContainText("QA-Notiz: neu aus dem Arbeitsplatz");

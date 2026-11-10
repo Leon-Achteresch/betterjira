@@ -65,11 +65,17 @@ const usePostedComments = (key: string) => {
   };
 };
 
-const useCommentMutation = <A>(key: string, run: (input: A) => Effect.Effect<IssueComment, unknown>) => {
+const useCommentMutation = <A>(
+  key: string,
+  run: (input: A) => Effect.Effect<IssueComment, unknown>,
+  dedupeKey?: (input: A) => string,
+) => {
   const queryClient = useQueryClient();
   const updatePosted = usePostedComments(key);
   return useMutation({
-    mutationFn: (input: A) => Effect.runPromise(run(input)),
+    mutationFn: (input: A): Promise<IssueComment> => dedupeKey
+      ? deduplicateMutation(queryClient, dedupeKey(input), () => Effect.runPromise(run(input))) as Promise<IssueComment>
+      : Effect.runPromise(run(input)),
     onSuccess: (created) => {
       updatePosted((posted) => withPostedComment(posted, created));
       invalidateIssueChange(queryClient, key, false);
@@ -77,7 +83,8 @@ const useCommentMutation = <A>(key: string, run: (input: A) => Effect.Effect<Iss
   });
 };
 
-export const useJiraPostComment = (key: string) => useCommentMutation(key, (body: AdfNode) => postComment(key, body));
+export const useJiraPostComment = (key: string) =>
+  useCommentMutation(key, (body: AdfNode) => postComment(key, body), (body) => JSON.stringify([key, "comment", body]));
 
 export const useJiraPostReply = (key: string) =>
   useCommentMutation(key, ({ body, threadKey }: { body: AdfNode; threadKey: string }) => postReply(key, body, threadKey));

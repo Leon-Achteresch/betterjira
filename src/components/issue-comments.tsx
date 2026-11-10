@@ -267,8 +267,9 @@ export function IssueComments({
                     thread={thread}
                     viewFor={(comment) => {
                       const allowed = actions.allowedFor(comment);
+                      const confirmed = pages.firstPageLoaded && !pages.embeddedOnly.has(comment.id);
                       return {
-                        menu: pages.firstPageLoaded ? (
+                        menu: confirmed ? (
                           <CommentActionsMenu
                             link={actions.linkFor(comment)}
                             edit={
@@ -282,7 +283,7 @@ export function IssueComments({
                         editedNote: actions.editedNote(comment),
                         highlighted: jump.highlighted === comment.id,
                         onResumeEdit:
-                          pages.firstPageLoaded && allowed.canEdit && edits.hasDraft(comment) ? () => edits.start(comment) : undefined,
+                          confirmed && allowed.canEdit && edits.hasDraft(comment) ? () => edits.start(comment) : undefined,
                         editor: edits.isOpenFor(comment) ? (
                           <CommentEditorBox
                             key={edits.boxKey}
@@ -313,6 +314,7 @@ export function IssueComments({
                     }}
                     replyLabel={replies.labelFor(thread.root)}
                     onReply={replies.canReply && pages.firstPageLoaded ? (comment) => replies.start(comment, thread.root) : undefined}
+                    canReply={(comment) => !pages.embeddedOnly.has(comment.id)}
                     replyBox={
                       replies.isOpenFor(thread.root) ? (
                         <CommentEditorBox
