@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { EditorMediaContext, useEditorMediaContext, type EditorMedia } from "@/hooks/jira/use-editor-media";
 import { useEditorUploads } from "@/hooks/use-editor-uploads";
+import { pastedFiles } from "@/lib/dropped-files";
 import { EASE_OUT } from "@/lib/ease";
 import {
   AdfBlock,
@@ -188,7 +189,7 @@ export function AdfEditor({
         }
         return false;
       },
-      handlePaste: (view, event) => handlers.current.uploads.insert(view, [...(event.clipboardData?.files ?? [])], view.state.selection.to),
+      handlePaste: (view, event) => handlers.current.uploads.insert(view, pastedFiles(event.clipboardData), view.state.selection.to),
       handleDrop: (view, event, _slice, moved) => {
         if (moved) return false;
         const pos = view.posAtCoords({ left: event.clientX, top: event.clientY })?.pos ?? view.state.selection.to;
