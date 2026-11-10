@@ -116,7 +116,7 @@ export function CommentThreadView({
             {thread.replies.map((reply) => (
               <motion.li
                 key={reply.id}
-                layout={!reduce}
+                layout={reduce ? false : "position"}
                 initial={{ opacity: 0, y: reduce ? 0 : 6 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0 }}

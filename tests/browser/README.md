@@ -105,7 +105,7 @@ Prüfliste:
 - [ ] Mit `failCommentList = true` erscheint die Fehlermeldung mit „Erneut laden“; nach `failCommentList = false` lädt „Erneut laden“ die Liste.
 - [ ] Lea Musters Rückfrage zeigt beide Antworten eingerückt in aufsteigender Zeit, in beiden Sortierungen, ohne Zuklappen.
 - [ ] Die verwaiste Antwort steht als eigener Thread-Anfang.
-- [ ] „Antworten“ an Leas Kommentar öffnet die Box am Ende des Threads mit Fokus und dem Inhalt „@Lea Muster “.
+- [ ] „Antworten“ an Leas Kommentar öffnet die Box am Ende des Threads mit Fokus und dem Inhalt „@Lea Muster “. Leas Kommentar darüber behält dabei in jedem Frame seine Höhe; gemessen wird mit `getBoundingClientRect()` pro `requestAnimationFrame` über 700 ms, ebenso beim Öffnen und Schließen des Bearbeiten-Editors.
 - [ ] „Antworten“ am eigenen Kommentar von Alex Beispiel öffnet die Box ohne Vorbelegung.
 - [ ] In Box A tippen, dann an einem anderen Thread „Antworten“: Box A schließt, ihr Thread zeigt an jedem Kommentar „Antwort fortsetzen“, beim Zurückkehren ist der Text da.
 - [ ] Antwort in Leas Thread senden: `window.__qa.writes.at(-1).input` hat `parentId` 10002 und `body.type` „doc“, die Meldung lautet „Antwort hinzugefügt“, die Box schließt, die Antwort erscheint unter dem Thread, der Titel zeigt 12.

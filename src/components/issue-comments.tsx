@@ -180,7 +180,7 @@ export function IssueComments({ issue, focusComment, onFocusHandled }: { issue: 
               {view.threads.map((thread) => (
                 <motion.li
                   key={thread.root.id}
-                  layout={!reduce}
+                  layout={reduce ? false : "position"}
                   initial={{ opacity: 0, y: reduce ? 0 : 6 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0 }}
