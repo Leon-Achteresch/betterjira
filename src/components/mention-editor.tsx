@@ -18,7 +18,7 @@ export function MentionEditor({
 }) {
   const listId = useId();
   const mention = useMentionSuggestion({ listId, issueKey, participants });
-  const media = useEditorMedia(issueKey, mediaSource);
+  const media = useEditorMedia(mediaSource);
 
   return (
     <>

@@ -1,4 +1,5 @@
 import type { AdfNode } from "./adf";
+import { isPendingMediaId } from "./pending-media";
 
 export type MediaAttachment = { id: string; filename: string };
 export type AttachmentHit = { id: string; mediaId?: string };
@@ -150,7 +151,7 @@ export const matchKnownMedia = <A extends MediaAttachment>(node: unknown, known:
   for (const media of countedMediaNodes(node)) {
     const id = media.attrs?.id;
     const alt = mediaAltText(media);
-    const named = alt === undefined ? [] : attachments.filter((attachment) => attachment.filename === alt);
+    const named = alt === undefined || isPendingMediaId(id) ? [] : attachments.filter((attachment) => attachment.filename === alt);
     const attachment = (typeof id === "string" ? known.get(id) : undefined) ?? (named.length === 1 ? named[0] : undefined);
     if (attachment) matches.set(media, attachment);
   }

@@ -90,41 +90,72 @@ test("legt ein gezogenes Bild im Text ab und sendet einen Kommentar, der nur aus
   expect(mediaOf(body?.content?.[0])?.attrs?.alt).toBe("Skizze Ablauf.png");
 });
 
-test("sperrt das Senden, solange ein Bild hochlädt, und zeigt dabei einen Platzhalter", async ({ page }) => {
+test("lädt ein eingefügtes Bild erst beim Senden hoch", async ({ page }) => {
   await page.goto(ISSUE("DEMO-2"));
   const editor = composer(page);
   await editor.click();
   await page.keyboard.type("Text");
-  await qaSet(page, { delayMs: 1200 });
   await sendFile(editor, "paste", "image.png", "image/png", PNG);
 
-  await expect(editor.locator('[data-adf-upload="pending"]')).toBeVisible();
-  await expect(comments(page).getByText("Wird hochgeladen", { exact: true })).toBeVisible();
+  await expect(editorImages(editor)).toHaveAttribute("data-state", "loaded");
+  await page.waitForTimeout(300);
+  expect((await writes(page)).some((write) => write.path.endsWith("/attachments"))).toBe(false);
+
+  await qaSet(page, { delayMs: 1200 });
   const send = comments(page).getByRole("button", { name: "Kommentieren" });
+  await send.click();
   await expect(send).toBeDisabled();
   await page.keyboard.press("Control+Enter");
-  await expect(editorImages(editor)).toHaveCount(1);
-  expect((await writes(page)).some((write) => write.path === "/issue/DEMO-2/comment")).toBe(false);
-  await qaSet(page, { delayMs: 0 });
-  await expect(send).toBeEnabled();
+  await expect(toast(page, "Kommentar hinzugefügt")).toBeVisible();
+
+  const all = await writes(page);
+  expect(all.filter((write) => write.path === "/issue/DEMO-2/attachments")).toHaveLength(1);
+  expect(all.filter((write) => write.path === "/issue/DEMO-2/comment")).toHaveLength(1);
 });
 
-test("meldet einen fehlgeschlagenen Upload und lässt den Text unverändert", async ({ page }) => {
+test("meldet einen fehlgeschlagenen Upload beim Senden, behält den Entwurf und lädt beim Wiederholen nicht doppelt hoch", async ({ page }) => {
   await page.goto(ISSUE("DEMO-2"));
   const editor = composer(page);
   await editor.click();
   await page.keyboard.type("Bleibt stehen");
-  await qaSet(page, { failNextWrite: true });
   await sendFile(editor, "paste", "image.png", "image/png", PNG);
+  await expect(editorImages(editor)).toHaveCount(1);
+  const send = comments(page).getByRole("button", { name: "Kommentieren" });
 
-  await expect(toast(page, "konnte nicht eingefügt werden")).toBeVisible();
-  await expect(editor.locator("[data-adf-upload]")).toHaveCount(0);
-  await expect(editorImages(editor)).toHaveCount(0);
-  await expect(editor).toHaveText("Bleibt stehen");
+  await qaSet(page, { failNextWrite: true });
+  await send.click();
+  await expect(comments(page).getByRole("alert")).toContainText("503");
+  await expect(editorImages(editor)).toHaveCount(1);
+  await expect(editor).toContainText("Bleibt stehen");
 
   await qaSet(page, { withholdMediaId: true });
-  await sendFile(editor, "paste", "image.png", "image/png", PNG);
-  await expect(toast(page, "keine Medien-Kennung")).toBeVisible();
+  await send.click();
+  await expect(comments(page).getByRole("alert")).toContainText("keine Medien-Kennung");
+  await expect(editorImages(editor)).toHaveCount(1);
+  expect((await writes(page)).some((write) => write.path === "/issue/DEMO-2/comment")).toBe(false);
+
+  await qaSet(page, { withholdMediaId: false });
+  await send.click();
+  await expect(toast(page, "Kommentar hinzugefügt")).toBeVisible();
+  const all = await writes(page);
+  expect(all.filter((write) => write.path === "/issue/DEMO-2/attachments")).toHaveLength(1);
+  const body = all.find((write) => write.path === "/issue/DEMO-2/comment")?.input.body;
+  expect(mediaOf(body?.content?.[1])?.attrs?.id).toMatch(/^00000000-0000-4000-8000-\d{12}$/);
+});
+
+test("fügt Text statt eines Bildes ein, wenn die Zwischenablage beides enthält", async ({ page }) => {
+  await page.goto(ISSUE("DEMO-2"));
+  const editor = composer(page);
+  await editor.click();
+  await editor.evaluate((element, base64) => {
+    const data = new DataTransfer();
+    data.setData("text/plain", "Zelle A1");
+    data.setData("text/html", "<table><tr><td>Zelle A1</td></tr></table>");
+    data.items.add(new File([Uint8Array.from(atob(base64), (char) => char.charCodeAt(0))], "image.png", { type: "image/png" }));
+    element.dispatchEvent(new ClipboardEvent("paste", { bubbles: true, cancelable: true, clipboardData: data }));
+  }, PNG);
+
+  await expect(editor).toContainText("Zelle A1");
   await expect(editorImages(editor)).toHaveCount(0);
 });
 

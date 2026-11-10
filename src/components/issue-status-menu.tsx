@@ -45,7 +45,7 @@ function TransitionDialog({
   const [comment, setComment] = useState<unknown>(null);
   const [submitted, setSubmitted] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const media = useEditorMedia(issueKey);
+  const media = useEditorMedia();
 
   const missing = (id: string, field: JiraTransitionField) => field.required && isEmpty(values[id]);
   const blocked = fields.filter(({ field, kind }) => !kind && field.required);

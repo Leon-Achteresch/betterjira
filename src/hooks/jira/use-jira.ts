@@ -1,6 +1,7 @@
 import { invalidateIssueChange } from "@/lib/jira/mutation-cache";
 import { patchBoardIssue, rollbackBoardPatches } from "@/lib/jira/board-cache";
 import { deduplicateMutation } from "@/lib/jira/deduplicate-mutation";
+import { resolvePendingMedia } from "@/hooks/jira/use-pending-uploads";
 import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { Effect, Schema } from "effect";
 import { currentSite, jira, jiraImage, jiraSend, logout, runLogin } from "@/lib/jira/client";
@@ -335,8 +336,11 @@ export const useJiraTransition = () => {
   return useMutation({
     mutationKey: ["jira", "transition"],
     mutationFn: ({ issueKey, body }: JiraTransitionRequest) =>
-      deduplicateMutation(queryClient, JSON.stringify([issueKey, "transition", body]), () => Effect.runPromise(
-        jiraSend(`/issue/${encodeURIComponent(issueKey)}/transitions`, { method: "POST", body: JSON.stringify(body) }),
+      deduplicateMutation(queryClient, JSON.stringify([issueKey, "transition", body]), async () => Effect.runPromise(
+        jiraSend(`/issue/${encodeURIComponent(issueKey)}/transitions`, {
+          method: "POST",
+          body: JSON.stringify(await resolvePendingMedia(queryClient, issueKey, body)),
+        }),
       )),
     onMutate: async ({ issueKey, body }) => {
       await queryClient.cancelQueries({ queryKey: jiraKeys.allBoards });

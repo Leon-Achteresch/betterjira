@@ -22,6 +22,7 @@ import { jiraKeys, useJiraMyself, useJiraSite } from "@/lib/jira/queries";
 import { invalidateIssueChange } from "@/lib/jira/mutation-cache";
 import { patchBoardIssue, rollbackBoardPatches } from "@/lib/jira/board-cache";
 import { deduplicateMutation } from "@/lib/jira/deduplicate-mutation";
+import { resolvePendingMedia } from "@/hooks/jira/use-pending-uploads";
 
 const useIssueMutation = <A>(
   key: string,
@@ -34,16 +35,20 @@ const useIssueMutation = <A>(
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: A) => operation === "attachments"
-      ? Effect.runPromise(run(input))
-      : deduplicateMutation(queryClient, JSON.stringify([key, operation, input]), () => Effect.runPromise(run(input))),
+      ? Effect.runPromise(run(input)).then(() => input)
+      : deduplicateMutation(queryClient, JSON.stringify([key, operation, input]), async () => {
+          const sent = await resolvePendingMedia(queryClient, key, input);
+          await Effect.runPromise(run(sent));
+          return sent;
+        }) as Promise<A>,
     onMutate: async (input) => {
       if (!optimistic) return [];
       await queryClient.cancelQueries({ queryKey: jiraKeys.allBoards });
       return patchBoardIssue(queryClient, key, optimistic(input));
     },
     onError: (_error, _input, patches) => rollbackBoardPatches(queryClient, patches ?? []),
-    onSuccess: (_result, input) => {
-      settled?.(input);
+    onSuccess: (sent) => {
+      settled?.(sent);
       invalidateIssueChange(queryClient, key, affectsLists);
     },
   });
@@ -73,9 +78,10 @@ const useCommentMutation = <A>(
   const queryClient = useQueryClient();
   const updatePosted = usePostedComments(key);
   return useMutation({
-    mutationFn: (input: A): Promise<IssueComment> => dedupeKey
-      ? deduplicateMutation(queryClient, dedupeKey(input), () => Effect.runPromise(run(input))) as Promise<IssueComment>
-      : Effect.runPromise(run(input)),
+    mutationFn: (input: A): Promise<IssueComment> => {
+      const send = async () => Effect.runPromise(run(await resolvePendingMedia(queryClient, key, input)));
+      return dedupeKey ? (deduplicateMutation(queryClient, dedupeKey(input), send) as Promise<IssueComment>) : send();
+    },
     onSuccess: (created) => {
       updatePosted((posted) => withPostedComment(posted, created));
       invalidateIssueChange(queryClient, key, false);

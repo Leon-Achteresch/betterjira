@@ -35,57 +35,77 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
-test("fügt gezogene Dateien als Dateichips in den Kommentar ein und sendet sie als Medienknoten", async ({ page }) => {
+test("zeigt gezogene Dateien sofort als Chips und lädt sie erst beim Senden hoch", async ({ page }) => {
   await page.goto(ISSUE);
   await expect(comment(page)).toBeVisible();
-  await qaSet(page, { delayMs: 900 });
   await drop(page, comment(page), [PDF, CSV]);
 
-  await expect(placeholder(comment(page))).toHaveText([`${PDF.name} wird hochgeladen …`, `${CSV.name} wird hochgeladen …`]);
-  await expect(page.getByRole("button", { name: "Kommentieren" })).toBeDisabled();
   await expect(chips(comment(page))).toHaveCount(2);
   await expect(comment(page)).toContainText(PDF.name);
   await expect(comment(page)).toContainText(CSV.name);
-  await expect(placeholder(comment(page))).toHaveCount(0);
-  expect((await uploads(page)).flat().sort()).toEqual([PDF.name, CSV.name].sort());
-  expect(await uploads(page)).toHaveLength(2);
+  await expect(comment(page)).toBeFocused();
+  await page.waitForTimeout(300);
+  expect(await uploads(page)).toEqual([]);
 
-  await qaSet(page, { delayMs: 0 });
   await page.getByRole("button", { name: "Kommentieren" }).click();
-  await expect.poll(async () => (await writes(page)).some((write) => write.path === "/issue/DEMO-1/comment")).toBe(true);
+  await expect(toasts(page, "Kommentar hinzugefügt")).toBeVisible();
+  expect((await uploads(page)).flat().sort()).toEqual([PDF.name, CSV.name].sort());
   const posted = (await writes(page)).find((write) => write.path === "/issue/DEMO-1/comment")!.input.body!;
   const inline = posted.content!.flatMap((block) => block.content ?? []).filter((node) => node.type === "mediaInline");
   expect(inline.map((node) => node.attrs?.alt).sort()).toEqual([PDF.name, CSV.name].sort());
   for (const node of inline) expect(node.attrs).toMatchObject({ type: "file", collection: "", id: expect.stringMatching(/^[0-9a-f-]{36}$/) });
 });
 
-test("fällt auf einen Link zurück, wenn Jira keine Medien-Kennung liefert", async ({ page }) => {
+test("hinterlässt nichts im Ticket, wenn die Datei vor dem Senden wieder aus dem Text entfernt wird", async ({ page }) => {
+  await page.goto(ISSUE);
+  await comment(page).click();
+  await page.keyboard.type("Nur Text");
+  await drop(page, comment(page), [PDF]);
+  await expect(chips(comment(page))).toHaveCount(1);
+  await chips(comment(page)).hover();
+  await comment(page).getByRole("button", { name: "Aus dem Text entfernen" }).click();
+  await expect(chips(comment(page))).toHaveCount(0);
+
+  await page.getByRole("button", { name: "Kommentieren" }).click();
+  await expect(toasts(page, "Kommentar hinzugefügt")).toBeVisible();
+  expect(await uploads(page)).toEqual([]);
+});
+
+test("sendet einen Link, wenn Jira keine Medien-Kennung liefert", async ({ page }) => {
   await page.goto(ISSUE);
   await comment(page).click();
   await page.keyboard.type("Siehe ");
-  await qaSet(page, { withholdMediaId: true });
   await drop(page, comment(page), [PDF]);
+  await expect(chips(comment(page))).toHaveCount(1);
+  await qaSet(page, { withholdMediaId: true });
+  await page.getByRole("button", { name: "Kommentieren" }).click();
+  await expect(toasts(page, "Kommentar hinzugefügt")).toBeVisible();
 
-  const link = comment(page).getByRole("link");
-  await expect(link).toHaveText([PDF.name]);
-  expect(await link.getAttribute("href")).toMatch(new RegExp(`^${SITE}/rest/api/3/attachment/content/[^/]+$`));
-  await expect(chips(comment(page))).toHaveCount(0);
-  await page.keyboard.type("danach");
-  await expect(link).toHaveText([PDF.name]);
-  await expect(comment(page)).toContainText("danach");
+  const posted = (await writes(page)).find((write) => write.path === "/issue/DEMO-1/comment")!.input.body!;
+  const nodes = posted.content!.flatMap((block) => block.content ?? []);
+  expect(nodes.some((node) => node.type === "mediaInline")).toBe(false);
+  const link = nodes.find((node) => node.text === PDF.name) as (AdfNode & { marks?: { type: string; attrs?: { href?: string } }[] }) | undefined;
+  expect(link?.marks?.[0]?.type).toBe("link");
+  expect(link?.marks?.[0]?.attrs?.href).toMatch(new RegExp(`^${SITE}/rest/api/3/attachment/content/[^/]+$`));
 });
 
-test("meldet einen fehlgeschlagenen Upload per Toast und lässt den Text unverändert", async ({ page }) => {
+test("zeigt einen fehlgeschlagenen Upload beim Senden an und behält den Entwurf", async ({ page }) => {
   await page.goto(ISSUE);
   await comment(page).click();
   await page.keyboard.type("Entwurf");
-  await qaSet(page, { failNextWrite: true });
   await drop(page, comment(page), [PDF]);
+  await expect(chips(comment(page))).toHaveCount(1);
+  await qaSet(page, { failNextWrite: true });
+  await page.getByRole("button", { name: "Kommentieren" }).click();
 
-  await expect(toasts(page, `${PDF.name} konnte nicht eingefügt werden`)).toBeVisible();
-  await expect(placeholder(comment(page))).toHaveCount(0);
-  await expect(chips(comment(page))).toHaveCount(0);
-  await expect(comment(page)).toHaveText("Entwurf");
+  await expect(page.getByRole("alert").filter({ hasText: "503" })).toBeVisible();
+  await expect(chips(comment(page))).toHaveCount(1);
+  await expect(comment(page)).toContainText("Entwurf");
+  expect((await writes(page)).some((write) => write.path === "/issue/DEMO-1/comment")).toBe(false);
+
+  await page.getByRole("button", { name: "Kommentieren" }).click();
+  await expect(toasts(page, "Kommentar hinzugefügt")).toBeVisible();
+  expect(await uploads(page)).toHaveLength(1);
 });
 
 test("lädt im Anlegen-Formular nichts hoch, solange es keinen Vorgang gibt", async ({ page }) => {
