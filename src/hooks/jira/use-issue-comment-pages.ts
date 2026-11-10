@@ -72,6 +72,7 @@ export function useIssueCommentPages(issueKey: string, embedded: readonly (typeo
 
   return {
     ...loadedComments,
+    reportedIncomplete: loadedComments.incomplete,
     incomplete: loadedComments.incomplete && !query.isFetching && !query.isRefetchError && query.fetchStatus !== "paused",
     visible: failed || (pages.length > 0 && (loadedComments.next !== undefined || loadedComments.incomplete || pages.length > 1)),
     firstPageLoaded: pages.length > 0,

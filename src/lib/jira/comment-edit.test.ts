@@ -70,10 +70,17 @@ describe("Kommentar bearbeiten", () => {
 
   it("bereinigt Bearbeitungsentwürfe nur, wenn die Kommentarliste vollständig geladen ist", () => {
     const comments = [{ id: "1", body }, { id: "2", body: locked }];
-    expect(prunableEditIds({ comments, next: 50, incomplete: false })).toBeUndefined();
-    expect(prunableEditIds({ comments, incomplete: true })).toBeUndefined();
-    expect(prunableEditIds({ comments, next: 0, incomplete: true })).toBeUndefined();
-    expect(prunableEditIds({ comments, incomplete: false })).toEqual(["1"]);
-    expect(prunableEditIds({ comments: [], incomplete: false })).toEqual([]);
+    expect(prunableEditIds({ comments, next: 50, incomplete: false, loading: false })).toBeUndefined();
+    expect(prunableEditIds({ comments, incomplete: true, loading: false })).toBeUndefined();
+    expect(prunableEditIds({ comments, next: 0, incomplete: true, loading: false })).toBeUndefined();
+    expect(prunableEditIds({ comments, incomplete: false, loading: false })).toEqual(["1"]);
+    expect(prunableEditIds({ comments: [], incomplete: false, loading: false })).toEqual([]);
+  });
+
+  it("bereinigt nicht, solange die Liste lädt oder Jira weniger als total liefert", () => {
+    const comments = [{ id: "1", body }];
+    expect(prunableEditIds({ comments, incomplete: false, loading: true })).toBeUndefined();
+    expect(prunableEditIds({ comments, incomplete: true, loading: true })).toBeUndefined();
+    expect(prunableEditIds({ comments, incomplete: true, loading: false })).toBeUndefined();
   });
 });

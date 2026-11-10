@@ -10,7 +10,7 @@ type RefetchStart = { commentId: string; at: number };
 
 type JumpPages = Pick<
   IssueCommentPages,
-  "comments" | "next" | "firstPageLoaded" | "loading" | "loadMore" | "refetch" | "dataUpdatedAt" | "errorUpdatedAt"
+  "comments" | "next" | "firstPageLoaded" | "loading" | "error" | "loadMore" | "refetch" | "dataUpdatedAt" | "errorUpdatedAt"
 >;
 
 export function useCommentJump(pages: JumpPages, commentId: string | undefined, onHandled: () => void, closeSearch: () => void) {
@@ -29,6 +29,7 @@ export function useCommentJump(pages: JumpPages, commentId: string | undefined, 
     commentId,
     refetchProgress(startedAt, pages.dataUpdatedAt, pages.errorUpdatedAt),
     pages.next !== undefined,
+    pages.error !== null,
   );
   const loading = pages.loading;
   const next = pages.next;

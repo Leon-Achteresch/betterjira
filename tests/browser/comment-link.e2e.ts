@@ -212,7 +212,19 @@ for (const colorScheme of ["light", "dark"] as const)
       const button = item.querySelector(`button[aria-label="${label}"]`);
       const header = button?.closest("article")?.querySelector(":scope > div.text-sm")?.firstElementChild;
       const box = button?.getBoundingClientRect();
+      const hits = (from: number, to: number, point: (value: number) => [number, number]) => {
+        let size = 0;
+        for (let value = from; value <= to; value += 0.5) {
+          const target = document.elementFromPoint(...point(value));
+          if (button && target && button.contains(target)) size += 0.5;
+        }
+        return size;
+      };
+      const centerX = box ? box.left + box.width / 2 : 0;
+      const centerY = box ? box.top + box.height / 2 : 0;
       return {
+        hitWidth: box ? hits(box.left - 12, box.right + 12, (x) => [x, centerY]) : 0,
+        hitHeight: box ? hits(box.top - 12, box.bottom + 12, (y) => [centerX, y]) : 0,
         dark: document.documentElement.classList.contains("dark"),
         overflow: document.documentElement.scrollWidth - window.innerWidth,
         width: box?.width ?? 0,
@@ -227,6 +239,8 @@ for (const colorScheme of ["light", "dark"] as const)
     expect(layout.overflow).toBeLessThanOrEqual(0);
     expect(layout.width).toBeGreaterThanOrEqual(24);
     expect(layout.height).toBeGreaterThanOrEqual(24);
+    expect(layout.hitWidth).toBeGreaterThanOrEqual(32);
+    expect(layout.hitHeight).toBeGreaterThanOrEqual(32);
     expect(layout.right).toBeLessThanOrEqual(layout.viewport);
     expect(layout.headerRight).toBeLessThanOrEqual(layout.left);
     await expect(row(page, "Zweiter QA-Kommentar")).toContainText("Testdorf (Qualitätssicherung Nord)");
@@ -258,6 +272,32 @@ test.describe("Kommentare auf späteren Seiten", () => {
     );
     expect(starts).toEqual(expect.arrayContaining([0, 2, 4]));
     expect(starts).not.toContain(6);
+  });
+
+  test("fragt nicht weiter ab, wenn beim Sprung Seite 2 scheitert, und springt nach „Erneut versuchen“", async ({ page }) => {
+    await page.addInitScript(() => {
+      const qa = window as unknown as { __qaJumpFail: boolean; __qaCommentPagesRule: (key: string, startAt: number) => object };
+      qa.__qaJumpFail = true;
+      qa.__qaCommentPagesRule = (_key, startAt) => ({ pageSize: 2, ...(startAt > 0 && qa.__qaJumpFail ? { status: 400 } : {}) });
+    });
+    const reads = () =>
+      page.evaluate(() => (window as unknown as { __qa: { commentPageReads: { startAt: number }[] } }).__qa.commentPageReads.map((read) => read.startAt));
+    await page.goto(paged("/issue/DEMO-1?comment=10005"));
+    await expect(section(page).getByText("Weitere Kommentare konnten nicht geladen werden")).toBeVisible();
+    const afterError = (await reads()).length;
+    await page.waitForTimeout(3000);
+    expect((await reads()).length).toBe(afterError);
+    expect(await reads()).not.toContain(4);
+    expect(new URL(page.url()).searchParams.get("comment")).toContain("10005");
+    await expect(toasts(page, "Kommentar nicht mehr vorhanden")).toHaveCount(0);
+
+    await page.evaluate(() => {
+      (window as unknown as { __qaJumpFail: boolean }).__qaJumpFail = false;
+    });
+    await section(page).getByRole("button", { name: "Erneut versuchen" }).click();
+    await expect(section(page).locator('[data-comment-id="10005"]')).toBeVisible();
+    await expect.poll(() => new URL(page.url()).searchParams.get("comment")).toBeNull();
+    expect(await reads()).toEqual(expect.arrayContaining([0, 2, 4]));
   });
 
   test("bearbeitet und löscht eigene Kommentare nach dem Nachladen, ohne dass die Liste zurückspringt", async ({ page }) => {

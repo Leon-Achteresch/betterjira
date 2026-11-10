@@ -20,7 +20,7 @@ export function CommentActionsMenu({ link, edit, onDelete }: { link: CommentMenu
             size="icon-xs"
             aria-label="Weitere Aktionen"
             style={{ transitionTimingFunction: EASE_OUT_CSS }}
-            className="text-muted-foreground transition-opacity duration-150 sm:opacity-0 sm:group-hover/comment:opacity-100 sm:group-focus-within/comment:opacity-100 sm:data-[state=open]:opacity-100"
+            className="relative text-muted-foreground transition-opacity after:absolute after:-inset-1.5 after:content-['']  duration-150 sm:opacity-0 sm:group-hover/comment:opacity-100 sm:group-focus-within/comment:opacity-100 sm:data-[state=open]:opacity-100"
           >
             <EllipsisIcon />
           </Button>

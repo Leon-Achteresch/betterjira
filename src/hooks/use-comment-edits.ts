@@ -18,7 +18,10 @@ import { clearSubmittedEditDraft, editDraftOf, pruneEditDrafts, setEditDraft } f
 
 type OpenEdit = { commentId: string; value: AdfNode; attempt: number };
 
-export function useCommentEdits(issueKey: string, pages: Pick<IssueCommentPages, "comments" | "next" | "incomplete">) {
+export function useCommentEdits(
+  issueKey: string,
+  pages: Pick<IssueCommentPages, "comments" | "next" | "reportedIncomplete" | "loading">,
+) {
   const mutation = useJiraUpdateComment(issueKey);
   const { workspace, update, ready } = useWorkspace();
   const [open, setOpen] = useState<OpenEdit | null>(null);
@@ -27,10 +30,13 @@ export function useCommentEdits(issueKey: string, pages: Pick<IssueCommentPages,
   useLayoutEffect(() => {
     openCommentId.current = open?.commentId;
   });
-  const { comments, next, incomplete } = pages;
+  const { comments, next, reportedIncomplete: incomplete, loading } = pages;
   const target = open ? comments.find((comment) => comment.id === open.commentId) : undefined;
   const baseline = target ? editBaseline(target.body) : undefined;
-  const editableIds = useMemo(() => prunableEditIds({ comments, next, incomplete })?.join(","), [comments, next, incomplete]);
+  const editableIds = useMemo(
+    () => prunableEditIds({ comments, next, incomplete, loading })?.join(","),
+    [comments, next, incomplete, loading],
+  );
 
   useEffect(() => {
     if (editableIds === undefined) return;

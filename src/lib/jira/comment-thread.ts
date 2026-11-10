@@ -137,10 +137,12 @@ export const commentJumpState = (
   commentId: string | undefined,
   progress: RefetchProgress,
   hasMore: boolean,
+  failed = false,
 ): CommentJumpState => {
   if (!commentId) return "idle";
   if (!comments) return "wait";
   if (comments.some((comment) => comment.id === commentId)) return "found";
+  if (failed) return "wait";
   if (progress === "running") return "wait";
   if (hasMore) return "more";
   if (progress === "none") return "refetch";

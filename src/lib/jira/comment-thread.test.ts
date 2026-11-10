@@ -198,6 +198,14 @@ describe("Sprung zum Kommentar", () => {
     expect(commentJumpState(list, "9", "running", true)).toBe("wait");
   });
 
+  it("wartet nach einem Ladefehler, statt erneut nachzuladen oder den Kommentar als fehlend zu melden", () => {
+    expect(commentJumpState(list, "9", "none", true, true)).toBe("wait");
+    expect(commentJumpState(list, "9", "none", false, true)).toBe("wait");
+    expect(commentJumpState(list, "9", "refreshed", false, true)).toBe("wait");
+    expect(commentJumpState(list, "1", "none", true, true)).toBe("found");
+    expect(commentJumpState(list, "9", "none", true, false)).toBe("more");
+  });
+
   it("lädt einmal neu, bevor es einen Kommentar als fehlend meldet", () => {
     expect(commentJumpState(list, "9", "none", false)).toBe("refetch");
     expect(commentJumpState(list, "9", "running", false)).toBe("wait");

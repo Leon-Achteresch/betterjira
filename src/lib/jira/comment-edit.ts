@@ -12,10 +12,15 @@ export const editBlockReason = (body: unknown): string | undefined => (canEditCo
 export const editableCommentIds = (comments: readonly { id: string; body?: unknown }[]): string[] =>
   comments.filter((comment) => canEditContent(comment.body)).map((comment) => comment.id);
 
-export type CommentListState = { comments: readonly { id: string; body?: unknown }[]; next?: number; incomplete: boolean };
+export type CommentListState = {
+  comments: readonly { id: string; body?: unknown }[];
+  next?: number;
+  incomplete: boolean;
+  loading: boolean;
+};
 
-export const prunableEditIds = ({ comments, next, incomplete }: CommentListState): string[] | undefined =>
-  next === undefined && !incomplete ? editableCommentIds(comments) : undefined;
+export const prunableEditIds = ({ comments, next, incomplete, loading }: CommentListState): string[] | undefined =>
+  !loading && next === undefined && !incomplete ? editableCommentIds(comments) : undefined;
 
 export const canSaveEdit = (value: AdfNode | undefined, baseline: AdfNode | undefined, pending: boolean) =>
   !!value && !!baseline && !pending && hasSendableContent(value) && !sameAdf(value, baseline);
