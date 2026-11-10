@@ -72,12 +72,15 @@ export const commentPageKeys = {
     [...jiraKeys.issue(key), "comment-pages", cloudId, accountId] as const,
 };
 
+export const commentPagePath = (key: string, startAt: number) =>
+  `/issue/${encodeURIComponent(key)}/comment?${new URLSearchParams({
+    startAt: String(startAt),
+    maxResults: String(COMMENT_PAGE_SIZE),
+    orderBy: "created",
+    expand: "renderedBody",
+  })}`;
+
 export const fetchCommentPage = (key: string, startAt: number) =>
-  jira(
-    `/issue/${encodeURIComponent(key)}/comment?${new URLSearchParams({
-      startAt: String(startAt),
-      maxResults: String(COMMENT_PAGE_SIZE),
-      orderBy: "created",
-    })}`,
-    CommentPageResponse,
-  ).pipe(Effect.map((page): CommentPage => ({ ...page, comments: page.comments ?? [], requestedAt: startAt })));
+  jira(commentPagePath(key, startAt), CommentPageResponse).pipe(
+    Effect.map((page): CommentPage => ({ ...page, comments: page.comments ?? [], requestedAt: startAt })),
+  );

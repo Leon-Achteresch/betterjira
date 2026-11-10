@@ -19,6 +19,8 @@ export const jiraKeys = {
   jqlValidation: (jql: string) => ["jira", "jql-validation", jql] as const,
   issue: (key: string) => ["jira", "issue", key] as const,
   issueDetail: (key: string, scope: JiraQueryScope | undefined) => ["jira", "issue", key, "detail", scope?.cloudId ?? "", scope?.accountId ?? ""] as const,
+  issueRendered: (key: string, updated: string, scope: JiraQueryScope | undefined) =>
+    ["jira", "issue-rendered", key, updated, scope?.cloudId ?? "", scope?.accountId ?? ""] as const,
   transitions: (key: string) => ["jira", "transitions", key] as const,
   userSearch: (query: string, issueKey: string, assignee: boolean) => ["jira", "user-search", query, issueKey, assignee] as const,
   filters: ["jira", "filters"] as const,
