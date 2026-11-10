@@ -190,3 +190,63 @@ describe("createMediaMatchCache", () => {
     expect(resolve(undefined, "loading", undefined, files).pending).toBe(true);
   });
 });
+
+describe("Live-Formen", () => {
+  const LIVE = "https://example.atlassian.net";
+  const liveImg = (id: string, name: string, width: number) =>
+    `<p><span class="image-wrap" style=""><img src="${LIVE}/rest/api/3/attachment/content/${id}" alt="${name}" width="${width}" style="border: 0px solid black" /></span></p>`;
+  const liveNode = (id: string, extra: Record<string, unknown> = {}) => ({ type: "media", attrs: { id, type: "file", collection: "", ...extra } });
+  const liveFile = (id: string, filename: string, mimeType: string) => ({ id, filename, mimeType });
+  const FSI_472 =
+    `<p><span class="nobr"><a href="/rest/api/3/attachment/content/46816" title="datei-1.xml attached to FSI-472" data-attachment-type="file" data-attachment-name="datei-1.xml" data-media-services-type="file" data-media-services-id="7a48faba-bcd8-40a6-990d-6376e29eb51c" rel="noreferrer">datei-1.xml<sup><img class="rendericon" src="/images/icons/link_attachment_7.gif" height="7" width="7" align="absmiddle" alt="" border="0"/></sup></a></span><br/>\n` +
+    `<span class="nobr"><a href="/rest/api/3/attachment/content/46817" title="datei-2.xml attached to FSI-472" data-attachment-type="file" data-attachment-name="datei-2.xml" data-media-services-type="file" data-media-services-id="d2680320-9911-42c4-949b-41d025100839" rel="noreferrer">datei-2.xml<sup><img class="rendericon" src="/images/icons/link_attachment_7.gif" height="7" width="7" align="absmiddle" alt="" border="0"/></sup></a></span></p>`;
+  const HELP_543 = `<p><a href="${LIVE}/secure/ViewProfile.jspa?accountId=000000000000000000000001" class="user-hover" rel="000000000000000000000001" data-account-id="000000000000000000000001" accountid="000000000000000000000001" rel="noreferrer">Person 1</a> Text</p>`;
+
+  it("FSI-439 Beschreibung: ein img mit absolutem src ohne Media-ID, Zuordnung über die Reihenfolge", () => {
+    const html = liveImg("44018", "datei-1.png", 1450);
+    expect(attachmentHitsFromHtml(html, new Set(["44018"]))).toEqual([{ id: "44018" }]);
+    const node = liveNode("803dbcdc-a0c5-4535-8cf7-996c71f49502", { width: 2037, height: 1040 });
+    const matches = matchMediaAttachments(doc(single({ layout: "center" }, node)), html, [liveFile("44018", "datei-1.png", "image/png")]);
+    expect(matches.get(node)?.id).toBe("44018");
+  });
+
+  it("HELP-522 Beschreibung: drei img in ADF-Reihenfolge, nicht nach ID sortiert", () => {
+    const html = [liveImg("46883", "datei-1.png", 1261), "<p>…</p>", liveImg("46885", "datei-2.png", 1454), "<p>…</p>", liveImg("46884", "datei-3.png", 1454)].join("");
+    expect(attachmentHitsFromHtml(html, new Set(["46883", "46884", "46885"]))).toEqual([{ id: "46883" }, { id: "46885" }, { id: "46884" }]);
+    const first = liveNode("0d87d3d6-c365-4d37-9a07-d3d8ea48e4de", { width: 1261, height: 517 });
+    const second = liveNode("5a516fae-14e8-4061-b798-52f43b98badd", { width: 2232, height: 1291 });
+    const third = liveNode("583a042e-b150-4116-82fc-bdeb6dd2565e", { width: 2255, height: 1309 });
+    const attachments = [liveFile("46883", "datei-1.png", "image/png"), liveFile("46884", "datei-3.png", "image/png"), liveFile("46885", "datei-2.png", "image/png")];
+    const matches = matchMediaAttachments(doc(single({}, first), single({}, second), single({}, third)), html, attachments);
+    expect([first, second, third].map((node) => matches.get(node)?.id)).toEqual(["46883", "46885", "46884"]);
+  });
+
+  it("FSI-472 Kommentar 65389: relative a-Links mit data-media-services-id, rendericon zählt nicht", () => {
+    expect(attachmentHitsFromHtml(FSI_472, new Set(["46817", "46816"]))).toEqual([
+      { id: "46816", mediaId: "7a48faba-bcd8-40a6-990d-6376e29eb51c" },
+      { id: "46817", mediaId: "d2680320-9911-42c4-949b-41d025100839" },
+    ]);
+  });
+
+  it("FSI-472 Kommentar 65389: Zuordnung über die Media-ID in ADF-Reihenfolge", () => {
+    const first = liveNode("7a48faba-bcd8-40a6-990d-6376e29eb51c");
+    const second = liveNode("d2680320-9911-42c4-949b-41d025100839");
+    const attachments = [liveFile("46817", "datei-2.xml", "application/xml"), liveFile("46816", "datei-1.xml", "application/xml")];
+    const matches = matchMediaAttachments(doc({ type: "mediaGroup", content: [first, second] }), FSI_472, attachments);
+    expect(matches.get(first)?.id).toBe("46816");
+    expect(matches.get(second)?.id).toBe("46817");
+  });
+
+  it("FSI-472 Kommentar 65389: die Media-ID schlägt eine abweichende Reihenfolge", () => {
+    const first = liveNode("7a48faba-bcd8-40a6-990d-6376e29eb51c");
+    const second = liveNode("d2680320-9911-42c4-949b-41d025100839");
+    const attachments = [liveFile("46817", "datei-2.xml", "application/xml"), liveFile("46816", "datei-1.xml", "application/xml")];
+    const matches = matchMediaAttachments(doc({ type: "mediaGroup", content: [second, first] }), FSI_472, attachments);
+    expect(matches.get(second)?.id).toBe("46817");
+    expect(matches.get(first)?.id).toBe("46816");
+  });
+
+  it("HELP-543 Kommentar 65827: Personen-Link unter /secure/ViewProfile.jspa trifft nicht", () => {
+    expect(attachmentHitsFromHtml(HELP_543, new Set(["46943", "46944"]))).toEqual([]);
+  });
+});
