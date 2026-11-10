@@ -1,7 +1,17 @@
 import { Effect, Schema } from "effect";
 import { scm, ScmError } from "./client";
 import { mentionsIssue } from "./issue-key";
-import type { CheckState, PullRequest, PullRequestDraft, RepoDevelopment, ReviewState, ScmConnection } from "./model";
+import {
+  PULL_REQUEST_LIST_LIMIT,
+  type CheckState,
+  type PullRequest,
+  type PullRequestDraft,
+  type PullRequestListState,
+  type PullRequestPage,
+  type RepoDevelopment,
+  type ReviewState,
+  type ScmConnection,
+} from "./model";
 import type { ScmProvider } from "./provider";
 
 const hostOf = (connection: ScmConnection) => new URL(connection.baseUrl).host;
@@ -194,7 +204,44 @@ const repos = (connection: ScmConnection) =>
     return names;
   });
 
+const ListResponse = Schema.Struct({
+  data: Schema.NullOr(
+    Schema.Struct({
+      repository: Schema.NullOr(
+        Schema.Struct({ pullRequests: Schema.Struct({ totalCount: Schema.Number, nodes: Schema.Array(GraphPullRequest) }) }),
+      ),
+    }),
+  ),
+  errors: Schema.optional(Schema.Array(Schema.Struct({ message: Schema.String }))),
+});
+
+const LIST_QUERY = `
+query($owner: String!, $name: String!, $states: [PullRequestState!], $first: Int!) {
+  repository(owner: $owner, name: $name) {
+    pullRequests(states: $states, first: $first, orderBy: { field: UPDATED_AT, direction: DESC }) {
+      totalCount
+      nodes { ${PULL_REQUEST_FIELDS} }
+    }
+  }
+}`;
+
+const LIST_STATES: Record<PullRequestListState, string[]> = { open: ["OPEN"], merged: ["MERGED"], closed: ["CLOSED"] };
+
+const pullRequests = (connection: ScmConnection, repo: string, state: PullRequestListState) =>
+  Effect.gen(function* () {
+    const { owner, name } = splitRepo(repo);
+    const response = yield* scm(connection.auth, graphqlUrl(connection), ListResponse, {
+      method: "POST",
+      body: { query: LIST_QUERY, variables: { owner, name, states: LIST_STATES[state], first: PULL_REQUEST_LIST_LIMIT } },
+    });
+    const list = response.data?.repository?.pullRequests;
+    if (!list) return yield* new ScmError({ message: response.errors?.[0]?.message ?? "Repository nicht gefunden oder kein Zugriff" });
+    return { pullRequests: list.nodes.map(toPullRequest), truncated: list.totalCount > list.nodes.length } satisfies PullRequestPage;
+  });
+
+const pullRequestsUrl = (connection: ScmConnection, repo: string) => `${connection.baseUrl}/${repo}/pulls`;
+
 const verify = (connection: ScmConnection) =>
   scm(connection.auth, `${restBase(connection)}/user`, Schema.Struct({ login: Schema.String })).pipe(Effect.map((user) => user.login));
 
-export const github: ScmProvider = { development, createBranch, createPullRequest, repos, verify };
+export const github: ScmProvider = { development, createBranch, createPullRequest, repos, pullRequests, pullRequestsUrl, verify };

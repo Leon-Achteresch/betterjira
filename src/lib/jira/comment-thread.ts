@@ -1,8 +1,6 @@
-import { Effect, Schema } from "effect";
+import { Schema } from "effect";
 import type { AdfNode } from "./adf";
 import { isMentionable, JiraPerson } from "./people";
-
-export const COMMENT_PAGE_SIZE = 100;
 
 export const CommentVisibility = Schema.Struct({
   type: Schema.String,
@@ -21,13 +19,6 @@ export const RawComment = Schema.Struct({
   created: Schema.String,
   updated: Schema.optional(Schema.String),
   visibility: Schema.optional(Schema.NullOr(CommentVisibility)),
-});
-
-export const CommentPage = Schema.Struct({
-  startAt: Schema.Number,
-  maxResults: Schema.Number,
-  total: Schema.Number,
-  comments: Schema.Array(RawComment),
 });
 
 export type IssueComment = {
@@ -49,16 +40,6 @@ export const toIssueComment = ({ parentId, updateAuthor, visibility, ...comment 
   ...(updateAuthor && { updateAuthor }),
   ...(visibility && { visibility }),
 });
-
-export const collectCommentPages = <E>(fetchPage: (startAt: number) => Effect.Effect<typeof CommentPage.Type, E>) =>
-  Effect.gen(function* () {
-    const comments: IssueComment[] = [];
-    while (true) {
-      const page = yield* fetchPage(comments.length);
-      comments.push(...page.comments.map(toIssueComment));
-      if (page.comments.length === 0 || comments.length >= page.total) return comments;
-    }
-  });
 
 export const threadKey = (comment: IssueComment) => comment.parentId ?? comment.id;
 
@@ -97,11 +78,6 @@ export const buildThreads = (comments: readonly IssueComment[], newestFirst: boo
   return newestFirst ? ordered.reverse() : ordered;
 };
 
-export const commentCount = (
-  loaded: readonly IssueComment[] | undefined,
-  embedded: { readonly total?: number; readonly comments: readonly unknown[] } | undefined,
-) => loaded?.length ?? embedded?.total ?? embedded?.comments.length ?? 0;
-
 export const replyPayload = (body: AdfNode, key: string) => ({ body, parentId: /^\d+$/.test(key) ? Number(key) : key });
 
 export const replyPrefill = (author: JiraPerson | undefined, myAccountId: string | undefined): AdfNode | undefined =>
@@ -120,9 +96,6 @@ export const replyPrefill = (author: JiraPerson | undefined, myAccountId: string
         ],
       }
     : undefined;
-
-export const commentLink = (siteUrl: string, issueKey: string, commentId: string) =>
-  `${siteUrl}/browse/${issueKey}?focusedCommentId=${commentId}`;
 
 const EDITED_FORMAT: Intl.DateTimeFormatOptions = { dateStyle: "medium", timeStyle: "short" };
 
@@ -157,16 +130,19 @@ export const refetchProgress = (startedAt: number | undefined, dataUpdatedAt: nu
   return errorUpdatedAt >= startedAt ? "failed" : "running";
 };
 
-export type CommentJumpState = "idle" | "wait" | "refetch" | "found" | "missing";
+export type CommentJumpState = "idle" | "wait" | "more" | "refetch" | "found" | "missing";
 
 export const commentJumpState = (
   comments: readonly IssueComment[] | undefined,
   commentId: string | undefined,
   progress: RefetchProgress,
+  hasMore: boolean,
 ): CommentJumpState => {
   if (!commentId) return "idle";
   if (!comments) return "wait";
   if (comments.some((comment) => comment.id === commentId)) return "found";
+  if (progress === "running") return "wait";
+  if (hasMore) return "more";
   if (progress === "none") return "refetch";
   return progress === "refreshed" ? "missing" : "wait";
 };

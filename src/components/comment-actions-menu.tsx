@@ -5,9 +5,10 @@ import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { EASE_OUT_CSS } from "@/lib/ease";
 
-export type CommentEditAction = { label: string; disabledReason?: string; onSelect: () => void };
+export type CommentMenuAction = { disabledReason?: string; onSelect: () => void };
+export type CommentEditAction = CommentMenuAction & { label: string };
 
-export function CommentActionsMenu({ onCopyLink, edit, onDelete }: { onCopyLink: () => void; edit?: CommentEditAction; onDelete?: () => void }) {
+export function CommentActionsMenu({ link, edit, onDelete }: { link: CommentMenuAction; edit?: CommentEditAction; onDelete?: () => void }) {
   const editChosen = useRef(false);
   return (
     <DropdownMenu>
@@ -33,9 +34,12 @@ export function CommentActionsMenu({ onCopyLink, edit, onDelete }: { onCopyLink:
           editChosen.current = false;
         }}
       >
-        <DropdownMenuItem onSelect={onCopyLink}>
-          <LinkIcon />
-          Link kopieren
+        <DropdownMenuItem disabled={!!link.disabledReason} onSelect={link.onSelect} className="items-start">
+          <LinkIcon className="mt-0.5" />
+          <span className="flex flex-col gap-0.5">
+            Link kopieren
+            {link.disabledReason && <span className="text-xs text-muted-foreground">{link.disabledReason}</span>}
+          </span>
         </DropdownMenuItem>
         {edit && (
           <DropdownMenuItem

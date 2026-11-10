@@ -1,18 +1,19 @@
 import { AnimatePresence, motion } from "motion/react";
-import { Bell, CheckCheck } from "lucide-react";
+import { ArrowRight, Bell, CheckCheck } from "lucide-react";
 import { useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { MorphPopover, MorphPopoverContent, MorphPopoverTrigger } from "@/components/motion/popover-morph";
 import { Tooltip } from "@/components/motion/tooltip";
-import { NotificationGroupRow } from "@/components/shell/notification-group";
+import { NotificationGroupList } from "@/components/notifications/notification-group-list";
+import { UnreadCount } from "@/components/notifications/unread-count";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useNotificationFeed } from "@/hooks/use-notification-feed";
+import { useNotificationFeed } from "@/hooks/notifications/use-notification-feed";
+import { openNotification, useOwnedUnreadCount } from "@/hooks/notifications/use-notification-store";
 import type { NotificationKind } from "@/lib/jira/notification-feed";
 import { issueSearch } from "@/lib/jira/issue-link";
-import { openNotification, selectUnread, useNotifications } from "@/lib/jira/notifications";
 import { useJiraSite } from "@/lib/jira/queries";
 import { EASE_OUT } from "@/lib/ease";
 
@@ -24,7 +25,7 @@ const EMPTY_TEXT: Record<NotificationKind, string> = {
 export function NotificationBell() {
   const site = useJiraSite();
   const triggerRef = useRef<HTMLButtonElement>(null);
-  const unread = useNotifications(selectUnread);
+  const unread = useOwnedUnreadCount();
   const feed = useNotificationFeed();
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
@@ -35,6 +36,10 @@ export function NotificationBell() {
     void navigate({ to: "/issue/$key", params: { key }, search: issueSearch(commentId) });
   };
   const openExternal = (key: string) => void openUrl(`${siteUrl}/browse/${key}`);
+  const openInbox = () => {
+    setOpen(false);
+    void navigate({ to: "/benachrichtigungen", search: feed.kind === "watching" ? { ansicht: "beobachtet" } : {} });
+  };
 
   return (
     <MorphPopover open={open} onOpenChange={setOpen}>
@@ -71,11 +76,11 @@ export function NotificationBell() {
               Nur ungelesene
               <Switch size="sm" checked={feed.unreadOnly} onCheckedChange={feed.setUnreadOnly} />
             </label>
-            <Tooltip content="Alle als gelesen markieren" side="bottom">
+            <Tooltip content="Alle in Direkt und Beobachtet als gelesen markieren" side="bottom">
               <Button
                 variant="ghost"
                 size="icon-sm"
-                aria-label="Alle als gelesen markieren"
+                aria-label="Alle in Direkt und Beobachtet als gelesen markieren"
                 disabled={!feed.hasUnread}
                 onClick={feed.markAllRead}
               >
@@ -88,11 +93,11 @@ export function NotificationBell() {
           <TabsList variant="line">
             <TabsTrigger value="direct">
               Direkt
-              {feed.unreadByKind.direct > 0 && <UnreadCount value={feed.unreadByKind.direct} />}
+              <UnreadCount value={feed.unreadByKind.direct} />
             </TabsTrigger>
             <TabsTrigger value="watching">
               Beobachtet
-              {feed.unreadByKind.watching > 0 && <UnreadCount value={feed.unreadByKind.watching} />}
+              <UnreadCount value={feed.unreadByKind.watching} />
             </TabsTrigger>
           </TabsList>
         </Tabs>
@@ -109,31 +114,23 @@ export function NotificationBell() {
                 {feed.unreadOnly ? "Du hast alles gelesen." : EMPTY_TEXT[feed.kind]}
               </div>
             ) : (
-              <ul className="max-h-[min(30rem,70vh)] divide-y overflow-y-auto overscroll-contain">
-                <AnimatePresence initial={false}>
-                  {feed.groups.map((group) => (
-                    <NotificationGroupRow
-                      key={group.issueKey}
-                      group={group}
-                      onOpen={(item) => openNotification(item, openIssue)}
-                      onOpenExternal={openExternal}
-                      onToggleRead={feed.toggleGroupRead}
-                    />
-                  ))}
-                </AnimatePresence>
-              </ul>
+              <NotificationGroupList
+                groups={feed.groups}
+                onOpen={(item) => openNotification(item, openIssue)}
+                onOpenExternal={openExternal}
+                onToggleRead={feed.toggleGroupRead}
+                className="max-h-[min(30rem,70vh)] overflow-y-auto overscroll-contain"
+              />
             )}
           </motion.div>
         </AnimatePresence>
+        <div className="border-t p-1.5">
+          <Button variant="ghost" size="sm" className="h-8 w-full justify-between rounded-xl text-muted-foreground" onClick={openInbox}>
+            Alle Benachrichtigungen anzeigen
+            <ArrowRight />
+          </Button>
+        </div>
       </MorphPopoverContent>
     </MorphPopover>
-  );
-}
-
-function UnreadCount({ value }: { value: number }) {
-  return (
-    <span className="rounded-full bg-primary px-1.5 text-[10px] font-semibold tabular-nums leading-4 text-primary-foreground">
-      {value > 99 ? "99+" : value}
-    </span>
   );
 }

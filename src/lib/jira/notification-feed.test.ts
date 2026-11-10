@@ -1,5 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { commentIdOfNotification, describeChanges, filterFeed, groupByIssue, type FeedItem } from "./notification-feed";
+import {
+  commentIdOfNotification,
+  countUnread,
+  describeChanges,
+  isNoiseChange,
+  filterFeed,
+  groupByIssue,
+  inboxKindOf,
+  inboxSearchOf,
+  searchFeed,
+  sectionByDay,
+  type FeedItem,
+} from "./notification-feed";
 
 const item = (id: string, issueKey: string, created: number, extra: Partial<FeedItem> = {}): FeedItem => ({
   id,
@@ -42,6 +54,68 @@ describe("filterFeed", () => {
     const items = [item("a", "X-1", 1, { kind: "direct" }), item("b", "X-1", 2, { kind: "direct", read: true }), item("c", "X-2", 3)];
     expect(filterFeed(items, "direct", false).map((entry) => entry.id)).toEqual(["a", "b"]);
     expect(filterFeed(items, "direct", true).map((entry) => entry.id)).toEqual(["a"]);
+  });
+});
+
+describe("searchFeed", () => {
+  const entry = (id: string, issueKey: string, title: string, body: string, actor: string) => ({
+    ...item(id, issueKey, 1),
+    title,
+    body,
+    actor: { displayName: actor },
+  });
+  const items = [entry("a", "X-1", "hat einen Kommentar hinzugefügt", "Bitte Übergabe prüfen", "Sam"), entry("b", "Y-2", "hat den Status geändert", "", "Kim")];
+
+  it("matches every term across key, summary, text and person, ignoring case", () => {
+    expect(searchFeed(items, "  ").map((match) => match.id)).toEqual(["a", "b"]);
+    expect(searchFeed(items, "übergabe sam").map((match) => match.id)).toEqual(["a"]);
+    expect(searchFeed(items, "y-2").map((match) => match.id)).toEqual(["b"]);
+    expect(searchFeed(items, "kim kommentar")).toEqual([]);
+  });
+});
+
+describe("countUnread", () => {
+  it("counts unread per kind", () => {
+    expect(countUnread([item("a", "X-1", 1, { kind: "direct" }), item("b", "X-1", 2, { read: true }), item("c", "X-2", 3)])).toEqual({
+      direct: 1,
+      watching: 1,
+    });
+  });
+});
+
+describe("sectionByDay", () => {
+  it("orders today, yesterday, the last week and older by the newest event", () => {
+    const now = new Date(2026, 10, 6, 15).getTime();
+    const at = (day: number, hour = 9) => new Date(2026, 10, day, hour).getTime();
+    const groups = groupByIssue([
+      item("a", "X-1", at(6)),
+      item("b", "X-2", at(5, 23)),
+      item("c", "X-3", at(1)),
+      item("d", "X-4", new Date(2026, 9, 29).getTime()),
+      item("e", "X-2", at(4)),
+    ]);
+    expect(sectionByDay(groups, now).map((section) => [section.label, section.groups.map((group) => group.issueKey)])).toEqual([
+      ["Heute", ["X-1"]],
+      ["Gestern", ["X-2"]],
+      ["Letzte 7 Tage", ["X-3"]],
+      ["Älter", ["X-4"]],
+    ]);
+  });
+});
+
+describe("inboxSearchOf", () => {
+  it("keeps only known values and drops defaults", () => {
+    expect(inboxSearchOf({ ansicht: "beobachtet", nur: "ungelesen", suche: "DEMO" })).toEqual({ ansicht: "beobachtet", nur: "ungelesen", suche: "DEMO" });
+    expect(inboxSearchOf({ ansicht: "fremd", nur: "alle", suche: "  ", extra: 1 })).toEqual({});
+    expect(inboxKindOf(inboxSearchOf({ ansicht: "beobachtet" }))).toBe("watching");
+    expect(inboxKindOf({})).toBe("direct");
+  });
+});
+
+describe("isNoiseChange", () => {
+  it("erkennt reine Hintergrundänderungen", () => {
+    expect(isNoiseChange([{ field: "Rank" }, { field: "timespent" }])).toBe(true);
+    expect(isNoiseChange([{ field: "Rank" }, { field: "status" }])).toBe(false);
   });
 });
 

@@ -25,8 +25,10 @@ import {
 import { SPRING_LAYOUT } from "@/lib/ease";
 import { cn } from "@/lib/utils";
 
-export interface SharedLayoutBgProps
-  extends Omit<HTMLAttributes<HTMLElement>, "children"> {
+export interface SharedLayoutBgProps extends Omit<
+  HTMLAttributes<HTMLElement>,
+  "children"
+> {
   children: ReactNode;
   /** Semantic container used for the children. */
   as?: "div" | "ul";
@@ -39,10 +41,9 @@ export interface SharedLayoutBgProps
 }
 
 const variants: Variants = {
-  initial: { opacity: 0, filter: "blur(6px)" },
-  animate: { opacity: 1, filter: "blur(0px)" },
-  exit: (isActive: boolean) =>
-    !isActive ? { opacity: 0, filter: "blur(6px)" } : {},
+  initial: { opacity: 0 },
+  animate: { opacity: 1 },
+  exit: (isActive: boolean) => (!isActive ? { opacity: 0 } : {}),
 };
 
 const reducedVariants: Variants = {
@@ -66,12 +67,12 @@ export const SharedLayoutBg = forwardRef<HTMLElement, SharedLayoutBgProps>(
     },
     forwardedRef,
   ) {
-  const [activeId, setActiveId] = useState<string | null>(null);
-  const uid = useId();
-  const reduce = useReducedMotion();
-  // Focus leaving the list only clears the pill when the pointer is not
-  // still resting on an item.
-  const hovering = useRef(false);
+    const [activeId, setActiveId] = useState<string | null>(null);
+    const uid = useId();
+    const reduce = useReducedMotion();
+    // Focus leaving the list only clears the pill when the pointer is not
+    // still resting on an item.
+    const hovering = useRef(false);
 
     const renderedChildren = Children.toArray(children)
       .filter(isValidElement)
@@ -120,7 +121,7 @@ export const SharedLayoutBg = forwardRef<HTMLElement, SharedLayoutBgProps>(
                       layoutId={`shared-bg-${uid}`}
                       transition={reduce ? { duration: 0 } : SPRING_LAYOUT}
                       className={cn(
-                        "pointer-events-none h-full w-full rounded-2xl bg-muted/80",
+                        "pointer-events-none h-full w-full rounded-xl glass-control",
                         pillClassName,
                       )}
                     />

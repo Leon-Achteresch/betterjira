@@ -1,32 +1,53 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useReducedMotion } from "motion/react";
 import { toast } from "sonner";
-import { useIssueCommentList } from "@/hooks/jira/use-issue-comment-list";
+import type { IssueCommentPages } from "@/hooks/jira/use-issue-comment-pages";
 import { commentJumpState, refetchProgress } from "@/lib/jira/comment-thread";
 
 const HIGHLIGHT_MS = 2000;
 
 type RefetchStart = { commentId: string; at: number };
 
-export function useCommentJump(issueKey: string, commentId: string | undefined, onHandled: () => void) {
-  const list = useIssueCommentList(issueKey);
+type JumpPages = Pick<
+  IssueCommentPages,
+  "comments" | "next" | "firstPageLoaded" | "loading" | "loadMore" | "refetch" | "dataUpdatedAt" | "errorUpdatedAt"
+>;
+
+export function useCommentJump(pages: JumpPages, commentId: string | undefined, onHandled: () => void, closeSearch: () => void) {
   const reduce = useReducedMotion();
   const [highlighted, setHighlighted] = useState<string | undefined>(undefined);
   const [refetchStart, setRefetchStart] = useState<RefetchStart | undefined>(undefined);
   const handled = useRef<string | undefined>(undefined);
-  const latest = useRef({ onHandled, refetch: list.refetch });
+  const searchClosed = useRef<string | undefined>(undefined);
+  const latest = useRef({ onHandled, closeSearch, refetch: pages.refetch, loadMore: pages.loadMore });
   useLayoutEffect(() => {
-    latest.current = { onHandled, refetch: list.refetch };
+    latest.current = { onHandled, closeSearch, refetch: pages.refetch, loadMore: pages.loadMore };
   });
   const startedAt = refetchStart?.commentId === commentId ? refetchStart?.at : undefined;
-  const state = commentJumpState(list.data, commentId, refetchProgress(startedAt, list.dataUpdatedAt, list.errorUpdatedAt));
+  const state = commentJumpState(
+    pages.firstPageLoaded ? pages.comments : undefined,
+    commentId,
+    refetchProgress(startedAt, pages.dataUpdatedAt, pages.errorUpdatedAt),
+    pages.next !== undefined,
+  );
+  const loading = pages.loading;
+  const next = pages.next;
 
   useEffect(() => {
     if (!commentId) {
       handled.current = undefined;
+      searchClosed.current = undefined;
       return;
     }
     if (handled.current === commentId) return;
+    if (searchClosed.current !== commentId) {
+      searchClosed.current = commentId;
+      latest.current.closeSearch();
+    }
+    if (state === "more") {
+      if (!loading) void latest.current.loadMore();
+      return;
+    }
     if (state === "refetch") {
       setRefetchStart({ commentId, at: Date.now() });
       void latest.current.refetch();
@@ -45,7 +66,7 @@ export function useCommentJump(issueKey: string, commentId: string | undefined, 
         .querySelector<HTMLElement>(`[data-comment-id="${CSS.escape(commentId)}"]`)
         ?.scrollIntoView({ block: "center", behavior: reduce ? "auto" : "smooth" });
     });
-  }, [commentId, state, reduce]);
+  }, [commentId, state, reduce, loading, next]);
 
   useEffect(() => {
     if (!highlighted) return;

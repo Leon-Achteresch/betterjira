@@ -1,3 +1,4 @@
+import type { ComponentProps } from "react";
 import { formatDistanceToNowStrict } from "date-fns";
 import { de } from "date-fns/locale";
 import {
@@ -41,9 +42,9 @@ const initials = (name: string) =>
     .join("")
     .slice(0, 2);
 
-export function PersonAvatar({ person, className }: { person: ScmPerson; className?: string }) {
+export function PersonAvatar({ person, ...props }: { person: ScmPerson } & Omit<ComponentProps<typeof Avatar>, "children" | "size">) {
   return (
-    <Avatar size="sm" className={className}>
+    <Avatar size="sm" {...props}>
       {person.avatarUrl && <AvatarImage src={person.avatarUrl} alt="" />}
       <AvatarFallback className="text-[10px]">{initials(person.name)}</AvatarFallback>
     </Avatar>

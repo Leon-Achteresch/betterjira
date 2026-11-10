@@ -1,24 +1,31 @@
 import { Link, useCanGoBack, useRouter } from "@tanstack/react-router";
-import { ChevronLeft, ChevronRight, Settings } from "lucide-react";
+import { ChevronLeft, ChevronRight, Settings, SquarePenIcon } from "lucide-react";
 import { Tooltip } from "@/components/motion/tooltip";
 import { AppCommandPalette } from "@/components/shell/app-command-palette";
+import { HeaderMoreMenu } from "@/components/shell/header-more-menu";
 import { IssueTabs } from "@/components/shell/issue-tabs";
+import { LegacyTabsOffer } from "@/components/shell/legacy-tabs-offer";
 import { NotificationBell } from "@/components/shell/notification-bell";
+import { OpenTabSearch } from "@/components/shell/open-tab-search";
 import { ThemeToggle } from "@/components/shell/theme-toggle";
 import { WorkQueue } from "@/components/shell/work-queue";
 import { WindowControls } from "@/components/shell/window-controls";
 import { Button } from "@/components/ui/button";
 import { SidebarTrigger } from "@/components/ui/sidebar";
-import { useIssueTabs } from "@/hooks/use-issue-tabs";
+import { useIssueTabs, useLegacyIssueTabs } from "@/hooks/use-issue-tabs";
+import { useOpenTabSearch } from "@/hooks/use-open-tab-search";
 import { useTabHotkeys } from "@/hooks/use-tab-hotkeys";
 import { IS_MAC, USE_CUSTOM_WINDOW_CONTROLS } from "@/lib/platform";
+import { shortcutHint } from "@/lib/shortcuts";
 import { cn } from "@/lib/utils";
 
 export function AppHeader() {
   const { tabs, activeKey, openTab, closeTab, togglePin, closeOthers, closeRight } = useIssueTabs();
+  const legacyTabs = useLegacyIssueTabs();
   const router = useRouter();
   const canGoBack = useCanGoBack();
   useTabHotkeys({ keys: tabs.map((tab) => tab.key), activeKey, openTab, closeTab });
+  const tabSearch = useOpenTabSearch({ tabs, onOpenTab: openTab });
 
   return (
     <header
@@ -36,6 +43,7 @@ export function AppHeader() {
           variant="ghost"
           size="icon-sm"
           aria-label="Zurück"
+          className="hidden sm:inline-flex"
           disabled={!canGoBack}
           onClick={() => router.history.back()}
         >
@@ -43,7 +51,13 @@ export function AppHeader() {
         </Button>
       </Tooltip>
       <Tooltip content={`Vorwärts (${IS_MAC ? "⌘]" : "Alt+→"})`} side="bottom">
-        <Button variant="ghost" size="icon-sm" aria-label="Vorwärts" onClick={() => router.history.forward()}>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label="Vorwärts"
+          className="hidden sm:inline-flex"
+          onClick={() => router.history.forward()}
+        >
           <ChevronRight />
         </Button>
       </Tooltip>
@@ -52,10 +66,11 @@ export function AppHeader() {
         className="ml-1 inline-flex h-7 shrink-0 items-center gap-1.5 px-1 text-sm font-semibold tracking-tight"
       >
         <img src="/logo.svg" alt="" className="size-5" />
-        betterjira
+        <span className="sr-only sm:not-sr-only">betterjira</span>
       </Link>
-      <div data-tauri-drag-region="deep" className="flex h-full min-w-0 flex-1">
+      <div data-tauri-drag-region="deep" className="flex h-full min-w-0 flex-1 overflow-hidden">
         <IssueTabs
+          className="max-sm:hidden"
           tabs={tabs}
           activeKey={activeKey}
           onClose={closeTab}
@@ -63,14 +78,26 @@ export function AppHeader() {
           onCloseOthers={closeOthers}
           onCloseRight={closeRight}
         />
+        <LegacyTabsOffer offer={legacyTabs} className="max-sm:hidden" />
       </div>
-      <div className="flex w-72 shrink-0">
+      <div className="flex shrink-0 lg:w-72">
         <AppCommandPalette />
       </div>
-      <nav className="ml-auto flex items-center gap-1 px-3" aria-label="Hauptnavigation">
+      <nav className="ml-auto flex shrink-0 items-center gap-0.5 px-1.5 sm:gap-1 sm:px-3" aria-label="Werkzeuge">
+        <Tooltip content={`Ticket erstellen (${shortcutHint("createIssue")})`} side="bottom">
+          <Link
+            to="/neu"
+            aria-label="Ticket erstellen"
+            aria-keyshortcuts="C"
+            className="relative hidden size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground outline-none transition-colors after:absolute after:-inset-0.5 hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring sm:inline-flex"
+            activeProps={{ className: "bg-primary/12 text-foreground" }}
+          >
+            <SquarePenIcon className="size-4" strokeWidth={1.75} />
+          </Link>
+        </Tooltip>
         <WorkQueue />
         <NotificationBell />
-        <ThemeToggle />
+        <ThemeToggle className="hidden sm:inline-flex" />
         <Tooltip content="Einstellungen" side="bottom">
           <Link
             to="/settings"
@@ -81,7 +108,22 @@ export function AppHeader() {
             <Settings className="size-4" strokeWidth={1.75} />
           </Link>
         </Tooltip>
+        <HeaderMoreMenu
+          className="sm:hidden"
+          canGoBack={canGoBack}
+          onBack={() => router.history.back()}
+          onForward={() => router.history.forward()}
+          tabs={tabs}
+          activeKey={activeKey}
+          onOpenTab={openTab}
+          onCloseTab={closeTab}
+          onTogglePin={togglePin}
+          onCreateIssue={() => void router.navigate({ to: "/neu" })}
+          legacy={legacyTabs}
+          onSearchTabs={() => tabSearch.onOpenChange(true)}
+        />
       </nav>
+      <OpenTabSearch {...tabSearch} activeKey={activeKey} />
       {USE_CUSTOM_WINDOW_CONTROLS ? <WindowControls /> : null}
     </header>
   );

@@ -1,13 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { Effect, Schema } from "effect";
+import { Schema } from "effect";
 import type { AdfNode } from "./adf";
 import {
   RawComment,
   buildThreads,
-  collectCommentPages,
-  commentCount,
   commentJumpState,
-  commentLink,
   deleteReplyHint,
   editPayload,
   editedNote,
@@ -27,7 +24,6 @@ const comment = (id: string, day: string, parentId?: string): IssueComment => ({
   body: null,
   ...(parentId && { parentId }),
 });
-const raw = (id: string) => ({ id, body: null, created: "2026-11-01T10:00:00Z" });
 const doc: AdfNode = { type: "doc", version: 1, content: [{ type: "paragraph", content: [{ type: "text", text: "Hallo" }] }] };
 
 describe("Kommentarliste", () => {
@@ -51,41 +47,6 @@ describe("Kommentarliste", () => {
       author: { accountId: "a", accountType: "atlassian", active: true, displayName: "Anna" },
     });
   });
-
-  it("lädt Seiten zu je 100, bis total erreicht ist", () => {
-    const all = Array.from({ length: 150 }, (_, index) => raw(String(index)));
-    const calls: number[] = [];
-    const result = Effect.runSync(
-      collectCommentPages((startAt) => {
-        calls.push(startAt);
-        return Effect.succeed({ startAt, maxResults: 100, total: all.length, comments: all.slice(startAt, startAt + 100) });
-      }),
-    );
-    expect(result).toHaveLength(150);
-    expect(calls).toEqual([0, 100]);
-  });
-
-  it("setzt bei kürzeren Seiten als angefragt richtig fort", () => {
-    const all = Array.from({ length: 5 }, (_, index) => raw(String(index)));
-    const calls: number[] = [];
-    const result = Effect.runSync(
-      collectCommentPages((startAt) => {
-        calls.push(startAt);
-        return Effect.succeed({ startAt, maxResults: 2, total: all.length, comments: all.slice(startAt, startAt + 2) });
-      }),
-    );
-    expect(result.map((entry) => entry.id)).toEqual(["0", "1", "2", "3", "4"]);
-    expect(calls).toEqual([0, 2, 4]);
-  });
-
-  it("bricht bei leerer Seite ab, auch wenn total mehr verspricht", () => {
-    const result = Effect.runSync(
-      collectCommentPages((startAt) =>
-        Effect.succeed({ startAt, maxResults: 100, total: 300, comments: startAt === 0 ? [raw("1")] : [] }),
-      ),
-    );
-    expect(result).toHaveLength(1);
-  });
 });
 
 describe("Threads", () => {
@@ -105,6 +66,20 @@ describe("Threads", () => {
     expect(threads.flatMap((thread) => thread.replies)).toEqual([]);
   });
 
+  it("fasst Antworten ohne geladene Wurzel zu einem Thread zusammen und hängt sie nach dem Nachladen unter die Wurzel", () => {
+    const orphans = buildThreads([comment("5", "2", "1"), comment("6", "3", "1"), comment("7", "4")], false);
+    expect(orphans.map((thread) => [thread.root.id, thread.replies.map((reply) => reply.id)])).toEqual([
+      ["5", ["6"]],
+      ["7", []],
+    ]);
+    expect(threadKey(orphans[0]!.root)).toBe("1");
+    const loaded = buildThreads([comment("1", "1"), comment("5", "2", "1"), comment("6", "3", "1"), comment("7", "4")], false);
+    expect(loaded.map((thread) => [thread.root.id, thread.replies.map((reply) => reply.id)])).toEqual([
+      ["1", ["5", "6"]],
+      ["7", []],
+    ]);
+  });
+
   it("verliert keinen Kommentar, wenn eine Antwort auf eine Antwort zeigt", () => {
     const threads = buildThreads([comment("1", "1"), comment("2", "2", "1"), comment("3", "3", "2")], false);
     expect(threads).toHaveLength(1);
@@ -114,13 +89,6 @@ describe("Threads", () => {
   it("nimmt als Thread-Schlüssel parentId, sonst die eigene ID", () => {
     expect(threadKey(comment("3", "3", "1"))).toBe("1");
     expect(threadKey(comment("1", "1"))).toBe("1");
-  });
-
-  it("zählt alle Kommentare einschließlich Antworten", () => {
-    expect(commentCount([comment("1", "1"), comment("2", "2", "1"), comment("3", "3")], { total: 20, comments: [] })).toBe(3);
-    expect(commentCount(undefined, { total: 25, comments: [] })).toBe(25);
-    expect(commentCount(undefined, { comments: [1, 2] })).toBe(2);
-    expect(commentCount(undefined, undefined)).toBe(0);
   });
 });
 
@@ -195,12 +163,6 @@ describe("Bearbeiten und Löschen", () => {
     expect(editPayload(doc, comment("3", "3"))).toEqual({ body: doc });
   });
 
-  it("baut den Kommentar-Link wie Jira", () => {
-    expect(commentLink("https://example.atlassian.net", "DEMO-1", "10002")).toBe(
-      "https://example.atlassian.net/browse/DEMO-1?focusedCommentId=10002",
-    );
-  });
-
   it("nennt beim Löschen eines Thread-Anfangs die Antworten, die stehen bleiben", () => {
     const [thread] = buildThreads([comment("1", "1"), comment("2", "2", "1"), comment("3", "3", "1")], false);
     expect(repliesKeptOnDelete(thread!, thread!.root)).toBe(2);
@@ -220,23 +182,30 @@ describe("Sprung zum Kommentar", () => {
   const list = [comment("1", "1"), comment("2", "2", "1")];
 
   it("wartet ohne Liste und tut ohne Ziel nichts", () => {
-    expect(commentJumpState(undefined, "2", "none")).toBe("wait");
-    expect(commentJumpState(list, undefined, "none")).toBe("idle");
+    expect(commentJumpState(undefined, "2", "none", false)).toBe("wait");
+    expect(commentJumpState(list, undefined, "none", true)).toBe("idle");
   });
 
   it("findet Thread-Anfänge und Antworten", () => {
-    expect(commentJumpState(list, "1", "none")).toBe("found");
-    expect(commentJumpState(list, "2", "failed")).toBe("found");
+    expect(commentJumpState(list, "1", "none", true)).toBe("found");
+    expect(commentJumpState(list, "2", "failed", false)).toBe("found");
+  });
+
+  it("lädt weitere Seiten, solange es welche gibt, statt den Kommentar als fehlend zu melden", () => {
+    expect(commentJumpState(list, "9", "none", true)).toBe("more");
+    expect(commentJumpState(list, "9", "refreshed", true)).toBe("more");
+    expect(commentJumpState(list, "9", "failed", true)).toBe("more");
+    expect(commentJumpState(list, "9", "running", true)).toBe("wait");
   });
 
   it("lädt einmal neu, bevor es einen Kommentar als fehlend meldet", () => {
-    expect(commentJumpState(list, "9", "none")).toBe("refetch");
-    expect(commentJumpState(list, "9", "running")).toBe("wait");
-    expect(commentJumpState(list, "9", "refreshed")).toBe("missing");
+    expect(commentJumpState(list, "9", "none", false)).toBe("refetch");
+    expect(commentJumpState(list, "9", "running", false)).toBe("wait");
+    expect(commentJumpState(list, "9", "refreshed", false)).toBe("missing");
   });
 
   it("meldet nichts als fehlend, wenn das Nachladen einer zwischengespeicherten Liste scheitert", () => {
-    expect(commentJumpState(list, "9", "failed")).toBe("wait");
+    expect(commentJumpState(list, "9", "failed", false)).toBe("wait");
   });
 
   it("zählt nur neue Daten als Neuladen, einen Fehler als gescheitert", () => {

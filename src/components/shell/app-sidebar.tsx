@@ -1,25 +1,26 @@
 import { useState, type ReactNode } from "react";
+import { useJiraProjectBoards } from "@/hooks/jira/use-jira-board";
 import { Link, useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import {
   ChartColumnIcon,
   ChevronRightIcon,
-  ChevronsUpDownIcon,
   EyeOffIcon,
   ExternalLinkIcon,
   FunnelIcon,
+  LayoutGridIcon,
+  ListFilterIcon,
   ListIcon,
-  LogInIcon,
-  LogOutIcon,
   SearchIcon,
   SquareKanbanIcon,
   StarIcon,
   StarOffIcon,
-  TerminalSquareIcon,
 } from "lucide-react";
+import { Tooltip } from "@/components/motion/tooltip";
 import { ProjectStatsDialog } from "@/components/project-stats/project-stats-dialog";
+import { PrimaryNav } from "@/components/shell/primary-nav";
+import { ProfileMenu } from "@/components/shell/profile-menu";
 import { ProjectAvatar } from "@/components/shell/project-avatar";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   ContextMenu,
@@ -29,18 +30,11 @@ import {
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
   SidebarGroup,
+  SidebarGroupAction,
   SidebarGroupContent,
   SidebarGroupLabel,
   SidebarHeader,
@@ -54,20 +48,15 @@ import {
   SidebarMenuSubItem,
   SidebarMenuBadge,
   SidebarMenuSkeleton,
+  useSidebar,
 } from "@/components/ui/sidebar";
-import { Spinner } from "@/components/ui/spinner";
-import {
-  useJiraFilters,
-  useJiraLogin,
-  useJiraLogout,
-  useJiraMyself,
-  useJiraProjectBoards,
-  useJiraProjects,
-  useJiraSite,
-  type JiraProject,
-} from "@/lib/jira/queries";
+import { useJiraSite, type JiraProject } from "@/lib/jira/queries";
+import { useProfileMenu } from "@/hooks/jira/use-profile-menu";
 import { useProjectStats } from "@/hooks/jira/use-project-stats";
-import { useProjectPrefs } from "@/lib/project-prefs";
+import { useSidebarSearch } from "@/hooks/use-sidebar-search";
+import { useOwnedUnreadCount } from "@/hooks/notifications/use-notification-store";
+import type { ProjectPrefsControls } from "@/hooks/use-project-prefs";
+import { cn } from "@/lib/utils";
 
 function ProjectBoards({ projectKey }: { projectKey: string }) {
   const boards = useJiraProjectBoards(projectKey);
@@ -104,13 +93,13 @@ function ProjectBoards({ projectKey }: { projectKey: string }) {
   );
 }
 
-function ProjectItem({ project }: { project: JiraProject }) {
+type ProjectMenuPrefs = Pick<ProjectPrefsControls, "ready" | "favoriteIds" | "toggleFavorite" | "toggleHidden">;
+
+function ProjectItem({ project, prefs }: { project: JiraProject; prefs: ProjectMenuPrefs }) {
   const site = useJiraSite();
   const { key } = useParams({ strict: false });
   const [open, setOpen] = useState(key === project.key);
-  const favorite = useProjectPrefs((state) => state.projectIds.includes(project.id));
-  const toggleFavorite = useProjectPrefs((state) => state.toggleProject);
-  const toggleHidden = useProjectPrefs((state) => state.toggleHidden);
+  const favorite = prefs.favoriteIds.includes(project.id);
   const [statsOpen, setStatsOpen] = useState(false);
   const stats = useProjectStats(project.key, statsOpen);
   const navigate = useNavigate();
@@ -139,7 +128,7 @@ function ProjectItem({ project }: { project: JiraProject }) {
               Statistiken
             </ContextMenuItem>
             <ContextMenuSeparator />
-            <ContextMenuItem onSelect={() => toggleFavorite(project.id)}>
+            <ContextMenuItem disabled={!prefs.ready} onSelect={() => prefs.toggleFavorite(project.id)}>
               {favorite ? <StarOffIcon /> : <StarIcon />}
               {favorite ? "Aus Favoriten entfernen" : "Favorisieren"}
             </ContextMenuItem>
@@ -150,7 +139,7 @@ function ProjectItem({ project }: { project: JiraProject }) {
               </ContextMenuItem>
             )}
             <ContextMenuSeparator />
-            <ContextMenuItem onSelect={() => toggleHidden(project.id)}>
+            <ContextMenuItem disabled={!prefs.ready} onSelect={() => prefs.toggleHidden(project.id)}>
               <EyeOffIcon />
               Ausblenden
             </ContextMenuItem>
@@ -182,27 +171,28 @@ function ProjectItem({ project }: { project: JiraProject }) {
   );
 }
 
-function ProjectMenu({ projects }: { projects: JiraProject[] }) {
+function ProjectMenu({ projects, prefs }: { projects: JiraProject[]; prefs: ProjectMenuPrefs }) {
   return (
     <SidebarMenu>
       {projects.map((project) => (
-        <ProjectItem key={project.id} project={project} />
+        <ProjectItem key={project.id} project={project} prefs={prefs} />
       ))}
     </SidebarMenu>
   );
 }
 
-function Section({ label, count, children }: { label: string; count?: number; children: ReactNode }) {
+function Section({ label, count, action, children }: { label: string; count?: number; action?: ReactNode; children: ReactNode }) {
   return (
     <Collapsible defaultOpen className="group/collapsible">
       <SidebarGroup className="py-1">
         <SidebarGroupLabel asChild>
-          <CollapsibleTrigger className="gap-1 uppercase tracking-wider hover:text-sidebar-foreground">
+          <CollapsibleTrigger className={cn("gap-1 uppercase tracking-wider hover:text-sidebar-foreground", action && "pr-9")}>
             <ChevronRightIcon className="transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
             {label}
             {count !== undefined && <span className="ml-auto font-normal tabular-nums">{count}</span>}
           </CollapsibleTrigger>
         </SidebarGroupLabel>
+        {action}
         <CollapsibleContent>
           <SidebarGroupContent>{children}</SidebarGroupContent>
         </CollapsibleContent>
@@ -223,140 +213,96 @@ function MenuSkeleton() {
   );
 }
 
-function ProfileMenu() {
-  const site = useJiraSite();
-  const myself = useJiraMyself();
-  const login = useJiraLogin();
-  const logout = useJiraLogout();
-
-  if (!site.isPending && !site.data) {
-    return (
-      <SidebarMenuButton size="lg" variant="outline" onClick={() => login.mutate()} disabled={login.isPending}>
-        {login.isPending ? <Spinner /> : <LogInIcon />}
-        <span>{login.isPending ? "Warte auf Browser" : "Mit Atlassian verbinden"}</span>
-      </SidebarMenuButton>
-    );
-  }
-
-  const name = myself.data?.displayName ?? "";
-  const initials = name
-    .split(" ")
-    .map((part) => part[0])
-    .join("")
-    .slice(0, 2);
-
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <SidebarMenuButton size="lg" className="data-[state=open]:bg-sidebar-accent">
-          <Avatar className="size-8">
-            {myself.data && <AvatarImage src={myself.data.avatarUrls["48x48"]} alt="" />}
-            <AvatarFallback>{initials}</AvatarFallback>
-          </Avatar>
-          <div className="grid min-w-0 flex-1 leading-tight">
-            <span className="truncate font-medium">{name || "…"}</span>
-            <span className="truncate text-xs text-muted-foreground">{site.data?.siteName}</span>
-          </div>
-          <ChevronsUpDownIcon className="ml-auto text-muted-foreground" />
-        </SidebarMenuButton>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent side="top" align="start" className="min-w-56">
-        <DropdownMenuLabel className="grid font-normal">
-          <span className="font-medium">{name}</span>
-          {myself.data?.emailAddress && <span className="text-xs text-muted-foreground">{myself.data.emailAddress}</span>}
-        </DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        {site.data && (
-          <DropdownMenuItem onSelect={() => void openUrl(site.data!.siteUrl)}>
-            <ExternalLinkIcon />
-            Jira öffnen
-          </DropdownMenuItem>
-        )}
-        <DropdownMenuItem onSelect={() => logout.mutate()} disabled={logout.isPending}>
-          <LogOutIcon />
-          Abmelden
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
-
 export function AppSidebar() {
   const site = useJiraSite();
-  const projects = useJiraProjects();
-  const favoriteIds = useProjectPrefs((state) => state.projectIds);
-  const hiddenIds = useProjectPrefs((state) => state.hiddenProjectIds);
-  const [query, setQuery] = useState("");
-  const needle = query.trim().toLowerCase();
-  const visible =
-    projects.data?.filter(
-      (project) =>
-        !hiddenIds.includes(project.id) &&
-        (project.name.toLowerCase().includes(needle) || project.key.toLowerCase().includes(needle)),
-    ) ?? [];
-  const favorites = visible.filter((project) => favoriteIds.includes(project.id));
-  const others = visible.filter((project) => !favoriteIds.includes(project.id));
-  const filters = useJiraFilters();
-  const visibleFilters = (filters.data ?? [])
-    .filter((filter) => filter.name.toLowerCase().includes(needle))
-    .sort((a, b) => Number(!!b.favourite) - Number(!!a.favourite));
+  const search = useSidebarSearch();
+  const profile = useProfileMenu();
+  const { projects, filters } = search;
+  const { isMobile, setOpenMobile } = useSidebar();
+  const unread = useOwnedUnreadCount();
 
   return (
     <Sidebar className="top-(--app-header-height) h-[calc(100svh-var(--app-header-height))] border-r-sidebar-border/60">
-      {site.data && (
-        <SidebarHeader className="pt-3">
+      <SidebarHeader className="gap-3 pt-3">
+        <PrimaryNav counts={{ notifications: unread }} />
+        {site.data && (
           <div className="relative">
             <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
             <SidebarInput
               type="search"
-              placeholder="Suchen"
+              placeholder="Bereiche und Filter filtern"
               aria-label="Bereiche und Filter suchen"
               className="rounded-lg border-transparent bg-sidebar-accent/60 pl-8 focus-visible:bg-background"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
+              value={search.query}
+              onChange={(event) => search.setQuery(event.target.value)}
             />
           </div>
-        </SidebarHeader>
-      )}
+        )}
+      </SidebarHeader>
       <SidebarContent>
         {site.data && (
           <>
-            {favorites.length > 0 && (
+            {projects.favorites.length > 0 && (
               <Section label="Favoriten">
-                <ProjectMenu projects={favorites} />
+                <ProjectMenu projects={projects.favorites} prefs={search.prefs} />
               </Section>
             )}
-            <Section label="Bereiche" count={projects.data ? others.length : undefined}>
+            <Section
+              label="Bereiche"
+              count={projects.loaded ? projects.others.length : undefined}
+              action={
+                <Tooltip content="Alle Bereiche" side="right">
+                  <SidebarGroupAction asChild className="top-1 right-1 size-8">
+                    <Link to="/bereiche" search={{}} aria-label="Alle Bereiche" onClick={() => isMobile && setOpenMobile(false)}>
+                      <LayoutGridIcon />
+                    </Link>
+                  </SidebarGroupAction>
+                </Tooltip>
+              }
+            >
               {projects.isPending ? (
                 <MenuSkeleton />
-              ) : needle && visible.length === 0 ? (
+              ) : search.searching && projects.visible.length === 0 ? (
                 <p className="px-2 py-1 text-sm text-muted-foreground">Keine Treffer</p>
               ) : (
-                <ProjectMenu projects={others} />
+                <ProjectMenu projects={projects.others} prefs={search.prefs} />
               )}
             </Section>
-            <Section label="Filter" count={filters.data ? visibleFilters.length : undefined}>
+            <Section label="Filter" count={filters.loaded ? filters.items.length : undefined}>
               <SidebarMenu>
                 <SidebarMenuItem>
-                  <SidebarMenuButton asChild tooltip="JQL-Suche">
+                  <SidebarMenuButton asChild tooltip="Ticketsuche">
                     <Link to="/suche" search={{}} activeProps={{ "data-active": true }}>
-                      <TerminalSquareIcon className="text-muted-foreground" />
-                      <span>JQL-Suche</span>
+                      <SearchIcon className="text-muted-foreground" />
+                      <span>Ticketsuche</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild tooltip="Alle Filter">
+                    <Link
+                      to="/filter"
+                      activeOptions={{ exact: true, includeSearch: false }}
+                      activeProps={{ "data-active": true }}
+                      onClick={() => isMobile && setOpenMobile(false)}
+                    >
+                      <ListFilterIcon className="text-muted-foreground" />
+                      <span>Alle Filter</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               </SidebarMenu>
               {filters.isPending ? (
                 <MenuSkeleton />
-              ) : filters.error ? (
+              ) : filters.error && !filters.loaded ? (
                 <p role="alert" className="px-2 py-1 text-sm text-destructive">
                   Filter konnten nicht geladen werden
                 </p>
-              ) : visibleFilters.length === 0 ? (
-                <p className="px-2 py-1 text-sm text-muted-foreground">{needle ? "Keine Treffer" : "Keine Filter"}</p>
+              ) : filters.items.length === 0 ? (
+                <p className="px-2 py-1 text-sm text-muted-foreground">{search.searching ? "Keine Treffer" : "Keine Filter"}</p>
               ) : (
                 <SidebarMenu>
-                  {visibleFilters.map((filter) => (
+                  {filters.items.map((filter) => (
                     <SidebarMenuItem key={filter.id}>
                       <SidebarMenuButton asChild tooltip={filter.name}>
                         <Link to="/filter/$id" params={{ id: filter.id }} activeProps={{ "data-active": true }}>
@@ -380,7 +326,7 @@ export function AppSidebar() {
       <SidebarFooter className="border-t border-sidebar-border/60">
         <SidebarMenu>
           <SidebarMenuItem>
-            <ProfileMenu />
+            <ProfileMenu profile={profile} />
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>

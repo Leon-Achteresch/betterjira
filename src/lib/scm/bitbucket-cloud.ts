@@ -1,7 +1,15 @@
 import { Effect, Schema } from "effect";
 import { scm } from "./client";
 import { mentionsIssue } from "./issue-key";
-import { combineChecks, type CheckState, type PullRequest, type PullRequestDraft, type ScmConnection } from "./model";
+import {
+  combineChecks,
+  PULL_REQUEST_LIST_LIMIT,
+  type CheckState,
+  type PullRequest,
+  type PullRequestDraft,
+  type PullRequestListState,
+  type ScmConnection,
+} from "./model";
 import type { ScmProvider } from "./provider";
 
 const API = "https://api.bitbucket.org/2.0";
@@ -151,7 +159,27 @@ const repos = (connection: ScmConnection) =>
     return names;
   });
 
+const LIST_STATES: Record<PullRequestListState, string[]> = { open: ["OPEN"], merged: ["MERGED"], closed: ["DECLINED", "SUPERSEDED"] };
+
+const pullRequests = (connection: ScmConnection, repo: string, state: PullRequestListState) =>
+  Effect.gen(function* () {
+    const states = LIST_STATES[state].map((value) => `state=${value}`).join("&");
+    const result = yield* scm(
+      connection.auth,
+      `${API}/repositories/${repo}/pullrequests?${states}&pagelen=${PULL_REQUEST_LIST_LIMIT}&sort=-updated_on&fields=%2Bvalues.participants`,
+      page(CloudPullRequest),
+    );
+    const pullRequests = yield* Effect.forEach(
+      result.values,
+      (pr) => checksFor(connection, repo, pr).pipe(Effect.map((checks) => toPullRequest(pr, checks))),
+      { concurrency: 4 },
+    );
+    return { pullRequests, truncated: !!result.next };
+  });
+
+const pullRequestsUrl = (connection: ScmConnection, repo: string) => `${connection.baseUrl}/${repo}/pull-requests`;
+
 const verify = (connection: ScmConnection) =>
   scm(connection.auth, `${API}/user`, Schema.Struct({ display_name: Schema.String })).pipe(Effect.map((user) => user.display_name));
 
-export const bitbucketCloud: ScmProvider = { development, createBranch, createPullRequest, repos, verify };
+export const bitbucketCloud: ScmProvider = { development, createBranch, createPullRequest, repos, pullRequests, pullRequestsUrl, verify };

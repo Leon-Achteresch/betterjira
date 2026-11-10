@@ -46,24 +46,26 @@ function CommentEntry({
         )}
       </AnimatePresence>
       <div className="flex items-center gap-2 text-sm">
-        <JiraUserLabel user={comment.author} />
-        <span className="text-xs text-muted-foreground" title={new Date(comment.created).toLocaleString("de-DE")}>
-          {formatDistanceToNowStrict(new Date(comment.created), { locale: de, addSuffix: true })}
-        </span>
-        {view.editedNote && (
-          <Tooltip content={view.editedNote}>
-            <span tabIndex={0} className="rounded-sm text-xs text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring">
-              bearbeitet
-            </span>
-          </Tooltip>
-        )}
-        {view.onResumeEdit && !editing && (
-          <Button type="button" variant="ghost" size="xs" className="text-muted-foreground" onClick={view.onResumeEdit}>
-            <PencilLineIcon />
-            Entwurf
-          </Button>
-        )}
-        {!editing && <div className="ml-auto">{view.menu}</div>}
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1 [overflow-wrap:anywhere]">
+          <JiraUserLabel user={comment.author} />
+          <span className="text-xs text-muted-foreground" title={new Date(comment.created).toLocaleString("de-DE")}>
+            {formatDistanceToNowStrict(new Date(comment.created), { locale: de, addSuffix: true })}
+          </span>
+          {view.editedNote && (
+            <Tooltip content={view.editedNote}>
+              <span tabIndex={0} className="rounded-sm text-xs text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                bearbeitet
+              </span>
+            </Tooltip>
+          )}
+          {view.onResumeEdit && !editing && (
+            <Button type="button" variant="ghost" size="xs" className="text-muted-foreground" onClick={view.onResumeEdit}>
+              <PencilLineIcon />
+              Entwurf
+            </Button>
+          )}
+        </div>
+        {!editing && <div className="shrink-0">{view.menu}</div>}
       </div>
       <AnimatePresence mode="wait" initial={false}>
         {editing ? (

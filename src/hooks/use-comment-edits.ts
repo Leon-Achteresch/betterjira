@@ -1,16 +1,16 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { useIssueCommentList } from "@/hooks/jira/use-issue-comment-list";
+import type { IssueCommentPages } from "@/hooks/jira/use-issue-comment-pages";
 import { useJiraUpdateComment } from "@/hooks/jira/use-issue-mutations";
 import { useWorkspace } from "@/hooks/use-workspace";
 import type { AdfNode } from "@/lib/jira/adf";
 import {
   canSaveEdit,
-  editableCommentIds,
   editBaseline,
   editBlockReason,
   editDraftToKeep,
   editErrorFor,
+  prunableEditIds,
   saveFailureNotice,
 } from "@/lib/jira/comment-edit";
 import { editPayload, type IssueComment } from "@/lib/jira/comment-thread";
@@ -18,8 +18,7 @@ import { clearSubmittedEditDraft, editDraftOf, pruneEditDrafts, setEditDraft } f
 
 type OpenEdit = { commentId: string; value: AdfNode; attempt: number };
 
-export function useCommentEdits(issueKey: string) {
-  const list = useIssueCommentList(issueKey);
+export function useCommentEdits(issueKey: string, pages: Pick<IssueCommentPages, "comments" | "next" | "incomplete">) {
   const mutation = useJiraUpdateComment(issueKey);
   const { workspace, update, ready } = useWorkspace();
   const [open, setOpen] = useState<OpenEdit | null>(null);
@@ -28,10 +27,10 @@ export function useCommentEdits(issueKey: string) {
   useLayoutEffect(() => {
     openCommentId.current = open?.commentId;
   });
-  const comments = list.data;
-  const target = open ? comments?.find((comment) => comment.id === open.commentId) : undefined;
+  const { comments, next, incomplete } = pages;
+  const target = open ? comments.find((comment) => comment.id === open.commentId) : undefined;
   const baseline = target ? editBaseline(target.body) : undefined;
-  const editableIds = useMemo(() => (comments ? editableCommentIds(comments).join(",") : undefined), [comments]);
+  const editableIds = useMemo(() => prunableEditIds({ comments, next, incomplete })?.join(","), [comments, next, incomplete]);
 
   useEffect(() => {
     if (editableIds === undefined) return;

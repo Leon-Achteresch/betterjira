@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { commentLink } from "./comment-thread";
-import { appLinkTarget, issueSearch, parseCommentSearch, parseIssueLink } from "./issue-link";
+import { jiraCommentUrl } from "./comment-link";
+import { appLinkTarget, issueRouteSearch, issueSearch, parseCommentSearch, parseIssueLink, withoutCommentSearch } from "./issue-link";
 
 const SITE = "https://example.atlassian.net";
 
@@ -14,7 +14,7 @@ describe("Ticket-Links derselben Site", () => {
   });
 
   it("liest den Link, den Link kopieren erzeugt", () => {
-    expect(parseIssueLink(commentLink(SITE, "DEMO-1", "10002"), SITE)).toEqual({ issueKey: "DEMO-1", commentId: "10002" });
+    expect(parseIssueLink(jiraCommentUrl(SITE, "DEMO-1", "10002") ?? "", SITE)).toEqual({ issueKey: "DEMO-1", commentId: "10002" });
   });
 
   it("liest einen Ticket-Link ohne Kommentar", () => {
@@ -63,5 +63,19 @@ describe("Suchparameter comment", () => {
   it("setzt comment nur mit Kommentar-ID", () => {
     expect(issueSearch("10002")).toEqual({ comment: "10002" });
     expect(issueSearch(undefined)).toEqual({});
+  });
+});
+
+describe("Suchparameter der Ticket-Route", () => {
+  it("nimmt Bereich und Kommentar zusammen an und verwirft Unbekanntes", () => {
+    expect(issueRouteSearch({ bereich: "zeit", comment: 10002 })).toEqual({ bereich: "zeit", comment: "10002" });
+    expect(issueRouteSearch({ bereich: "zeit" })).toEqual({ bereich: "zeit" });
+    expect(issueRouteSearch({ comment: "10002" })).toEqual({ comment: "10002" });
+    expect(issueRouteSearch({ bereich: "andere", comment: "x", fremd: 1 })).toEqual({});
+  });
+
+  it("entfernt nach dem Sprung nur den Kommentar und behält den Bereich", () => {
+    expect(withoutCommentSearch({ bereich: "zeit", comment: "10002" })).toEqual({ bereich: "zeit" });
+    expect(withoutCommentSearch({ comment: "10002" })).toEqual({});
   });
 });

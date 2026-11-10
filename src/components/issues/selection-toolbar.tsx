@@ -6,6 +6,7 @@ import { EASE_OUT } from "@/lib/ease";
 export function SelectionToolbar({
   count,
   loaded,
+  disabled = false,
   onCopyKeys,
   onCopyTable,
   onCopyMarkdown,
@@ -13,6 +14,7 @@ export function SelectionToolbar({
 }: {
   count: number;
   loaded: number;
+  disabled?: boolean;
   onCopyKeys: () => void;
   onCopyTable: () => void;
   onCopyMarkdown: () => void;
@@ -37,15 +39,15 @@ export function SelectionToolbar({
           >
             {count} von {loaded} geladenen Vorgängen ausgewählt
           </span>
-          <Button variant="ghost" size="sm" onClick={onCopyKeys}>
+          <Button variant="ghost" size="sm" onClick={onCopyKeys} disabled={disabled}>
             <ClipboardCopyIcon />
             Schlüssel
           </Button>
-          <Button variant="ghost" size="sm" onClick={onCopyTable}>
+          <Button variant="ghost" size="sm" onClick={onCopyTable} disabled={disabled}>
             <TableIcon />
             Tabelle
           </Button>
-          <Button variant="ghost" size="sm" onClick={onCopyMarkdown}>
+          <Button variant="ghost" size="sm" onClick={onCopyMarkdown} disabled={disabled}>
             <CodeIcon />
             Markdown
           </Button>

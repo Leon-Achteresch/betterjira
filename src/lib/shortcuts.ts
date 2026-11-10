@@ -4,10 +4,12 @@ import { IS_MAC } from "@/lib/platform";
 export type ShortcutId =
   | "palette"
   | "help"
+  | "createIssue"
   | "sidebar"
   | "back"
   | "forward"
   | "home"
+  | "tickets"
   | "search"
   | "settings"
   | "nextTab"
@@ -43,10 +45,12 @@ export const SHORTCUTS: Shortcut[] = [
   shortcut("palette", "Mod+K", "Suchen und Befehle", "Allgemein"),
   shortcut("help", "?", "Tastenkürzel anzeigen", "Allgemein"),
   shortcut("sidebar", "Mod+B", "Seitenleiste ein-/ausblenden", "Allgemein"),
+  shortcut("createIssue", "C", "Ticket erstellen", "Allgemein"),
   shortcut("back", IS_MAC ? "Mod+[" : "Alt+ArrowLeft", "Zurück", "Navigation"),
   shortcut("forward", IS_MAC ? "Mod+]" : "Alt+ArrowRight", "Vor", "Navigation"),
-  shortcut("home", ["G", "H"], "Startseite", "Navigation"),
-  shortcut("search", ["G", "S"], "JQL-Suche", "Navigation"),
+  shortcut("home", ["G", "H"], "Heute", "Navigation"),
+  shortcut("tickets", ["G", "T"], "Jira-Tickets", "Navigation"),
+  shortcut("search", ["G", "S"], "Ticketsuche", "Navigation"),
   shortcut("settings", "Mod+,", "Einstellungen", "Navigation"),
   shortcut("nextTab", "Control+Tab", "Nächster Ticket-Tab", "Ticket-Tabs"),
   shortcut("prevTab", "Control+Shift+Tab", "Vorheriger Ticket-Tab", "Ticket-Tabs"),

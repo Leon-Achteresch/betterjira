@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { Data, Effect, Schema } from "effect";
-import type { RepoLink, ScmAuth, ScmConnection } from "./model";
+import type { PullRequestListState, RepoLink, ScmAuth, ScmConnection } from "./model";
 
 export class ScmError extends Data.TaggedError("ScmError")<{ message: string; cause?: unknown }> {}
 
@@ -20,6 +20,9 @@ export const scmKeys = {
   repos: (connectionId: string) => ["scm", "repos", connectionId] as const,
   developmentAll: (issueKey: string) => ["scm", "development", issueKey] as const,
   development: (issueKey: string, links: readonly RepoLink[]) => ["scm", "development", issueKey, links] as const,
+  pullRequestsAll: ["scm", "pull-requests"] as const,
+  pullRequests: (connectionId: string, repo: string, state: PullRequestListState) =>
+    ["scm", "pull-requests", connectionId, repo, state] as const,
 };
 
 const ServerMessage = Schema.Struct({

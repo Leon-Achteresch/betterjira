@@ -7,6 +7,7 @@ import {
   editBlockReason,
   editDraftToKeep,
   editErrorFor,
+  prunableEditIds,
   saveFailureNotice,
 } from "./comment-edit";
 
@@ -65,5 +66,14 @@ describe("Kommentar bearbeiten", () => {
     expect(saveFailureNotice("10", "10")).toBe("inline");
     expect(saveFailureNotice("11", "10")).toBe("toast");
     expect(saveFailureNotice(undefined, "10")).toBe("toast");
+  });
+
+  it("bereinigt Bearbeitungsentwürfe nur, wenn die Kommentarliste vollständig geladen ist", () => {
+    const comments = [{ id: "1", body }, { id: "2", body: locked }];
+    expect(prunableEditIds({ comments, next: 50, incomplete: false })).toBeUndefined();
+    expect(prunableEditIds({ comments, incomplete: true })).toBeUndefined();
+    expect(prunableEditIds({ comments, next: 0, incomplete: true })).toBeUndefined();
+    expect(prunableEditIds({ comments, incomplete: false })).toEqual(["1"]);
+    expect(prunableEditIds({ comments: [], incomplete: false })).toEqual([]);
   });
 });

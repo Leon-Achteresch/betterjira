@@ -1,4 +1,4 @@
-import { Schema } from "effect";
+import { Effect, Schema } from "effect";
 import { jira, jiraSend } from "./client";
 
 const SearchPage = Schema.Struct({
@@ -18,9 +18,10 @@ export type SearchIssue = SearchPage["issues"][number];
 
 export const PAGE_SIZE = 50;
 
-export const searchIssues = (jql: string, fields: readonly string[], pageToken?: string, maxResults = PAGE_SIZE) => {
+export const searchIssues = (jql: string, fields: readonly string[], pageToken?: string, maxResults = PAGE_SIZE, reconcileIssueIds: readonly string[] = []) => {
   const params = new URLSearchParams({ jql, fields: fields.join(","), maxResults: String(maxResults) });
   if (pageToken) params.set("nextPageToken", pageToken);
+  if (reconcileIssueIds.length) params.set("reconcileIssues", reconcileIssueIds.join(","));
   return jira(`/search/jql?${params}`, SearchPage);
 };
 
@@ -37,12 +38,13 @@ const JiraFields = Schema.Array(
     orderable: Schema.optional(Schema.Boolean),
     navigable: Schema.optional(Schema.Boolean),
     clauseNames: Schema.optional(Schema.Array(Schema.String)),
+    schema: Schema.optional(Schema.Struct({ custom: Schema.optional(Schema.String) })),
   }),
 );
 
 export type JiraFieldInfo = (typeof JiraFields.Type)[number];
 
-export const fetchFields = jira("/field", JiraFields);
+export const fetchFields = Effect.suspend(() => jira("/field", JiraFields));
 
 const ParsedJql = Schema.Struct({
   queries: Schema.Array(Schema.Struct({ errors: Schema.optional(Schema.Array(Schema.String)) })),

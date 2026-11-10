@@ -327,6 +327,13 @@ describe("Gespeicherte Arbeitsbereiche lesen", () => {
     expect(restoreWorkspaces("kaputt")).toEqual({});
   });
 
+  it("ergänzt keine fehlenden Entwurfsfelder, damit unberührte Arbeitsbereiche gleich bleiben", () => {
+    const restored = restoreWorkspaces({ a: base });
+    expect(restored.a).toEqual(base);
+    expect(restored.a).not.toHaveProperty("replyDrafts");
+    expect(restored.a).not.toHaveProperty("editDrafts");
+  });
+
   it("überführt alte Textentwürfe weiterhin", () => {
     const restored = restoreWorkspaces({ a: { ...base, drafts: { "A-1": "Hallo" } } });
     expect(restored.a?.drafts).toEqual({});

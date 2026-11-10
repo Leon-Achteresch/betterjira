@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { ComponentProps, ReactNode } from "react";
 import { cva, type VariantProps } from "class-variance-authority";
 import { StaggerItem } from "@/components/motion/stagger";
 import { cn } from "@/lib/utils";
@@ -14,7 +14,8 @@ const statTileVariants = cva("flex flex-col gap-1 rounded-xl bg-card p-3 ring-1 
   defaultVariants: { tone: "default" },
 });
 
-type StatTileProps = VariantProps<typeof statTileVariants> & {
+type StatTileProps = VariantProps<typeof statTileVariants> &
+  Pick<ComponentProps<typeof StaggerItem>, "layout" | "exit" | "transition" | "ref"> & {
   label: string;
   value: ReactNode;
   hint?: ReactNode;
@@ -22,9 +23,9 @@ type StatTileProps = VariantProps<typeof statTileVariants> & {
   className?: string;
 };
 
-export function StatTile({ label, value, hint, icon, tone, className }: StatTileProps) {
+export function StatTile({ label, value, hint, icon, tone, className, layout, exit, transition, ref }: StatTileProps) {
   return (
-    <StaggerItem className={cn(statTileVariants({ tone }), className)}>
+    <StaggerItem ref={ref} layout={layout} exit={exit} transition={transition} className={cn(statTileVariants({ tone }), className)}>
       <span className="flex items-center gap-1.5 text-xs text-muted-foreground [&_svg]:size-3.5">
         {icon}
         {label}

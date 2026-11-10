@@ -95,7 +95,11 @@
     --sidebar-accent-foreground: oklch(0.21 0.012 265);
     --sidebar-border: oklch(0.91 0.004 265);
     --sidebar-ring: oklch(0.62 0.17 258);
-    --glass-tint: color-mix(in oklch, var(--popover) 42%, transparent);
+    --glass-tint: color-mix(in oklch, var(--popover) 82%, transparent);
+    --glass-chrome: oklch(0.975 0.009 259 / 0.74);
+    --glass-control: oklch(1 0 0 / 0.62);
+    --glass-card: oklch(1 0 0 / 0.72);
+    --glass-ambient: oklch(0.86 0.055 259 / 0.26);
     --glass-highlight: oklch(1 0 0 / 0.9);
     --glass-rim: oklch(1 0 0 / 0.45);
     --glass-shade: oklch(0.25 0.02 265 / 0.08);
@@ -143,7 +147,11 @@
     --sidebar-accent-foreground: oklch(0.965 0.003 265);
     --sidebar-border: oklch(1 0 0 / 7%);
     --sidebar-ring: oklch(0.65 0.16 258);
-    --glass-tint: color-mix(in oklch, var(--popover) 40%, transparent);
+    --glass-tint: color-mix(in oklch, var(--popover) 88%, transparent);
+    --glass-chrome: oklch(0.2 0.014 259 / 0.76);
+    --glass-control: oklch(0.32 0.012 259 / 0.5);
+    --glass-card: oklch(0.245 0.012 259 / 0.74);
+    --glass-ambient: oklch(0.4 0.065 259 / 0.22);
     --glass-highlight: oklch(1 0 0 / 0.18);
     --glass-rim: oklch(1 0 0 / 0.08);
     --glass-shade: oklch(0 0 0 / 0.25);
@@ -165,8 +173,9 @@
 
 @utility glass {
     background-color: var(--glass-tint);
-    -webkit-backdrop-filter: blur(24px) saturate(220%) brightness(1.06);
-    backdrop-filter: blur(24px) saturate(220%) brightness(1.06);
+    background-image: linear-gradient(155deg, var(--glass-rim), transparent 42%);
+    -webkit-backdrop-filter: blur(24px) saturate(150%);
+    backdrop-filter: blur(24px) saturate(150%);
     --tw-inset-shadow: inset 0 1px 0 0 var(--glass-highlight), inset 0 0 0 1px var(--glass-rim), inset 0 -1px 0 0 var(--glass-shade);
 
     @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
@@ -178,6 +187,37 @@
         -webkit-backdrop-filter: none;
         backdrop-filter: none;
     }
+}
+
+@utility glass-chrome {
+    background-color: var(--glass-chrome);
+    -webkit-backdrop-filter: blur(20px) saturate(140%);
+    backdrop-filter: blur(20px) saturate(140%);
+    box-shadow: inset 0 1px 0 var(--glass-rim);
+}
+
+@utility glass-control {
+    background-color: var(--glass-control);
+    box-shadow: inset 0 1px 0 var(--glass-rim), inset 0 -1px 0 var(--glass-shade);
+}
+
+@utility glass-card {
+    background-color: var(--glass-card);
+    background-image: linear-gradient(150deg, var(--glass-rim), transparent 38%);
+    box-shadow: inset 0 1px 0 var(--glass-highlight), inset 0 0 0 1px var(--glass-rim), var(--elevation-xs);
+}
+
+@media (prefers-reduced-transparency: reduce) {
+    .glass, .glass-chrome, .glass-control, .glass-card {
+        background-color: var(--popover);
+        background-image: none;
+        -webkit-backdrop-filter: none;
+        backdrop-filter: none;
+    }
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    .glass-chrome { background-color: var(--sidebar); }
 }
 
 @layer base {
@@ -192,6 +232,18 @@
   body {
     @apply bg-background text-foreground;
     text-rendering: optimizeLegibility;
+    background-image: radial-gradient(ellipse at 0% 0%, var(--glass-ambient), transparent 55%);
+    background-attachment: fixed;
+    }
+  :root[data-text-size] [data-slot=sidebar-inset] {
+    --text-xs: calc(0.75rem * var(--content-text-scale));
+    --text-sm: calc(0.875rem * var(--content-text-scale));
+    --text-base: calc(1rem * var(--content-text-scale));
+    --text-lg: calc(1.125rem * var(--content-text-scale));
+    --text-xl: calc(1.25rem * var(--content-text-scale));
+    --text-2xl: calc(1.5rem * var(--content-text-scale));
+    --text-3xl: calc(1.875rem * var(--content-text-scale));
+    font-size: var(--text-base);
     }
   .native-glass body {
     background-color: transparent;
@@ -199,6 +251,14 @@
   .native-glass [data-slot=sidebar-inset] {
     background-color: color-mix(in oklch, var(--background) 80%, transparent);
     }
+  h1, h2, h3, h4, h5, h6 { text-wrap: balance; }
+  input, textarea { caret-color: var(--primary); }
+  [data-slot=sidebar-inset] {
+    background-color: color-mix(in oklch, var(--background) 90%, transparent);
+    border-radius: var(--radius-2xl) 0 0 0;
+    box-shadow: inset 1px 1px 0 var(--glass-rim);
+  }
+  [data-slot=table] { font-variant-numeric: tabular-nums; }
   ::selection {
     background-color: color-mix(in oklch, var(--primary) 24%, transparent);
     }

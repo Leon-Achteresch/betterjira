@@ -2,8 +2,11 @@ import { invoke } from "@tauri-apps/api/core";
 import { Data, Effect, Schema } from "effect";
 import { attentionContext, type AttentionContextInput } from "./context";
 
-export const ATTENTION_PORT = 8743;
 export const ATTENTION_EVENT = "attention-updated";
+
+const AttentionPort = Schema.Int.check(Schema.isBetween({ minimum: 1, maximum: 65535 }));
+
+export const attentionCallbackUrl = (port: number) => `http://127.0.0.1:${port}/attention`;
 
 export const attentionKeys = {
   all: ["attention"] as const,
@@ -14,7 +17,7 @@ export const attentionKeys = {
 export class AttentionError extends Data.TaggedError("AttentionError")<{ message: string; cause?: unknown }> {}
 
 const attentionError = (message: string) => (cause: unknown) =>
-  new AttentionError({ message: typeof cause === "string" ? cause : message, cause });
+  cause instanceof AttentionError ? cause : new AttentionError({ message: typeof cause === "string" ? cause : message, cause });
 
 export const AttentionUrgency = Schema.Literals(["now", "today", "soon"]);
 export type AttentionUrgency = typeof AttentionUrgency.Type;
@@ -39,15 +42,21 @@ export type AttentionItem = AttentionResult["items"][number];
 
 export const serveAttention = (token: string) =>
   Effect.tryPromise({
-    try: () => invoke<number>("attention_serve", { token }),
+    try: () => invoke<unknown>("attention_serve", { token }),
     catch: attentionError("Lokaler Endpunkt konnte nicht starten"),
-  });
+  }).pipe(
+    Effect.flatMap(Schema.decodeUnknownEffect(AttentionPort)),
+    Effect.mapError(attentionError("Lokaler Endpunkt hat einen ungültigen Port zurückgegeben")),
+  );
 
 export const readAttention = Effect.gen(function* () {
   const raw = yield* Effect.tryPromise({
-    try: () => invoke<string | null>("attention_read"),
+    try: () => invoke<unknown>("attention_read"),
     catch: attentionError("Briefing konnte nicht gelesen werden"),
-  });
+  }).pipe(
+    Effect.flatMap(Schema.decodeUnknownEffect(Schema.NullOr(Schema.String))),
+    Effect.mapError(attentionError("Briefing konnte nicht gelesen werden")),
+  );
   if (raw === null) return null;
   return yield* Effect.try({ try: () => JSON.parse(raw) as unknown, catch: attentionError("Briefing ist kein JSON") }).pipe(
     Effect.flatMap(Schema.decodeUnknownEffect(AttentionResult)),
@@ -55,12 +64,18 @@ export const readAttention = Effect.gen(function* () {
   );
 });
 
-export const triggerAttention = (webhookUrl: string, input: AttentionContextInput) =>
+export const triggerAttention = (webhookUrl: string, input: AttentionContextInput, port: number) =>
   attentionContext(input).pipe(
     Effect.flatMap((context) =>
       Effect.tryPromise({
-        try: () => invoke("attention_trigger", { url: webhookUrl, body: JSON.stringify({ runId: input.runId, context }) }),
+        try: () => invoke<unknown>("attention_trigger", {
+          url: webhookUrl,
+          body: JSON.stringify({ runId: input.runId, context, callbackUrl: attentionCallbackUrl(port) }),
+        }),
         catch: attentionError("Webhook konnte nicht aufgerufen werden"),
-      }),
+      }).pipe(
+        Effect.flatMap(Schema.decodeUnknownEffect(Schema.Null)),
+        Effect.mapError(attentionError("Webhook hat eine unerwartete Antwort zurückgegeben")),
+      ),
     ),
   );

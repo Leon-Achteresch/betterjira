@@ -2,7 +2,7 @@ import { useCallback } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import type { LinkOpener } from "@/components/adf-content";
-import { useIssueTabStore } from "@/hooks/use-issue-tabs";
+import { useIssueTabStore } from "@/hooks/use-issue-tab-store";
 import { appLinkTarget, issueSearch } from "@/lib/jira/issue-link";
 import { useJiraSite } from "@/lib/jira/queries";
 

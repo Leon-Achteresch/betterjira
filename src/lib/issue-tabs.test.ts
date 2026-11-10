@@ -36,3 +36,13 @@ describe("issue tabs", () => {
     expect(issueKeyFromHref(null)).toBeUndefined();
   });
 });
+
+it("keeps Zammad IDs in a separate namespace and routes mixed tabs correctly", async () => {
+  const { tabTarget, zammadTabKey } = await import("./issue-tabs");
+  expect(zammadTabKey(41)).toBe("zammad:41");
+  expect(issueKeyFromHref("/helpdesk/41")).toBe("zammad:41");
+  expect(issueKeyFromHref("/helpdesk/neu")).toBeUndefined();
+  expect(tabTarget("zammad:41")).toEqual({ to: "/helpdesk/$id", params: { id: "41" } });
+  expect(tabTarget("DEMO-1")).toEqual({ to: "/issue/$key", params: { key: "DEMO-1" } });
+  expect(neighborTab(["DEMO-1", "zammad:41"], "DEMO-1")).toBe("zammad:41");
+});

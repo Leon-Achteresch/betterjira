@@ -10,20 +10,60 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ArbeitsplatzRouteImport } from './routes/arbeitsplatz'
+import { Route as BenachrichtigungenRouteImport } from './routes/benachrichtigungen'
+import { Route as KalenderRouteImport } from './routes/kalender'
+import { Route as NeuRouteImport } from './routes/neu'
+import { Route as PullRequestsRouteImport } from './routes/pull-requests'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SucheRouteImport } from './routes/suche'
+import { Route as TicketsRouteImport } from './routes/tickets'
+import { Route as ZeiterfassungRouteImport } from './routes/zeiterfassung'
+import { Route as BereicheIndexRouteImport } from './routes/bereiche/index'
 import { Route as BereicheKeyRouteImport } from './routes/bereiche/$key'
+import { Route as FilterIndexRouteImport } from './routes/filter/index'
 import { Route as FilterIdRouteImport } from './routes/filter/$id'
+import { Route as HelpdeskIndexRouteImport } from './routes/helpdesk/index'
+import { Route as HelpdeskIdRouteImport } from './routes/helpdesk/$id'
+import { Route as HelpdeskNeuRouteImport } from './routes/helpdesk/neu'
 import { Route as IssueKeyRouteImport } from './routes/issue/$key'
 import { Route as SettingsIndexRouteImport } from './routes/settings/index'
+import { Route as SettingsBenachrichtigungenRouteImport } from './routes/settings/benachrichtigungen'
 import { Route as SettingsBereicheRouteImport } from './routes/settings/bereiche'
 import { Route as SettingsBriefingRouteImport } from './routes/settings/briefing'
 import { Route as SettingsCodeHostingRouteImport } from './routes/settings/code-hosting'
 import { Route as SettingsDarstellungRouteImport } from './routes/settings/darstellung'
+import { Route as SettingsUpdatesRouteImport } from './routes/settings/updates'
+import { Route as SettingsVerbindungenRouteImport } from './routes/settings/verbindungen'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ArbeitsplatzRoute = ArbeitsplatzRouteImport.update({
+  id: '/arbeitsplatz',
+  path: '/arbeitsplatz',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BenachrichtigungenRoute = BenachrichtigungenRouteImport.update({
+  id: '/benachrichtigungen',
+  path: '/benachrichtigungen',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const KalenderRoute = KalenderRouteImport.update({
+  id: '/kalender',
+  path: '/kalender',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NeuRoute = NeuRouteImport.update({
+  id: '/neu',
+  path: '/neu',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PullRequestsRoute = PullRequestsRouteImport.update({
+  id: '/pull-requests',
+  path: '/pull-requests',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SettingsRoute = SettingsRouteImport.update({
@@ -36,14 +76,49 @@ const SucheRoute = SucheRouteImport.update({
   path: '/suche',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TicketsRoute = TicketsRouteImport.update({
+  id: '/tickets',
+  path: '/tickets',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ZeiterfassungRoute = ZeiterfassungRouteImport.update({
+  id: '/zeiterfassung',
+  path: '/zeiterfassung',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BereicheIndexRoute = BereicheIndexRouteImport.update({
+  id: '/bereiche/',
+  path: '/bereiche/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const BereicheKeyRoute = BereicheKeyRouteImport.update({
   id: '/bereiche/$key',
   path: '/bereiche/$key',
   getParentRoute: () => rootRouteImport,
 } as any)
+const FilterIndexRoute = FilterIndexRouteImport.update({
+  id: '/filter/',
+  path: '/filter/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const FilterIdRoute = FilterIdRouteImport.update({
   id: '/filter/$id',
   path: '/filter/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HelpdeskIndexRoute = HelpdeskIndexRouteImport.update({
+  id: '/helpdesk/',
+  path: '/helpdesk/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HelpdeskIdRoute = HelpdeskIdRouteImport.update({
+  id: '/helpdesk/$id',
+  path: '/helpdesk/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HelpdeskNeuRoute = HelpdeskNeuRouteImport.update({
+  id: '/helpdesk/neu',
+  path: '/helpdesk/neu',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IssueKeyRoute = IssueKeyRouteImport.update({
@@ -56,6 +131,12 @@ const SettingsIndexRoute = SettingsIndexRouteImport.update({
   path: '/',
   getParentRoute: () => SettingsRoute,
 } as any)
+const SettingsBenachrichtigungenRoute =
+  SettingsBenachrichtigungenRouteImport.update({
+    id: '/benachrichtigungen',
+    path: '/benachrichtigungen',
+    getParentRoute: () => SettingsRoute,
+  } as any)
 const SettingsBereicheRoute = SettingsBereicheRouteImport.update({
   id: '/bereiche',
   path: '/bereiche',
@@ -76,94 +157,206 @@ const SettingsDarstellungRoute = SettingsDarstellungRouteImport.update({
   path: '/darstellung',
   getParentRoute: () => SettingsRoute,
 } as any)
+const SettingsUpdatesRoute = SettingsUpdatesRouteImport.update({
+  id: '/updates',
+  path: '/updates',
+  getParentRoute: () => SettingsRoute,
+} as any)
+const SettingsVerbindungenRoute = SettingsVerbindungenRouteImport.update({
+  id: '/verbindungen',
+  path: '/verbindungen',
+  getParentRoute: () => SettingsRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/arbeitsplatz': typeof ArbeitsplatzRoute
+  '/benachrichtigungen': typeof BenachrichtigungenRoute
+  '/kalender': typeof KalenderRoute
+  '/neu': typeof NeuRoute
+  '/pull-requests': typeof PullRequestsRoute
   '/settings': typeof SettingsRouteWithChildren
   '/suche': typeof SucheRoute
+  '/tickets': typeof TicketsRoute
+  '/zeiterfassung': typeof ZeiterfassungRoute
   '/bereiche/$key': typeof BereicheKeyRoute
   '/filter/$id': typeof FilterIdRoute
+  '/helpdesk/$id': typeof HelpdeskIdRoute
+  '/helpdesk/neu': typeof HelpdeskNeuRoute
   '/issue/$key': typeof IssueKeyRoute
+  '/settings/benachrichtigungen': typeof SettingsBenachrichtigungenRoute
   '/settings/bereiche': typeof SettingsBereicheRoute
   '/settings/briefing': typeof SettingsBriefingRoute
   '/settings/code-hosting': typeof SettingsCodeHostingRoute
   '/settings/darstellung': typeof SettingsDarstellungRoute
+  '/settings/updates': typeof SettingsUpdatesRoute
+  '/settings/verbindungen': typeof SettingsVerbindungenRoute
+  '/bereiche/': typeof BereicheIndexRoute
+  '/filter/': typeof FilterIndexRoute
+  '/helpdesk/': typeof HelpdeskIndexRoute
   '/settings/': typeof SettingsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/arbeitsplatz': typeof ArbeitsplatzRoute
+  '/benachrichtigungen': typeof BenachrichtigungenRoute
+  '/kalender': typeof KalenderRoute
+  '/neu': typeof NeuRoute
+  '/pull-requests': typeof PullRequestsRoute
   '/suche': typeof SucheRoute
+  '/tickets': typeof TicketsRoute
+  '/zeiterfassung': typeof ZeiterfassungRoute
   '/bereiche/$key': typeof BereicheKeyRoute
   '/filter/$id': typeof FilterIdRoute
+  '/helpdesk/$id': typeof HelpdeskIdRoute
+  '/helpdesk/neu': typeof HelpdeskNeuRoute
   '/issue/$key': typeof IssueKeyRoute
+  '/settings/benachrichtigungen': typeof SettingsBenachrichtigungenRoute
   '/settings/bereiche': typeof SettingsBereicheRoute
   '/settings/briefing': typeof SettingsBriefingRoute
   '/settings/code-hosting': typeof SettingsCodeHostingRoute
   '/settings/darstellung': typeof SettingsDarstellungRoute
+  '/settings/updates': typeof SettingsUpdatesRoute
+  '/settings/verbindungen': typeof SettingsVerbindungenRoute
+  '/bereiche': typeof BereicheIndexRoute
+  '/filter': typeof FilterIndexRoute
+  '/helpdesk': typeof HelpdeskIndexRoute
   '/settings': typeof SettingsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/arbeitsplatz': typeof ArbeitsplatzRoute
+  '/benachrichtigungen': typeof BenachrichtigungenRoute
+  '/kalender': typeof KalenderRoute
+  '/neu': typeof NeuRoute
+  '/pull-requests': typeof PullRequestsRoute
   '/settings': typeof SettingsRouteWithChildren
   '/suche': typeof SucheRoute
+  '/tickets': typeof TicketsRoute
+  '/zeiterfassung': typeof ZeiterfassungRoute
   '/bereiche/$key': typeof BereicheKeyRoute
   '/filter/$id': typeof FilterIdRoute
+  '/helpdesk/$id': typeof HelpdeskIdRoute
+  '/helpdesk/neu': typeof HelpdeskNeuRoute
   '/issue/$key': typeof IssueKeyRoute
+  '/settings/benachrichtigungen': typeof SettingsBenachrichtigungenRoute
   '/settings/bereiche': typeof SettingsBereicheRoute
   '/settings/briefing': typeof SettingsBriefingRoute
   '/settings/code-hosting': typeof SettingsCodeHostingRoute
   '/settings/darstellung': typeof SettingsDarstellungRoute
+  '/settings/updates': typeof SettingsUpdatesRoute
+  '/settings/verbindungen': typeof SettingsVerbindungenRoute
+  '/bereiche/': typeof BereicheIndexRoute
+  '/filter/': typeof FilterIndexRoute
+  '/helpdesk/': typeof HelpdeskIndexRoute
   '/settings/': typeof SettingsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/arbeitsplatz'
+    | '/benachrichtigungen'
+    | '/kalender'
+    | '/neu'
+    | '/pull-requests'
     | '/settings'
     | '/suche'
+    | '/tickets'
+    | '/zeiterfassung'
     | '/bereiche/$key'
     | '/filter/$id'
+    | '/helpdesk/$id'
+    | '/helpdesk/neu'
     | '/issue/$key'
+    | '/settings/benachrichtigungen'
     | '/settings/bereiche'
     | '/settings/briefing'
     | '/settings/code-hosting'
     | '/settings/darstellung'
+    | '/settings/updates'
+    | '/settings/verbindungen'
+    | '/bereiche/'
+    | '/filter/'
+    | '/helpdesk/'
     | '/settings/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/arbeitsplatz'
+    | '/benachrichtigungen'
+    | '/kalender'
+    | '/neu'
+    | '/pull-requests'
     | '/suche'
+    | '/tickets'
+    | '/zeiterfassung'
     | '/bereiche/$key'
     | '/filter/$id'
+    | '/helpdesk/$id'
+    | '/helpdesk/neu'
     | '/issue/$key'
+    | '/settings/benachrichtigungen'
     | '/settings/bereiche'
     | '/settings/briefing'
     | '/settings/code-hosting'
     | '/settings/darstellung'
+    | '/settings/updates'
+    | '/settings/verbindungen'
+    | '/bereiche'
+    | '/filter'
+    | '/helpdesk'
     | '/settings'
   id:
     | '__root__'
     | '/'
+    | '/arbeitsplatz'
+    | '/benachrichtigungen'
+    | '/kalender'
+    | '/neu'
+    | '/pull-requests'
     | '/settings'
     | '/suche'
+    | '/tickets'
+    | '/zeiterfassung'
     | '/bereiche/$key'
     | '/filter/$id'
+    | '/helpdesk/$id'
+    | '/helpdesk/neu'
     | '/issue/$key'
+    | '/settings/benachrichtigungen'
     | '/settings/bereiche'
     | '/settings/briefing'
     | '/settings/code-hosting'
     | '/settings/darstellung'
+    | '/settings/updates'
+    | '/settings/verbindungen'
+    | '/bereiche/'
+    | '/filter/'
+    | '/helpdesk/'
     | '/settings/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ArbeitsplatzRoute: typeof ArbeitsplatzRoute
+  BenachrichtigungenRoute: typeof BenachrichtigungenRoute
+  KalenderRoute: typeof KalenderRoute
+  NeuRoute: typeof NeuRoute
+  PullRequestsRoute: typeof PullRequestsRoute
   SettingsRoute: typeof SettingsRouteWithChildren
   SucheRoute: typeof SucheRoute
+  TicketsRoute: typeof TicketsRoute
+  ZeiterfassungRoute: typeof ZeiterfassungRoute
   BereicheKeyRoute: typeof BereicheKeyRoute
   FilterIdRoute: typeof FilterIdRoute
+  HelpdeskIdRoute: typeof HelpdeskIdRoute
+  HelpdeskNeuRoute: typeof HelpdeskNeuRoute
   IssueKeyRoute: typeof IssueKeyRoute
+  BereicheIndexRoute: typeof BereicheIndexRoute
+  FilterIndexRoute: typeof FilterIndexRoute
+  HelpdeskIndexRoute: typeof HelpdeskIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -173,6 +366,41 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/arbeitsplatz': {
+      id: '/arbeitsplatz'
+      path: '/arbeitsplatz'
+      fullPath: '/arbeitsplatz'
+      preLoaderRoute: typeof ArbeitsplatzRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/benachrichtigungen': {
+      id: '/benachrichtigungen'
+      path: '/benachrichtigungen'
+      fullPath: '/benachrichtigungen'
+      preLoaderRoute: typeof BenachrichtigungenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/kalender': {
+      id: '/kalender'
+      path: '/kalender'
+      fullPath: '/kalender'
+      preLoaderRoute: typeof KalenderRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/neu': {
+      id: '/neu'
+      path: '/neu'
+      fullPath: '/neu'
+      preLoaderRoute: typeof NeuRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pull-requests': {
+      id: '/pull-requests'
+      path: '/pull-requests'
+      fullPath: '/pull-requests'
+      preLoaderRoute: typeof PullRequestsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/settings': {
@@ -189,6 +417,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SucheRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/tickets': {
+      id: '/tickets'
+      path: '/tickets'
+      fullPath: '/tickets'
+      preLoaderRoute: typeof TicketsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/zeiterfassung': {
+      id: '/zeiterfassung'
+      path: '/zeiterfassung'
+      fullPath: '/zeiterfassung'
+      preLoaderRoute: typeof ZeiterfassungRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/bereiche/': {
+      id: '/bereiche/'
+      path: '/bereiche'
+      fullPath: '/bereiche/'
+      preLoaderRoute: typeof BereicheIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/bereiche/$key': {
       id: '/bereiche/$key'
       path: '/bereiche/$key'
@@ -196,11 +445,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BereicheKeyRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/filter/': {
+      id: '/filter/'
+      path: '/filter'
+      fullPath: '/filter/'
+      preLoaderRoute: typeof FilterIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/filter/$id': {
       id: '/filter/$id'
       path: '/filter/$id'
       fullPath: '/filter/$id'
       preLoaderRoute: typeof FilterIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/helpdesk/': {
+      id: '/helpdesk/'
+      path: '/helpdesk'
+      fullPath: '/helpdesk/'
+      preLoaderRoute: typeof HelpdeskIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/helpdesk/$id': {
+      id: '/helpdesk/$id'
+      path: '/helpdesk/$id'
+      fullPath: '/helpdesk/$id'
+      preLoaderRoute: typeof HelpdeskIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/helpdesk/neu': {
+      id: '/helpdesk/neu'
+      path: '/helpdesk/neu'
+      fullPath: '/helpdesk/neu'
+      preLoaderRoute: typeof HelpdeskNeuRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/issue/$key': {
@@ -215,6 +492,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/settings/'
       preLoaderRoute: typeof SettingsIndexRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/settings/benachrichtigungen': {
+      id: '/settings/benachrichtigungen'
+      path: '/benachrichtigungen'
+      fullPath: '/settings/benachrichtigungen'
+      preLoaderRoute: typeof SettingsBenachrichtigungenRouteImport
       parentRoute: typeof SettingsRoute
     }
     '/settings/bereiche': {
@@ -245,22 +529,42 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsDarstellungRouteImport
       parentRoute: typeof SettingsRoute
     }
+    '/settings/updates': {
+      id: '/settings/updates'
+      path: '/updates'
+      fullPath: '/settings/updates'
+      preLoaderRoute: typeof SettingsUpdatesRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/settings/verbindungen': {
+      id: '/settings/verbindungen'
+      path: '/verbindungen'
+      fullPath: '/settings/verbindungen'
+      preLoaderRoute: typeof SettingsVerbindungenRouteImport
+      parentRoute: typeof SettingsRoute
+    }
   }
 }
 
 interface SettingsRouteChildren {
+  SettingsBenachrichtigungenRoute: typeof SettingsBenachrichtigungenRoute
   SettingsBereicheRoute: typeof SettingsBereicheRoute
   SettingsBriefingRoute: typeof SettingsBriefingRoute
   SettingsCodeHostingRoute: typeof SettingsCodeHostingRoute
   SettingsDarstellungRoute: typeof SettingsDarstellungRoute
+  SettingsUpdatesRoute: typeof SettingsUpdatesRoute
+  SettingsVerbindungenRoute: typeof SettingsVerbindungenRoute
   SettingsIndexRoute: typeof SettingsIndexRoute
 }
 
 const SettingsRouteChildren: SettingsRouteChildren = {
+  SettingsBenachrichtigungenRoute: SettingsBenachrichtigungenRoute,
   SettingsBereicheRoute: SettingsBereicheRoute,
   SettingsBriefingRoute: SettingsBriefingRoute,
   SettingsCodeHostingRoute: SettingsCodeHostingRoute,
   SettingsDarstellungRoute: SettingsDarstellungRoute,
+  SettingsUpdatesRoute: SettingsUpdatesRoute,
+  SettingsVerbindungenRoute: SettingsVerbindungenRoute,
   SettingsIndexRoute: SettingsIndexRoute,
 }
 
@@ -270,11 +574,23 @@ const SettingsRouteWithChildren = SettingsRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ArbeitsplatzRoute: ArbeitsplatzRoute,
+  BenachrichtigungenRoute: BenachrichtigungenRoute,
+  KalenderRoute: KalenderRoute,
+  NeuRoute: NeuRoute,
+  PullRequestsRoute: PullRequestsRoute,
   SettingsRoute: SettingsRouteWithChildren,
   SucheRoute: SucheRoute,
+  TicketsRoute: TicketsRoute,
+  ZeiterfassungRoute: ZeiterfassungRoute,
   BereicheKeyRoute: BereicheKeyRoute,
   FilterIdRoute: FilterIdRoute,
+  HelpdeskIdRoute: HelpdeskIdRoute,
+  HelpdeskNeuRoute: HelpdeskNeuRoute,
   IssueKeyRoute: IssueKeyRoute,
+  BereicheIndexRoute: BereicheIndexRoute,
+  FilterIndexRoute: FilterIndexRoute,
+  HelpdeskIndexRoute: HelpdeskIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

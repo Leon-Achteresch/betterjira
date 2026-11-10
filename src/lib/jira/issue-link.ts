@@ -39,3 +39,12 @@ export const parseCommentSearch = (search: Record<string, unknown>): { comment?:
 };
 
 export const issueSearch = (commentId: string | undefined): { comment?: string } => (commentId ? { comment: commentId } : {});
+
+export type IssueRouteSearch = { bereich?: "zeit"; comment?: string };
+
+export const issueRouteSearch = (search: Record<string, unknown>): IssueRouteSearch => ({
+  ...(search.bereich === "zeit" && { bereich: "zeit" as const }),
+  ...parseCommentSearch(search),
+});
+
+export const withoutCommentSearch = ({ bereich }: IssueRouteSearch): IssueRouteSearch => (bereich ? { bereich } : {});
