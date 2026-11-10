@@ -6,11 +6,15 @@ declare global {
   interface Window {
     __qaSiteUrl?: string;
     __qaClipboard: ClipboardSpy;
+    __qaCommentDetailLimit?: number;
+    __qaCommentPagesRule?: () => { pageSize: number };
   }
 }
 
 const SCENARIO = "/tests/browser/fixture.html?scenario=comment-links&route=/issue/DEMO-1";
-const LABEL = "Jira-Link zum Kommentar kopieren";
+const MENU = "Weitere Aktionen";
+const ITEM = "Link kopieren";
+const UNAVAILABLE = "Kein Jira-Link verfügbar: keine gültige Jira-Verbindung";
 const SENTINEL = "QA-Zwischenablage unverändert";
 const FIRST = "https://example.atlassian.net/browse/DEMO-1?focusedCommentId=10001#comment-10001";
 const SECOND = "https://example.atlassian.net/browse/DEMO-1?focusedCommentId=10002#comment-10002";
@@ -18,7 +22,12 @@ const SECOND = "https://example.atlassian.net/browse/DEMO-1?focusedCommentId=100
 const section = (page: Page) => page.locator("section").filter({ has: page.getByRole("heading", { name: /^Kommentare/ }) });
 const rows = (page: Page) => section(page).locator("ol > li");
 const row = (page: Page, text: string) => rows(page).filter({ hasText: text });
-const action = (page: Page, text: string) => row(page, text).getByRole("button", { name: LABEL, exact: true });
+const menuButton = (page: Page, text: string) => row(page, text).getByRole("button", { name: MENU, exact: true });
+const linkItem = (page: Page) => page.getByRole("menuitem", { name: new RegExp(`^${ITEM}`) });
+const copy = async (page: Page, text: string) => {
+  await menuButton(page, text).click();
+  await linkItem(page).click();
+};
 const toasts = (page: Page, text: string) => page.locator("[data-sonner-toast]").filter({ hasText: text });
 
 const clipboardBytes = (page: Page) =>
@@ -79,13 +88,12 @@ test.beforeEach(async ({ page, context }) => {
   });
 });
 
-test("kopiert per Klick genau einmal den Permalink des Kommentars", async ({ page }, testInfo) => {
+test("kopiert über das Menü genau einmal den Permalink des Kommentars", async ({ page }, testInfo) => {
   await open(page);
-  await expect(rows(page).getByRole("button", { name: LABEL, exact: true })).toHaveCount(2);
+  await expect(rows(page).getByRole("button", { name: MENU, exact: true })).toHaveCount(2);
+  await expect(section(page).getByRole("button", { name: "Jira-Link zum Kommentar kopieren" })).toHaveCount(0);
 
-  await action(page, "Erster QA-Kommentar").hover();
-  await expect(page.getByText(LABEL, { exact: true })).toBeVisible();
-  await action(page, "Erster QA-Kommentar").click();
+  await copy(page, "Erster QA-Kommentar");
 
   await expect(toasts(page, "Link zum Kommentar kopiert")).toHaveCount(1);
   expect(await clipboardBytes(page)).toEqual(bytesOf(FIRST));
@@ -94,26 +102,30 @@ test("kopiert per Klick genau einmal den Permalink des Kommentars", async ({ pag
 
   await page.evaluate(() => {
     window.__qaClipboard.calls = [];
-    window.__qaClipboard.delayMs = 400;
+    window.__qaClipboard.delayMs = 1500;
   });
-  await action(page, "Zweiter QA-Kommentar").dblclick();
+  await copy(page, "Zweiter QA-Kommentar");
+  await copy(page, "Zweiter QA-Kommentar");
   await expect.poll(() => calls(page)).toEqual([SECOND]);
   await expect.poll(() => clipboardBytes(page)).toEqual(bytesOf(SECOND));
-  await page.waitForTimeout(600);
+  await page.waitForTimeout(300);
   expect(await calls(page)).toEqual([SECOND]);
 });
 
 test("ist per Tastatur erreichbar und kopiert mit Enter und Leertaste", async ({ page }) => {
   await open(page);
-  const second = action(page, "Zweiter QA-Kommentar");
+  const second = menuButton(page, "Zweiter QA-Kommentar");
   await second.focus();
   await expect(second).toBeFocused();
-  await expect(page.getByText(LABEL, { exact: true })).toBeVisible();
 
+  await page.keyboard.press("Enter");
+  await expect(linkItem(page)).toBeFocused();
   await page.keyboard.press("Enter");
   await expect.poll(() => clipboardBytes(page)).toEqual(bytesOf(SECOND));
 
-  await action(page, "Erster QA-Kommentar").focus();
+  await menuButton(page, "Erster QA-Kommentar").focus();
+  await page.keyboard.press("Space");
+  await expect(linkItem(page)).toBeFocused();
   await page.keyboard.press("Space");
   await expect.poll(() => clipboardBytes(page)).toEqual(bytesOf(FIRST));
   expect(await calls(page)).toEqual([SECOND, FIRST]);
@@ -121,7 +133,7 @@ test("ist per Tastatur erreichbar und kopiert mit Enter und Leertaste", async ({
 
 test("verwendet Kontextpfad der Instanz ohne Basis-Query und -Fragment", async ({ page }) => {
   await open(page, "https://jira.example.com/jira/?os_authType=basic#oben");
-  await action(page, "Zweiter QA-Kommentar").click();
+  await copy(page, "Zweiter QA-Kommentar");
   await expect
     .poll(() => clipboardBytes(page))
     .toEqual(bytesOf("https://jira.example.com/jira/browse/DEMO-1?focusedCommentId=10002#comment-10002"));
@@ -132,7 +144,7 @@ test("meldet einen Fehler der Zwischenablage und lässt sie unverändert", async
   await page.evaluate(() => {
     window.__qaClipboard.fail = true;
   });
-  await action(page, "Erster QA-Kommentar").click();
+  await copy(page, "Erster QA-Kommentar");
   await expect(toasts(page, "Kopieren fehlgeschlagen")).toHaveCount(1);
   await expect(toasts(page, "Link zum Kommentar kopiert")).toHaveCount(0);
   expect(await calls(page)).toEqual([FIRST]);
@@ -146,12 +158,12 @@ for (const [name, siteUrl] of [
 ] as const)
   test(`zeigt ${name} einen klaren Zustand ohne Link`, async ({ page }, testInfo) => {
     await open(page, siteUrl);
-    const first = action(page, "Erster QA-Kommentar");
-    await expect(first).toHaveAttribute("data-available", "false");
-    await first.hover();
-    await expect(page.getByText("Kein Jira-Link verfügbar: keine gültige Jira-Verbindung").first()).toBeVisible();
-    await first.click();
-    await expect(toasts(page, "Kein Jira-Link verfügbar")).toHaveCount(1);
+    await menuButton(page, "Erster QA-Kommentar").click();
+    const item = linkItem(page);
+    await expect(item).toHaveAttribute("aria-disabled", "true");
+    await expect(item).toContainText(UNAVAILABLE);
+    await item.click({ force: true });
+    await expect(toasts(page, "Link zum Kommentar kopiert")).toHaveCount(0);
     expect(await calls(page)).toEqual([]);
     expect(await clipboardBytes(page)).toEqual(bytesOf(SENTINEL));
     await expect(section(page).locator("a[href*='focusedCommentId']")).toHaveCount(0);
@@ -160,31 +172,31 @@ for (const [name, siteUrl] of [
 
 test("lässt Entwurf und Sortierung unberührt und erreicht neue Kommentare", async ({ page }) => {
   await open(page);
-  const input = page.getByRole("textbox", { name: "Kommentar" });
+  const input = page.getByRole("textbox", { name: "Kommentar", exact: true });
   await input.fill("QA-Entwurf bleibt erhalten");
   const order = section(page).getByRole("button", { name: /zuerst$/ });
   const before = await order.getAttribute("aria-pressed");
   const textsBefore = await rows(page).allInnerTexts();
 
-  await action(page, "Erster QA-Kommentar").click();
+  await copy(page, "Erster QA-Kommentar");
   await expect.poll(() => clipboardBytes(page)).toEqual(bytesOf(FIRST));
-  await expect(input).toHaveValue("QA-Entwurf bleibt erhalten");
+  await expect(input).toHaveText("QA-Entwurf bleibt erhalten");
   await expect(order).toHaveAttribute("aria-pressed", before ?? "false");
   expect(await rows(page).allInnerTexts()).toEqual(textsBefore);
 
   await order.click();
   await expect(order).not.toHaveAttribute("aria-pressed", before ?? "false");
-  await expect(rows(page).getByRole("button", { name: LABEL, exact: true })).toHaveCount(2);
-  await action(page, "Zweiter QA-Kommentar").click();
+  await expect(rows(page).getByRole("button", { name: MENU, exact: true })).toHaveCount(2);
+  await copy(page, "Zweiter QA-Kommentar");
   await expect.poll(() => clipboardBytes(page)).toEqual(bytesOf(SECOND));
 
   await input.fill("Neuer QA-Kommentar für den Link");
   await page.getByRole("button", { name: "Kommentieren" }).click();
   await expect(rows(page)).toHaveCount(3);
-  await action(page, "Neuer QA-Kommentar für den Link").click();
+  await copy(page, "Neuer QA-Kommentar für den Link");
   await expect
     .poll(async () => new TextDecoder().decode(new Uint8Array(await clipboardBytes(page))))
-    .toMatch(/^https:\/\/example\.atlassian\.net\/browse\/DEMO-1\?focusedCommentId=(new-\d+)#comment-\1$/);
+    .toMatch(/^https:\/\/example\.atlassian\.net\/browse\/DEMO-1\?focusedCommentId=(\d+)#comment-\1$/);
 });
 
 for (const colorScheme of ["light", "dark"] as const)
@@ -198,9 +210,21 @@ for (const colorScheme of ["light", "dark"] as const)
 
     const layout = await row(page, "Zweiter QA-Kommentar").evaluate((item, label) => {
       const button = item.querySelector(`button[aria-label="${label}"]`);
-      const header = button?.parentElement?.firstElementChild;
+      const header = button?.closest("article")?.querySelector(":scope > div.text-sm")?.firstElementChild;
       const box = button?.getBoundingClientRect();
+      const hits = (from: number, to: number, point: (value: number) => [number, number]) => {
+        let size = 0;
+        for (let value = from; value <= to; value += 0.5) {
+          const target = document.elementFromPoint(...point(value));
+          if (button && target && button.contains(target)) size += 0.5;
+        }
+        return size;
+      };
+      const centerX = box ? box.left + box.width / 2 : 0;
+      const centerY = box ? box.top + box.height / 2 : 0;
       return {
+        hitWidth: box ? hits(box.left - 12, box.right + 12, (x) => [x, centerY]) : 0,
+        hitHeight: box ? hits(box.top - 12, box.bottom + 12, (y) => [centerX, y]) : 0,
         dark: document.documentElement.classList.contains("dark"),
         overflow: document.documentElement.scrollWidth - window.innerWidth,
         width: box?.width ?? 0,
@@ -210,16 +234,120 @@ for (const colorScheme of ["light", "dark"] as const)
         left: box?.left ?? 0,
         viewport: window.innerWidth,
       };
-    }, LABEL);
+    }, MENU);
     expect(layout.dark).toBe(colorScheme === "dark");
     expect(layout.overflow).toBeLessThanOrEqual(0);
-    expect(layout.width).toBeGreaterThanOrEqual(32);
-    expect(layout.height).toBeGreaterThanOrEqual(32);
+    expect(layout.width).toBeGreaterThanOrEqual(24);
+    expect(layout.height).toBeGreaterThanOrEqual(24);
+    expect(layout.hitWidth).toBeGreaterThanOrEqual(32);
+    expect(layout.hitHeight).toBeGreaterThanOrEqual(32);
     expect(layout.right).toBeLessThanOrEqual(layout.viewport);
     expect(layout.headerRight).toBeLessThanOrEqual(layout.left);
     await expect(row(page, "Zweiter QA-Kommentar")).toContainText("Testdorf (Qualitätssicherung Nord)");
 
-    await action(page, "Zweiter QA-Kommentar").click();
+    await copy(page, "Zweiter QA-Kommentar");
     await expect.poll(() => clipboardBytes(page)).toEqual(bytesOf(SECOND));
     await shot(page, testInfo, `390-${colorScheme}`);
   });
+
+test.describe("Kommentare auf späteren Seiten", () => {
+  const paged = (route: string) => `/tests/browser/fixture.html?route=${encodeURIComponent(route)}`;
+  const allLoaded = (page: Page, count: number) => section(page).getByText(`Alle ${count} Kommentare geladen`);
+
+  test.beforeEach(async ({ page }) => {
+    await page.addInitScript(() => {
+      window.__qaCommentDetailLimit = 2;
+      window.__qaCommentPagesRule = () => ({ pageSize: 2 });
+    });
+  });
+
+  test("springt zu einem Kommentar auf Seite 3 und lädt dafür nach", async ({ page }) => {
+    await page.goto(paged("/issue/DEMO-1?comment=10005"));
+    const target = section(page).locator('[data-comment-id="10005"]');
+    await expect(target).toBeVisible();
+    await expect.poll(() => new URL(page.url()).searchParams.get("comment")).toBeNull();
+    await expect(toasts(page, "Kommentar nicht mehr vorhanden")).toHaveCount(0);
+    const starts = await page.evaluate(() =>
+      (window as unknown as { __qa: { commentPageReads: { startAt: number }[] } }).__qa.commentPageReads.map((read) => read.startAt),
+    );
+    expect(starts).toEqual(expect.arrayContaining([0, 2, 4]));
+    expect(starts).not.toContain(6);
+  });
+
+  test("fragt nicht weiter ab, wenn beim Sprung Seite 2 scheitert, und springt nach „Erneut versuchen“", async ({ page }) => {
+    await page.addInitScript(() => {
+      const qa = window as unknown as { __qaJumpFail: boolean; __qaCommentPagesRule: (key: string, startAt: number) => object };
+      qa.__qaJumpFail = true;
+      qa.__qaCommentPagesRule = (_key, startAt) => ({ pageSize: 2, ...(startAt > 0 && qa.__qaJumpFail ? { status: 400 } : {}) });
+    });
+    const reads = () =>
+      page.evaluate(() => (window as unknown as { __qa: { commentPageReads: { startAt: number }[] } }).__qa.commentPageReads.map((read) => read.startAt));
+    await page.goto(paged("/issue/DEMO-1?comment=10005"));
+    await expect(section(page).getByText("Weitere Kommentare konnten nicht geladen werden")).toBeVisible();
+    const afterError = (await reads()).length;
+    await page.waitForTimeout(3000);
+    expect((await reads()).length).toBe(afterError);
+    expect(await reads()).not.toContain(4);
+    expect(new URL(page.url()).searchParams.get("comment")).toContain("10005");
+    await expect(toasts(page, "Kommentar nicht mehr vorhanden")).toHaveCount(0);
+
+    await page.evaluate(() => {
+      (window as unknown as { __qaJumpFail: boolean }).__qaJumpFail = false;
+    });
+    await section(page).getByRole("button", { name: "Erneut versuchen" }).click();
+    await expect(section(page).locator('[data-comment-id="10005"]')).toBeVisible();
+    await expect.poll(() => new URL(page.url()).searchParams.get("comment")).toBeNull();
+    expect(await reads()).toEqual(expect.arrayContaining([0, 2, 4]));
+  });
+
+  test("bearbeitet und löscht eigene Kommentare nach dem Nachladen, ohne dass die Liste zurückspringt", async ({ page }) => {
+    await page.goto(paged("/issue/DEMO-1"));
+    const load = section(page).getByRole("button", { name: "Weitere Kommentare laden" });
+    for (let round = 0; round < 6 && !(await allLoaded(page, 11).isVisible()); round++) {
+      await load.click();
+      await page.waitForTimeout(150);
+    }
+    await expect(allLoaded(page, 11)).toBeVisible();
+    const articles = section(page).locator("article[data-comment-id]");
+    await expect(articles).toHaveCount(11);
+
+    const edited = section(page).locator('[data-comment-id="10009"]');
+    await edited.getByRole("button", { name: MENU, exact: true }).click();
+    await page.getByRole("menuitem", { name: /^Bearbeiten/ }).click();
+    const editor = page.getByRole("textbox", { name: "Kommentar bearbeiten" });
+    await expect(editor).toBeFocused();
+    await page.keyboard.press("End");
+    await page.keyboard.type(" Ergänzt.");
+    await page.getByRole("button", { name: "Speichern" }).click();
+    await expect(toasts(page, "Kommentar gespeichert")).toHaveCount(1);
+    await expect(edited).toContainText("Ergänzt.");
+    await expect(articles).toHaveCount(11);
+    await expect(allLoaded(page, 11)).toBeVisible();
+
+    const removed = section(page).locator('[data-comment-id="10007"]');
+    await removed.getByRole("button", { name: MENU, exact: true }).click();
+    await page.getByRole("menuitem", { name: /^Löschen/ }).click();
+    await page.getByRole("alertdialog").getByRole("button", { name: "Löschen", exact: true }).click();
+    await expect(toasts(page, "Kommentar gelöscht")).toHaveCount(1);
+    await expect(removed).toHaveCount(0);
+    await expect(articles).toHaveCount(10);
+    await expect(allLoaded(page, 10)).toBeVisible();
+    await expect(load).toHaveCount(0);
+
+    const input = page.getByRole("textbox", { name: "Kommentar", exact: true });
+    await input.fill("Eigener QA-Kommentar zum Löschen");
+    await page.getByRole("button", { name: "Kommentieren" }).click();
+    const posted = section(page).locator("article[data-comment-id]").filter({ hasText: "Eigener QA-Kommentar zum Löschen" });
+    await expect(posted).toHaveCount(1);
+    await posted.getByRole("button", { name: MENU, exact: true }).click();
+    await page.getByRole("menuitem", { name: /^Löschen/ }).click();
+    await page.getByRole("alertdialog").getByRole("button", { name: "Löschen", exact: true }).click();
+    await expect.poll(() => page.evaluate(() =>
+      (window as unknown as { __qa: { writes: { method: string; path: string }[] } }).__qa.writes.filter((write) => write.method === "DELETE").length,
+    )).toBe(2);
+    await expect(posted).toHaveCount(0);
+    await page.waitForTimeout(500);
+    await expect(posted).toHaveCount(0);
+    await expect(articles).toHaveCount(10);
+  });
+});

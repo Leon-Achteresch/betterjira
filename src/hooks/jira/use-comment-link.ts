@@ -4,6 +4,8 @@ import { copyToClipboard } from "@/lib/clipboard";
 import { jiraCommentUrl } from "@/lib/jira/comment-link";
 import { useJiraSite } from "@/lib/jira/queries";
 
+export const COMMENT_LINK_UNAVAILABLE = "Kein Jira-Link verfügbar: keine gültige Jira-Verbindung";
+
 export function useCommentLink(issueKey: string) {
   const site = useJiraSite();
   const copying = useRef(false);
@@ -14,7 +16,7 @@ export function useCommentLink(issueKey: string) {
     copy: async (commentId: string) => {
       const url = jiraCommentUrl(siteUrl, issueKey, commentId);
       if (!url) {
-        toast.error("Kein Jira-Link verfügbar: keine gültige Jira-Verbindung");
+        toast.error(COMMENT_LINK_UNAVAILABLE);
         return;
       }
       if (copying.current) return;

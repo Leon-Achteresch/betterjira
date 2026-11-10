@@ -3,13 +3,14 @@ import {
   EMPTY_WORKSPACE,
   RECENT_ISSUE_LIMIT,
   rememberIssue,
-  setCommentDraft,
+  setMainDraft,
   setIssueContext,
   togglePinnedIssue,
   type Workspace,
 } from "./workspace";
 import { filterWorkspaceEntries, workspaceEntries, workspaceFilterCounts } from "./workspace-page";
 import { removeRecentIssue, restoreRecentIssue } from "./workspace-recent";
+import { textToAdf } from "./jira/adf";
 
 const issue = (key: string) => ({ key, summary: `Titel ${key}` });
 
@@ -25,7 +26,7 @@ describe("Aus Zuletzt entfernen", () => {
   it("ändert nur den Verlauf und lässt Notizen, Entwürfe, Pins und Lesestellen unangetastet", () => {
     let workspace = opened("A-1", "A-2", "A-3");
     workspace = togglePinnedIssue(workspace, issue("A-2"));
-    workspace = setCommentDraft(workspace, "A-2", "Entwurf");
+    workspace = setMainDraft(workspace, "A-2", textToAdf("Entwurf"));
     workspace = setIssueContext(workspace, "A-2", { note: "Notiz" });
     const { workspace: next, removed } = removeRecentIssue(workspace, "A-2");
     expect(recentKeys(next)).toEqual(["A-1", "A-3"]);
@@ -45,7 +46,7 @@ describe("Aus Zuletzt entfernen", () => {
     let workspace = opened("N-1", "P-1", "D-1", "R-1");
     workspace = setIssueContext(workspace, "N-1", { note: "Notiz" });
     workspace = togglePinnedIssue(workspace, issue("P-1"));
-    workspace = setCommentDraft(workspace, "D-1", "Entwurf");
+    workspace = setMainDraft(workspace, "D-1", textToAdf("Entwurf"));
     for (const key of ["N-1", "P-1", "D-1", "R-1", "F-1"]) workspace = removeRecentIssue(workspace, key).workspace;
     const entries = workspaceEntries(workspace, ["F-1"]);
     expect(entries.map(({ key }) => key).sort()).toEqual(["D-1", "F-1", "N-1", "P-1"]);

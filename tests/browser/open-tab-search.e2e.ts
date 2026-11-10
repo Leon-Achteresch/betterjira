@@ -128,7 +128,7 @@ test("Suche nach Schlüssel und Titel fragt Jira nicht erneut ab", async ({ page
 
 test("Tastatur und Maus wechseln den Tab und Entwürfe bleiben erhalten", async ({ page }) => {
   await openBusy(page);
-  const comment = page.getByRole("textbox", { name: "Kommentar" });
+  const comment = page.getByRole("textbox", { name: "Kommentar", exact: true });
   await comment.fill("QA-Entwurf aus der Tab-Suche");
   const tabsBefore = await storedTabs(page);
 
@@ -153,7 +153,7 @@ test("Tastatur und Maus wechseln den Tab und Entwürfe bleiben erhalten", async 
   await option(page, "DEMO-1").click();
   await expect(dialog(page)).toBeHidden();
   await expect(page).toHaveURL(/\/issue\/DEMO-1$/);
-  await expect(comment).toHaveValue("QA-Entwurf aus der Tab-Suche");
+  await expect(comment).toHaveText("QA-Entwurf aus der Tab-Suche");
   expect(await storedTabs(page)).toEqual(tabsBefore);
 });
 

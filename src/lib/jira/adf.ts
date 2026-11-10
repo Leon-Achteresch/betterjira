@@ -1,5 +1,7 @@
-import { Mark, Node, getSchema, type JSONContent } from "@tiptap/core";
+import { Mark, Node, getSchema, mergeAttributes, type JSONContent } from "@tiptap/core";
+import { Mention } from "@tiptap/extension-mention";
 import StarterKit from "@tiptap/starter-kit";
+import { Schema } from "effect";
 import { INLINE_NODES } from "./adf-nodes";
 
 export type AdfMark = { type: string; attrs?: Record<string, unknown> };
@@ -13,6 +15,24 @@ export type AdfNode = {
 };
 
 const EDITABLE_NODES = new Set(["paragraph", "heading", "bulletList", "orderedList", "listItem", "codeBlock", "blockquote", "hardBreak", "rule"]);
+const MENTION_ATTRS = new Set(["id", "text", "localId", "accessLevel", "userType"]);
+const MENTION_EXTRA_ATTRS = ["localId", "accessLevel", "userType"] as const;
+
+const isNativeMention = (node: AdfNode) =>
+  node.type === "mention" &&
+  !node.marks?.length &&
+  typeof node.attrs?.id === "string" &&
+  Object.entries(node.attrs).every(([key, value]) => MENTION_ATTRS.has(key) && typeof value === "string");
+
+const mentionAttrsToEditor = ({ text, ...rest }: Record<string, unknown>) => ({ ...rest, label: typeof text === "string" ? text : null });
+
+const mentionAttrsFromEditor = (attrs: Record<string, unknown>) => ({
+  id: String(attrs.id),
+  ...(typeof attrs.label === "string" && { text: attrs.label }),
+  ...Object.fromEntries(MENTION_EXTRA_ATTRS.flatMap((key) => (typeof attrs[key] === "string" ? [[key, attrs[key]]] : []))),
+});
+
+const mentionLabel = (attrs: Record<string, unknown>) => (typeof attrs.label === "string" ? attrs.label : `@${String(attrs.id ?? "")}`);
 const MARKS_TO_EDITOR: Record<string, string> = { strong: "bold", em: "italic", code: "code", strike: "strike", underline: "underline", link: "link" };
 const MARKS_FROM_EDITOR = Object.fromEntries(Object.entries(MARKS_TO_EDITOR).map(([adf, editor]) => [editor, adf]));
 
@@ -55,6 +75,7 @@ const attrsFromEditor = (node: JSONContent) => {
 
 const nodeToEditor = (node: AdfNode): JSONContent => {
   if (node.type === "text") return { type: "text", text: node.text, ...(node.marks?.length && { marks: marksToEditor(node.marks) }) };
+  if (isNativeMention(node)) return { type: "mention", attrs: mentionAttrsToEditor(node.attrs ?? {}) };
   if (!EDITABLE_NODES.has(node.type) || node.marks?.length) {
     return { type: INLINE_NODES.has(node.type) ? "adfInline" : "adfBlock", attrs: { json: JSON.stringify(node) } };
   }
@@ -68,6 +89,7 @@ const nodeToEditor = (node: AdfNode): JSONContent => {
 
 const nodeFromEditor = (node: JSONContent): AdfNode => {
   if (node.type === "adfInline" || node.type === "adfBlock") return JSON.parse(String(node.attrs?.json)) as AdfNode;
+  if (node.type === "mention") return { type: "mention", attrs: mentionAttrsFromEditor(node.attrs ?? {}) };
   if (node.type === "text") {
     const marks = marksFromEditor(node.marks);
     return { type: "text", text: node.text ?? "", ...(marks.length > 0 && { marks }) };
@@ -109,9 +131,23 @@ export const AdfMarks = Mark.create({
   },
 });
 
+export const AdfMention = Mention.extend({
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      localId: { default: null, rendered: false },
+      accessLevel: { default: null, rendered: false },
+      userType: { default: null, rendered: false },
+    };
+  },
+}).configure({
+  renderText: ({ node }) => mentionLabel(node.attrs),
+  renderHTML: ({ options, node }) => ["span", mergeAttributes({ "data-type": "mention" }, options.HTMLAttributes), mentionLabel(node.attrs)],
+});
+
 export const AdfStarterKit = StarterKit.configure({ trailingNode: false, link: { openOnClick: false, autolink: true } });
 
-export const adfSchema = getSchema([AdfStarterKit, AdfInline, AdfBlock, AdfMarks]);
+export const adfSchema = getSchema([AdfStarterKit, AdfInline, AdfBlock, AdfMarks, AdfMention]);
 
 export const isEditableAdf = (doc: AdfNode) => {
   try {
@@ -131,3 +167,23 @@ export const adfToText = (node: AdfNode): string => {
   const parts = (node.content ?? []).map(adfToText);
   return INLINE_PARENTS.has(node.type) ? parts.join("") : parts.filter(Boolean).join("\n");
 };
+
+export const AdfDoc = Schema.declare(isAdfDoc);
+
+const containsMention = (node: AdfNode): boolean => node.type === "mention" || (node.content ?? []).some(containsMention);
+
+export const hasSendableContent = (doc: AdfNode) => adfToText(doc).trim().length > 0 || containsMention(doc);
+
+export const textToAdf = (text: string): AdfNode => ({
+  type: "doc",
+  version: 1,
+  content: text.split(/\r?\n/).map((line) => (line ? { type: "paragraph", content: [{ type: "text", text: line }] } : { type: "paragraph" })),
+});
+
+export const appendBlocks = (doc: AdfNode | undefined, blocks: readonly AdfNode[]): AdfNode => ({
+  type: "doc",
+  version: 1,
+  content: [...(doc && !isBlankAdf(doc) ? (doc.content ?? []) : []), ...blocks],
+});
+
+export const sameAdf = (a: AdfNode | undefined, b: AdfNode | undefined) => JSON.stringify(a) === JSON.stringify(b);

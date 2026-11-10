@@ -22,6 +22,8 @@ export const jiraKeys = {
   issueRenderedAll: (key: string) => ["jira", "issue-rendered", key] as const,
   issueRendered: (key: string, updated: string, scope: JiraQueryScope | undefined) =>
     [...jiraKeys.issueRenderedAll(key), updated, scope?.cloudId ?? "", scope?.accountId ?? ""] as const,
+  commentPermissions: (key: string) => ["jira", "comment-permissions", key] as const,
+  mentionSearch: (issueKey: string, query: string) => ["jira", "mention-search", issueKey, query] as const,
   transitions: (key: string) => ["jira", "transitions", key] as const,
   userSearch: (query: string, issueKey: string, assignee: boolean) => ["jira", "user-search", query, issueKey, assignee] as const,
   filters: ["jira", "filters"] as const,

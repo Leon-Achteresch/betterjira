@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { createContext, use, type ReactNode } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { AdfMediaGroup, AdfMediaInline, AdfMediaSingle } from "@/components/adf-media";
 import { useAdfMedia, type AdfMediaRender } from "@/hooks/jira/use-adf-media";
@@ -9,19 +9,45 @@ import { cn } from "@/lib/utils";
 
 export const safeUrl = (value: unknown) => (typeof value === "string" && /^https?:\/\//i.test(value) ? value : undefined);
 
-export function ExternalLink({ href, children, className }: { href: string; children: ReactNode; className?: string }) {
+export type LinkOpenOptions = { background: boolean };
+export type LinkOpener = (href: string, options?: LinkOpenOptions) => void;
+
+const openInBrowser: LinkOpener = (href) => void openUrl(href);
+
+export const AdfLinkContext = createContext<LinkOpener>(openInBrowser);
+
+export function ExternalLink({
+  href,
+  children,
+  className,
+  onOpen = openInBrowser,
+}: {
+  href: string;
+  children: ReactNode;
+  className?: string;
+  onOpen?: LinkOpener;
+}) {
   return (
     <a
       href={href}
       onClick={(event) => {
         event.preventDefault();
-        void openUrl(href);
+        onOpen(href, { background: event.ctrlKey || event.metaKey });
       }}
       title={href}
       className={cn("text-info underline underline-offset-2", className)}
     >
       {children}
     </a>
+  );
+}
+
+function AdfLink({ href, children }: { href: string; children: ReactNode }) {
+  const open = use(AdfLinkContext);
+  return (
+    <ExternalLink href={href} onOpen={open}>
+      {children}
+    </ExternalLink>
   );
 }
 
@@ -40,7 +66,7 @@ function renderText(node: AdfNode, key: number) {
         return <code className="rounded bg-muted px-1 py-0.5 font-mono text-[0.9em]">{child}</code>;
       case "link": {
         const href = safeUrl(mark.attrs?.href);
-        return href ? <ExternalLink href={href}>{child}</ExternalLink> : child;
+        return href ? <AdfLink href={href}>{child}</AdfLink> : child;
       }
       default:
         return child;
@@ -111,7 +137,7 @@ function renderNode(node: AdfNode, key: number, media?: AdfMediaRender): ReactNo
     case "inlineCard":
     case "blockCard": {
       const href = safeUrl(attrs.url);
-      return href ? <ExternalLink key={key} href={href}>{href}</ExternalLink> : null;
+      return href ? <AdfLink key={key} href={href}>{href}</AdfLink> : null;
     }
     case "table":
       return (

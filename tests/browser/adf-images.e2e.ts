@@ -159,7 +159,7 @@ test("zeigt mediaGroup als Vorschaubilder, Dateien als Chip und nicht ladende Bi
   await expect(media(description(page), "image", "46888")).toHaveCount(0);
 });
 
-test("zeigt Anhänge in eingebetteten und nachgeladenen Kommentaren, zuerst über die Media-ID zugeordnet", async ({ page }) => {
+test("zeigt Anhänge in Kommentaren und Antworten aus den Kommentarseiten, zuerst über die Media-ID zugeordnet", async ({ page }) => {
   const external: string[] = [];
   page.on("request", (request) => {
     if (request.url().startsWith("https://example.com/")) external.push(request.url());
@@ -175,10 +175,12 @@ test("zeigt Anhänge in eingebetteten und nachgeladenen Kommentaren, zuerst übe
   await expect(files.first()).toContainText("Messwerte.csv");
   await expect(files.last()).toHaveAttribute("data-attachment-id", "46889");
 
-  await comments(page).getByRole("button", { name: "Weitere Kommentare laden" }).click();
-  await expect(comments(page).locator("ol > li")).toHaveCount(5);
   expect((await qa(page)).commentPageExpands).toContain("renderedBody");
-  const mixed = comment(page, "Siehe");
+  const reply = comments(page).locator('ol.ml-8 > li [data-comment-id="c-reply"]');
+  await expect(reply).toHaveCount(1);
+  await reply.scrollIntoViewIfNeeded();
+  await expect(media(reply, "image", "46884")).toHaveAttribute("data-state", "loaded");
+  const mixed = comments(page).locator('[data-comment-id="c-mix"]');
   await mixed.scrollIntoViewIfNeeded();
   await expect(media(mixed, "image", "46887")).toHaveAttribute("data-state", "loaded");
   await expect(media(mixed, "file", "46886")).toContainText("Angebot.pdf");
@@ -189,7 +191,8 @@ test("zeigt Anhänge in eingebetteten und nachgeladenen Kommentaren, zuerst übe
 
 test("zeigt Skeletons in Zielgröße, solange die gerenderte Fassung lädt", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
-  await page.addInitScript(() => Object.assign(window, { __qaRenderedRule: () => ({ delayMs: 2000 }) }));
+  // Comment pages wait too, so the comments embedded in the issue stay on screen without their own rendered body.
+  await page.addInitScript(() => Object.assign(window, { __qaRenderedRule: () => ({ delayMs: 2000 }), __qaCommentPagesRule: () => ({ delayMs: 2000 }) }));
   await page.goto(ISSUE("DEMO-1"));
   const singles = pending(description(page), "single");
   await expect(singles).toHaveCount(2);
@@ -210,7 +213,8 @@ test("zeigt Skeletons in Zielgröße, solange die gerenderte Fassung lädt", asy
 });
 
 test("zeigt Hinweis-Chips, wenn die gerenderte Fassung scheitert", async ({ page }) => {
-  await page.addInitScript(() => Object.assign(window, { __qaRenderedRule: () => ({ status: 404 }) }));
+  // Comment pages fail too; otherwise their rendered body would resolve the comment media.
+  await page.addInitScript(() => Object.assign(window, { __qaRenderedRule: () => ({ status: 404 }), __qaCommentPagesRule: () => ({ status: 503 }) }));
   await page.goto(ISSUE("DEMO-1"));
   await expect(media(description(page), "missing")).toHaveCount(6, { timeout: 10_000 });
   await expect(media(comment(page, "Protokoll und Messwerte"), "missing")).toHaveCount(2);

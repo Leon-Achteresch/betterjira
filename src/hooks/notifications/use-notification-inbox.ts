@@ -13,6 +13,7 @@ import {
   type InboxSearch,
   type NotificationKind,
 } from "@/lib/jira/notification-feed";
+import { issueSearch } from "@/lib/jira/issue-link";
 import type { JiraNotification } from "@/lib/jira/notifications";
 import { useJiraSite } from "@/lib/jira/queries";
 import { openNotification, useNotifications, useOwnedCheckedAt, useOwnedNotifications } from "./use-notification-store";
@@ -65,7 +66,9 @@ export const useNotificationInbox = () => {
     setQuery: (next: string) => update({ suche: next || undefined }, true),
     markScopeRead,
     toggleGroupRead: (group: FeedGroup<JiraNotification>) => setRead(group.items.map((item) => item.id), group.unread > 0),
-    openItem: (item: JiraNotification) => openNotification(item, (key) => void navigate({ to: "/issue/$key", params: { key } })),
+    openItem: (item: JiraNotification) => openNotification(item, (key, commentId) =>
+        void navigate({ to: "/issue/$key", params: { key }, search: issueSearch(commentId) }),
+      ),
     openExternal: (key: string) => siteUrl && void openUrl(`${siteUrl}/browse/${key}`),
   };
 };

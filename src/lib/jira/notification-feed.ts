@@ -135,3 +135,5 @@ export const inboxSearchOf = (search: Record<string, unknown>): InboxSearch => (
 export const inboxKindOf = (search: InboxSearch): NotificationKind => (search.ansicht === "beobachtet" ? "watching" : "direct");
 
 export const KIND_LABELS: Record<NotificationKind, string> = { direct: "Direkt", watching: "Beobachtet" };
+
+export const commentIdOfNotification = (id: string) => /^c:(\d+)$/.exec(id)?.[1];

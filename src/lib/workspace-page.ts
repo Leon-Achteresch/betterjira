@@ -1,4 +1,5 @@
-import { workQueueItems, type WorkQueueItem, type Workspace } from "@/lib/workspace";
+import { adfToText } from "@/lib/jira/adf";
+import { mainDraftOf, workQueueItems, type WorkQueueItem, type Workspace } from "@/lib/workspace";
 
 export const WORKSPACE_PAGE_FILTERS = [
   { id: "alle", label: "Alle" },
@@ -50,11 +51,16 @@ export type WorkspaceEntry = WorkQueueItem & {
   known: boolean;
 };
 
+const draftText = (workspace: Workspace, key: string) => {
+  const draft = mainDraftOf(workspace, key);
+  return draft ? adfToText(draft).trim() : "";
+};
+
 export const workspaceEntries = (workspace: Workspace, fieldDraftKeys: readonly string[]): WorkspaceEntry[] => {
   const recentKeys = new Set(workspace.recent.map((issue) => issue.key));
   return workQueueItems(workspace, "recent", "", fieldDraftKeys).map((item) => ({
     ...item,
-    draft: workspace.drafts[item.key]?.trim() ?? "",
+    draft: draftText(workspace, item.key),
     recent: recentKeys.has(item.key),
     known: item.summary !== item.key,
   }));

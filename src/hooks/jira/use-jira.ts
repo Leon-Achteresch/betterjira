@@ -4,6 +4,7 @@ import { deduplicateMutation } from "@/lib/jira/deduplicate-mutation";
 import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { Effect, Schema } from "effect";
 import { currentSite, jira, jiraImage, jiraSend, logout, runLogin } from "@/lib/jira/client";
+import { RawComment } from "@/lib/jira/comment-thread";
 import { JiraStatus } from "@/lib/jira/status";
 import { JiraUser } from "@/lib/jira/user";
 import { withJiraQueryScope, type JiraQueryScope } from "@/lib/jira/query-scope";
@@ -198,14 +199,6 @@ const IssueUser = Schema.Struct({
   avatarUrls: Schema.Struct({ "48x48": Schema.String }),
 });
 
-export const IssueComment = Schema.Struct({
-  id: Schema.String,
-  author: Schema.optional(IssueUser),
-  body: Schema.Unknown,
-  renderedBody: Schema.optional(Schema.NullOr(Schema.String)),
-  created: Schema.String,
-});
-
 const IssueDetail = Schema.Struct({
   id: Schema.String,
   key: Schema.String,
@@ -219,7 +212,7 @@ const IssueDetail = Schema.Struct({
       created: Schema.String,
       updated: Schema.String,
       issuetype: Schema.Struct({ name: Schema.String }),
-      project: Schema.Struct({ key: Schema.String, name: Schema.String }),
+      project: Schema.Struct({ key: Schema.String, name: Schema.String, projectTypeKey: Schema.optional(Schema.String) }),
       parent: Schema.optional(Schema.Struct({ key: Schema.String, fields: Schema.Struct({ summary: Schema.String }) })),
       subtasks: Schema.optional(
         Schema.Array(Schema.Struct({ id: Schema.String, key: Schema.String, fields: Schema.Struct({ summary: Schema.String, status: JiraStatus }) })),
@@ -229,7 +222,7 @@ const IssueDetail = Schema.Struct({
           startAt: Schema.optional(Schema.Number),
           maxResults: Schema.optional(Schema.Number),
           total: Schema.optional(Schema.Number),
-          comments: Schema.Array(IssueComment),
+          comments: Schema.Array(RawComment),
         }),
       ),
       attachment: Schema.optional(

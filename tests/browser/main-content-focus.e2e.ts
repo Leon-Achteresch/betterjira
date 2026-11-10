@@ -77,7 +77,7 @@ test("Erster Tab zeigt Zum Inhalt, Enter fokussiert den Hauptinhalt ohne Verlauf
 
 test("Zum Inhalt behält die Leseposition", async ({ page }) => {
   await open(page, "/issue/DEMO-1", "busy");
-  await expect(page.locator("article")).toBeVisible();
+  await expect(page.locator("main article").first()).toBeVisible();
   const scroller = page.locator("#app-scroll");
   await scroller.evaluate((element) => {
     element.scrollTop = 600;

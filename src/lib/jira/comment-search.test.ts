@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { commentSearchSummary, commentText, filterComments } from "./comment-search";
+import { commentSearchSummary, commentText, filterComments, filterThreads } from "./comment-search";
 
 const doc = (...content: unknown[]) => ({ type: "doc", version: 1, content });
 const paragraph = (...content: unknown[]) => ({ type: "paragraph", content });
@@ -57,5 +57,31 @@ describe("commentSearchSummary", () => {
     expect(commentSearchSummary(2, 5, "test")).toBe("2 von 5 geladenen Kommentaren");
     expect(commentSearchSummary(0, 1, "x")).toBe("0 von 1 geladenen Kommentar");
     expect(commentSearchSummary(5, 5, " ")).toBe("In 5 geladenen Kommentaren suchen");
+  });
+});
+
+describe("filterThreads", () => {
+  const entry = (id: string, value: string) => ({ id, author: { displayName: `Person ${id}` }, body: value });
+  const threads = [
+    { root: entry("1", "Wurzel eins"), replies: [entry("2", "Antwort mit Treffer"), entry("3", "andere Antwort")] },
+    { root: entry("4", "Treffer in der Wurzel"), replies: [entry("5", "nichts")] },
+    { root: entry("6", "ohne"), replies: [entry("7", "auch ohne")] },
+  ];
+  const shape = (query: string) =>
+    filterThreads(threads, query).map(({ root, replies }) => [root.id, replies.map(({ id }) => id)]);
+
+  it("behält die Wurzel als Kontext und von den Antworten nur die Treffer", () => {
+    expect(shape("treffer")).toEqual([
+      ["1", ["2"]],
+      ["4", []],
+    ]);
+  });
+
+  it("lässt ohne Suchbegriff alle Threads unverändert", () => {
+    expect(shape("  ")).toEqual([
+      ["1", ["2", "3"]],
+      ["4", ["5"]],
+      ["6", ["7"]],
+    ]);
   });
 });

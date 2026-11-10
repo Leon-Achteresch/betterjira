@@ -128,12 +128,22 @@ export function IssueViewSkeleton() {
   );
 }
 
-export function IssueView({ issueKey, initialTab }: { issueKey: string; initialTab?: IssueDrawerTab }) {
+export function IssueView({
+  issueKey,
+  initialTab,
+  focusComment,
+  onFocusHandled,
+}: {
+  issueKey: string;
+  initialTab?: IssueDrawerTab;
+  focusComment?: string;
+  onFocusHandled: () => void;
+}) {
   const site = useJiraSite();
   const view = useIssueView(issueKey);
   const reduce = useReducedMotion();
   const helpdesk = useJiraHelpdesk(view.issue);
-  useIssueReadingPosition(issueKey, !!view.issue);
+  useIssueReadingPosition(issueKey, !!view.issue, !!focusComment);
   const actions = useIssueActions(view.issue, site.data?.siteUrl, initialTab);
   const history = useIssueHistory(issueKey);
   const links = useIssueLinks(issueKey);
@@ -251,7 +261,14 @@ export function IssueView({ issueKey, initialTab }: { issueKey: string; initialT
           </motion.div>
 
           <Section title={`Kommentare · ${commentPages.total ?? commentPages.loaded}`}>
-            <IssueComments key={issue.key} issueKey={issue.key} pages={commentPages} rendered={rendered} />
+            <IssueComments
+              key={issue.key}
+              issue={issue}
+              pages={commentPages}
+              rendered={rendered}
+              focusComment={focusComment}
+              onFocusHandled={onFocusHandled}
+            />
           </Section>
 
           <motion.div variants={reveal(reduce)}>

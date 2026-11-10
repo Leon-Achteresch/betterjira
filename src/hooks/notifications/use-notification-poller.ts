@@ -4,6 +4,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { Effect } from "effect";
 import { toast } from "sonner";
+import { issueSearch } from "@/lib/jira/issue-link";
 import { fetchActivity, notificationKey, type JiraNotification } from "@/lib/jira/notifications";
 import { jiraKeys, useJiraMyself, useJiraSite } from "@/lib/jira/queries";
 import {
@@ -23,7 +24,7 @@ const POLL_INTERVAL = 20_000;
 export const alertCooldown = new Map<string, number>();
 let cooldownOwner: string | null = null;
 
-export type AlertTargets = { issue: (key: string) => void; inbox: () => void };
+export type AlertTargets = { issue: (key: string, commentId?: string) => void; inbox: () => void };
 
 const storedOwner = () => useNotifications.getState().owner;
 
@@ -90,7 +91,7 @@ export const useNotificationPoller = () => {
     return site && myself ? workspaceId(site.cloudId, myself.accountId) : null;
   };
   const open: AlertTargets = {
-    issue: (key) => void navigate({ to: "/issue/$key", params: { key } }),
+    issue: (key, commentId) => void navigate({ to: "/issue/$key", params: { key }, search: issueSearch(commentId) }),
     inbox: () => void navigate({ to: "/benachrichtigungen" }),
   };
 

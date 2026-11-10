@@ -21,8 +21,37 @@ const filters = (page: Page) => page.getByRole("navigation", { name: "Arbeitskon
 const list = (page: Page) => page.getByRole("list", { name: "Arbeitskontexte" });
 const rows = (page: Page) => list(page).getByRole("listitem");
 const search = (page: Page) => page.getByRole("searchbox", { name: "Arbeitsplatz durchsuchen" });
-const stored = (page: Page) =>
+type Doc = { type: "doc"; version: 1; content: { type: string; content?: { type: string; text?: string }[] }[] };
+type StoredWorkspace = {
+  drafts: Record<string, string>;
+  commentDrafts?: Record<string, Doc>;
+  contexts: Record<string, { note: string; scrollTop: number }>;
+} & Record<string, unknown>;
+const textDoc = (text: string): Doc => ({
+  type: "doc",
+  version: 1,
+  content: text.split("\n").map((line) => ({ type: "paragraph", content: line ? [{ type: "text", text: line }] : [] })),
+});
+const migrated = ({ drafts, commentDrafts, ...rest }: StoredWorkspace): StoredWorkspace => ({
+  ...rest,
+  drafts: {},
+  commentDrafts: { ...commentDrafts, ...Object.fromEntries(Object.entries(drafts).map(([key, text]) => [key, textDoc(text)])) },
+});
+const stored = async (page: Page): Promise<Record<string, StoredWorkspace>> => {
+  const raw: Record<string, StoredWorkspace> = await page.evaluate(
+    () => JSON.parse(localStorage.getItem("betterjira-workspaces") ?? "{}").state.workspaces,
+  );
+  return Object.fromEntries(Object.entries(raw).map(([id, workspace]) => [id, migrated(workspace)]));
+};
+// Raw storage without the test-side migration: proves the app itself migrated and saved the legacy drafts.
+const rawStored = (page: Page): Promise<Record<string, StoredWorkspace>> =>
   page.evaluate(() => JSON.parse(localStorage.getItem("betterjira-workspaces") ?? "{}").state.workspaces);
+const expectSavedMigrated = (workspace: StoredWorkspace, key: string) => {
+  expect(workspace.drafts ?? {}).toEqual({});
+  expect(workspace.commentDrafts?.[key]).toBeDefined();
+};
+const draftText = (workspace: StoredWorkspace, key: string) =>
+  workspace.commentDrafts?.[key]?.content.map((block) => block.content?.map((node) => node.text ?? "").join("") ?? "").join("\n");
 
 test.beforeEach(async ({ page }) => {
   page.on("pageerror", (error) => {
@@ -98,13 +127,17 @@ test("Öffnen setzt im Ticket fort und überschreibt keinen Entwurf", async ({ p
   await list(page).getByRole("link", { name: /^DEMO-3:/ }).focus();
   await page.keyboard.press("Enter");
   await expect(page).toHaveURL(/\/issue\/DEMO-3$/);
-  await expect(page.getByRole("textbox", { name: "Kommentar" })).toHaveValue("QA-Entwurf: Rückfrage zur Übergabe noch offen");
+  await expect(page.getByRole("textbox", { name: "Kommentar", exact: true })).toHaveText("QA-Entwurf: Rückfrage zur Übergabe noch offen");
   await page.goBack();
   await expect(page).toHaveURL(/\/arbeitsplatz$/);
   const after = await stored(page);
-  expect(after[own].drafts).toEqual(before[own].drafts);
+  expect(after[own].commentDrafts).toEqual(before[own].commentDrafts);
   expect(after[own].contexts["DEMO-4"].note).toBe(before[own].contexts["DEMO-4"].note);
   expect(after[colleague]).toEqual(before[colleague]);
+  const raw = await rawStored(page);
+  expectSavedMigrated(raw[own], "DEMO-3");
+  expectSavedMigrated(raw[colleague], "DEMO-12");
+  expect(draftText(raw[colleague], "DEMO-12")).toBe("QA-Entwurf eines anderen Kontos");
 });
 
 test("Anheften und Lösen bleibt mit Weiterarbeiten synchron", async ({ page }) => {
@@ -143,8 +176,8 @@ test("Daten bleiben je Konto getrennt, Abmelden blendet sie aus", async ({ page 
   await open(page);
   await expect(rows(page)).toHaveCount(11);
   const workspaces = await stored(page);
-  expect(workspaces[colleague].drafts["DEMO-12"]).toBe("QA-Entwurf eines anderen Kontos");
-  expect(workspaces[own].drafts["DEMO-3"]).toBe("QA-Entwurf: Rückfrage zur Übergabe noch offen");
+  expect(draftText(workspaces[colleague], "DEMO-12")).toBe("QA-Entwurf eines anderen Kontos");
+  expect(draftText(workspaces[own], "DEMO-3")).toBe("QA-Entwurf: Rückfrage zur Übergabe noch offen");
 });
 
 test("Leere Kategorien erklären sich und die Navigation führt zum Arbeitsplatz", async ({ page }) => {

@@ -1,5 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { adfSchema, adfToEditor, editorToAdf, isBlankAdf, isEditableAdf, type AdfNode } from "./adf";
+import {
+  adfSchema,
+  adfToEditor,
+  appendBlocks,
+  editorToAdf,
+  hasSendableContent,
+  isBlankAdf,
+  isEditableAdf,
+  sameAdf,
+  textToAdf,
+  type AdfNode,
+} from "./adf";
 
 const sortMarks = (node: AdfNode): AdfNode => ({
   ...node,
@@ -78,5 +89,69 @@ describe("ADF im Editor", () => {
     expect(isBlankAdf({ type: "doc", content: [] })).toBe(true);
     expect(isBlankAdf({ type: "doc", content: [{ type: "rule" }] })).toBe(false);
     expect(isBlankAdf({ type: "doc", content: [paragraph(text(" "))] })).toBe(false);
+  });
+
+  it("bildet Erwähnungen als echten Mention-Knoten ab und behält alle ADF-Attribute", () => {
+    const mentions: AdfNode = {
+      type: "doc",
+      version: 1,
+      content: [
+        paragraph(
+          { type: "mention", attrs: { id: "abc", text: "@Leon", accessLevel: "", localId: "l-1", userType: "DEFAULT" } },
+          text(" und "),
+          { type: "mention", attrs: { id: "def", text: "Ohne At" } },
+          { type: "mention", attrs: { id: "ghi" } },
+        ),
+      ],
+    };
+    expect(adfToEditor(mentions).content?.[0]?.content?.[0]).toMatchObject({ type: "mention", attrs: { id: "abc", label: "@Leon" } });
+    expect(isEditableAdf(mentions)).toBe(true);
+    expect(throughEditor(mentions)).toEqual(mentions);
+  });
+
+  it("bewahrt Erwähnungen mit fremden Attributen unverändert", () => {
+    const odd: AdfNode = { type: "doc", version: 1, content: [paragraph({ type: "mention", attrs: { id: "abc", extra: 1 } })] };
+    expect(adfToEditor(odd).content?.[0]?.content?.[0]?.type).toBe("adfInline");
+    expect(throughEditor(odd)).toEqual(odd);
+  });
+
+  it("sendet neue Erwähnungen nur mit id und text", () => {
+    const fromEditor = editorToAdf({
+      type: "doc",
+      content: [{ type: "paragraph", content: [{ type: "mention", attrs: { id: "abc", label: "@Leon", mentionSuggestionChar: "@", localId: null } }] }],
+    });
+    expect(fromEditor.content?.[0]?.content?.[0]).toEqual({ type: "mention", attrs: { id: "abc", text: "@Leon" } });
+  });
+
+  it("erkennt sendbaren Inhalt", () => {
+    expect(hasSendableContent({ type: "doc", content: [paragraph(text("  "))] })).toBe(false);
+    expect(hasSendableContent({ type: "doc", content: [{ type: "paragraph" }] })).toBe(false);
+    expect(hasSendableContent({ type: "doc", content: [paragraph(text(" x "))] })).toBe(true);
+    expect(hasSendableContent({ type: "doc", content: [paragraph({ type: "mention", attrs: { id: "abc" } })] })).toBe(true);
+  });
+
+  it("macht aus Text je Zeile einen Absatz ohne Textverlust", () => {
+    const converted = textToAdf("*fett*\r\n\n[~accountid:1]");
+    expect(converted).toEqual({
+      type: "doc",
+      version: 1,
+      content: [paragraph(text("*fett*")), { type: "paragraph" }, paragraph(text("[~accountid:1]"))],
+    });
+    expect(isEditableAdf(converted)).toBe(true);
+  });
+
+  it("hängt Blöcke an vorhandenen Inhalt an", () => {
+    const existing: AdfNode = { type: "doc", version: 1, content: [paragraph(text("Notiz"))] };
+    expect(appendBlocks(existing, [paragraph(text("Vorlage"))]).content).toEqual([paragraph(text("Notiz")), paragraph(text("Vorlage"))]);
+    expect(appendBlocks({ type: "doc", content: [{ type: "paragraph" }] }, [paragraph(text("Vorlage"))]).content).toEqual([
+      paragraph(text("Vorlage")),
+    ]);
+    expect(appendBlocks(undefined, [paragraph(text("V"))]).content).toEqual([paragraph(text("V"))]);
+  });
+
+  it("vergleicht Dokumente nach Inhalt", () => {
+    expect(sameAdf(textToAdf("a"), textToAdf("a"))).toBe(true);
+    expect(sameAdf(textToAdf("a"), textToAdf("b"))).toBe(false);
+    expect(sameAdf(undefined, textToAdf("a"))).toBe(false);
   });
 });
