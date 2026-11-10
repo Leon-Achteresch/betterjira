@@ -301,6 +301,92 @@ if (scenario === "comment-pages") {
       body: paragraph(`Verlaufseintrag ${index}: nachgeladener Testkommentar.`),
     });
 }
+const renderedHtml = { description: {}, comments: {} };
+if (scenario === "adf-images") {
+  const site = "https://example.atlassian.net";
+  const file = (id, filename, mimeType, size) => ({ id, filename, mimeType, size, created: "2026-11-03T09:00:00Z", author });
+  const doc = (...content) => ({ type: "doc", version: 1, content });
+  const line = (value) => ({ type: "paragraph", content: [{ type: "text", text: value }] });
+  const media = (id, extra = {}) => ({ type: "media", attrs: { id, type: "file", collection: "", ...extra } });
+  const inline = (id, extra = {}) => ({ type: "mediaInline", attrs: { id, type: "file", collection: "", ...extra } });
+  const external = (name) => ({ type: "mediaSingle", attrs: { layout: "center" }, content: [{ type: "media", attrs: { type: "external", url: `https://example.com/${name}`, alt: name } }] });
+  const img = (id, name) => `<img src="${site}/rest/api/3/attachment/content/${id}" alt="${name}" width="480">`;
+  const fileLink = (id, name, uuid) => `<a href="/rest/api/3/attachment/content/${id}" title="${name} attached to DEMO-1" data-attachment-type="file" data-attachment-name="${name}" data-media-services-type="file" data-media-services-id="${uuid}" rel="noreferrer">${name}<sup><img class="rendericon" src="/images/icons/link_attachment_7.gif" height="7" width="7" alt="" border="0"/></sup></a>`;
+  issues[0].fields.attachment = [
+    file("46883", "Ablauf Übergabe.png", "image/png", 245_000),
+    file("46884", "Fehlerbild.png", "image/png", 120_000),
+    file("46885", "Skizze.jpg", "image/jpeg", 64_000),
+    file("46886", "Angebot.pdf", "application/pdf", 1_840_000),
+    file("46887", "Kommentar Beleg.png", "image/png", 80_000),
+    file("46888", "Defekt.png", "image/png", 5_000),
+    file("46889", "Protokoll.txt", "text/plain", 2_000),
+    file("46890", "Messwerte.csv", "text/csv", 3_000),
+  ];
+  issues[0].fields.description = doc(
+    line("Vorher:"),
+    { type: "mediaSingle", attrs: { layout: "center", width: 480, widthType: "pixel" }, content: [media("uuid-a", { width: 1200, height: 600 })] },
+    line("Nachher:"),
+    { type: "mediaSingle", attrs: { layout: "center", width: 50 }, content: [media("uuid-b", { width: 800, height: 400 })] },
+    { type: "mediaGroup", content: [media("uuid-c", { width: 300, height: 200 }), media("uuid-d"), media("uuid-e")] },
+    external("extern-beschreibung.png"),
+    ...Array.from({ length: 40 }, (_, index) => line(`Fülltext ${index + 1} für den Abstand zu den Kommentaren.`)),
+  );
+  renderedHtml.description["DEMO-1"] = [
+    "<p>Vorher:</p>",
+    `<p>${img("46883", "Ablauf Übergabe.png")}</p>`,
+    "<p>Nachher:</p>",
+    `<p>${img("46884", "Fehlerbild.png")}</p>`,
+    `<p><a href="${site}/secure/attachment/46885/Skizze.jpg">${img("46885", "Skizze.jpg")}</a>`,
+    `<a href="${site}/secure/attachment/46886/Angebot.pdf">Angebot.pdf</a>`,
+    `<a href="${site}/secure/attachment/46888/Defekt.png">Defekt.png</a></p>`,
+    `<p><img src="https://example.com/extern-beschreibung.png" alt="extern-beschreibung.png"></p>`,
+  ].join("");
+  issues[0].fields.comment.comments.push(
+    {
+      id: "c-img",
+      author,
+      created: "2026-11-03T08:00:00Z",
+      body: doc(line("Beleg aus dem Test:"), { type: "mediaSingle", attrs: { layout: "center" }, content: [media("uuid-f", { width: 640, height: 320 })] }),
+    },
+    {
+      id: "c-inline",
+      author,
+      created: "2026-11-03T09:00:00Z",
+      body: doc({ type: "paragraph", content: [{ type: "text", text: "Protokoll und Messwerte: " }, inline("uuid-k"), { type: "text", text: " und " }, inline("uuid-j")] }),
+    },
+    {
+      id: "c-mix",
+      author,
+      created: "2026-11-06T08:00:00Z",
+      body: doc(
+        { type: "mediaSingle", attrs: { layout: "center" }, content: [media("uuid-g", { alt: "Kommentar Beleg.png", width: 640, height: 320 })] },
+        { type: "mediaSingle", attrs: { layout: "center" }, content: [media("uuid-h")] },
+        { type: "paragraph", content: [{ type: "text", text: "Siehe " }, inline("uuid-i", { alt: "Angebot.pdf" })] },
+        { type: "mediaSingle", attrs: { layout: "center" }, content: [{ type: "media", attrs: { type: "external", url: "https://example.com/extern.png", alt: "extern.png" } }] },
+      ),
+    },
+  );
+  renderedHtml.comments["c-img"] = `<p>Beleg aus dem Test:</p><p>${img("46887", "Kommentar Beleg.png")}</p>`;
+  renderedHtml.comments["c-inline"] = `<p>Protokoll und Messwerte: <span class="nobr">${fileLink("46889", "Protokoll.txt", "uuid-j")}</span> und <span class="nobr">${fileLink("46890", "Messwerte.csv", "uuid-k")}</span></p>`;
+  renderedHtml.comments["c-mix"] = `<p>${img("46887", "Kommentar Beleg.png")}</p><p>Siehe </p><p><img src="https://example.com/extern.png" alt="extern.png"></p>`;
+  issues[0].fields.worklog.worklogs.push({
+    id: "wl-media",
+    author,
+    started: "2026-11-04T09:00:00.000+0100",
+    timeSpentSeconds: 1800,
+    timeSpent: "30m",
+    comment: doc({ type: "paragraph", content: [{ type: "text", text: "Messprotokoll " }, inline("uuid-w")] }, { type: "mediaSingle", attrs: { layout: "center" }, content: [media("uuid-v")] }),
+  });
+  issues[0].fields.worklog.total++;
+  window.__qaAdfImagesRevise = () => {
+    issues[0].fields.updated = "2026-11-05T10:00:00Z";
+    issues[0].fields.description = doc(
+      line("Neu:"),
+      { type: "mediaSingle", attrs: { layout: "center", width: 480, widthType: "pixel" }, content: [media("uuid-n", { width: 1200, height: 600 })] },
+    );
+    renderedHtml.description["DEMO-1"] = `<p>Neu:</p><p>${img("46887", "Kommentar Beleg.png")}</p>`;
+  };
+}
 const sortedComments = (issue) =>
   [...issue.fields.comment.comments].sort((a, b) => Date.parse(a.created) - Date.parse(b.created));
 const commentWindow = (issue) => {
@@ -830,7 +916,9 @@ window.__qa.filters = /^\/filter\/(100|200)/.test(new URLSearchParams(location.s
 ] : qaFilters;
 window.__qa.filterReads = [];
 window.__qa.commentPageReads = [];
-window.__qa.commentDetailLimit = scenario === "comment-pages" ? 2 : undefined;
+window.__qa.commentDetailLimit = scenario === "comment-pages" ? 2 : scenario === "adf-images" ? 4 : undefined;
+window.__qa.renderedReads = [];
+window.__qa.commentPageExpands = [];
 window.__qa.notification = { permission: "denied", answer: "granted", checkDelayMs: 0, failCheck: false, requestDelayMs: 0, failRequest: false, checks: 0, requests: 0, sent: [], ...window.__qaNotificationInit };
 window.Notification = class QaNotification {
   static get permission() {
@@ -1186,7 +1274,11 @@ const respond = async (request) => {
     const from = rule.startAt ?? startAt;
     const size = Math.min(rule.pageSize ?? maxResults, maxResults);
     const total = rule.total === null ? undefined : (rule.total ?? all.length);
-    return { body: { startAt: from, maxResults: rule.maxResults ?? size, total, comments: rule.omitComments ? undefined : (rule.comments ?? all.slice(from, from + size)) } };
+    const expand = url.searchParams.get("expand");
+    window.__qa.commentPageExpands.push(expand);
+    const pageComments = rule.comments ?? all.slice(from, from + size);
+    const delivered = expand === "renderedBody" ? pageComments.map((entry) => ({ ...entry, renderedBody: renderedHtml.comments[entry.id] ?? "" })) : pageComments;
+    return { body: { startAt: from, maxResults: rule.maxResults ?? size, total, comments: rule.omitComments ? undefined : delivered } };
   }
   const issue = issues.find((issue) => path === `/issue/${issue.key}`);
   if (issue && url.searchParams.get("fields") === "summary") {
@@ -1217,12 +1309,37 @@ const respond = async (request) => {
     if (rule.status) return { status: rule.status, body: { errorMessages: [`Test: Jira antwortet mit ${rule.status}`] } };
     if (rule.summary) return { body: { ...issue, fields: { ...issue.fields, summary: rule.summary } } };
   }
+  if (issue && url.searchParams.get("fields") === "description,comment") {
+    window.__qa.renderedReads.push({ key: issue.key, expand: url.searchParams.get("expand") });
+    const rule = window.__qaRenderedRule?.(issue.key) ?? {};
+    if (rule.delayMs) await new Promise((resolve) => setTimeout(resolve, rule.delayMs));
+    if (rule.status) return { status: rule.status, body: { errorMessages: [`Test: Jira antwortet mit ${rule.status}`] } };
+    const comment = commentWindow(issue);
+    return {
+      body: {
+        id: issue.id,
+        key: issue.key,
+        fields: { description: issue.fields.description, comment },
+        renderedFields: {
+          description: renderedHtml.description[issue.key] ?? "",
+          comment: { comments: comment.comments.map((entry) => ({ id: entry.id, body: renderedHtml.comments[entry.id] ?? "" })) },
+        },
+      },
+    };
+  }
   if (issue && window.__qa.commentDetailLimit !== undefined)
     return { body: { ...issue, fields: { ...issue.fields, comment: commentWindow(issue) } } };
   if (issue) return { body: issue };
   if (/^\/attachment\/(thumbnail|content)\/qa-att-/.test(path)) return { bytes: attachmentSortPixel, contentType: "image/png" };
   if (scenario === "attachments" && /^\/attachment\/(thumbnail|content)\/att-1$/.test(path))
     return { bytes: attachmentSortPixel, contentType: "image/png" };
+  const adfImage = scenario === "adf-images" ? path.match(/^\/attachment\/(?:thumbnail|content)\/(\d+)$/) : null;
+  if (adfImage) {
+    const rule = window.__qaAttachmentRule?.(adfImage[1]) ?? {};
+    if (rule.delayMs) await new Promise((resolve) => setTimeout(resolve, rule.delayMs));
+    if (adfImage[1] === "46888") return { status: 404, body: { errorMessages: ["Test: Anhang nicht gefunden"] } };
+    return { bytes: attachmentSortPixel, contentType: "image/png" };
+  }
   return {
     status: 404,
     body: { errorMessages: [`Keine Testantwort für ${path}`] },
