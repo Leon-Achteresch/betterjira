@@ -2,6 +2,7 @@ import { Mark, Node, getSchema, mergeAttributes, type JSONContent } from "@tipta
 import { Mention } from "@tiptap/extension-mention";
 import StarterKit from "@tiptap/starter-kit";
 import { Schema } from "effect";
+import { INLINE_NODES } from "./adf-nodes";
 
 export type AdfMark = { type: string; attrs?: Record<string, unknown> };
 export type AdfNode = {
@@ -14,7 +15,6 @@ export type AdfNode = {
 };
 
 const EDITABLE_NODES = new Set(["paragraph", "heading", "bulletList", "orderedList", "listItem", "codeBlock", "blockquote", "hardBreak", "rule"]);
-const INLINE_NODES = new Set(["text", "hardBreak", "mention", "emoji", "date", "status", "inlineCard", "mediaInline", "placeholder", "inlineExtension"]);
 const MENTION_ATTRS = new Set(["id", "text", "localId", "accessLevel", "userType"]);
 const MENTION_EXTRA_ATTRS = ["localId", "accessLevel", "userType"] as const;
 

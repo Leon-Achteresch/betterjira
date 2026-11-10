@@ -1,8 +1,6 @@
-import { Effect, Schema } from "effect";
+import { Schema } from "effect";
 import type { AdfNode } from "./adf";
 import { isMentionable, JiraPerson } from "./people";
-
-export const COMMENT_PAGE_SIZE = 100;
 
 export const RawComment = Schema.Struct({
   id: Schema.String,
@@ -10,13 +8,6 @@ export const RawComment = Schema.Struct({
   author: Schema.optional(JiraPerson),
   body: Schema.Unknown,
   created: Schema.String,
-});
-
-export const CommentPage = Schema.Struct({
-  startAt: Schema.Number,
-  maxResults: Schema.Number,
-  total: Schema.Number,
-  comments: Schema.Array(RawComment),
 });
 
 export type IssueComment = { id: string; parentId?: string; author?: JiraPerson; body: unknown; created: string };
@@ -27,16 +18,6 @@ export const toIssueComment = ({ parentId, ...comment }: typeof RawComment.Type)
   ...comment,
   ...(parentId !== undefined && parentId !== null && { parentId: String(parentId) }),
 });
-
-export const collectCommentPages = <E>(fetchPage: (startAt: number) => Effect.Effect<typeof CommentPage.Type, E>) =>
-  Effect.gen(function* () {
-    const comments: IssueComment[] = [];
-    while (true) {
-      const page = yield* fetchPage(comments.length);
-      comments.push(...page.comments.map(toIssueComment));
-      if (page.comments.length === 0 || comments.length >= page.total) return comments;
-    }
-  });
 
 export const threadKey = (comment: IssueComment) => comment.parentId ?? comment.id;
 
@@ -74,11 +55,6 @@ export const buildThreads = (comments: readonly IssueComment[], newestFirst: boo
   const ordered = [...threads.values()];
   return newestFirst ? ordered.reverse() : ordered;
 };
-
-export const commentCount = (
-  loaded: readonly IssueComment[] | undefined,
-  embedded: { readonly total?: number; readonly comments: readonly unknown[] } | undefined,
-) => loaded?.length ?? embedded?.total ?? embedded?.comments.length ?? 0;
 
 export const replyPayload = (body: AdfNode, key: string) => ({ body, parentId: /^\d+$/.test(key) ? Number(key) : key });
 

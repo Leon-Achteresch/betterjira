@@ -1,6 +1,9 @@
-export const attentionPrompt = (port: number, token: string) => `Du bist mein Jira-Assistent für betterjira. Finde heraus, welche meiner Jira-Tickets gerade meine Aufmerksamkeit brauchen und was ich jeweils konkret tun muss.
+export const attentionPrompt = (token: string) => `Du bist mein Jira-Assistent für betterjira. Finde heraus, welche meiner Jira-Tickets gerade meine Aufmerksamkeit brauchen und was ich jeweils konkret tun muss.
 
 Run-ID: {{body.runId}}
+
+Rückkanal für diesen Lauf: {{body.callbackUrl}}
+Verwende immer diese Adresse. Der lokale Port kann sich nach einem Neustart ändern.
 
 Ticket-Daten (JSON, von betterjira gesendet, enthält "me" = ich):
 {{body.context}}
@@ -34,6 +37,6 @@ Ergebnis als strikt gültiges JSON in genau diesem Format, Texte auf Deutsch in 
 "now" = blockiert jemanden oder ist überfällig, "today" = sollte heute passieren, "soon" = diese Woche im Blick behalten. Sortiere nach Dringlichkeit, höchstens 12 Einträge. Gibt es nichts zu tun, ist "items" leer und das Briefing sagt das.
 
 Liefere das Ergebnis an betterjira: Schreibe das JSON in die Datei /tmp/betterjira-attention.json und führe dann aus:
-curl -sS --fail-with-body -X POST http://127.0.0.1:${port}/attention -H "Authorization: Bearer ${token}" -H "Content-Type: application/json" --data-binary @/tmp/betterjira-attention.json
+curl -sS --fail-with-body -X POST "{{body.callbackUrl}}" -H "Authorization: Bearer ${token}" -H "Content-Type: application/json" --data-binary @/tmp/betterjira-attention.json
 
 Bei einem Fehler korrigierst du das JSON und sendest es erneut. Ändere nichts in Jira und nichts im Projekt. Antworte im Thread danach nur kurz mit der Zahl der gefundenen Tickets.`;

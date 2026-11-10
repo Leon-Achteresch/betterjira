@@ -3,9 +3,13 @@ use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent}
 use tauri::{Manager, WindowEvent};
 
 mod attention;
+mod attention_server;
 mod oauth;
+mod outlook;
 mod scm;
 mod secrets;
+mod update;
+mod zammad;
 
 #[cfg(target_os = "macos")]
 fn app_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
@@ -80,6 +84,10 @@ pub fn run() {
         .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_notification::init())
         .invoke_handler(tauri::generate_handler![
+            zammad::zammad_connection_get,
+            zammad::zammad_connect,
+            zammad::zammad_disconnect,
+            zammad::zammad_request,
             session_get,
             session_set,
             session_delete,
@@ -88,10 +96,12 @@ pub fn run() {
             attention::attention_trigger,
             oauth::oauth_login,
             oauth::oauth_cancel,
+            outlook::outlook_request,
             scm::scm_request,
             scm::scm_gh_hosts,
             scm::scm_token_set,
-            scm::scm_token_delete
+            scm::scm_token_delete,
+            update::update_install_version
         ])
         .setup(|app| {
             secrets::init(app.path().app_data_dir()?);

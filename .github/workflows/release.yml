@@ -1,13 +1,59 @@
 name: Release
 
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
   contents: write
 
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: bun run build
+      - run: bun run test --maxWorkers=1
+
+  version:
+    needs: test
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.bump.outputs.version }}
+      sha: ${{ steps.bump.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Version aus Commits ableiten
+        id: bump
+        run: |
+          version=$(.github/scripts/version-bump.sh)
+          if [ -z "$version" ]; then
+            echo "::notice::Keine feat/fix-Commits seit dem letzten Release, kein Release."
+            exit 0
+          fi
+          if ! git diff --quiet; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit -am "chore(release): $version"
+            git push origin "HEAD:${{ github.ref_name }}"
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
   release:
+    needs: version
+    if: needs.version.outputs.version != ''
     strategy:
       fail-fast: false
       matrix:
@@ -22,7 +68,9 @@ jobs:
             args: ""
     runs-on: ${{ matrix.platform }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.version.outputs.sha }}
 
       - name: Linux-Abhängigkeiten
         if: matrix.platform == 'ubuntu-22.04'
@@ -42,7 +90,7 @@ jobs:
 
       - run: bun install --frozen-lockfile
 
-      - uses: tauri-apps/tauri-action@v0
+      - uses: tauri-apps/tauri-action@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
@@ -51,18 +99,34 @@ jobs:
           VITE_ATLASSIAN_CLIENT_SECRET: ${{ secrets.VITE_ATLASSIAN_CLIENT_SECRET }}
         with:
           tagName: v__VERSION__
+          releaseCommitish: ${{ needs.version.outputs.sha }}
           releaseName: betterjira v__VERSION__
           releaseBody: Lade unten den Installer für dein System herunter.
           releaseDraft: true
           prerelease: false
-          includeUpdaterJson: false
+          uploadUpdaterJson: false
           args: ${{ matrix.args }}
 
+      - name: Windows-App starten und auf frühen Absturz prüfen
+        if: matrix.platform == 'windows-latest'
+        shell: pwsh
+        run: |
+          $app = Start-Process -FilePath "src-tauri/target/release/betterjira.exe" -PassThru -WindowStyle Hidden
+          try {
+            Start-Sleep -Seconds 10
+            $app.Refresh()
+            if ($app.HasExited) { throw "App wurde beim Start beendet (Exitcode $($app.ExitCode))." }
+          } finally {
+            if (-not $app.HasExited) { Stop-Process -Id $app.Id }
+          }
+
   updater-manifest:
-    needs: release
+    needs: [version, release]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.version.outputs.sha }}
 
       - name: latest.json erzeugen
         env:
@@ -76,5 +140,11 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          version=$(jq -r .version src-tauri/tauri.conf.json)
-          gh release edit "v$version" --draft=false --latest --notes-file CHANGELOG.md
+          awk '/^## /{n++} n==1' CHANGELOG.md > notes.md
+          gh release edit "v${{ needs.version.outputs.version }}" --draft=false --latest --notes-file notes.md
+
+      - name: Veröffentlichtes Release prüfen
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: ./.github/scripts/test-release.ps1 -Tag "v${{ needs.version.outputs.version }}" -Repository "${{ github.repository }}"

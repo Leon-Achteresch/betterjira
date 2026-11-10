@@ -1,8 +1,13 @@
+import { useHelpdeskCommandSearch } from "@/hooks/zammad/use-helpdesk-command-search";
 import { useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useDebouncedValue } from "@tanstack/react-pacer";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import {
+  ArchiveRestoreIcon,
+  ArchiveXIcon,
+  BellIcon,
+  BriefcaseIcon,
   ExternalLinkIcon,
   FileTextIcon,
   FolderKanbanIcon,
@@ -10,18 +15,26 @@ import {
   HomeIcon,
   KeyboardIcon,
   LayersIcon,
+  LayoutGridIcon,
+  ListFilterIcon,
+  LinkIcon,
   SparklesIcon,
   LogInIcon,
   LogOutIcon,
   MonitorIcon,
   MoonIcon,
   PanelLeftIcon,
+  SearchIcon,
   SettingsIcon,
   StarIcon,
   SunIcon,
   TerminalSquareIcon,
+  TicketIcon,
+  GitPullRequestIcon,
   PinIcon,
   HistoryIcon,
+  SquarePenIcon,
+  TimerIcon,
 } from "lucide-react";
 import type { CommandItem } from "@/components/motion/command-palette";
 import { IssuePreview, ProjectPreview, FilterPreview, IssueKey } from "@/components/shell/command-previews";
@@ -36,14 +49,31 @@ import {
   useJiraSite,
 } from "@/lib/jira/queries";
 import { IS_MAC } from "@/lib/platform";
-import { useProjectPrefs } from "@/lib/project-prefs";
+import { useProjectPrefs } from "@/hooks/use-project-prefs";
 import { shortcutHint } from "@/lib/shortcuts";
 import { useShortcutHelp } from "@/hooks/use-app-shortcuts";
+import { useLegacyIssueTabs } from "@/hooks/use-issue-tabs";
+import { useIssueTabStore } from "@/hooks/use-issue-tabs";
+import { useOpenTabSearchDialog } from "@/hooks/use-open-tab-search";
 import { type ThemePreference, useTheme } from "@/hooks/use-theme";
 import { useWorkspace } from "@/hooks/use-workspace";
+import { looksLikeLink, parseTicketReference, type TicketLinkProblem } from "@/lib/ticket-reference";
 
 const MOD = IS_MAC ? "⌘" : "Strg";
-const ISSUE_KEY = /^[a-z][a-z0-9_]*-\d+$/i;
+
+const LINK_PROBLEMS: Record<TicketLinkProblem, string> = {
+  offline: "Ticket-Links lassen sich erst nach der Verbindung mit Jira öffnen.",
+  invalid: "Das ist kein gültiger Link.",
+  protocol: "Nur sichere https-Links der verbundenen Jira-Instanz werden geöffnet.",
+  credentials: "Links mit Zugangsdaten werden aus Sicherheitsgründen nicht geöffnet.",
+  host: "Dieser Link gehört nicht zur verbundenen Jira-Instanz.",
+  path: "Der Link zeigt auf kein Ticket. Erwartet wird …/browse/ABC-123.",
+};
+
+const linkProblemMessage = (problem: TicketLinkProblem, siteUrl?: string) =>
+  problem === "host" && siteUrl
+    ? `Nur Links von ${new URL(siteUrl).host} werden geöffnet. Dieser Link gehört zu einer anderen Adresse.`
+    : LINK_PROBLEMS[problem];
 
 const THEMES: { value: ThemePreference; label: string; icon: typeof SunIcon }[] = [
   { value: "system", label: "Design: wie System", icon: MonitorIcon },
@@ -55,6 +85,7 @@ export function useAppCommandPalette() {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [debounced] = useDebouncedValue(query.trim(), { wait: 250 });
+  const helpdesk = useHelpdeskCommandSearch(debounced, open);
   const navigate = useNavigate();
   const { toggleSidebar } = useSidebar();
   const site = useJiraSite();
@@ -63,15 +94,21 @@ export function useAppCommandPalette() {
   const myWork = useJiraMyWork();
   const login = useJiraLogin();
   const logout = useJiraLogout();
-  const hiddenIds = useProjectPrefs((state) => state.hiddenProjectIds);
-  const favoriteIds = useProjectPrefs((state) => state.projectIds);
+  const { hiddenIds, favoriteIds } = useProjectPrefs();
   const { theme, setTheme } = useTheme();
   const openShortcutHelp = useShortcutHelp((state) => state.setOpen);
+  const legacyTabs = useLegacyIssueTabs();
+  const hasTabs = useIssueTabStore((state) => state.keys.length > 0);
+  const openTabSearch = useOpenTabSearchDialog((state) => state.setOpen);
 
-  const text = debounced.replace(/[\\"]/g, "\\$&");
-  const search = useJiraIssues(`text ~ "${text}*" ORDER BY updated DESC`, open && debounced.length >= 2);
   const trimmed = query.trim();
-  const issueKey = ISSUE_KEY.test(trimmed) ? trimmed.toUpperCase() : null;
+  const siteUrl = site.data?.siteUrl;
+  const reference = parseTicketReference(trimmed, siteUrl);
+  const linkMode = reference.kind === "link" || reference.kind === "rejected";
+  const searching = open && debounced.length >= 2 && !linkMode && !looksLikeLink(debounced);
+  const text = debounced.replace(/[\\"]/g, "\\$&");
+  const search = useJiraIssues(`text ~ "${text}*" ORDER BY updated DESC`, searching);
+  const issueKey = reference.kind === "key" ? reference.key : null;
 
   const openIssue = (key: string) => void navigate({ to: "/issue/$key", params: { key } });
   const { workspace, ready } = useWorkspace();
@@ -129,6 +166,12 @@ export function useAppCommandPalette() {
           },
         ]
       : []),
+    ...(helpdesk.data ?? []).map((ticket) => ({
+      id: `zammad:${ticket.id}`, label: ticket.title, group: "Zammad-Tickets", icon: TicketIcon, keywords: [ticket.number, "zammad", debounced],
+      badge: <span className="text-xs text-muted-foreground tabular-nums">#{ticket.number}</span>,
+      preview: <div className="space-y-3 p-4"><p className="text-xs text-muted-foreground">Zammad · #{ticket.number}</p><p className="font-medium">{ticket.title}</p><p className="text-sm text-muted-foreground">{ticket.state} · {ticket.group}</p></div>,
+      onSelect: () => void navigate({ to: "/helpdesk/$id", params: { id: String(ticket.id) } }),
+    })),
     ...(search.data?.issues ?? [])
       .filter((issue) => !workKeys.has(issue.key) && !rememberedKeys.has(issue.key) && issue.key !== issueKey)
       .map((issue) => ({
@@ -191,21 +234,86 @@ export function useAppCommandPalette() {
       })),
     {
       id: "nav:home",
-      label: "Startseite",
+      label: "Heute",
       group: "Navigation",
       icon: HomeIcon,
-      keywords: ["home", "dashboard"],
+      keywords: ["home", "dashboard", "startseite", "übersicht"],
       hint: shortcutHint("home"),
       onSelect: () => void navigate({ to: "/" }),
     },
     {
+      id: "nav:workspace",
+      label: "Arbeitsplatz",
+      group: "Navigation",
+      icon: BriefcaseIcon,
+      keywords: ["weiterarbeiten", "entwürfe", "notizen", "angeheftet", "zuletzt"],
+      onSelect: () => void navigate({ to: "/arbeitsplatz" }),
+    },
+    {
+      id: "nav:tickets",
+      label: "Jira-Tickets",
+      group: "Navigation",
+      icon: TicketIcon,
+      keywords: ["tickets", "vorgänge", "meine", "beobachtet"],
+      hint: shortcutHint("tickets"),
+      onSelect: () => void navigate({ to: "/tickets" }),
+    },
+    {
+      id: "nav:helpdesk", label: "Zammad-Tickets", group: "Navigation", icon: TicketIcon, keywords: ["support", "helpdesk", "zammad"],
+      onSelect: () => void navigate({ to: "/helpdesk" }),
+    },
+    {
+      id: "action:zammad-create", label: "Zammad-Ticket erstellen", group: "Befehle", icon: TicketIcon, keywords: ["zammad", "neu"],
+      onSelect: () => void navigate({ to: "/helpdesk/neu" }),
+    },
+    {
+      id: "nav:time-tracking",
+      label: "Meine Zeiterfassung",
+      group: "Navigation",
+      icon: TimerIcon,
+      keywords: ["zeit", "worklog", "gebucht", "stunden", "woche"],
+      onSelect: () => void navigate({ to: "/zeiterfassung", search: {} }),
+    },
+    {
+      id: "nav:notifications",
+      label: "Benachrichtigungen",
+      group: "Navigation",
+      icon: BellIcon,
+      keywords: ["inbox", "ungelesen", "erwähnungen", "aktivität"],
+      onSelect: () => void navigate({ to: "/benachrichtigungen" }),
+    },
+    {
+      id: "nav:pull-requests",
+      label: "Pull Requests",
+      group: "Navigation",
+      icon: GitPullRequestIcon,
+      keywords: ["pr", "pull requests", "review", "github", "bitbucket"],
+      onSelect: () => void navigate({ to: "/pull-requests" }),
+    },
+    {
       id: "nav:search",
+      label: "Ticketsuche",
+      group: "Navigation",
+      icon: SearchIcon,
+      keywords: ["suche", "volltext", "vorgänge", "projekt"],
+      hint: shortcutHint("search"),
+      onSelect: () => void navigate({ to: "/suche", search: {} }),
+    },
+    {
+      id: "nav:jql",
       label: "JQL-Suche",
       group: "Navigation",
       icon: TerminalSquareIcon,
-      keywords: ["jql", "suche", "query"],
-      hint: shortcutHint("search"),
-      onSelect: () => void navigate({ to: "/suche", search: {} }),
+      keywords: ["jql", "query", "abfrage", "experte", "filter"],
+      onSelect: () => void navigate({ to: "/suche", search: { modus: "jql" } }),
+    },
+    {
+      id: "nav:filters",
+      label: "Alle Filter",
+      group: "Navigation",
+      icon: ListFilterIcon,
+      keywords: ["filter", "favoriten", "gespeicherte suchen", "übersicht"],
+      onSelect: () => void navigate({ to: "/filter", search: {} }),
     },
     {
       id: "nav:settings",
@@ -214,6 +322,14 @@ export function useAppCommandPalette() {
       icon: SettingsIcon,
       hint: shortcutHint("settings"),
       onSelect: () => void navigate({ to: "/settings" }),
+    },
+    {
+      id: "nav:projects",
+      label: "Alle Bereiche",
+      group: "Navigation",
+      icon: LayoutGridIcon,
+      keywords: ["bereiche", "projekte", "projects", "übersicht", "favoriten"],
+      onSelect: () => void navigate({ to: "/bereiche", search: {} }),
     },
     {
       id: "nav:areas",
@@ -228,6 +344,35 @@ export function useAppCommandPalette() {
       group: "Navigation",
       icon: SparklesIcon,
       onSelect: () => void navigate({ to: "/settings/briefing" }),
+    },
+    ...(hasTabs
+      ? [
+          {
+            id: "action:open-tabs",
+            label: "Geöffnete Tickets durchsuchen",
+            group: "Aktionen",
+            icon: SearchIcon,
+            keywords: ["tabs", "reiter", "offen", "wechseln"],
+            onSelect: () => openTabSearch(true),
+          },
+        ]
+      : []),
+    {
+      id: "action:create-issue",
+      label: "Ticket erstellen",
+      group: "Aktionen",
+      icon: SquarePenIcon,
+      keywords: ["neu", "anlegen", "vorgang", "issue", "create"],
+      hint: shortcutHint("createIssue"),
+      onSelect: () => void navigate({ to: "/neu" }),
+    },
+    {
+      id: "nav:activity-alerts",
+      label: "Hinweise zu Jira-Aktivität einstellen",
+      group: "Navigation",
+      icon: BellIcon,
+      keywords: ["benachrichtigungen", "popup", "systemhinweis", "stumm", "toast"],
+      onSelect: () => void navigate({ to: "/settings/benachrichtigungen" }),
     },
     {
       id: "action:sidebar",
@@ -255,6 +400,26 @@ export function useAppCommandPalette() {
       badge: theme === option.value ? <span className="text-[10px] text-muted-foreground">Aktiv</span> : undefined,
       onSelect: () => setTheme(option.value),
     })),
+    ...(legacyTabs
+      ? [
+          {
+            id: "action:legacy-tabs-adopt",
+            label: `${legacyTabs.label} übernehmen`,
+            group: "Aktionen",
+            icon: ArchiveRestoreIcon,
+            keywords: ["tabs", "reiter", "frühere", "übernehmen"],
+            onSelect: legacyTabs.onAdopt,
+          },
+          {
+            id: "action:legacy-tabs-discard",
+            label: `${legacyTabs.label} verwerfen`,
+            group: "Aktionen",
+            icon: ArchiveXIcon,
+            keywords: ["tabs", "reiter", "frühere", "verwerfen"],
+            onSelect: legacyTabs.onDiscard,
+          },
+        ]
+      : []),
     ...(site.data
       ? [
           {
@@ -283,14 +448,30 @@ export function useAppCommandPalette() {
         ]),
   ];
 
+  const linkItems: CommandItem[] =
+    reference.kind === "link"
+      ? [
+          {
+            id: `link:${reference.key}`,
+            label: `${reference.key} öffnen`,
+            group: "Ticket-Link",
+            icon: LinkIcon,
+            keywords: [trimmed],
+            preview: <IssuePreview issueKey={reference.key} />,
+            onSelect: () => openIssue(reference.key),
+          },
+        ]
+      : [];
+
   return {
-    items,
+    items: linkMode ? linkItems : items,
+    emptyMessage: reference.kind === "rejected" ? linkProblemMessage(reference.problem, siteUrl) : undefined,
     open,
     setOpen: (next: boolean) => {
       if (next) setQuery("");
       setOpen(next);
     },
     setQuery,
-    loading: open && debounced.length >= 2 && search.isFetching,
+    loading: (searching && search.isFetching) || (open && debounced.length >= 2 && helpdesk.isFetching),
   };
 }

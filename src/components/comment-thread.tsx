@@ -13,18 +13,23 @@ function CommentEntry({
   comment,
   replyLabel,
   onReply,
+  headerAction,
 }: {
   comment: IssueComment;
   replyLabel?: string;
   onReply?: (comment: IssueComment) => void;
+  headerAction?: (comment: IssueComment) => ReactNode;
 }) {
   return (
     <article className="flex flex-col gap-2">
       <div className="flex items-center gap-2 text-sm">
-        <JiraUserLabel user={comment.author} />
-        <span className="text-xs text-muted-foreground" title={new Date(comment.created).toLocaleString("de-DE")}>
-          {formatDistanceToNowStrict(new Date(comment.created), { locale: de, addSuffix: true })}
-        </span>
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1 [overflow-wrap:anywhere]">
+          <JiraUserLabel user={comment.author} />
+          <span className="text-xs text-muted-foreground" title={new Date(comment.created).toLocaleString("de-DE")}>
+            {formatDistanceToNowStrict(new Date(comment.created), { locale: de, addSuffix: true })}
+          </span>
+        </div>
+        {headerAction?.(comment)}
       </div>
       <AdfContent doc={comment.body} className="pl-8" />
       {onReply && replyLabel && (
@@ -41,17 +46,19 @@ export function CommentThreadView({
   thread,
   replyLabel,
   onReply,
+  headerAction,
   replyBox,
 }: {
   thread: CommentThread;
   replyLabel?: string;
   onReply?: (comment: IssueComment) => void;
+  headerAction?: (comment: IssueComment) => ReactNode;
   replyBox?: ReactNode;
 }) {
   const reduce = useReducedMotion();
   return (
     <div className="flex flex-col gap-3">
-      <CommentEntry comment={thread.root} replyLabel={replyLabel} onReply={onReply} />
+      <CommentEntry comment={thread.root} replyLabel={replyLabel} onReply={onReply} headerAction={headerAction} />
       {thread.replies.length > 0 && (
         <ol className="ml-8 flex flex-col gap-4 border-l border-border pl-4">
           <AnimatePresence initial={false}>
@@ -64,7 +71,7 @@ export function CommentThreadView({
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.18, ease: EASE_OUT }}
               >
-                <CommentEntry comment={reply} replyLabel={replyLabel} onReply={onReply} />
+                <CommentEntry comment={reply} replyLabel={replyLabel} onReply={onReply} headerAction={headerAction} />
               </motion.li>
             ))}
           </AnimatePresence>

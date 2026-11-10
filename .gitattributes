@@ -1,0 +1,7 @@
+* text=auto eol=lf
+*.ps1 text eol=crlf
+*.png binary
+*.ico binary
+*.icns binary
+bun.lock linguist-generated
+src/routeTree.gen.ts linguist-generated

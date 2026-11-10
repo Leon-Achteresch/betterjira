@@ -1,16 +1,23 @@
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { ArrowDownWideNarrowIcon, CheckIcon, ChevronDownIcon, FileTextIcon, InfoIcon, RotateCwIcon, Trash2Icon } from "lucide-react";
+import { ArrowDownWideNarrowIcon, CheckIcon, ChevronDownIcon, FileTextIcon, InfoIcon, SearchIcon, Trash2Icon } from "lucide-react";
 import { CommentReplyBox } from "@/components/comment-reply-box";
 import { CommentThreadView } from "@/components/comment-thread";
+import { IssueCommentPages } from "@/components/issue-comment-pages";
+import { CommentLinkAction } from "@/components/issues/comment-link-action";
 import { MentionEditor } from "@/components/mention-editor";
+import { SearchField } from "@/components/motion/search-field";
 import { Tooltip } from "@/components/motion/tooltip";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Kbd } from "@/components/ui/kbd";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
+import { useCommentLink } from "@/hooks/jira/use-comment-link";
+import type { IssueCommentPages as CommentPages } from "@/hooks/jira/use-issue-comment-pages";
 import { useCommentReplies } from "@/hooks/use-comment-replies";
 import { useIssueComments } from "@/hooks/use-issue-comments";
 import { EASE_OUT } from "@/lib/ease";
+import { commentSearchSummary } from "@/lib/jira/comment-search";
 import { IS_MAC } from "@/lib/platform";
 import { cn } from "@/lib/utils";
 import { ADF_COMMENT_TEMPLATES } from "@/lib/workspace";
@@ -34,10 +41,14 @@ function CommentListSkeleton() {
   );
 }
 
-export function IssueComments({ issue }: { issue: JiraIssueDetail }) {
-  const view = useIssueComments(issue);
+export function IssueComments({ issue, pages }: { issue: JiraIssueDetail; pages: CommentPages }) {
+  const view = useIssueComments(issue, pages);
   const replies = useCommentReplies(issue);
+  const link = useCommentLink(issue.key);
   const reduce = useReducedMotion();
+  const pageControl = pages.visible && <IssueCommentPages pages={pages} />;
+  const firstPageLoading = !pages.firstPageLoaded && !pages.error && !view.hasComments;
+  const showList = !firstPageLoading && (view.hasComments || pages.visible);
 
   return (
     <div className="flex flex-col gap-6">
@@ -142,29 +153,88 @@ export function IssueComments({ issue }: { issue: JiraIssueDetail }) {
         )}
       </form>
 
-      {view.listState === "loading" && <CommentListSkeleton />}
-      {(view.listState === "error" || view.refreshFailed) && (
-        <div role="alert" className="flex flex-wrap items-center gap-3 text-sm text-destructive">
-          <span>{view.listError}</span>
-          <Button type="button" variant="outline" size="sm" onClick={view.reload}>
-            <RotateCwIcon />
-            Erneut laden
-          </Button>
-        </div>
-      )}
-      {view.listState === "ready" && !view.hasComments && <p className="text-sm text-muted-foreground">Noch keine Kommentare.</p>}
-      {view.listState === "ready" && view.hasComments && (
+      {firstPageLoading && <CommentListSkeleton />}
+      {!firstPageLoading && !showList && <p className="text-sm text-muted-foreground">Noch keine Kommentare.</p>}
+      {showList && (
         <div className="flex flex-col gap-4">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="self-end text-muted-foreground"
-            onClick={view.toggleOrder}
-            aria-pressed={view.newestFirst}
-          >
-            <ArrowDownWideNarrowIcon />
-            {view.newestFirst ? "Neueste zuerst" : "Älteste zuerst"}
-          </Button>
+          <div className="flex items-center justify-end gap-1">
+            <Tooltip
+              content={
+                view.search.open ? (
+                  <span className="flex items-center gap-1.5">
+                    Suche schließen <Kbd>Esc</Kbd>
+                  </span>
+                ) : (
+                  "Geladene Kommentare durchsuchen"
+                )
+              }
+            >
+              <Button
+                ref={view.search.toggleRef}
+                type="button"
+                variant="ghost"
+                size="icon"
+                aria-label={view.search.open ? "Kommentarsuche schließen" : "Geladene Kommentare durchsuchen"}
+                aria-expanded={view.search.open}
+                aria-controls={view.search.open ? `comment-search-${issue.key}` : undefined}
+                className={view.search.open ? "bg-muted text-foreground" : "text-muted-foreground"}
+                onClick={view.search.toggle}
+              >
+                <SearchIcon />
+              </Button>
+            </Tooltip>
+            <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={view.toggleOrder} aria-pressed={view.newestFirst}>
+              <ArrowDownWideNarrowIcon />
+              {view.newestFirst ? "Neueste zuerst" : "Älteste zuerst"}
+            </Button>
+          </div>
+          <AnimatePresence initial={false}>
+            {view.search.open && (
+              <motion.div
+                key="comment-search"
+                id={`comment-search-${issue.key}`}
+                role="search"
+                initial={{ opacity: 0, y: reduce ? 0 : -4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, transition: { duration: 0.12 } }}
+                transition={{ duration: 0.18, ease: EASE_OUT }}
+                onKeyDown={view.search.onKeyDown}
+                className="flex flex-col gap-1.5"
+              >
+                <SearchField
+                  autoFocus
+                  inputRef={view.search.inputRef}
+                  value={view.search.query}
+                  onChange={view.search.setQuery}
+                  label="Geladene Kommentare durchsuchen"
+                  placeholder="Text oder Person suchen …"
+                />
+                <p role="status" className="text-xs text-muted-foreground tabular-nums">
+                  {commentSearchSummary(view.search.found, view.search.loaded, view.search.query)}
+                </p>
+              </motion.div>
+            )}
+          </AnimatePresence>
+          <AnimatePresence initial={false}>
+            {view.search.open && view.search.query.trim() && view.search.found === 0 && (
+              <motion.div
+                key="comment-search-empty"
+                initial={{ opacity: 0, y: reduce ? 0 : 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, transition: { duration: 0.12 } }}
+                transition={{ duration: 0.18, ease: EASE_OUT }}
+                className="flex flex-col items-start gap-3 rounded-2xl border border-dashed p-4"
+              >
+                <p className="text-sm text-muted-foreground text-balance">
+                  Kein geladener Kommentar enthält „{view.search.query.trim()}“ im Text oder Namen.
+                </p>
+                <Button type="button" variant="outline" size="sm" onClick={view.search.reset}>
+                  Suche zurücksetzen
+                </Button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+          {view.newestFirst && pageControl}
           <ol className="flex flex-col gap-6">
             <AnimatePresence initial={false}>
               {view.threads.map((thread) => (
@@ -179,7 +249,10 @@ export function IssueComments({ issue }: { issue: JiraIssueDetail }) {
                   <CommentThreadView
                     thread={thread}
                     replyLabel={replies.labelFor(thread.root)}
-                    onReply={replies.canReply ? (comment) => replies.start(comment, thread.root) : undefined}
+                    onReply={replies.canReply && pages.firstPageLoaded ? (comment) => replies.start(comment, thread.root) : undefined}
+                    headerAction={(comment) => (
+                      <CommentLinkAction available={link.available(comment.id)} onCopy={() => void link.copy(comment.id)} />
+                    )}
                     replyBox={
                       replies.isOpenFor(thread.root) ? (
                         <CommentReplyBox
@@ -203,6 +276,7 @@ export function IssueComments({ issue }: { issue: JiraIssueDetail }) {
               ))}
             </AnimatePresence>
           </ol>
+          {!view.newestFirst && pageControl}
         </div>
       )}
     </div>

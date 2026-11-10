@@ -73,7 +73,13 @@ export function FilterHeader({ id, editor }: { id: string; editor: FilterEditorS
         />
       </motion.button>
       <div className="ml-auto flex items-center gap-2">
-        <Button variant={editor.editing ? "secondary" : "outline"} size="sm" aria-pressed={editor.editing} onClick={() => editor.setEditing(!editor.editing)}>
+        <Button
+          variant={editor.editing ? "secondary" : "outline"}
+          size="sm"
+          aria-pressed={editor.editing}
+          disabled={!filter}
+          onClick={() => editor.setEditing(!editor.editing)}
+        >
           <CodeIcon />
           JQL bearbeiten
         </Button>

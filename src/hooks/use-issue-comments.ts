@@ -1,31 +1,30 @@
 import { useRef, type FormEvent } from "react";
 import { toast } from "sonner";
 import type { AdfEditorHandle } from "@/components/adf-editor";
-import { useIssueCommentList } from "@/hooks/jira/use-issue-comment-list";
+import type { IssueCommentPages } from "@/hooks/jira/use-issue-comment-pages";
 import { useJiraPostComment } from "@/hooks/jira/use-issue-mutations";
 import { useCommentComposer } from "@/hooks/use-comment-composer";
+import { useCommentSearch } from "@/hooks/use-comment-search";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { appendBlocks, hasSendableContent, type AdfNode } from "@/lib/jira/adf";
+import { filterComments, filterThreads } from "@/lib/jira/comment-search";
 import { buildThreads } from "@/lib/jira/comment-thread";
 import { issueParticipants } from "@/lib/jira/people";
 import type { JiraIssueDetail } from "@/lib/jira/queries";
 import { clearSubmittedMainDraft, mainDraftOf, setMainDraft } from "@/lib/workspace";
 
-type ListState = "loading" | "error" | "ready";
-
-export function useIssueComments(issue: JiraIssueDetail) {
+export function useIssueComments(issue: JiraIssueDetail, pages: IssueCommentPages) {
   const issueKey = issue.key;
-  const list = useIssueCommentList(issueKey);
   const post = useJiraPostComment(issueKey);
   const { workspace, update, ready } = useWorkspace();
+  const search = useCommentSearch();
   const submitting = useRef(false);
   const editorRef = useRef<AdfEditorHandle>(null);
   const templateInserted = useRef(false);
   const draft = mainDraftOf(workspace, issueKey);
   const composer = useCommentComposer(!!draft || post.isPending);
-  const comments = list.data ?? [];
+  const comments = pages.comments;
   const setDraft = (value: AdfNode | undefined) => update((current) => setMainDraft(current, issueKey, value));
-  const listState: ListState = list.data ? "ready" : list.isPending || list.isFetching ? "loading" : list.isError ? "error" : "ready";
 
   const submit = async (event?: FormEvent) => {
     event?.preventDefault();
@@ -54,12 +53,9 @@ export function useIssueComments(issue: JiraIssueDetail) {
     pending: post.isPending,
     error: post.error?.message,
     participants: issueParticipants(issue.fields, comments),
-    threads: buildThreads(comments, workspace.newestFirst),
+    threads: filterThreads(buildThreads(comments, workspace.newestFirst), search.query),
     hasComments: comments.length > 0,
-    listState,
-    listError: list.error?.message,
-    refreshFailed: !!list.data && list.isError && !list.isFetching,
-    reload: () => void list.refetch(),
+    search: { ...search, found: filterComments(comments, search.query).length, loaded: comments.length },
     newestFirst: workspace.newestFirst,
     toggleOrder: () => update((current) => ({ ...current, newestFirst: !current.newestFirst })),
     insertTemplate: (blocks: readonly AdfNode[]) => {

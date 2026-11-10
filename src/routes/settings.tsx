@@ -1,7 +1,5 @@
-import { Link, Outlet, createFileRoute, useMatchRoute } from "@tanstack/react-router";
-import { motion } from "motion/react";
-import { SPRING_LAYOUT } from "@/lib/ease";
-import { cn } from "@/lib/utils";
+import { Link, Outlet, createFileRoute } from "@tanstack/react-router";
+import { NAV_TAB_CLASS, NavTabIndicator, NavTabs } from "@/components/motion/nav-tabs";
 
 export const Route = createFileRoute("/settings")({
   component: Settings,
@@ -9,36 +7,30 @@ export const Route = createFileRoute("/settings")({
 
 const TABS = [
   { to: "/settings/darstellung", label: "Darstellung" },
+  { to: "/settings/benachrichtigungen", label: "Benachrichtigungen" },
   { to: "/settings/bereiche", label: "Bereiche" },
   { to: "/settings/code-hosting", label: "Code-Hosting" },
   { to: "/settings/briefing", label: "KI-Briefing" },
+  { to: "/settings/verbindungen", label: "Verbindungen" },
+  { to: "/settings/updates", label: "Updates" },
 ] as const;
 
 function Settings() {
-  const matchRoute = useMatchRoute();
   return (
-    <div className="flex flex-col items-start gap-6 p-8">
+    <div className="flex flex-col items-start gap-6 p-4 sm:p-8">
       <h1 className="text-2xl font-semibold">Einstellungen</h1>
-      <nav aria-label="Einstellungen" className="flex gap-1 border-b">
-        {TABS.map((tab) => {
-          const active = !!matchRoute({ to: tab.to });
-          return (
-            <Link
-              key={tab.to}
-              to={tab.to}
-              className={cn(
-                "relative px-3 pb-2 text-sm outline-none transition-colors hover:text-foreground focus-visible:text-foreground",
-                active ? "text-foreground" : "text-muted-foreground",
-              )}
-            >
-              {tab.label}
-              {active && (
-                <motion.span layoutId="settings-tab" transition={SPRING_LAYOUT} className="absolute inset-x-1 -bottom-px h-0.5 rounded-full bg-foreground" />
-              )}
-            </Link>
-          );
-        })}
-      </nav>
+      <NavTabs id="settings-tabs" label="Einstellungen">
+        {TABS.map((tab) => (
+          <Link key={tab.to} to={tab.to} className={NAV_TAB_CLASS}>
+            {({ isActive }) => (
+              <>
+                {tab.label}
+                {isActive && <NavTabIndicator />}
+              </>
+            )}
+          </Link>
+        ))}
+      </NavTabs>
       <Outlet />
     </div>
   );

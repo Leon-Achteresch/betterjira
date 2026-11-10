@@ -1,26 +1,31 @@
 import { Schema } from "effect";
-import { useCallback } from "react";
+import { useCallback, useEffect } from "react";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { useLatestRef } from "@/hooks/use-latest-ref";
 import { useJiraMyself, useJiraSite } from "@/lib/jira/queries";
 import {
   EMPTY_WORKSPACE,
   migrateWorkspaces,
+  WORKSPACE_STORAGE_KEY,
   Workspaces,
   workspaceId,
   type Workspace,
 } from "@/lib/workspace";
+import { removeRecentIssue, restoreRecentIssue, type RemovedRecentIssue } from "@/lib/workspace-recent";
 
 type WorkspaceState = {
   workspaces: typeof Workspaces.Type;
   update: (id: string, transform: (workspace: Workspace) => Workspace) => void;
+  removeRecent: (id: string, key: string) => RemovedRecentIssue | undefined;
+  restoreRecent: (id: string, removed: RemovedRecentIssue) => void;
 };
 
 const PersistedState = Schema.Struct({ workspaces: Workspaces });
 
 export const useWorkspaceStore = create<WorkspaceState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       workspaces: {},
       update: (id, transform) =>
         set(({ workspaces }) => ({
@@ -29,9 +34,22 @@ export const useWorkspaceStore = create<WorkspaceState>()(
             [id]: transform(workspaces[id] ?? EMPTY_WORKSPACE),
           },
         })),
+      removeRecent: (id, key) => {
+        const current = get().workspaces[id];
+        if (!current) return undefined;
+        const { workspace, removed } = removeRecentIssue(current, key);
+        if (removed) set(({ workspaces }) => ({ workspaces: { ...workspaces, [id]: workspace } }));
+        return removed;
+      },
+      restoreRecent: (id, removed) => {
+        const current = get().workspaces[id];
+        if (!current) return;
+        const restored = restoreRecentIssue(current, removed);
+        if (restored !== current) set(({ workspaces }) => ({ workspaces: { ...workspaces, [id]: restored } }));
+      },
     }),
     {
-      name: "betterjira-workspaces",
+      name: WORKSPACE_STORAGE_KEY,
       merge: (persisted, current) =>
         Schema.is(PersistedState)(persisted)
           ? { ...current, workspaces: migrateWorkspaces(persisted.workspaces) }
@@ -44,9 +62,10 @@ export function useWorkspace() {
   const site = useJiraSite();
   const myself = useJiraMyself();
   const id =
-    site.data && myself.data
+    site.isSuccess && site.data && myself.isSuccess && myself.data
       ? workspaceId(site.data.cloudId, myself.data.accountId)
       : undefined;
+  const latestId = useLatestRef(id);
   const workspace = useWorkspaceStore((state) =>
     id ? (state.workspaces[id] ?? EMPTY_WORKSPACE) : EMPTY_WORKSPACE,
   );
@@ -54,9 +73,21 @@ export function useWorkspace() {
 
   const updateWorkspace = useCallback(
     (transform: (workspace: Workspace) => Workspace) => {
-      if (id) update(id, transform);
+      if (id && latestId.current === id) update(id, transform);
     },
-    [id, update],
+    [id, update, latestId],
   );
   return { id, workspace, ready: !!id, update: updateWorkspace };
+}
+
+export function useWorkspaceStorageSync(active: boolean) {
+  useEffect(() => {
+    if (!active) return;
+    const sync = (event: StorageEvent) => {
+      if (event.key === WORKSPACE_STORAGE_KEY) void useWorkspaceStore.persist.rehydrate();
+    };
+    window.addEventListener("storage", sync);
+    void useWorkspaceStore.persist.rehydrate();
+    return () => window.removeEventListener("storage", sync);
+  }, [active]);
 }
