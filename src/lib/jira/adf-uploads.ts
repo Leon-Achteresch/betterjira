@@ -68,11 +68,16 @@ export const finishUploadPlaceholder = (view: EditorView, id: object, node: AdfN
   const tr = state.tr.setMeta(placeholders, { remove: id });
   if (node && at !== undefined) {
     const follow = state.selection.empty && state.selection.from === at;
-    tr.replaceRangeWith(at, at, state.schema.nodeFromJSON(adfNodeToEditor(node)));
+    const inserted = state.schema.nodeFromJSON(adfNodeToEditor(node));
+    tr.replaceRangeWith(at, at, inserted);
     let end = at;
     tr.steps.at(-1)?.getMap().forEach((_oldStart, _oldEnd, _newStart, newEnd) => {
       end = newEnd;
     });
+    if (inserted.isInline) {
+      tr.insert(end, state.schema.text(" "));
+      end += 1;
+    }
     withTrailingParagraph(tr);
     if (follow) tr.setSelection(Selection.near(tr.doc.resolve(end), 1)).scrollIntoView();
   }

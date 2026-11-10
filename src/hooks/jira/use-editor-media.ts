@@ -8,9 +8,11 @@ import { blobDataUrl, imageSize } from "@/lib/image-size";
 import type { AdfNode } from "@/lib/jira/adf";
 import { imageMediaSingle, isImageAttachment, mediaIdIndex, pastedFileName } from "@/lib/jira/adf-media";
 import type { EditorFileHandler } from "@/lib/jira/adf-uploads";
-import { uploadEmbeddedFile } from "@/lib/jira/issue";
+import { attachmentContentUrl, attachmentLinkNode, fileMediaInline } from "@/lib/jira/attachment-link";
+import { uploadEmbeddedFile, uploadLinkedFile } from "@/lib/jira/issue";
 import { jiraKeys } from "@/lib/jira/keys";
 import { invalidateIssueChange } from "@/lib/jira/mutation-cache";
+import { useJiraSite } from "@/lib/jira/queries";
 import type { RenderedDoc } from "@/lib/jira/rendered-issue";
 
 export type EditorMediaSource = { doc: unknown; rendered: RenderedDoc | undefined };
@@ -26,6 +28,7 @@ export const useEditorMediaContext = () => use(EditorMediaContext);
 
 const NO_ATTACHMENTS: readonly JiraAttachment[] = [];
 const isImageFile = (file: File) => file.type.startsWith("image/");
+const anyFile = () => true;
 
 export function useEditorMedia(issueKey: string, source?: EditorMediaSource): EditorMedia {
   const queryClient = useQueryClient();
@@ -33,15 +36,17 @@ export function useEditorMedia(issueKey: string, source?: EditorMediaSource): Ed
   const saved = useAdfMedia(source?.doc, source?.rendered);
   const [uploaded, setUploaded] = useState<readonly JiraAttachment[]>(NO_ATTACHMENTS);
   const issueAttachments = issueMedia?.attachments ?? NO_ATTACHMENTS;
+  const siteUrl = useJiraSite().data?.siteUrl;
 
   const upload = useMutation({
     mutationFn: async (file: File) => {
+      if (!isImageFile(file)) return { ...(await Effect.runPromise(uploadLinkedFile(issueKey, file))), size: undefined, preview: undefined };
       const named = new File([file], pastedFileName(file.name, new Date()), { type: file.type });
       const [result, size] = await Promise.all([Effect.runPromise(uploadEmbeddedFile(issueKey, named)), imageSize(named)]);
       return { ...result, size, preview: await blobDataUrl(named).catch(() => undefined) };
     },
     onSuccess: ({ attachment, mediaId, preview }) => {
-      queryClient.setQueryData(jiraKeys.attachmentMediaId(attachment.id), mediaId);
+      if (mediaId) queryClient.setQueryData(jiraKeys.attachmentMediaId(attachment.id), mediaId);
       if (preview) queryClient.setQueryData(jiraKeys.attachment("content", attachment.id), preview);
       setUploaded((current) => [...current, attachment]);
       invalidateIssueChange(queryClient, issueKey, false);
@@ -61,8 +66,9 @@ export function useEditorMedia(issueKey: string, source?: EditorMediaSource): Ed
     }
     const add = async (file: File): Promise<AdfNode | null> => {
       const { attachment, mediaId, size } = await mutateAsync(file);
-      return isImageAttachment(attachment) ? imageMediaSingle(mediaId, attachment.filename, size) : null;
+      if (!mediaId) return siteUrl ? attachmentLinkNode(attachment.filename, attachmentContentUrl(siteUrl, attachment.id)) : null;
+      return isImageAttachment(attachment) ? imageMediaSingle(mediaId, attachment.filename, size) : fileMediaInline(mediaId, attachment.filename);
     };
-    return { attachments, known, accepts: isImageFile, add };
-  }, [issueAttachments, uploaded, saved, source?.doc, queryClient, mutateAsync]);
+    return { attachments, known, accepts: anyFile, add };
+  }, [issueAttachments, uploaded, saved, source?.doc, queryClient, mutateAsync, siteUrl]);
 }

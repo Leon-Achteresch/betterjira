@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import { AdfBlock, AdfInline, AdfMarks, AdfMention, AdfStarterKit, AdfTrailingParagraph, adfToEditor, editorToAdf, type AdfNode } from "./adf";
 import { imageMediaSingle } from "./adf-media";
 import { AdfUploadPlaceholder, finishUploadPlaceholder, startUploadPlaceholder, uploadPlaceholderPos } from "./adf-uploads";
+import { attachmentContentUrl, attachmentLinkNode, fileMediaInline } from "./attachment-link";
 
 const schema = getSchema([AdfStarterKit, AdfInline, AdfBlock, AdfMarks, AdfMention, AdfTrailingParagraph, AdfUploadPlaceholder]);
 const plugins = [AdfTrailingParagraph, AdfUploadPlaceholder].flatMap((extension) => extension.config.addProseMirrorPlugins?.call({} as never) ?? []);
@@ -67,5 +68,27 @@ describe("Platzhalter für hochladende Dateien", () => {
     finishUploadPlaceholder(view, id, null);
     expect(uploadPlaceholderPos(view.state, id)).toBeUndefined();
     expect(editorToAdf(view.state.doc.toJSON())).toEqual(doc("Text"));
+  });
+
+  it("setzt Dateichip und Link in die Zeile und lässt dahinter ein unverlinktes Leerzeichen", () => {
+    const href = attachmentContentUrl("https://example.atlassian.net", "46887");
+    const view = viewOf(doc("Siehe "), 7);
+    finishUploadPlaceholder(view, start(view, 7), fileMediaInline("u-2", "Angebot.pdf"));
+    finishUploadPlaceholder(view, start(view, view.state.selection.from), attachmentLinkNode("export.csv", href));
+
+    expect(href).toBe("https://example.atlassian.net/rest/api/3/attachment/content/46887");
+    expect(editorToAdf(view.state.doc.toJSON()).content).toEqual([
+      {
+        type: "paragraph",
+        content: [
+          { type: "text", text: "Siehe " },
+          { type: "mediaInline", attrs: { id: "u-2", type: "file", collection: "", alt: "Angebot.pdf" } },
+          { type: "text", text: " " },
+          { type: "text", text: "export.csv", marks: [{ type: "link", attrs: { href } }] },
+          { type: "text", text: " " },
+        ],
+      },
+    ]);
+    expect(view.state.selection.from).toBe(view.state.doc.content.size - 1);
   });
 });

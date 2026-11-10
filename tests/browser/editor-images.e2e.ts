@@ -99,7 +99,7 @@ test("sperrt das Senden, solange ein Bild hochlädt, und zeigt dabei einen Platz
   await sendFile(editor, "paste", "image.png", "image/png", PNG);
 
   await expect(editor.locator('[data-adf-upload="pending"]')).toBeVisible();
-  await expect(comments(page).getByText("Bild wird hochgeladen")).toBeVisible();
+  await expect(comments(page).getByText("Wird hochgeladen", { exact: true })).toBeVisible();
   const send = comments(page).getByRole("button", { name: "Kommentieren" });
   await expect(send).toBeDisabled();
   await page.keyboard.press("Control+Enter");

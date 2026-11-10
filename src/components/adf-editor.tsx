@@ -242,6 +242,7 @@ export function AdfEditor({
 
   return (
     <div
+      data-file-drop={media ? "" : undefined}
       className={cn(
         "rounded-lg border border-input transition-colors focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50 dark:bg-input/30",
         disabled && "opacity-60",
@@ -316,7 +317,7 @@ export function AdfEditor({
                   className="ml-auto flex items-center gap-1.5 pr-1.5 text-xs text-muted-foreground"
                 >
                   <Spinner />
-                  Bild wird hochgeladen
+                  Wird hochgeladen
                 </motion.span>
               )}
             </AnimatePresence>

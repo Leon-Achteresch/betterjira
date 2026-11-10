@@ -48,11 +48,24 @@ export const attachmentMediaId = (id: string) =>
     }),
   );
 
+const uploadFile = (key: string, file: File) =>
+  uploadAttachments(key, [file]).pipe(
+    Effect.flatMap(([attachment]) =>
+      attachment ? Effect.succeed(attachment) : Effect.fail(new JiraApiError({ status: 502, body: "Jira hat den Anhang nicht bestätigt" })),
+    ),
+  );
+
 export const uploadEmbeddedFile = (key: string, file: File) =>
   Effect.gen(function* () {
-    const [attachment] = yield* uploadAttachments(key, [file]);
-    if (!attachment) return yield* new JiraApiError({ status: 502, body: "Jira hat den Anhang nicht bestätigt" });
+    const attachment = yield* uploadFile(key, file);
     const mediaId = yield* attachmentMediaId(attachment.id);
+    return { attachment, mediaId };
+  });
+
+export const uploadLinkedFile = (key: string, file: File) =>
+  Effect.gen(function* () {
+    const attachment = yield* uploadFile(key, file);
+    const mediaId = yield* attachmentMediaId(attachment.id).pipe(Effect.orElseSucceed(() => undefined));
     return { attachment, mediaId };
   });
 
