@@ -202,6 +202,7 @@ export const IssueComment = Schema.Struct({
   id: Schema.String,
   author: Schema.optional(IssueUser),
   body: Schema.Unknown,
+  renderedBody: Schema.optional(Schema.NullOr(Schema.String)),
   created: Schema.String,
 });
 
