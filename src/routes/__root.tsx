@@ -29,6 +29,7 @@ import { useMainContentFocus } from "@/hooks/use-main-content-focus";
 import { SkipLink } from "@/components/ui/skip-link";
 
 import { useReadabilitySync } from "@/hooks/use-readability";
+import { useFileDropGuard } from "@/hooks/use-file-drop-guard";
 
 function NotificationPoller() {
   useNotificationPoller();
@@ -57,6 +58,11 @@ function AppUpdater() {
 
 function ReadabilitySync() {
   useReadabilitySync();
+  return null;
+}
+
+function FileDropGuard() {
+  useFileDropGuard();
   return null;
 }
 
@@ -154,6 +160,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           <AttentionScheduler />
           <AppUpdater />
           <BackgroundTabClick />
+          <FileDropGuard />
           <IssueTabScopeSync />
         </AdfLinks>
       </TooltipProvider>
