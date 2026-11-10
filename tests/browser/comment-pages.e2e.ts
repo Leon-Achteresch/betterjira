@@ -315,6 +315,45 @@ test("eigene Antwort erscheint sofort im Thread, auch wenn spätere Seiten fehle
   expect(write?.input.parentId).toBe(10002);
 });
 
+test("nur eingebettete Kommentare bleiben ohne „Antworten“, bis ihre Seite sie mit parentId liefert", async ({ page }) => {
+  await pagesOf(page, "() => ({ pageSize: 2 })");
+  await page.goto(ISSUE("DEMO-1", "default"));
+  // The detail embeds all seven, so the count is complete before the pages confirm any parentId.
+  await expect(progress(page)).toHaveText("7 von 7 Kommentaren geladen");
+  await expect(more(page)).toBeVisible();
+  await expect.poll(() => startsOf(page)).toEqual([0]);
+  const entry = (text: string) => section(page).locator("article").filter({ hasText: text });
+  const replyButton = (text: string) => entry(text).getByRole("button", { name: "Antworten" });
+  const rootThread = items(page).filter({ hasText: "Ich habe eine Rückfrage" }).first();
+  const pagedRoots = ["Die erste Fassung", "Ich habe eine Rückfrage"];
+  const embeddedOnly = ["Die Reihenfolge folgt", "Automatischer Hinweis", "Danke, dann passt", "nicht mehr existiert", "Der aktuelle Stand"];
+  await expect(items(page)).toHaveCount(7);
+  for (const text of pagedRoots) await expect(replyButton(text)).toHaveCount(1);
+  for (const text of embeddedOnly) await expect(replyButton(text)).toHaveCount(0);
+  await expect(rootThread.locator("ol > li")).toHaveCount(0);
+
+  await more(page).click();
+  await expect.poll(() => startsOf(page)).toEqual([0, 2]);
+  await expect(rootThread.locator("ol > li").filter({ hasText: "Die Reihenfolge folgt" })).toBeVisible();
+  for (const text of ["Die Reihenfolge folgt", "Automatischer Hinweis"]) await expect(replyButton(text)).toHaveCount(1);
+  for (const text of embeddedOnly.slice(2)) await expect(replyButton(text)).toHaveCount(0);
+
+  await more(page).click();
+  await more(page).click();
+  await expect(progress(page)).toHaveText("Alle 7 Kommentare geladen");
+  await expect(rootThread.locator("ol > li")).toHaveCount(2);
+  for (const text of [...pagedRoots, ...embeddedOnly]) await expect(replyButton(text)).toHaveCount(1);
+
+  await replyButton("Die Reihenfolge folgt").click();
+  const reply = page.getByRole("textbox", { name: "Antwort", exact: true });
+  await expect(reply).toBeFocused();
+  await reply.pressSequentially("QA: Antwort unter nachgeladener Antwort");
+  await section(page).getByRole("button", { name: "Antwort senden" }).click();
+  await expect(rootThread.locator("ol > li").filter({ hasText: "QA: Antwort unter nachgeladener Antwort" })).toBeVisible();
+  const write = (await qa(page)).writes.filter((item) => item.path.endsWith("/comment")).at(-1);
+  expect(write?.input.parentId).toBe(10002);
+});
+
 test("Tastatur und 390 px dunkel ohne Seitenüberlauf", async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.emulateMedia({ colorScheme: "dark", reducedMotion: "reduce" });

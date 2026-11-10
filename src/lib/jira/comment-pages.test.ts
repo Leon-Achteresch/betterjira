@@ -122,6 +122,27 @@ describe("eigene neue Kommentare", () => {
     ]);
     expect(thread.comments.find(({ id }) => id === "c2")?.parentId).toBe("c1");
   });
+  it("behält die gesendete Antwort im Thread, wenn das Detail sie ohne parentId einbettet und Seite 0 sie nicht enthält", () => {
+    const detail = page(0, ["c1", "c2", "c3"], { total: 3 });
+    const posted = withPostedComment(undefined, { ...comment("c3"), parentId: "c1" });
+    const thread = summarizeCommentPages(detail, [page(0, ["c1"], { startAt: 0, total: 3 })], posted);
+    expect(thread.comments.find(({ id }) => id === "c3")?.parentId).toBe("c1");
+    expect(thread.comments.map(({ id }) => id)).toEqual(["c1", "c2", "c3"]);
+    expect(thread.loaded).toBe(3);
+  });
+});
+
+describe("nur eingebettete Kommentare", () => {
+  it("markiert Einträge, die weder eine Seite noch ein eigener Kommentar bestätigt", () => {
+    const detail = page(0, ["c1", "c2", "c3", "c4"], { total: 4 });
+    expect([...summarizeCommentPages(detail, []).embeddedOnly]).toEqual(["c1", "c2", "c3", "c4"]);
+    const first = [page(0, ["c1", "c2"], { startAt: 0, total: 4 })];
+    const posted = withPostedComment(undefined, { ...comment("c3"), parentId: "c1" });
+    expect([...summarizeCommentPages(detail, first).embeddedOnly]).toEqual(["c3", "c4"]);
+    expect([...summarizeCommentPages(detail, first, posted).embeddedOnly]).toEqual(["c4"]);
+    const all = [...first, { requestedAt: 2, startAt: 2, total: 4, comments: [comment("c3"), { ...comment("c4"), parentId: "c1" }] }];
+    expect(summarizeCommentPages(detail, all).embeddedOnly.size).toBe(0);
+  });
 });
 
 describe("commentProgressLabel", () => {

@@ -43,6 +43,13 @@ const stored = async (page: Page): Promise<Record<string, StoredWorkspace>> => {
   );
   return Object.fromEntries(Object.entries(raw).map(([id, workspace]) => [id, migrated(workspace)]));
 };
+// Raw storage without the test-side migration: proves the app itself migrated and saved the legacy drafts.
+const rawStored = (page: Page): Promise<Record<string, StoredWorkspace>> =>
+  page.evaluate(() => JSON.parse(localStorage.getItem("betterjira-workspaces") ?? "{}").state.workspaces);
+const expectSavedMigrated = (workspace: StoredWorkspace, key: string) => {
+  expect(workspace.drafts ?? {}).toEqual({});
+  expect(workspace.commentDrafts?.[key]).toBeDefined();
+};
 const draftText = (workspace: StoredWorkspace, key: string) =>
   workspace.commentDrafts?.[key]?.content.map((block) => block.content?.map((node) => node.text ?? "").join("") ?? "").join("\n");
 
@@ -127,6 +134,10 @@ test("Öffnen setzt im Ticket fort und überschreibt keinen Entwurf", async ({ p
   expect(after[own].commentDrafts).toEqual(before[own].commentDrafts);
   expect(after[own].contexts["DEMO-4"].note).toBe(before[own].contexts["DEMO-4"].note);
   expect(after[colleague]).toEqual(before[colleague]);
+  const raw = await rawStored(page);
+  expectSavedMigrated(raw[own], "DEMO-3");
+  expectSavedMigrated(raw[colleague], "DEMO-12");
+  expect(draftText(raw[colleague], "DEMO-12")).toBe("QA-Entwurf eines anderen Kontos");
 });
 
 test("Anheften und Lösen bleibt mit Weiterarbeiten synchron", async ({ page }) => {

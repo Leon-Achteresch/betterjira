@@ -22,6 +22,8 @@ export type LoadedComments = {
   total?: number;
   next?: number;
   incomplete: boolean;
+  /** Ids only known from the embedded detail response: no page and no own post confirmed their parentId. */
+  embeddedOnly: ReadonlySet<string>;
 };
 
 const count = (value: number | undefined) =>
@@ -44,16 +46,23 @@ export const summarizeCommentPages = (
   pages: readonly CommentPage[],
   posted: readonly JiraComment[] = [],
 ): LoadedComments => {
+  // Precedence: embedded detail < own posted comment < /comment pages; only the latter two carry parentId.
   const byId = new Map<string, JiraComment>();
   for (const comment of first.comments) if (!byId.has(comment.id)) byId.set(comment.id, comment);
+  const confirmed = new Set<string>();
+  for (const comment of posted) {
+    confirmed.add(comment.id);
+    byId.set(comment.id, comment);
+  }
   const fetched = new Set<string>();
   for (const page of pages)
     for (const comment of page.comments)
       if (!fetched.has(comment.id)) {
         fetched.add(comment.id);
+        confirmed.add(comment.id);
         byId.set(comment.id, comment);
       }
-  for (const comment of posted) if (!byId.has(comment.id)) byId.set(comment.id, comment);
+  const embeddedOnly = new Set([...byId.keys()].filter((id) => !confirmed.has(id)));
   const last = pages.at(-1);
   const reported = [first, ...pages].reduce<number | undefined>((known, page) => {
     const total = count(page.total);
@@ -68,6 +77,7 @@ export const summarizeCommentPages = (
     total,
     next,
     incomplete: next === undefined && total !== undefined && loaded < total,
+    embeddedOnly,
   };
 };
 
@@ -76,7 +86,7 @@ export const withPostedComment = (posted: readonly JiraComment[] | undefined, co
   comment,
 ];
 
-export const commentProgressLabel = ({ loaded, total, next, incomplete }: LoadedComments) => {
+export const commentProgressLabel = ({ loaded, total, next, incomplete }: Omit<LoadedComments, "embeddedOnly">) => {
   const known = total === undefined ? `${loaded} Kommentare geladen · Gesamtzahl unbekannt` : `${loaded} von ${total} Kommentaren geladen`;
   if (incomplete) return `${known} · Jira liefert keine weiteren`;
   if (total === undefined && next === undefined) return `${known} · Jira liefert keine weiteren`;

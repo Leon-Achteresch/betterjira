@@ -250,6 +250,7 @@ export function IssueComments({ issue, pages }: { issue: JiraIssueDetail; pages:
                     thread={thread}
                     replyLabel={replies.labelFor(thread.root)}
                     onReply={replies.canReply && pages.firstPageLoaded ? (comment) => replies.start(comment, thread.root) : undefined}
+                    canReply={(comment) => !pages.embeddedOnly.has(comment.id)}
                     headerAction={(comment) => (
                       <CommentLinkAction available={link.available(comment.id)} onCopy={() => void link.copy(comment.id)} />
                     )}

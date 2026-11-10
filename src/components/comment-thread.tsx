@@ -46,19 +46,22 @@ export function CommentThreadView({
   thread,
   replyLabel,
   onReply,
+  canReply = () => true,
   headerAction,
   replyBox,
 }: {
   thread: CommentThread;
   replyLabel?: string;
   onReply?: (comment: IssueComment) => void;
+  canReply?: (comment: IssueComment) => boolean;
   headerAction?: (comment: IssueComment) => ReactNode;
   replyBox?: ReactNode;
 }) {
   const reduce = useReducedMotion();
+  const replyTo = (comment: IssueComment) => (canReply(comment) ? onReply : undefined);
   return (
     <div className="flex flex-col gap-3">
-      <CommentEntry comment={thread.root} replyLabel={replyLabel} onReply={onReply} headerAction={headerAction} />
+      <CommentEntry comment={thread.root} replyLabel={replyLabel} onReply={replyTo(thread.root)} headerAction={headerAction} />
       {thread.replies.length > 0 && (
         <ol className="ml-8 flex flex-col gap-4 border-l border-border pl-4">
           <AnimatePresence initial={false}>
@@ -71,7 +74,7 @@ export function CommentThreadView({
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.18, ease: EASE_OUT }}
               >
-                <CommentEntry comment={reply} replyLabel={replyLabel} onReply={onReply} headerAction={headerAction} />
+                <CommentEntry comment={reply} replyLabel={replyLabel} onReply={replyTo(reply)} headerAction={headerAction} />
               </motion.li>
             ))}
           </AnimatePresence>
