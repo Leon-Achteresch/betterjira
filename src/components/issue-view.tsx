@@ -8,11 +8,13 @@ import { motion, useReducedMotion, type Variants } from "motion/react";
 import { ChevronRightIcon } from "lucide-react";
 import { CreateBranchDialog } from "@/components/development/create-branch-dialog";
 import { IssueDevelopment } from "@/components/development/issue-development";
+import { IssueAttachmentPreview } from "@/components/issue-attachment-preview";
 import { IssueComments } from "@/components/issue-comments";
 import { IssueMediaProvider } from "@/components/issue-media-provider";
 import { IssueDrawer, type IssueDrawerTab } from "@/components/issue-drawer";
 import { EditableField, FieldValue, richFieldIds } from "@/components/issue-fields";
 import { IssueStatusMenu } from "@/components/issue-status-menu";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { IssueActions } from "@/components/issues/issue-actions";
 import { IssueLinksPanel } from "@/components/issues/issue-links-panel";
@@ -30,6 +32,7 @@ import { useRemoteLinks } from "@/hooks/jira/use-remote-links";
 import { useIssueCommentPages } from "@/hooks/jira/use-issue-comment-pages";
 import { useIssueRendered } from "@/hooks/jira/use-issue-rendered";
 import { useIssueView } from "@/hooks/jira/use-issue-view";
+import { ATTACHMENT_PREVIEW_LIMIT } from "@/lib/attachment-preview";
 import { EASE_OUT } from "@/lib/ease";
 import { useJiraSite, type JiraIssueDetail } from "@/lib/jira/queries";
 import { renderedDescription } from "@/lib/jira/rendered-issue";
@@ -166,6 +169,7 @@ export function IssueView({
   const issue = view.load.data;
   const { fields } = issue;
   const subtasks = fields.subtasks ?? [];
+  const attachmentCount = fields.attachment?.length ?? 0;
 
   return (
     <motion.article variants={container} initial="hidden" animate="show" className={LAYOUT.article}>
@@ -199,7 +203,7 @@ export function IssueView({
 
         <IssueActions
           actions={actions}
-          attachmentCount={fields.attachment?.length ?? 0}
+          attachmentCount={attachmentCount}
           timeSpent={fields.timetracking?.timeSpent}
           refreshing={view.refreshing}
           onRefresh={view.refresh}
@@ -237,6 +241,21 @@ export function IssueView({
               )}
             </EditableField>
           </Section>
+
+          {attachmentCount > 0 && (
+            <Section
+              title={`Anhänge · ${attachmentCount}`}
+              aside={
+                attachmentCount > ATTACHMENT_PREVIEW_LIMIT && (
+                  <Button variant="ghost" size="sm" className="-my-1.5 h-8 rounded-xl px-2 text-xs text-muted-foreground" onClick={() => actions.show("attachments")}>
+                    Alle anzeigen
+                  </Button>
+                )
+              }
+            >
+              <IssueAttachmentPreview />
+            </Section>
+          )}
 
           <JiraHelpdeskLinks references={helpdesk} />
 

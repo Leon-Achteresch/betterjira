@@ -415,6 +415,12 @@ Integration offener PRs:
 - Suche und Dateityp-Filter arbeiten nur auf den geladenen Metadaten. `window.__qa.opened` enthält extern geöffnete Anhang-URLs; ein Upload wird lokal simuliert und in `window.__qa.writes` protokolliert.
 - Automatisch: `bunx playwright test tests/browser/attachment-filter.e2e.ts --workers=1`; mit `ATTACHMENT_FILTER_SHOTS=<Ordner>` zusätzlich Screenshots.
 
+## Anhänge in der Ticketansicht
+
+- `...fixture.html?scenario=attachments&route=/issue/DEMO-1`: direkt unter der Beschreibung steht der Abschnitt „Anhänge · 7“ mit den sechs neuesten Anhängen als Zeilen-Kacheln (Vorschaubild oder Datei-Symbol, Name, Größe). „Alle anzeigen“ erscheint erst ab dem siebten Anhang und öffnet „Details“ → „Anhänge“ mit Suche, Sortierung und Upload.
+- Ein Bild öffnet die Großansicht, jede andere Datei den simulierten Opener (`window.__qa.opened`). Ohne Anhänge (`window.__qaAttachments = []` per `addInitScript`) fehlt der Abschnitt ganz.
+- Automatisch: `bunx playwright test tests/browser/ticket-attachments.e2e.ts --workers=1`; mit `TICKET_ATTACHMENTS_SHOTS=<Ordner>` zusätzlich Screenshots. Auswahl und Reihenfolge: `src/lib/attachment-preview.test.ts`.
+
 ## Anhänge sortieren
 
 - Fünf lokale Testanhänge an `DEMO-1` (natürliche Namen, leerer Name, ungültiges Datum, gleiche Größe und gleicher Zeitpunkt) und zwei an `DEMO-2`: `...fixture.html?scenario=attachments&route=/issue/DEMO-1`, dann „Weitere Ticketaktionen“ → „Anhänge“.
