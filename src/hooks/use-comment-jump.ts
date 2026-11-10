@@ -5,6 +5,27 @@ import type { IssueCommentPages } from "@/hooks/jira/use-issue-comment-pages";
 import { commentJumpState, refetchProgress } from "@/lib/jira/comment-thread";
 
 const HIGHLIGHT_MS = 2000;
+const USER_SCROLL = ["wheel", "touchstart", "pointerdown", "keydown"] as const;
+
+// Content above the target can still change height after the first scroll (rendered HTML arrives, images load).
+// Until the highlight ends or the user takes over, re-center the target whenever the scroll content resizes.
+const followTarget = (target: HTMLElement, center: () => void) => {
+  const content = target.closest<HTMLElement>("[data-scroll-restoration-id]")?.firstElementChild ?? document.body;
+  let initial = true;
+  const observer = new ResizeObserver(() => {
+    if (initial) initial = false;
+    else center();
+  });
+  const stop = () => {
+    observer.disconnect();
+    clearTimeout(timer);
+    for (const type of USER_SCROLL) window.removeEventListener(type, stop, true);
+  };
+  const timer = setTimeout(stop, HIGHLIGHT_MS);
+  for (const type of USER_SCROLL) window.addEventListener(type, stop, { capture: true, passive: true });
+  observer.observe(content);
+  return stop;
+};
 
 type RefetchStart = { commentId: string; at: number };
 
@@ -18,6 +39,7 @@ export function useCommentJump(pages: JumpPages, commentId: string | undefined, 
   const [highlighted, setHighlighted] = useState<string | undefined>(undefined);
   const [refetchStart, setRefetchStart] = useState<RefetchStart | undefined>(undefined);
   const handled = useRef<string | undefined>(undefined);
+  const stopFollowing = useRef<(() => void) | undefined>(undefined);
   const searchClosed = useRef<string | undefined>(undefined);
   const latest = useRef({ onHandled, closeSearch, refetch: pages.refetch, loadMore: pages.loadMore });
   useLayoutEffect(() => {
@@ -63,11 +85,16 @@ export function useCommentJump(pages: JumpPages, commentId: string | undefined, 
     }
     setHighlighted(commentId);
     requestAnimationFrame(() => {
-      document
-        .querySelector<HTMLElement>(`[data-comment-id="${CSS.escape(commentId)}"]`)
-        ?.scrollIntoView({ block: "center", behavior: reduce ? "auto" : "smooth" });
+      const target = document.querySelector<HTMLElement>(`[data-comment-id="${CSS.escape(commentId)}"]`);
+      if (!target) return;
+      const center = () => target.scrollIntoView({ block: "center", behavior: reduce ? "auto" : "smooth" });
+      center();
+      stopFollowing.current?.();
+      stopFollowing.current = followTarget(target, center);
     });
   }, [commentId, state, reduce, loading, next]);
+
+  useEffect(() => () => stopFollowing.current?.(), []);
 
   useEffect(() => {
     if (!highlighted) return;

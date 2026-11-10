@@ -212,6 +212,21 @@ test("zeigt Skeletons in Zielgröße, solange die gerenderte Fassung lädt", asy
   expect(Math.round((await image.boundingBox())!.height)).toBe(240);
 });
 
+test("springt zu einer Antwort unter Kommentarbildern und hält sie im Blick, während die Bilder laden", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.addInitScript(() => Object.assign(window, { __qaAttachmentRule: () => ({ delayMs: 800 }) }));
+  await page.goto(`/tests/browser/fixture.html?scenario=adf-images&route=${encodeURIComponent("/issue/DEMO-1?comment=c-reply")}`);
+  const target = comments(page).locator('[data-comment-id="c-reply"]');
+  await expect(target).toBeVisible();
+  await expect.poll(() => new URL(page.url()).searchParams.get("comment")).toBeNull();
+  await expect(comments(page).locator('[data-adf-media="pending"], [data-adf-media="image"][data-state="loading"]')).toHaveCount(0);
+  await expect(media(target, "image", "46884")).toHaveAttribute("data-state", "loaded");
+  const box = (await target.boundingBox())!;
+  const viewport = page.viewportSize()!;
+  expect(box.y).toBeGreaterThanOrEqual(0);
+  expect(box.y + box.height).toBeLessThanOrEqual(viewport.height);
+});
+
 test("zeigt Hinweis-Chips, wenn die gerenderte Fassung scheitert", async ({ page }) => {
   // Comment pages fail too; otherwise their rendered body would resolve the comment media.
   await page.addInitScript(() => Object.assign(window, { __qaRenderedRule: () => ({ status: 404 }), __qaCommentPagesRule: () => ({ status: 503 }) }));
