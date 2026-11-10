@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   commentPageKeys,
   commentProgressLabel,
+  embeddedCommentsChanged,
   initialCommentPosition,
   nextCommentPosition,
+  pagesOutdatedBy,
   summarizeCommentPages,
   withEditedPostedComment,
   withoutPostedComment,
@@ -186,5 +188,26 @@ describe("commentPageKeys", () => {
     expect(key).not.toEqual(commentPageKeys.issue("cloud-b", "user-a", "DEMO-1"));
     expect(key).not.toEqual(commentPageKeys.issue("cloud-a", "user-b", "DEMO-1"));
     expect(key).not.toEqual(commentPageKeys.issue("cloud-a", "user-a", "DEMO-2"));
+  });
+});
+
+describe("Kommentarseiten nach einem Detailabruf", () => {
+  const field = (total: number, ...entries: [string, string?][]) => ({ total, comments: entries.map(([id, updated]) => ({ id, updated })) });
+
+  it("erkennt neue, bearbeitete und gelöschte eingebettete Kommentare", () => {
+    const before = field(2, ["c1", "t1"], ["c2", "t1"]);
+    expect(embeddedCommentsChanged(before, field(2, ["c1", "t1"], ["c2", "t1"]))).toBe(false);
+    expect(embeddedCommentsChanged(before, field(3, ["c1", "t1"], ["c2", "t1"], ["c3", "t2"]))).toBe(true);
+    expect(embeddedCommentsChanged(before, field(2, ["c1", "t1"], ["c2", "t2"]))).toBe(true);
+    expect(embeddedCommentsChanged(before, field(1, ["c1", "t1"]))).toBe(true);
+    expect(embeddedCommentsChanged(undefined, undefined)).toBe(false);
+  });
+
+  it("lädt nur ruhende Seiten neu, die älter sind als der Detailabruf", () => {
+    expect(pagesOutdatedBy({ dataUpdatedAt: 100, fetchStatus: "idle" }, 200)).toBe(true);
+    expect(pagesOutdatedBy({ dataUpdatedAt: 300, fetchStatus: "idle" }, 200)).toBe(false);
+    expect(pagesOutdatedBy({ dataUpdatedAt: 100, fetchStatus: "fetching" }, 200)).toBe(false);
+    expect(pagesOutdatedBy({ dataUpdatedAt: 0, fetchStatus: "idle" }, 200)).toBe(false);
+    expect(pagesOutdatedBy(undefined, 200)).toBe(false);
   });
 });

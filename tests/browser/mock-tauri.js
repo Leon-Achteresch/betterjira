@@ -502,6 +502,11 @@ const commentWindow = (issue) => {
   const limit = window.__qa.commentDetailLimit;
   return { startAt: 0, maxResults: limit ?? all.length, total: all.length, comments: all.slice(0, limit).map(({ parentId, ...rest }) => rest) };
 };
+window.__qaForeignReply = (key, parentId, text) => {
+  const issue = issues.find((entry) => entry.key === key);
+  issue.fields.comment.comments.push({ id: String(++nextCommentId), author: lea, created: new Date().toISOString(), body: paragraph(text), parentId });
+  issue.fields.comment.total = issue.fields.comment.comments.length;
+};
 const attachmentSortFixture = (id, filename, mimeType, size, created) => ({ id, filename, mimeType, size, created, author });
 if (scenario === "attachment-sort") {
   issues[0].fields.attachment = [

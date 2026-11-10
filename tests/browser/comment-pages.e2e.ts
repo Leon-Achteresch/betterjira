@@ -7,7 +7,12 @@ type QaState = {
   commands: string[];
   delayMs: number;
 };
-type QaWindow = { __qa: QaState; __qaCommentFail?: boolean; __qaEditorRef?: Element };
+type QaWindow = {
+  __qa: QaState;
+  __qaCommentFail?: boolean;
+  __qaEditorRef?: Element;
+  __qaForeignReply: (key: string, parentId: string, text: string) => void;
+};
 
 const ISSUE = (key: string, scenario = "comment-pages") =>
   `/tests/browser/fixture.html?scenario=${scenario}&route=/issue/${key}`;
@@ -369,6 +374,23 @@ test("nur eingebettete Kommentare bleiben ohne „Antworten“ und ohne Menü, b
   await expect(rootThread.locator("ol > li").filter({ hasText: "QA: Antwort unter nachgeladener Antwort" })).toBeVisible();
   const write = (await qa(page)).writes.filter((item) => item.path.endsWith("/comment")).at(-1);
   expect(write?.input.parentId).toBe(10002);
+});
+
+test("fremde Antwort hängt nach dem Aktualisieren im Thread und bekommt „Antworten“ und Menü", async ({ page }) => {
+  await page.goto(ISSUE("DEMO-1", "default"));
+  const thread = items(page).filter({ hasText: "Ich habe eine Rückfrage" }).first();
+  const foreign = thread.locator("article").filter({ hasText: "QA: Fremde Antwort" });
+  await expect(thread.getByRole("button", { name: "Antworten" }).first()).toBeVisible();
+  await expect.poll(() => startsOf(page)).toEqual([0]);
+
+  await page.evaluate(() => (window as unknown as QaWindow).__qaForeignReply("DEMO-1", "10002", "QA: Fremde Antwort"));
+  await page.getByRole("button", { name: "Weitere Ticketaktionen" }).click();
+  await page.getByRole("menuitem", { name: "Aktualisieren" }).click();
+
+  await expect(foreign).toBeVisible();
+  await expect(foreign.getByRole("button", { name: "Antworten" })).toHaveCount(1);
+  await expect(foreign.getByRole("button", { name: "Weitere Aktionen", exact: true })).toHaveCount(1);
+  expect(await startsOf(page)).toEqual([0, 0]);
 });
 
 test("Tastatur und 390 px dunkel ohne Seitenüberlauf", async ({ page }, testInfo) => {

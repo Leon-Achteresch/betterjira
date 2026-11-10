@@ -47,7 +47,6 @@ export function useIssueCommentPages(issueKey: string, embedded: readonly (typeo
     getNextPageParam: (_last, pages) => summarizeCommentPages(first, pages).next,
     enabled: !!cloudId && !!accountId,
     staleTime: Infinity,
-    refetchOnMount: false,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
   });

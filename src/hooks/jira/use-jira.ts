@@ -5,6 +5,7 @@ import { resolvePendingMedia } from "@/hooks/jira/use-pending-uploads";
 import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { Effect, Schema } from "effect";
 import { currentSite, jira, jiraImage, jiraSend, logout, runLogin } from "@/lib/jira/client";
+import { commentPageKeys, embeddedCommentsChanged, pagesOutdatedBy } from "@/lib/jira/comment-pages";
 import { RawComment } from "@/lib/jira/comment-thread";
 import { JiraStatus } from "@/lib/jira/status";
 import { JiraUser } from "@/lib/jira/user";
@@ -270,8 +271,18 @@ export const issueQuery = (key: string, scope: JiraQueryScope | undefined, clien
   queryKey: jiraKeys.issueDetail(key, scope),
   enabled: !!scope,
   retryOnMount: false,
-  queryFn: ({ signal }: { signal: AbortSignal }) =>
-    Effect.runPromise(withJiraQueryScope(client, scope, jira(`/issue/${encodeURIComponent(key)}?fields=*all&expand=names,editmeta`, IssueDetail)), { signal }),
+  queryFn: async ({ signal }: { signal: AbortSignal }) => {
+    const startedAt = Date.now();
+    const issue = await Effect.runPromise(
+      withJiraQueryScope(client, scope, jira(`/issue/${encodeURIComponent(key)}?fields=*all&expand=names,editmeta`, IssueDetail)),
+      { signal },
+    );
+    const previous = client.getQueryData<JiraIssueDetail>(jiraKeys.issueDetail(key, scope));
+    const pagesKey = scope && commentPageKeys.issue(scope.cloudId, scope.accountId, key);
+    if (previous && pagesKey && embeddedCommentsChanged(previous.fields.comment, issue.fields.comment) && pagesOutdatedBy(client.getQueryState(pagesKey), startedAt))
+      void client.invalidateQueries({ queryKey: pagesKey, exact: true });
+    return issue;
+  },
 });
 
 const TransitionField = Schema.Struct({

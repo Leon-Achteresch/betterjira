@@ -96,6 +96,17 @@ export const withEditedPostedComment = (
   updated: string,
 ): JiraComment[] => (posted ?? []).map((comment) => (comment.id === id ? { ...comment, body, updated } : comment));
 
+type EmbeddedComments = { total?: number; comments: readonly { id: string; updated?: string }[] } | undefined;
+
+const embeddedSignature = (field: EmbeddedComments) =>
+  JSON.stringify([field?.total, (field?.comments ?? []).map(({ id, updated }) => [id, updated])]);
+
+export const embeddedCommentsChanged = (previous: EmbeddedComments, next: EmbeddedComments) =>
+  embeddedSignature(previous) !== embeddedSignature(next);
+
+export const pagesOutdatedBy = (pages: { dataUpdatedAt: number; fetchStatus: string } | undefined, detailStartedAt: number) =>
+  !!pages && pages.fetchStatus === "idle" && pages.dataUpdatedAt > 0 && pages.dataUpdatedAt < detailStartedAt;
+
 export const commentProgressLabel = ({ loaded, total, next, incomplete }: Omit<LoadedComments, "embeddedOnly">) => {
   const known = total === undefined ? `${loaded} Kommentare geladen · Gesamtzahl unbekannt` : `${loaded} von ${total} Kommentaren geladen`;
   if (incomplete) return `${known} · Jira liefert keine weiteren`;
