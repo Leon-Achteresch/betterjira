@@ -13,13 +13,11 @@ import { useAttachmentFilter } from "@/hooks/use-attachment-filter";
 import { useJiraAttachmentImage, useJiraUploadAttachments } from "@/hooks/jira/use-issue-mutations";
 import { ATTACHMENT_KINDS, type AttachmentKind, attachmentName } from "@/lib/attachment-filter";
 import { EASE_OUT, SPRING_LAYOUT } from "@/lib/ease";
+import { fileSize } from "@/lib/file-size";
 import { useAttachmentSort } from "@/hooks/use-attachment-sort";
 import { type JiraIssueDetail, useJiraSite } from "@/lib/jira/queries";
 
 type Attachment = NonNullable<JiraIssueDetail["fields"]["attachment"]>[number];
-
-const fileSize = (bytes: number) =>
-  bytes < 1024 ? `${bytes} B` : bytes < 1024 ** 2 ? `${(bytes / 1024).toFixed(0)} KB` : `${(bytes / 1024 ** 2).toFixed(1)} MB`;
 
 function Thumbnail({ attachment }: { attachment: Attachment }) {
   const image = useJiraAttachmentImage(attachment.id, "thumbnail");
