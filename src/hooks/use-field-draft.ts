@@ -64,7 +64,11 @@ export function useFieldDraft({
     setNotice(undefined);
     try {
       if (mode === "wiki") await wikiEdit.mutateAsync({ [field]: submitted.text });
-      else if (mode === "adf") await edit.mutateAsync({ [field]: encode("richtext", parseAdfDraft(submitted.text)) });
+      else if (mode === "adf") {
+        const doc = parseAdfDraft(submitted.text);
+        if (!doc) return setNotice("Der Entwurf lässt sich nicht lesen und wurde nicht gespeichert. Verwirf ihn oder wechsle auf Wiki-Markup.");
+        await edit.mutateAsync({ [field]: encode("richtext", doc) });
+      }
       else await edit.mutateAsync({ [field]: encode("text", submitted.text) });
       if (complete(id, submitted)) onClose();
       else setNotice("Gespeichert. Deine neueren Änderungen bleiben als Entwurf erhalten.");
