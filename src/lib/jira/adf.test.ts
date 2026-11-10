@@ -149,6 +149,25 @@ describe("ADF im Editor", () => {
     expect(appendBlocks(undefined, [paragraph(text("V"))]).content).toEqual([paragraph(text("V"))]);
   });
 
+  it("hält hinter einem Block am Ende eine Schreibzeile bereit und speichert sie nicht mit", () => {
+    const media: AdfNode = { type: "mediaSingle", attrs: { layout: "center" }, content: [{ type: "media", attrs: { id: "u", type: "file", collection: "" } }] };
+    const endsWithMedia: AdfNode = { type: "doc", version: 1, content: [paragraph(text("Bild:")), media] };
+    const editor = adfToEditor(endsWithMedia);
+    expect(editor.content?.at(-1)).toEqual({ type: "paragraph", attrs: { trailing: true } });
+    expect(throughEditor(endsWithMedia)).toEqual(endsWithMedia);
+
+    const typed = { ...editor, content: [...editor.content!.slice(0, -1), { type: "paragraph", attrs: { trailing: true }, content: [{ type: "text", text: "danach" }] }] };
+    expect(editorToAdf(typed).content?.at(-1)).toEqual(paragraph(text("danach")));
+
+    const ownEmptyLine: AdfNode = { type: "doc", version: 1, content: [media, { type: "paragraph" }] };
+    expect(throughEditor(ownEmptyLine)).toEqual(ownEmptyLine);
+  });
+
+  it("wertet ein Bild allein als sendbaren Inhalt", () => {
+    const media: AdfNode = { type: "mediaSingle", content: [{ type: "media", attrs: { id: "u", type: "file", collection: "" } }] };
+    expect(hasSendableContent({ type: "doc", content: [media] })).toBe(true);
+  });
+
   it("vergleicht Dokumente nach Inhalt", () => {
     expect(sameAdf(textToAdf("a"), textToAdf("a"))).toBe(true);
     expect(sameAdf(textToAdf("a"), textToAdf("b"))).toBe(false);

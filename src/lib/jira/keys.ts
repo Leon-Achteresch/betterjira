@@ -5,6 +5,7 @@ export const jiraKeys = {
   allIssues: ["jira", "issues"] as const,
   allBoards: ["jira", "board"] as const,
   attachment: (variant: string, id: string) => ["jira", "attachment", variant, id] as const,
+  attachmentMediaId: (id: string) => ["jira", "attachment", "media-id", id] as const,
   wiki: (key: string, field: string) => ["jira", "wiki", key, field] as const,
   site: ["jira", "site"] as const,
   myself: ["jira", "myself"] as const,

@@ -6,7 +6,7 @@ import type { RenderedDoc } from "@/lib/jira/rendered-issue";
 export type AdfMediaRender = {
   pending: boolean;
   matches: ReadonlyMap<object, JiraAttachment>;
-  open: (attachment: JiraAttachment) => void;
+  open?: (attachment: JiraAttachment) => void;
 };
 
 const resolveMedia = createMediaMatchCache<JiraAttachment>();

@@ -262,4 +262,18 @@
   ::selection {
     background-color: color-mix(in oklch, var(--primary) 24%, transparent);
     }
+  .ProseMirror-gapcursor {
+    display: none;
+    pointer-events: none;
+    position: absolute;
+    }
+  .ProseMirror-gapcursor::after {
+    content: "";
+    display: block;
+    position: absolute;
+    top: -2px;
+    width: 1.25rem;
+    border-top: 2px solid var(--primary);
+    }
+  .ProseMirror-focused .ProseMirror-gapcursor { display: block; }
 }

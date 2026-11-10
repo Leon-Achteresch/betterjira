@@ -31,6 +31,7 @@ export const attachmentHitsFromHtml = (html: string, known: ReadonlySet<string>)
       continue;
     }
     if (isAnchor) anchor = undefined;
+    if (isAnchor && /\bexternal-link\b/.test(attribute(attrs, "class") ?? "")) continue;
     const id = idOf(attribute(attrs, isAnchor ? "href" : "src"));
     if (!id || !known.has(id)) continue;
     if (!isAnchor && anchor?.id === id) continue;
@@ -133,6 +134,49 @@ export const mediaThumbnailBox = (media?: Record<string, unknown>): MediaBox => 
 };
 
 export const isImageAttachment = (attachment: { mimeType: string }) => attachment.mimeType.startsWith("image/");
+
+export const mediaIdIndex = <A>(doc: unknown, matches: ReadonlyMap<object, A>) => {
+  const index = new Map<string, A>();
+  for (const node of countedMediaNodes(doc)) {
+    const id = node.attrs?.id;
+    const attachment = matches.get(node);
+    if (typeof id === "string" && id !== "" && attachment) index.set(id, attachment);
+  }
+  return index;
+};
+
+export const matchKnownMedia = <A extends MediaAttachment>(node: unknown, known: ReadonlyMap<string, A>, attachments: readonly A[]) => {
+  const matches = new Map<object, A>();
+  for (const media of countedMediaNodes(node)) {
+    const id = media.attrs?.id;
+    const alt = mediaAltText(media);
+    const named = alt === undefined ? [] : attachments.filter((attachment) => attachment.filename === alt);
+    const attachment = (typeof id === "string" ? known.get(id) : undefined) ?? (named.length === 1 ? named[0] : undefined);
+    if (attachment) matches.set(media, attachment);
+  }
+  return matches;
+};
+
+const MEDIA_FILE_ID = /\/file\/([0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})(?=[/?#]|$)/i;
+
+export const mediaIdFromLocation = (location: string | null | undefined) => (location ? MEDIA_FILE_ID.exec(location)?.[1] : undefined);
+
+export type ImageSize = { width: number; height: number };
+
+export const imageMediaSingle = (mediaId: string, alt: string, size?: ImageSize): AdfNode => ({
+  type: "mediaSingle",
+  attrs: { layout: "align-start" },
+  content: [{ type: "media", attrs: { id: mediaId, type: "file", collection: "", alt, ...size } }],
+});
+
+const GENERIC_IMAGE_NAME = /^image\.[a-z0-9]+$/i;
+const two = (value: number) => String(value).padStart(2, "0");
+
+export const pastedFileName = (name: string, now: Date) => {
+  if (!GENERIC_IMAGE_NAME.test(name)) return name;
+  const stamp = `${now.getFullYear()}${two(now.getMonth() + 1)}${two(now.getDate())}-${two(now.getHours())}${two(now.getMinutes())}${two(now.getSeconds())}`;
+  return name.replace(/^image/i, `image-${stamp}`);
+};
 
 export type MediaMatchState<A> = { pending: boolean; matches: ReadonlyMap<object, A> };
 

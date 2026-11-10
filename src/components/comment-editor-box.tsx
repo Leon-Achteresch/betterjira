@@ -1,8 +1,9 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import { MentionEditor } from "@/components/mention-editor";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import type { EditorMediaSource } from "@/hooks/jira/use-editor-media";
 import { EASE_OUT } from "@/lib/ease";
 import type { AdfNode } from "@/lib/jira/adf";
 import type { MentionCandidate } from "@/lib/jira/people";
@@ -22,6 +23,7 @@ export function CommentEditorBox({
   canSend,
   disabled,
   error,
+  mediaSource,
 }: {
   id: string;
   label: string;
@@ -37,8 +39,10 @@ export function CommentEditorBox({
   canSend: boolean;
   disabled: boolean;
   error?: string;
+  mediaSource?: EditorMediaSource;
 }) {
   const reduce = useReducedMotion();
+  const [uploading, setUploading] = useState(false);
   return (
     <motion.form
       initial={{ opacity: 0, y: reduce ? 0 : -6 }}
@@ -47,7 +51,7 @@ export function CommentEditorBox({
       transition={{ duration: 0.22, ease: EASE_OUT }}
       onSubmit={(event) => {
         event.preventDefault();
-        onSubmit();
+        if (!uploading) onSubmit();
       }}
       className="flex flex-col gap-2"
     >
@@ -62,9 +66,11 @@ export function CommentEditorBox({
         participants={participants}
         onSubmitShortcut={onSubmit}
         onEscape={onCancel}
+        mediaSource={mediaSource}
+        onUploadingChange={setUploading}
       />
       <div className="flex flex-wrap items-center gap-2">
-        <Button type="submit" size="sm" disabled={!canSend}>
+        <Button type="submit" size="sm" disabled={!canSend || uploading}>
           {pending && <Spinner />}
           {submitLabel}
         </Button>

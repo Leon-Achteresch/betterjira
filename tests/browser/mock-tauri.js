@@ -1153,9 +1153,10 @@ const respond = async (request) => {
     if (uploadTarget) {
       const target = issues.find((issue) => issue.key === uploadTarget[1]);
       const text = new TextDecoder().decode(new Uint8Array(request.data ?? []));
-      const names = [...text.matchAll(/filename="([^"]*)"/g)].map((match) => match[1]);
-      const added = names.map((filename) =>
-        attachmentSortFixture(`qa-upload-${++nextId}`, filename, "text/plain", 1, new Date().toISOString()),
+      const parts = [...text.matchAll(/filename="([^"]*)"(?:\r\nContent-Type: ([^\r\n]+))?/g)];
+      const names = parts.map((match) => match[1]);
+      const added = parts.map(([, filename, mimeType]) =>
+        attachmentSortFixture(`qa-upload-${++nextId}`, filename, mimeType ?? "text/plain", 1, new Date().toISOString()),
       );
       target?.fields.attachment.push(...added);
       window.__qa.writes.push({ path, method: request.method, input: { files: names } });
@@ -1488,7 +1489,13 @@ const respond = async (request) => {
     };
   }
   if (issue) return { body: { ...issue, fields: { ...issue.fields, comment: commentWindow(issue) } } };
-  if (/^\/attachment\/(thumbnail|content)\/qa-att-/.test(path)) return { bytes: attachmentSortPixel, contentType: "image/png" };
+  const uploadedContent = path.match(/^\/attachment\/content\/qa-upload-(\d+)$/);
+  if (uploadedContent && request.maxRedirections === 0) {
+    const mediaId = `00000000-0000-4000-8000-${uploadedContent[1].padStart(12, "0")}`;
+    if (window.__qa.withholdMediaId) return { bytes: attachmentSortPixel, contentType: "image/png" };
+    return { status: 303, headers: { location: `https://api.media.atlassian.com/file/${mediaId}/binary?token=test&name=test` }, body: {} };
+  }
+  if (/^\/attachment\/(thumbnail|content)\/qa-(att|upload)-/.test(path)) return { bytes: attachmentSortPixel, contentType: "image/png" };
   if (scenario === "attachments" && /^\/attachment\/(thumbnail|content)\/att-1$/.test(path))
     return { bytes: attachmentSortPixel, contentType: "image/png" };
   const adfImage = scenario === "adf-images" ? path.match(/^\/attachment\/(?:thumbnail|content)\/(\d+)$/) : null;

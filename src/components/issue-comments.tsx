@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { ArrowDownWideNarrowIcon, CheckIcon, ChevronDownIcon, FileTextIcon, InfoIcon, SearchIcon, Trash2Icon, Undo2Icon } from "lucide-react";
 import { CommentActionsMenu } from "@/components/comment-actions-menu";
@@ -66,6 +67,7 @@ export function IssueComments({
   const deletion = useCommentDeletion(issue.key, edits.closeFor);
   const jump = useCommentJump(pages, focusComment, onFocusHandled, view.search.dismiss);
   const reduce = useReducedMotion();
+  const [uploading, setUploading] = useState(false);
   const pageControl = pages.visible && <IssueCommentPages pages={pages} />;
   const firstPageLoading = !pages.firstPageLoaded && !pages.error && !view.hasComments;
   const showList = !firstPageLoading && (view.hasComments || pages.visible);
@@ -73,7 +75,10 @@ export function IssueComments({
   return (
     <div className="flex flex-col gap-6">
       <form
-        onSubmit={view.submit}
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (!uploading) void view.submit();
+        }}
         onFocusCapture={view.composer.onFocusCapture}
         onBlurCapture={view.composer.onBlurCapture}
         className="flex flex-col gap-3"
@@ -89,6 +94,7 @@ export function IssueComments({
           issueKey={issue.key}
           participants={view.participants}
           onSubmitShortcut={() => void view.submit()}
+          onUploadingChange={setUploading}
         />
         <AnimatePresence initial={false}>
           {view.composer.expanded && (
@@ -100,7 +106,7 @@ export function IssueComments({
               transition={{ duration: 0.18, ease: EASE_OUT }}
               className="flex flex-wrap items-center gap-2"
             >
-              <Button type="submit" size="sm" disabled={!view.canSend}>
+              <Button type="submit" size="sm" disabled={!view.canSend || uploading}>
                 {view.pending && <Spinner />}
                 Kommentieren
               </Button>
@@ -304,6 +310,7 @@ export function IssueComments({
                             canSend={edits.canSave}
                             disabled={!edits.ready}
                             error={edits.error}
+                            mediaSource={{ doc: comment.body, rendered: renderedComment(rendered, comment.id, comment.renderedBody) }}
                             extraAction={
                               edits.hasDraft(comment) ? (
                                 <Button type="button" variant="ghost" size="sm" onClick={edits.discardChanges}>

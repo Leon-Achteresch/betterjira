@@ -1,23 +1,83 @@
-import { useImperativeHandle, useLayoutEffect, useRef, useState, type Ref } from "react";
+import { useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, type Ref } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { EditorContent, NodeViewWrapper, ReactNodeViewRenderer, useEditor, useEditorState, type Editor, type ReactNodeViewProps } from "@tiptap/react";
 import type { SuggestionOptions } from "@tiptap/suggestion";
-import { BoldIcon, CodeIcon, ItalicIcon, ListIcon, ListOrderedIcon, type LucideIcon } from "lucide-react";
+import { BoldIcon, CodeIcon, ImagePlusIcon, ItalicIcon, ListIcon, ListOrderedIcon, XIcon, type LucideIcon } from "lucide-react";
 import { AdfContent, AdfNodeView } from "@/components/adf-content";
+import { Tooltip } from "@/components/motion/tooltip";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
+import { EditorMediaContext, useEditorMediaContext, type EditorMedia } from "@/hooks/jira/use-editor-media";
+import { useEditorUploads } from "@/hooks/use-editor-uploads";
 import { EASE_OUT } from "@/lib/ease";
-import { AdfBlock, AdfInline, AdfMarks, AdfMention, AdfStarterKit, adfToEditor, editorToAdf, isAdfDoc, isEditableAdf, type AdfNode } from "@/lib/jira/adf";
+import {
+  AdfBlock,
+  AdfInline,
+  AdfMarks,
+  AdfMention,
+  AdfStarterKit,
+  AdfTrailingParagraph,
+  adfToEditor,
+  editorToAdf,
+  isAdfDoc,
+  isEditableAdf,
+  type AdfNode,
+} from "@/lib/jira/adf";
+import { matchKnownMedia } from "@/lib/jira/adf-media";
+import { AdfUploadPlaceholder } from "@/lib/jira/adf-uploads";
 import { cn } from "@/lib/utils";
 
-function PreservedNode({ node }: ReactNodeViewProps) {
+const MEDIA_NODES = new Set(["mediaSingle", "mediaGroup", "mediaInline"]);
+
+function PreservedNode({ node, selected, deleteNode, editor }: ReactNodeViewProps) {
   const inline = node.type.name === "adfInline";
+  const json = String(node.attrs.json);
+  const adf = useMemo(() => JSON.parse(json) as AdfNode, [json]);
+  const media = useEditorMediaContext();
+  const render = useMemo(
+    () => (media && MEDIA_NODES.has(adf.type) ? { pending: false, matches: matchKnownMedia(adf, media.known, media.attachments) } : undefined),
+    [adf, media],
+  );
+  if (!render) {
+    return (
+      <NodeViewWrapper
+        as={inline ? "span" : "div"}
+        title="Wird unverändert übernommen"
+        className={cn("rounded-sm ring-1 ring-border/60", selected && "ring-ring", inline ? "inline" : "my-1 block p-1")}
+      >
+        <AdfNodeView node={adf} />
+      </NodeViewWrapper>
+    );
+  }
   return (
     <NodeViewWrapper
       as={inline ? "span" : "div"}
-      title="Wird unverändert übernommen"
-      className={cn("rounded-sm ring-1 ring-border/60 data-[selected]:ring-ring", inline ? "inline" : "my-1 block p-1")}
+      data-adf-editor-media={adf.type}
+      className={cn(
+        "group/media relative max-w-full rounded-xl ring-ring/70 transition-shadow",
+        selected && "ring-2",
+        inline ? "inline-block align-middle" : "my-1 block min-h-11 w-fit min-w-11",
+      )}
     >
-      <AdfNodeView node={JSON.parse(String(node.attrs.json))} />
+      <AdfNodeView node={adf} media={render} />
+      {editor.isEditable && (
+        <Tooltip content="Aus dem Text entfernen">
+          <Button
+            type="button"
+            variant="secondary"
+            size="icon-xs"
+            aria-label="Aus dem Text entfernen"
+            className={cn(
+              "absolute top-1.5 right-1.5 size-8 rounded-xl border border-white/20 bg-background/70 opacity-0 shadow-sm backdrop-blur-md transition-opacity group-hover/media:opacity-100 focus-visible:opacity-100",
+              selected && "opacity-100",
+            )}
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={deleteNode}
+          >
+            <XIcon />
+          </Button>
+        </Tooltip>
+      )}
     </NodeViewWrapper>
   );
 }
@@ -38,6 +98,8 @@ export type AdfEditorProps = {
   isSuggestionOpen?: () => boolean;
   onSubmitShortcut?: () => void;
   onEscape?: () => void;
+  media?: EditorMedia;
+  onUploadingChange?: (uploading: boolean) => void;
   aria?: Readonly<Record<string, string | undefined>>;
   ref?: Ref<AdfEditorHandle>;
 };
@@ -47,6 +109,8 @@ const preservedExtensions = [
   AdfInline.extend({ addNodeView: () => ReactNodeViewRenderer(PreservedNode, { as: "span" }) }),
   AdfBlock.extend({ addNodeView: () => ReactNodeViewRenderer(PreservedNode) }),
   AdfMarks,
+  AdfTrailingParagraph,
+  AdfUploadPlaceholder,
 ];
 
 const buildExtensions = (suggestion?: MentionSuggestion) => [
@@ -81,6 +145,8 @@ export function AdfEditor({
   isSuggestionOpen,
   onSubmitShortcut,
   onEscape,
+  media,
+  onUploadingChange,
   aria,
   ref,
 }: AdfEditorProps) {
@@ -90,9 +156,11 @@ export function AdfEditor({
     return { initial, editable: !initial || isEditableAdf(initial), extensions: buildExtensions(suggestion) };
   });
   const emitted = useRef(serialize(value));
-  const handlers = useRef({ onChange, isSuggestionOpen, onSubmitShortcut, onEscape });
+  const uploads = useEditorUploads(media, onUploadingChange);
+  const picker = useRef<HTMLInputElement>(null);
+  const handlers = useRef({ onChange, isSuggestionOpen, onSubmitShortcut, onEscape, uploads });
   useLayoutEffect(() => {
-    handlers.current = { onChange, isSuggestionOpen, onSubmitShortcut, onEscape };
+    handlers.current = { onChange, isSuggestionOpen, onSubmitShortcut, onEscape, uploads };
   });
   const editor = useEditor({
     extensions,
@@ -111,7 +179,7 @@ export function AdfEditor({
         const submit = handlers.current.onSubmitShortcut;
         const escape = handlers.current.onEscape;
         if (submit && isSubmitShortcut(event)) {
-          submit();
+          if (!handlers.current.uploads.uploading) submit();
           return true;
         }
         if (escape && event.key === "Escape") {
@@ -119,6 +187,12 @@ export function AdfEditor({
           return true;
         }
         return false;
+      },
+      handlePaste: (view, event) => handlers.current.uploads.insert(view, [...(event.clipboardData?.files ?? [])], view.state.selection.to),
+      handleDrop: (view, event, _slice, moved) => {
+        if (moved) return false;
+        const pos = view.posAtCoords({ left: event.clientX, top: event.clientY })?.pos ?? view.state.selection.to;
+        return handlers.current.uploads.insert(view, [...(event.dataTransfer?.files ?? [])], pos, true);
       },
     },
   });
@@ -183,7 +257,7 @@ export function AdfEditor({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, transition: { duration: 0.12, ease: EASE_OUT } }}
             transition={{ duration: 0.18, ease: EASE_OUT }}
-            className="flex gap-0.5 border-b border-input p-1"
+            className="flex items-center gap-0.5 border-b border-input p-1"
           >
             {tools.map(({ label: toolLabel, icon: Icon, name, run }) => (
               <Button
@@ -200,10 +274,58 @@ export function AdfEditor({
                 <Icon />
               </Button>
             ))}
+            {uploads.enabled && (
+              <>
+                <input
+                  ref={picker}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  hidden
+                  aria-label={`Bild in ${label} einfügen`}
+                  onChange={(event) => {
+                    const files = [...(event.target.files ?? [])];
+                    event.target.value = "";
+                    uploads.insert(editor.view, files, editor.state.selection.to, true);
+                  }}
+                />
+                <Tooltip content="Bild einfügen. Geht auch per Einfügen aus der Zwischenablage oder Ziehen in den Text.">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-xs"
+                    aria-label="Bild einfügen"
+                    disabled={disabled}
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => picker.current?.click()}
+                  >
+                    <ImagePlusIcon />
+                  </Button>
+                </Tooltip>
+              </>
+            )}
+            <AnimatePresence>
+              {uploads.uploading && (
+                <motion.span
+                  key="uploading"
+                  role="status"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0, transition: { duration: 0.12, ease: EASE_OUT } }}
+                  transition={{ duration: 0.18, ease: EASE_OUT }}
+                  className="ml-auto flex items-center gap-1.5 pr-1.5 text-xs text-muted-foreground"
+                >
+                  <Spinner />
+                  Bild wird hochgeladen
+                </motion.span>
+              )}
+            </AnimatePresence>
           </motion.div>
         )}
       </AnimatePresence>
-      <EditorContent editor={editor} />
+      <EditorMediaContext value={media ?? null}>
+        <EditorContent editor={editor} />
+      </EditorMediaContext>
     </div>
   );
 }

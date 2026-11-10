@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { fetch } from "@tauri-apps/plugin-http";
+import { fetch, type ClientOptions } from "@tauri-apps/plugin-http";
 import { Data, Effect, Fiber, Schema, Semaphore } from "effect";
 import { isRetryableRead, isTransientStatus, JIRA_READ_CONCURRENCY, JIRA_READ_RETRIES, JIRA_MAX_AUTO_RETRY_DELAY, JIRA_WRITE_CONCURRENCY, retryAfterMs } from "./request-policy";
 
@@ -49,7 +49,7 @@ const AccessibleResources = Schema.Array(
 
 const authError = (message: string) => (cause: unknown) => new JiraAuthError({ message, cause });
 
-const send = (url: string, init?: RequestInit) =>
+const send = (url: string, init?: RequestInit & ClientOptions) =>
   Effect.tryPromise({
     try: (signal) => fetch(url, { ...init, signal }),
     catch: authError("Atlassian ist nicht erreichbar"),
@@ -210,7 +210,7 @@ export const currentSite = validSession().pipe(
   Effect.catchTag("NotAuthenticated", () => Effect.succeed(null)),
 );
 
-const authedAttempt = (path: string, init?: RequestInit) =>
+const authedAttempt = (path: string, init?: RequestInit & ClientOptions) =>
   Effect.gen(function* () {
     const call = (session: Session) =>
       send(`https://api.atlassian.com/ex/jira/${session.cloudId}/rest/${path}`, {
@@ -239,7 +239,7 @@ const awaitRateLimit = Effect.gen(function* () {
   }
 });
 
-export type JiraRequestInit = RequestInit & { retry?: boolean };
+export type JiraRequestInit = RequestInit & ClientOptions & { retry?: boolean };
 
 const authedFetch = (path: string, init?: JiraRequestInit) => Effect.gen(function* () {
   const { retry = true, ...requestInit } = init ?? {};
@@ -276,6 +276,14 @@ export const jiraSend = (path: string, init: RequestInit, api: ApiVersion = "api
 
 export const jiraAgile = <S extends Schema.Decoder<unknown>>(path: string, schema: S) =>
   authedFetch(`agile/1.0${path}`).pipe(Effect.flatMap(decode(schema)));
+
+export const jiraRedirectLocation = (path: string) =>
+  Effect.gen(function* () {
+    const response = yield* authedFetch(`api/3${path}`, { headers: { Accept: "*/*" }, maxRedirections: 0 });
+    yield* Effect.promise(() => response.body?.cancel() ?? Promise.resolve()).pipe(Effect.ignore);
+    if (response.status >= 400) return yield* apiError(response, "");
+    return response.headers.get("Location");
+  });
 
 export const jiraImage = (path: string) =>
   Effect.gen(function* () {

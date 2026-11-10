@@ -1,5 +1,6 @@
-import { Mark, Node, getSchema, mergeAttributes, type JSONContent } from "@tiptap/core";
+import { Extension, Mark, Node, getSchema, mergeAttributes, type JSONContent } from "@tiptap/core";
 import { Mention } from "@tiptap/extension-mention";
+import { Plugin, type Transaction } from "@tiptap/pm/state";
 import StarterKit from "@tiptap/starter-kit";
 import { Schema } from "effect";
 import { INLINE_NODES } from "./adf-nodes";
@@ -73,7 +74,7 @@ const attrsFromEditor = (node: JSONContent) => {
   return undefined;
 };
 
-const nodeToEditor = (node: AdfNode): JSONContent => {
+export const adfNodeToEditor = (node: AdfNode): JSONContent => {
   if (node.type === "text") return { type: "text", text: node.text, ...(node.marks?.length && { marks: marksToEditor(node.marks) }) };
   if (isNativeMention(node)) return { type: "mention", attrs: mentionAttrsToEditor(node.attrs ?? {}) };
   if (!EDITABLE_NODES.has(node.type) || node.marks?.length) {
@@ -83,7 +84,7 @@ const nodeToEditor = (node: AdfNode): JSONContent => {
   return {
     type: node.type === "rule" ? "horizontalRule" : node.type,
     ...(attrs && { attrs }),
-    ...(node.content && { content: node.content.map(nodeToEditor) }),
+    ...(node.content && { content: node.content.map(adfNodeToEditor) }),
   };
 };
 
@@ -102,9 +103,20 @@ const nodeFromEditor = (node: JSONContent): AdfNode => {
   };
 };
 
-export const adfToEditor = (doc: AdfNode): JSONContent => ({ type: "doc", content: (doc.content ?? []).map(nodeToEditor) });
+const TRAILING_PARAGRAPH: JSONContent = { type: "paragraph", attrs: { trailing: true } };
 
-export const editorToAdf = (doc: JSONContent): AdfNode => ({ type: "doc", version: 1, content: (doc.content ?? []).map(nodeFromEditor) });
+const isTrailingParagraph = (node: JSONContent | undefined) =>
+  node?.type === "paragraph" && node.attrs?.trailing === true && !node.content?.length;
+
+export const adfToEditor = (doc: AdfNode): JSONContent => {
+  const content = (doc.content ?? []).map(adfNodeToEditor);
+  return { type: "doc", content: content.at(-1)?.type === "adfBlock" ? [...content, TRAILING_PARAGRAPH] : content };
+};
+
+export const editorToAdf = (doc: JSONContent): AdfNode => {
+  const content = doc.content ?? [];
+  return { type: "doc", version: 1, content: (isTrailingParagraph(content.at(-1)) ? content.slice(0, -1) : content).map(nodeFromEditor) };
+};
 
 const preserved = (name: string, inline: boolean) =>
   Node.create({
@@ -147,7 +159,24 @@ export const AdfMention = Mention.extend({
 
 export const AdfStarterKit = StarterKit.configure({ trailingNode: false, link: { openOnClick: false, autolink: true } });
 
-export const adfSchema = getSchema([AdfStarterKit, AdfInline, AdfBlock, AdfMarks, AdfMention]);
+export const withTrailingParagraph = (tr: Transaction) => {
+  const paragraph = tr.doc.type.schema.nodes.paragraph;
+  if (tr.doc.lastChild?.type.name !== "adfBlock" || !paragraph) return tr;
+  return tr.insert(tr.doc.content.size, paragraph.create({ trailing: true }));
+};
+
+export const AdfTrailingParagraph = Extension.create({
+  name: "adfTrailingParagraph",
+  addGlobalAttributes: () => [{ types: ["paragraph"], attributes: { trailing: { default: false, rendered: false, keepOnSplit: false } } }],
+  addProseMirrorPlugins: () => [
+    new Plugin({
+      appendTransaction: (_transactions, _previous, state) =>
+        state.doc.lastChild?.type.name === "adfBlock" ? withTrailingParagraph(state.tr).setMeta("addToHistory", false) : null,
+    }),
+  ],
+});
+
+export const adfSchema = getSchema([AdfStarterKit, AdfInline, AdfBlock, AdfMarks, AdfMention, AdfTrailingParagraph]);
 
 export const isEditableAdf = (doc: AdfNode) => {
   try {
@@ -170,9 +199,11 @@ export const adfToText = (node: AdfNode): string => {
 
 export const AdfDoc = Schema.declare(isAdfDoc);
 
-const containsMention = (node: AdfNode): boolean => node.type === "mention" || (node.content ?? []).some(containsMention);
+const SENDABLE_NODES = new Set(["mention", "media", "mediaInline"]);
 
-export const hasSendableContent = (doc: AdfNode) => adfToText(doc).trim().length > 0 || containsMention(doc);
+const containsSendableNode = (node: AdfNode): boolean => SENDABLE_NODES.has(node.type) || (node.content ?? []).some(containsSendableNode);
+
+export const hasSendableContent = (doc: AdfNode) => adfToText(doc).trim().length > 0 || containsSendableNode(doc);
 
 export const textToAdf = (text: string): AdfNode => ({
   type: "doc",

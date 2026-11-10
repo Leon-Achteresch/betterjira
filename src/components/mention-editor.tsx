@@ -2,20 +2,27 @@ import { useId } from "react";
 import { AdfEditor, type AdfEditorProps } from "@/components/adf-editor";
 import { JiraUserAvatar } from "@/components/jira-user-avatar";
 import { SuggestionList } from "@/components/motion/suggestion-list";
+import { useEditorMedia, type EditorMediaSource } from "@/hooks/jira/use-editor-media";
 import { useMentionSuggestion } from "@/hooks/use-mention-suggestion";
 import type { MentionCandidate } from "@/lib/jira/people";
 
 export function MentionEditor({
   issueKey,
   participants,
+  mediaSource,
   ...editor
-}: Omit<AdfEditorProps, "suggestion" | "isSuggestionOpen" | "aria"> & { issueKey: string; participants: readonly MentionCandidate[] }) {
+}: Omit<AdfEditorProps, "suggestion" | "isSuggestionOpen" | "aria" | "media"> & {
+  issueKey: string;
+  participants: readonly MentionCandidate[];
+  mediaSource?: EditorMediaSource;
+}) {
   const listId = useId();
   const mention = useMentionSuggestion({ listId, issueKey, participants });
+  const media = useEditorMedia(issueKey, mediaSource);
 
   return (
     <>
-      <AdfEditor {...editor} suggestion={mention.suggestion} isSuggestionOpen={mention.isOpen} aria={mention.aria} />
+      <AdfEditor {...editor} media={media} suggestion={mention.suggestion} isSuggestionOpen={mention.isOpen} aria={mention.aria} />
       <SuggestionList
         id={listId}
         label="Personen"

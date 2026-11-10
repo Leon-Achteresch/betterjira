@@ -170,6 +170,6 @@ export function AdfContent({ doc, rendered, className }: { doc: unknown; rendere
   return <div className={cn("flex min-w-0 flex-col gap-3 text-sm leading-relaxed wrap-anywhere [&_li>p]:inline [&_p]:min-h-[1lh]", className)}>{renderNodes(doc.content, media)}</div>;
 }
 
-export function AdfNodeView({ node }: { node: unknown }) {
-  return isAdfNode(node) ? renderNode(node, 0) : null;
+export function AdfNodeView({ node, media }: { node: unknown; media?: AdfMediaRender }) {
+  return isAdfNode(node) ? renderNode(node, 0, media) : null;
 }

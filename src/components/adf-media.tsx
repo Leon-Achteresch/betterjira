@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils";
 const NEAR_VIEWPORT_PX = 400;
 const PULSE = "block animate-pulse bg-muted";
 
-type Open = (attachment: JiraAttachment) => void;
+type Open = ((attachment: JiraAttachment) => void) | undefined;
 type ImageProps = { attachment: JiraAttachment; box: MediaBox; variant: "content" | "thumbnail"; onOpen: Open };
 
 const stop = (event: MouseEvent | KeyboardEvent) => {
@@ -23,7 +23,7 @@ const stop = (event: MouseEvent | KeyboardEvent) => {
   event.preventDefault();
 };
 
-const press = (onPress: () => void) => ({
+const press = (onPress: (() => void) | undefined) => onPress && ({
   role: "button" as const,
   tabIndex: 0,
   onClick: (event: MouseEvent) => {
@@ -74,14 +74,17 @@ function FileChip({ attachment, onOpen }: { attachment: JiraAttachment; onOpen: 
   const name = attachmentName(attachment.filename);
   return (
     <motion.span
-      {...press(() => onOpen(attachment))}
-      whileTap={reduce ? undefined : { scale: 0.97 }}
+      {...press(onOpen && (() => onOpen(attachment)))}
+      whileTap={reduce || !onOpen ? undefined : { scale: 0.97 }}
       transition={SPRING_PRESS}
       data-adf-media="file"
       data-attachment-id={attachment.id}
-      aria-label={`${name} öffnen`}
+      aria-label={onOpen ? `${name} öffnen` : undefined}
       title={name}
-      className="inline-flex min-h-8 max-w-full cursor-pointer items-center gap-2 rounded-xl border bg-background px-2.5 py-1 align-middle text-xs outline-none transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
+      className={cn(
+        "inline-flex min-h-8 max-w-full items-center gap-2 rounded-xl border bg-background px-2.5 py-1 align-middle text-xs outline-none",
+        onOpen && "cursor-pointer transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring",
+      )}
     >
       <FileIcon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
       <span className="truncate font-medium">{name}</span>
@@ -100,16 +103,17 @@ function LoadedImage({ attachment, box, variant, onOpen }: ImageProps) {
   const free = !sized && !!image.data;
   return (
     <motion.span
-      {...press(() => onOpen(attachment))}
-      whileTap={reduce ? undefined : { scale: 0.99 }}
+      {...press(onOpen && (() => onOpen(attachment)))}
+      whileTap={reduce || !onOpen ? undefined : { scale: 0.99 }}
       transition={SPRING_PRESS}
       data-adf-media="image"
       data-attachment-id={attachment.id}
       data-state={image.data ? "loaded" : "loading"}
-      aria-label={`${name} groß anzeigen`}
+      aria-label={onOpen ? `${name} groß anzeigen` : undefined}
       title={name}
       className={cn(
-        "block cursor-zoom-in overflow-hidden rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        "block overflow-hidden rounded-xl outline-none",
+        onOpen && "cursor-zoom-in focus-visible:ring-2 focus-visible:ring-ring",
         free && !box.width && "w-fit",
       )}
       style={free ? { width: box.width, maxWidth: "100%" } : boxStyle(box)}

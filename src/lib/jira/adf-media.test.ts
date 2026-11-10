@@ -4,9 +4,14 @@ import {
   countedMediaNodes,
   createMediaMatchCache,
   hasMediaNodes,
+  imageMediaSingle,
   isAdfNode,
   isImageAttachment,
+  matchKnownMedia,
   matchMediaAttachments,
+  mediaIdFromLocation,
+  mediaIdIndex,
+  pastedFileName,
   mediaSingleBox,
   mediaThumbnailBox,
   needsRenderedFields,
@@ -248,5 +253,51 @@ describe("Live-Formen", () => {
 
   it("HELP-543 Kommentar 65827: Personen-Link unter /secure/ViewProfile.jspa trifft nicht", () => {
     expect(attachmentHitsFromHtml(HELP_543, new Set(["46943", "46944"]))).toEqual([]);
+  });
+});
+
+describe("Medien im Editor", () => {
+  const UUID = "803dbcdc-a0c5-4535-8cf7-996c71f49502";
+  const shot = { id: "1", filename: "shot.png" };
+  const other = { id: "2", filename: "other.png" };
+
+  it("liest die Medien-Kennung aus dem Weiterleitungsziel des Anhangs", () => {
+    expect(mediaIdFromLocation(`https://api.media.atlassian.com/file/${UUID}/binary?token=abc&name=shot.png`)).toBe(UUID);
+    expect(mediaIdFromLocation(`https://api.media.atlassian.com/file/${UUID}`)).toBe(UUID);
+    expect(mediaIdFromLocation("https://example.atlassian.net/secure/attachment/1/shot.png")).toBeUndefined();
+    expect(mediaIdFromLocation(null)).toBeUndefined();
+  });
+
+  it("baut einen Bildknoten, den die Anzeige über den Dateinamen wiederfindet", () => {
+    const node = imageMediaSingle(UUID, "shot.png", { width: 800, height: 400 });
+    expect(node).toEqual({
+      type: "mediaSingle",
+      attrs: { layout: "align-start" },
+      content: [{ type: "media", attrs: { id: UUID, type: "file", collection: "", alt: "shot.png", width: 800, height: 400 } }],
+    });
+    expect(matchMediaAttachments({ type: "doc", content: [node] }, "", [shot, other]).get(node.content![0]!)).toBe(shot);
+  });
+
+  it("ordnet Editor-Knoten über bekannte Kennungen zu, sonst über den eindeutigen Dateinamen", () => {
+    const known = imageMediaSingle(UUID, "");
+    const named = imageMediaSingle("unbekannt", "other.png");
+    const lost = imageMediaSingle("unbekannt", "fehlt.png");
+    const index = mediaIdIndex({ type: "doc", content: [known] }, new Map([[known.content![0]!, shot]]));
+    expect(index.get(UUID)).toBe(shot);
+    expect(matchKnownMedia(known, index, [shot, other]).get(known.content![0]!)).toBe(shot);
+    expect(matchKnownMedia(named, index, [shot, other]).get(named.content![0]!)).toBe(other);
+    expect(matchKnownMedia(named, index, [other, { ...other, id: "3" }]).size).toBe(0);
+    expect(matchKnownMedia(lost, index, [shot, other]).size).toBe(0);
+  });
+
+  it("gibt eingefügten Bildern ohne eigenen Namen einen eindeutigen Namen", () => {
+    const now = new Date(2026, 10, 10, 21, 5, 9);
+    expect(pastedFileName("image.png", now)).toBe("image-20261110-210509.png");
+    expect(pastedFileName("Skizze.png", now)).toBe("Skizze.png");
+  });
+
+  it("zählt Textlinks auf Anhänge nicht als eingebettete Medien", () => {
+    const html = `<p><a href="${SITE}/rest/api/3/attachment/content/2" class="external-link" rel="nofollow noreferrer">other.png</a></p><p><img src="${SITE}/rest/api/3/attachment/content/1" alt="shot.png"></p>`;
+    expect(attachmentHitsFromHtml(html, new Set(["1", "2"]))).toEqual([{ id: "1" }]);
   });
 });
