@@ -14,6 +14,7 @@ import { useFieldDraft, useFieldDraftPresence } from "@/hooks/use-field-draft";
 import { EASE_OUT } from "@/lib/ease";
 import { IS_MAC } from "@/lib/platform";
 import type { JiraIssueDetail } from "@/lib/jira/queries";
+import type { RenderedDoc } from "@/lib/jira/rendered-issue";
 import { cn } from "@/lib/utils";
 
 const HIDDEN = new Set([
@@ -110,11 +111,11 @@ function DevSummary({ items }: { items: (DevOverall & { type: string })[] }) {
   );
 }
 
-export function FieldValue({ value }: { value: unknown }) {
+export function FieldValue({ value, rendered }: { value: unknown; rendered?: RenderedDoc }) {
   if (blank(value) || value === "{}") return <span className="text-muted-foreground">–</span>;
   const dev = typeof value === "string" ? devSummary(value) : undefined;
   if (dev) return <DevSummary items={dev} />;
-  if (isAdf(value)) return <AdfContent doc={value} />;
+  if (isAdf(value)) return <AdfContent doc={value} rendered={rendered} />;
   if (isUser(value)) return <JiraUserLabel user={value} />;
   if (Array.isArray(value)) {
     return (

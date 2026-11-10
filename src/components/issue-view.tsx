@@ -9,6 +9,7 @@ import { ChevronRightIcon } from "lucide-react";
 import { CreateBranchDialog } from "@/components/development/create-branch-dialog";
 import { IssueDevelopment } from "@/components/development/issue-development";
 import { IssueComments } from "@/components/issue-comments";
+import { IssueMediaProvider } from "@/components/issue-media-provider";
 import { IssueDrawer, type IssueDrawerTab } from "@/components/issue-drawer";
 import { EditableField, FieldValue, richFieldIds } from "@/components/issue-fields";
 import { IssueStatusMenu } from "@/components/issue-status-menu";
@@ -27,9 +28,11 @@ import { useIssueHistory } from "@/hooks/jira/use-issue-history";
 import { useIssueLinks } from "@/hooks/jira/use-issue-links";
 import { useRemoteLinks } from "@/hooks/jira/use-remote-links";
 import { useIssueCommentPages } from "@/hooks/jira/use-issue-comment-pages";
+import { useIssueRendered } from "@/hooks/jira/use-issue-rendered";
 import { useIssueView } from "@/hooks/jira/use-issue-view";
 import { EASE_OUT } from "@/lib/ease";
 import { useJiraSite, type JiraIssueDetail } from "@/lib/jira/queries";
+import { renderedDescription } from "@/lib/jira/rendered-issue";
 import { cn } from "@/lib/utils";
 
 const VITALS = ["assignee", "reporter", "priority", "duedate", "labels"];
@@ -140,6 +143,7 @@ export function IssueView({ issueKey, initialTab }: { issueKey: string; initialT
     view.issue?.fields.comment?.comments ?? [],
     view.issue?.fields.comment,
   );
+  const rendered = useIssueRendered(view.issue);
   const development = useIssueDevelopmentPanel(
     issueKey,
     view.issue && { projectKey: view.issue.fields.project.key, summary: view.issue.fields.summary },
@@ -212,47 +216,49 @@ export function IssueView({ issueKey, initialTab }: { issueKey: string; initialT
         <Vitals issue={issue} />
       </motion.aside>
 
-      <div className={LAYOUT.body}>
-        <Section title="Beschreibung">
-          <EditableField issue={issue} id="description" className="text-[0.95rem] leading-relaxed">
-            {fields.description ? (
-              <FieldValue value={fields.description} />
-            ) : (
-              <p className="text-sm text-muted-foreground">Keine Beschreibung.</p>
-            )}
-          </EditableField>
-        </Section>
-
-        <JiraHelpdeskLinks references={helpdesk} />
-
-        {subtasks.length > 0 && (
-          <Section title="Unteraufgaben">
-            <IssueSubtasks key={issue.key} subtasks={subtasks} />
+      <IssueMediaProvider attachments={fields.attachment}>
+        <div className={LAYOUT.body}>
+          <Section title="Beschreibung">
+            <EditableField issue={issue} id="description" className="text-[0.95rem] leading-relaxed">
+              {fields.description ? (
+                <FieldValue value={fields.description} rendered={renderedDescription(rendered)} />
+              ) : (
+                <p className="text-sm text-muted-foreground">Keine Beschreibung.</p>
+              )}
+            </EditableField>
           </Section>
-        )}
 
-        <Section title={links.summary ? `Verknüpfungen · ${links.summary.total}` : "Verknüpfungen"}>
-          <IssueLinksPanel
-            summary={links.summary}
-            error={links.error}
-            refreshError={links.refreshError}
-            retrying={links.retrying}
-            onRetry={links.retry}
-          />
-        </Section>
+          <JiraHelpdeskLinks references={helpdesk} />
 
-        <motion.div variants={reveal(reduce)}>
-          <RemoteLinksPanel {...remoteLinks} />
-        </motion.div>
+          {subtasks.length > 0 && (
+            <Section title="Unteraufgaben">
+              <IssueSubtasks key={issue.key} subtasks={subtasks} />
+            </Section>
+          )}
 
-        <Section title={`Kommentare · ${commentPages.total ?? commentPages.loaded}`}>
-          <IssueComments key={issue.key} issueKey={issue.key} pages={commentPages} />
-        </Section>
+          <Section title={links.summary ? `Verknüpfungen · ${links.summary.total}` : "Verknüpfungen"}>
+            <IssueLinksPanel
+              summary={links.summary}
+              error={links.error}
+              refreshError={links.refreshError}
+              retrying={links.retrying}
+              onRetry={links.retry}
+            />
+          </Section>
 
-        <motion.div variants={reveal(reduce)}>
-          <IssueHistoryPanel {...history} />
-        </motion.div>
-      </div>
+          <motion.div variants={reveal(reduce)}>
+            <RemoteLinksPanel {...remoteLinks} />
+          </motion.div>
+
+          <Section title={`Kommentare · ${commentPages.total ?? commentPages.loaded}`}>
+            <IssueComments key={issue.key} issueKey={issue.key} pages={commentPages} rendered={rendered} />
+          </Section>
+
+          <motion.div variants={reveal(reduce)}>
+            <IssueHistoryPanel {...history} />
+          </motion.div>
+        </div>
+      </IssueMediaProvider>
 
       <IssueDrawer
         key={issue.key}

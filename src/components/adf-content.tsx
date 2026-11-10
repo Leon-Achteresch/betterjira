@@ -1,12 +1,11 @@
 import type { ReactNode } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
+import { AdfMediaGroup, AdfMediaInline, AdfMediaSingle } from "@/components/adf-media";
+import { useAdfMedia, type AdfMediaRender } from "@/hooks/jira/use-adf-media";
+import type { AdfNode } from "@/lib/jira/adf";
+import { isAdfNode } from "@/lib/jira/adf-media";
+import type { RenderedDoc } from "@/lib/jira/rendered-issue";
 import { cn } from "@/lib/utils";
-
-type AdfMark = { type: string; attrs?: Record<string, unknown> };
-type AdfNode = { type: string; text?: string; attrs?: Record<string, unknown>; marks?: AdfMark[]; content?: AdfNode[] };
-
-const isNode = (value: unknown): value is AdfNode =>
-  typeof value === "object" && value !== null && typeof (value as AdfNode).type === "string";
 
 export const safeUrl = (value: unknown) => (typeof value === "string" && /^https?:\/\//i.test(value) ? value : undefined);
 
@@ -49,12 +48,12 @@ function renderText(node: AdfNode, key: number) {
   }, <span key={key}>{node.text}</span>);
 }
 
-function renderNodes(nodes: unknown) {
-  return Array.isArray(nodes) ? nodes.filter(isNode).map(renderNode) : null;
+function renderNodes(nodes: unknown, media?: AdfMediaRender) {
+  return Array.isArray(nodes) ? nodes.filter(isAdfNode).map((node, index) => renderNode(node, index, media)) : null;
 }
 
-function renderNode(node: AdfNode, key: number): ReactNode {
-  const children = renderNodes(node.content);
+function renderNode(node: AdfNode, key: number, media?: AdfMediaRender): ReactNode {
+  const children = renderNodes(node.content, media);
   const attrs = node.attrs ?? {};
   switch (node.type) {
     case "doc":
@@ -129,18 +128,22 @@ function renderNode(node: AdfNode, key: number): ReactNode {
     case "tableCell":
       return <td key={key} className="border px-2 py-1">{children}</td>;
     case "mediaSingle":
+      return media ? <AdfMediaSingle key={key} node={node} media={media} /> : <p key={key} className="text-sm text-muted-foreground italic">[Anhang]</p>;
     case "mediaGroup":
-      return <p key={key} className="text-sm text-muted-foreground italic">[Anhang]</p>;
+      return media ? <AdfMediaGroup key={key} node={node} media={media} /> : <p key={key} className="text-sm text-muted-foreground italic">[Anhang]</p>;
+    case "mediaInline":
+      return media ? <AdfMediaInline key={key} node={node} media={media} /> : <span key={key} className="text-muted-foreground italic">[Anhang]</span>;
     default:
       return children ? <div key={key}>{children}</div> : null;
   }
 }
 
-export function AdfContent({ doc, className }: { doc: unknown; className?: string }) {
-  if (!isNode(doc)) return null;
-  return <div className={cn("flex min-w-0 flex-col gap-3 text-sm leading-relaxed wrap-anywhere [&_li>p]:inline [&_p]:min-h-[1lh]", className)}>{renderNodes(doc.content)}</div>;
+export function AdfContent({ doc, rendered, className }: { doc: unknown; rendered?: RenderedDoc; className?: string }) {
+  const media = useAdfMedia(doc, rendered);
+  if (!isAdfNode(doc)) return null;
+  return <div className={cn("flex min-w-0 flex-col gap-3 text-sm leading-relaxed wrap-anywhere [&_li>p]:inline [&_p]:min-h-[1lh]", className)}>{renderNodes(doc.content, media)}</div>;
 }
 
 export function AdfNodeView({ node }: { node: unknown }) {
-  return isNode(node) ? renderNode(node, 0) : null;
+  return isAdfNode(node) ? renderNode(node, 0) : null;
 }

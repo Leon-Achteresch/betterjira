@@ -31,14 +31,17 @@ import type { IssueCommentPages as CommentPages } from "@/hooks/jira/use-issue-c
 import { useCommentLink } from "@/hooks/jira/use-comment-link";
 import { EASE_OUT } from "@/lib/ease";
 import { commentSearchSummary } from "@/lib/jira/comment-search";
+import { renderedComment, type RenderedSource } from "@/lib/jira/rendered-issue";
 import { IS_MAC } from "@/lib/platform";
 import { COMMENT_TEMPLATES } from "@/lib/workspace";
 export function IssueComments({
   issueKey,
   pages,
+  rendered,
 }: {
   issueKey: string;
   pages: CommentPages;
+  rendered?: RenderedSource;
 }) {
   const editor = useIssueComments(issueKey, pages.comments);
   const link = useCommentLink(issueKey);
@@ -162,7 +165,7 @@ export function IssueComments({
                     </div>
                     <CommentLinkAction available={link.available(comment.id)} onCopy={() => void link.copy(comment.id)} />
                   </div>
-                  <AdfContent doc={comment.body} className="pl-8" />
+                  <AdfContent doc={comment.body} rendered={renderedComment(rendered, comment.id, comment.renderedBody)} className="pl-8" />
                 </motion.li>
               ))}
             </AnimatePresence>
