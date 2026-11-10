@@ -192,7 +192,7 @@ test("zeigt Anhänge in Kommentaren und Antworten aus den Kommentarseiten, zuers
 test("zeigt Skeletons in Zielgröße, solange die gerenderte Fassung lädt", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
   // Comment pages wait too, so the comments embedded in the issue stay on screen without their own rendered body.
-  await page.addInitScript(() => Object.assign(window, { __qaRenderedRule: () => ({ delayMs: 2000 }), __qaCommentPagesRule: () => ({ delayMs: 2000 }) }));
+  await page.addInitScript(() => Object.assign(window, { __qaRenderedRule: () => ({ delayMs: 2000 }), __qaCommentPagesRule: () => ({ delayMs: 6000 }) }));
   await page.goto(ISSUE("DEMO-1"));
   const singles = pending(description(page), "single");
   await expect(singles).toHaveCount(2);
@@ -210,6 +210,12 @@ test("zeigt Skeletons in Zielgröße, solange die gerenderte Fassung lädt", asy
   await expect(image).toBeVisible();
   await expect(description(page).locator('[data-adf-media="pending"]')).toHaveCount(0);
   expect(Math.round((await image.boundingBox())!.height)).toBe(240);
+
+  // Comment page 0 is still loading: the comment embedded in the issue takes its image from renderedFields.comment.
+  const embedded = comment(page, "Beleg aus dem Test");
+  await embedded.scrollIntoViewIfNeeded();
+  await expect(media(embedded, "image", "46887")).toHaveAttribute("data-state", "loaded");
+  await expect(comments(page).locator('[data-comment-id="c-reply"]')).toHaveCount(0);
 });
 
 test("springt zu einer Antwort unter Kommentarbildern und hält sie im Blick, während die Bilder laden", async ({ page }) => {
