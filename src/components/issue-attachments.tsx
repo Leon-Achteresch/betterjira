@@ -1,5 +1,4 @@
-import { useRef, useState } from "react";
-import { openUrl } from "@tauri-apps/plugin-opener";
+import { useRef } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { ArrowDownUpIcon, FileIcon, PaperclipIcon, SearchXIcon } from "lucide-react";
 import { SearchField } from "@/components/motion/search-field";
@@ -15,7 +14,8 @@ import { ATTACHMENT_KINDS, type AttachmentKind, attachmentName } from "@/lib/att
 import { EASE_OUT, SPRING_LAYOUT } from "@/lib/ease";
 import { fileSize } from "@/lib/file-size";
 import { useAttachmentSort } from "@/hooks/use-attachment-sort";
-import { type JiraIssueDetail, useJiraSite } from "@/lib/jira/queries";
+import { type JiraIssueDetail } from "@/lib/jira/queries";
+import { useAttachmentOpener } from "@/hooks/jira/use-attachment-opener";
 
 type Attachment = NonNullable<JiraIssueDetail["fields"]["attachment"]>[number];
 
@@ -26,7 +26,7 @@ function Thumbnail({ attachment }: { attachment: Attachment }) {
   return <FileIcon className="size-6 text-muted-foreground" />;
 }
 
-function Preview({ attachment, onClose }: { attachment: Attachment; onClose: () => void }) {
+export function Preview({ attachment, onClose }: { attachment: Attachment; onClose: () => void }) {
   const image = useJiraAttachmentImage(attachment.id, "content");
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
@@ -133,18 +133,12 @@ function NoMatches({ total, onReset }: { total: number; onReset: () => void }) {
 }
 
 export function IssueAttachments({ issueKey, attachments }: { issueKey: string; attachments: readonly Attachment[] }) {
-  const site = useJiraSite();
+  const opener = useAttachmentOpener();
   const upload = useJiraUploadAttachments(issueKey);
   const input = useRef<HTMLInputElement>(null);
-  const [preview, setPreview] = useState<Attachment>();
   const filter = useAttachmentFilter(attachments);
   const sort = useAttachmentSort(issueKey, attachments);
   const reduce = useReducedMotion();
-
-  const open = (attachment: Attachment) => {
-    if (attachment.mimeType.startsWith("image/")) return setPreview(attachment);
-    if (site.data) void openUrl(`${site.data.siteUrl}/rest/api/3/attachment/content/${attachment.id}`);
-  };
 
   return (
     <div className="flex flex-col gap-3">
@@ -189,7 +183,7 @@ export function IssueAttachments({ issueKey, attachments }: { issueKey: string; 
             >
               <button
                 type="button"
-                onClick={() => open(attachment)}
+                onClick={() => opener.open(attachment)}
                 title={attachmentName(attachment.filename)}
                 className="flex w-full flex-col overflow-hidden rounded-lg border text-left outline-none transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
               >
@@ -234,7 +228,7 @@ export function IssueAttachments({ issueKey, attachments }: { issueKey: string; 
           </p>
         )}
       </div>
-      {preview && <Preview attachment={preview} onClose={() => setPreview(undefined)} />}
+      {opener.preview && <Preview attachment={opener.preview} onClose={opener.close} />}
     </div>
   );
 }

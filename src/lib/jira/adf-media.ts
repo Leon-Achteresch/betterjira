@@ -133,3 +133,21 @@ export const mediaThumbnailBox = (media?: Record<string, unknown>): MediaBox => 
 };
 
 export const isImageAttachment = (attachment: { mimeType: string }) => attachment.mimeType.startsWith("image/");
+
+export type MediaMatchState<A> = { pending: boolean; matches: ReadonlyMap<object, A> };
+
+export const createMediaMatchCache = <A extends MediaAttachment>() => {
+  const held = new WeakMap<object, ReadonlyMap<object, A>>();
+  const none: ReadonlyMap<object, A> = new Map();
+  return (doc: unknown, status: "loading" | "error" | "ready", html: string | undefined, attachments: readonly A[]): MediaMatchState<A> => {
+    const key = typeof doc === "object" && doc !== null ? doc : undefined;
+    if (status === "loading") {
+      const kept = key ? held.get(key) : undefined;
+      return kept ? { pending: false, matches: kept } : { pending: true, matches: none };
+    }
+    if (status === "error" || html === undefined) return { pending: false, matches: none };
+    const matches = matchMediaAttachments(doc, html, attachments);
+    if (key) held.set(key, matches);
+    return { pending: false, matches };
+  };
+};

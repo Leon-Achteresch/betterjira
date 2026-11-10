@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   attachmentHitsFromHtml,
   countedMediaNodes,
+  createMediaMatchCache,
   hasMediaNodes,
   isAdfNode,
   isImageAttachment,
@@ -149,5 +150,43 @@ describe("Maße", () => {
   it("erkennt Bilder am MIME-Typ", () => {
     expect(isImageAttachment({ mimeType: "image/png" })).toBe(true);
     expect(isImageAttachment({ mimeType: "application/pdf" })).toBe(false);
+  });
+});
+
+describe("createMediaMatchCache", () => {
+  it("behält beim Laden einer neuen Fassung die Zuordnung eines unveränderten Dokuments", () => {
+    const resolve = createMediaMatchCache<(typeof files)[number]>();
+    const node = media({ id: "u-1" });
+    const description = doc(single({}, node));
+    const ready = resolve(description, "ready", img("46884"), files);
+    expect(ready.pending).toBe(false);
+    expect(ready.matches.get(node)?.id).toBe("46884");
+    const loading = resolve(description, "loading", undefined, files);
+    expect(loading.pending).toBe(false);
+    expect(loading.matches).toBe(ready.matches);
+  });
+
+  it("zeigt für ein geändertes Dokument den Ladezustand ohne Zuordnung", () => {
+    const resolve = createMediaMatchCache<(typeof files)[number]>();
+    const node = media({ id: "u-1" });
+    resolve(doc(single({}, node)), "ready", img("46884"), files);
+    const changed = doc(single({}, media({ id: "u-1" })));
+    const loading = resolve(changed, "loading", undefined, files);
+    expect(loading.pending).toBe(true);
+    expect(loading.matches.size).toBe(0);
+  });
+
+  it("liefert bei einem Fehler keine Zuordnung, auch nicht die gemerkte", () => {
+    const resolve = createMediaMatchCache<(typeof files)[number]>();
+    const description = doc(single({}, media({ id: "u-1" })));
+    resolve(description, "ready", img("46884"), files);
+    const failed = resolve(description, "error", undefined, files);
+    expect(failed).toEqual({ pending: false, matches: new Map() });
+  });
+
+  it("merkt nichts für ein fehlendes Dokument", () => {
+    const resolve = createMediaMatchCache<(typeof files)[number]>();
+    resolve(undefined, "ready", img("46884"), files);
+    expect(resolve(undefined, "loading", undefined, files).pending).toBe(true);
   });
 });
