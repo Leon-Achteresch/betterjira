@@ -1,30 +1,22 @@
 import { useRef } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { ArrowDownUpIcon, FileIcon, PaperclipIcon, SearchXIcon } from "lucide-react";
+import { ArrowDownUpIcon, PaperclipIcon, SearchXIcon } from "lucide-react";
+import { AttachmentTile } from "@/components/issue-attachment-tile";
 import { SearchField } from "@/components/motion/search-field";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useAttachmentFilter } from "@/hooks/use-attachment-filter";
 import { useJiraAttachmentImage, useJiraUploadAttachments } from "@/hooks/jira/use-issue-mutations";
 import { ATTACHMENT_KINDS, type AttachmentKind, attachmentName } from "@/lib/attachment-filter";
 import { EASE_OUT, SPRING_LAYOUT } from "@/lib/ease";
-import { fileSize } from "@/lib/file-size";
 import { useAttachmentSort } from "@/hooks/use-attachment-sort";
 import { type JiraIssueDetail } from "@/lib/jira/queries";
 import { useAttachmentOpener } from "@/hooks/jira/use-attachment-opener";
 
 type Attachment = NonNullable<JiraIssueDetail["fields"]["attachment"]>[number];
-
-function Thumbnail({ attachment }: { attachment: Attachment }) {
-  const image = useJiraAttachmentImage(attachment.id, "thumbnail");
-  if (image.data) return <img src={image.data} alt="" className="size-full object-cover" />;
-  if (image.isPending) return <Skeleton className="size-full rounded-none" />;
-  return <FileIcon className="size-6 text-muted-foreground" />;
-}
 
 export function Preview({ attachment, onClose }: { attachment: Attachment; onClose: () => void }) {
   const image = useJiraAttachmentImage(attachment.id, "content");
@@ -181,24 +173,7 @@ export function IssueAttachments({ issueKey, attachments }: { issueKey: string; 
               hidden={!filter.visibleIds.has(attachment.id)}
               className="min-w-0"
             >
-              <button
-                type="button"
-                onClick={() => opener.open(attachment)}
-                title={attachmentName(attachment.filename)}
-                className="flex w-full flex-col overflow-hidden rounded-lg border text-left outline-none transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                <span className="grid h-24 place-items-center overflow-hidden bg-muted">
-                  {attachment.mimeType.startsWith("image/") ? (
-                    <Thumbnail attachment={attachment} />
-                  ) : (
-                    <FileIcon className="size-6 text-muted-foreground" />
-                  )}
-                </span>
-                <span className="flex flex-col px-2 py-1.5">
-                  <span className="truncate text-xs font-medium">{attachmentName(attachment.filename)}</span>
-                  <span className="text-[11px] text-muted-foreground">{fileSize(attachment.size)}</span>
-                </span>
-              </button>
+              <AttachmentTile attachment={attachment} onOpen={opener.open} />
             </motion.li>
           ))}
         </ul>
