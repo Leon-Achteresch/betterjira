@@ -45,3 +45,8 @@ Der kritische Kernablauf-Review erreichte nach nachgetesteten Korrekturen 95/100
 
 
 Vorabprüfung für 0.12.0: 996 Unit-Tests, Typecheck und Produktionsbuild nach der letzten funktionalen Korrektur erfolgreich. Browser: 897 eindeutige Fälle bestanden, 15 bewusst ausgelassen; die zwei Findings des Gesamtlaufs wurden behoben und die betroffenen 154 Fälle erneut geprüft. Details und Abgrenzung in `ux-review-2026-11-11.md`.
+
+
+0.12.0 ist veröffentlicht; Tag und Paketquellen zeigen auf ef11fea. Alle vier nativen Paketjobs beendeten ihre Schritte erfolgreich, einschließlich Windows-Starttest. Der letzte GitHub-Job blieb ohne Runner in der Warteschlange und ließ sich nicht abbrechen (HTTP 409). Manifest und Veröffentlichung wurden daher mit dem unveränderten Release-Skript lokal abgeschlossen; die weitere Beobachtung des hängen gebliebenen Workflow-Zustands bleibt gesondert offen.
+
+17 veröffentlichte Assets vollständig, sieben Update-Signaturen kryptografisch gültig, öffentliches latest.json mit Version 0.12.0 geprüft. Ausgelieferte Mac-ARM-App mit Codesign und Version geprüft, nativ gestartet und mit vorhandenem Jira-Konto lesend durch Tagesansicht, Ticketliste und Arbeitsplatz bedient. Umfang und Grenzen im UX-Prüfbericht.
