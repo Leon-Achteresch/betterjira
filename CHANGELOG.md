@@ -1,5 +1,23 @@
 # Änderungen
 
+## 0.12.0 – 2026-11-11
+
+### Neu
+
+- Tagesansicht mit direkt erreichbaren Tickets und kompakter Wiederaufnahme; ergänzende Hinweise in einer ruhigen Nebenleiste.
+- Dauerhafte Sidebar, Ausklappzustände, Suche, Tabellenansichten und Boardfilter mit validierter Speicherung und Trennung nach Jira-Konto.
+- Natives Liquid Glass auf unterstützten Macs, Sidebar-Fallback auf älteren Systemen und Mica auf unterstützten Windows-Systemen.
+- Ruhigere Werkzeugleiste, klar getrennte Schnell- und Eigenschaftsfilter sowie größere Klickflächen.
+
+### Fehlerbehebung
+
+- Eingeklappte Navigation erhält keinen unsichtbaren Tastaturfokus mehr; beim Einklappen kehrt der Fokus zum sichtbaren Auslöser zurück.
+- Schmale Windows-Fensterleisten überdecken keine Aktionen mehr.
+- Defekte oder gesperrte lokale Speicherdaten blockieren die Oberfläche nicht. Vorhandene Spalten und Zeilendichte bleiben erhalten.
+- Linux-Paketdownloads verwenden einen funktionierenden Ubuntu-Mirror mit begrenzten Wiederholungen und Zeitlimits.
+
+Die Änderungen aus dem bisher unveröffentlichten Stand 0.11.0 sind ebenfalls enthalten, einschließlich Kommentar-Threads, Mentions, Bildern, Beschreibungseditor und Anhängen.
+
 ## 0.11.0 – 2026-11-11
 
 ### Neu

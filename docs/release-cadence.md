@@ -33,3 +33,12 @@ Build, Typecheck und 690 Unit-Tests sind grün. Die vollständige Browserprüfun
 Die vollständigen Browserprüfungen laufen für Übernahmen nach main zusätzlich im Windows-CI-Job `browser`, mit einem Worker und Edge in beiden Darstellungen. Bei Fehlern bleiben Bericht, Screenshots und Traces als Artefakt erhalten. `vite.browser-qa.config.ts` ist ausschließlich für diesen Test-Build bestimmt; native Releases verwenden weiterhin `vite.config.ts` und enthalten keine Fehler-Injektion.
 
 Der erste vollständige Windows-Lauf auf e0c03f4 endete mit 744 bestandenen, 13 übersprungenen und drei fehlgeschlagenen Browserfällen. Beim Anhangstest fehlte zusätzlich die Bildantwort für att-1: Die Fixture lieferte HTTP 404. Sie liefert jetzt lokale PNG-Daten für Vorschau und Thumbnail. Die Tests warten auf Bild und Dialogfokus beziehungsweise das Entfernen der Palette und prüfen danach weiterhin den erhaltenen Anhangsbereich und die Tab-Navigation. Die vier betroffenen Overlay-Fälle bestehen lokal in beiden Darstellungen. Typecheck, Produktionsbuild und alle 690 Unit-Tests wurden anschließend lokal erneut erfolgreich ausgeführt; die vollständige Browserprüfung läuft noch.
+
+
+## Arbeitsplatz-Überarbeitung am 11. November 2026
+
+Auf ausdrücklichen Auftrag werden alle Development-Änderungen gemeinsam veröffentlicht. Bei Beginn und vor der Veröffentlichung sind keine Pull Requests offen. Der aktuelle Main-Stand mit Kommentar-/Bild-/Anhangsfunktionen wurde zunächst nach development übernommen.
+
+Der fehlgeschlagene Release 0.11.0 existiert nur als Entwurf mit Zielcommit e014cc8; es gibt noch keinen Tag. Deshalb erhält die neue vollständige Fassung bewusst Version 0.12.0, damit der alte Entwurf nicht Pakete verschiedener Quellstände mischt. Der bestehende Workflow übernimmt diese noch ungetaggte Version.
+
+Der kritische Kernablauf-Review erreichte nach nachgetesteten Korrekturen 95/100; Maßstab und Einschränkungen stehen in `ux-review-2026-11-11.md`. Alle 996 Unit-Tests, Typecheck, Produktionsbuild und nativer Rust-Check bestanden. Die vollständigen Browser- und Releaseergebnisse werden nach Abschluss ergänzt.
