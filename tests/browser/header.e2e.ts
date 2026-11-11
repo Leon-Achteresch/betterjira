@@ -271,3 +271,13 @@ test("Wechsel von Ticket zu Ticket öffnet einen Tab", async ({ page }) => {
   await expect(page).toHaveURL(/\/issue\/DEMO-5$/);
   await expect(issueTab(page, "DEMO-5")).toHaveAttribute("aria-selected", "true");
 });
+
+
+test("Windows-Fensteraktionen überdecken bei 390 px keine Werkzeuge", async ({ page }) => {
+  await page.addInitScript(() => Object.defineProperty(navigator, "platform", { get: () => "Win32" }));
+  await openBusy(page, 390);
+  await expect(header(page).getByRole("button", { name: "Minimieren", exact: true })).toBeVisible();
+  expect(await headerCollisions(page)).toEqual([]);
+  await tools(page).getByRole("button", { name: "Weitere Aktionen" }).click();
+  await expect(page.getByRole("menuitem", { name: /Ticket erstellen/ })).toBeVisible();
+});

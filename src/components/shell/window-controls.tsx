@@ -1,6 +1,7 @@
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { Minus, Square, X } from "lucide-react";
 import { toast } from "sonner";
+import { Tooltip } from "@/components/motion/tooltip";
 import { cn } from "@/lib/utils";
 
 async function runWindowAction(action: "minimize" | "toggleMaximize" | "close") {
@@ -20,37 +21,43 @@ async function runWindowAction(action: "minimize" | "toggleMaximize" | "close") 
 
 export function WindowControls() {
   const base =
-    "inline-flex h-full w-[46px] items-center justify-center text-muted-foreground transition-colors cursor-pointer hover:bg-muted hover:text-foreground";
+    "inline-flex h-full w-9 sm:w-[46px] items-center justify-center text-muted-foreground transition-colors cursor-pointer hover:bg-muted hover:text-foreground";
   return (
     <fieldset
       aria-label="Fenstersteuerung"
       className="absolute right-0 top-0 z-30 flex h-full items-stretch"
       data-tauri-drag-region="false"
     >
-      <button
-        type="button"
-        aria-label="Minimieren"
-        className={base}
-        onClick={() => void runWindowAction("minimize")}
-      >
-        <Minus className="size-4" strokeWidth={2} />
-      </button>
-      <button
-        type="button"
-        aria-label="Maximieren"
-        className={base}
-        onClick={() => void runWindowAction("toggleMaximize")}
-      >
-        <Square className="size-3.5" strokeWidth={2} />
-      </button>
-      <button
-        type="button"
-        aria-label="Schließen"
-        className={cn(base, "hover:bg-destructive hover:text-white")}
-        onClick={() => void runWindowAction("close")}
-      >
-        <X className="size-4" strokeWidth={2} />
-      </button>
+      <Tooltip content="Minimieren" side="bottom">
+        <button
+          type="button"
+          aria-label="Minimieren"
+          className={base}
+          onClick={() => void runWindowAction("minimize")}
+        >
+          <Minus className="size-4" strokeWidth={2} />
+        </button>
+      </Tooltip>
+      <Tooltip content="Maximieren" side="bottom">
+        <button
+          type="button"
+          aria-label="Maximieren"
+          className={base}
+          onClick={() => void runWindowAction("toggleMaximize")}
+        >
+          <Square className="size-3.5" strokeWidth={2} />
+        </button>
+      </Tooltip>
+      <Tooltip content="Schließen" side="bottom">
+        <button
+          type="button"
+          aria-label="Schließen"
+          className={cn(base, "hover:bg-destructive hover:text-white")}
+          onClick={() => void runWindowAction("close")}
+        >
+          <X className="size-4" strokeWidth={2} />
+        </button>
+      </Tooltip>
     </fieldset>
   );
 }
