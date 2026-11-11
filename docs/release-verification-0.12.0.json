@@ -1,0 +1,214 @@
+{
+  "verifiedAt": "2026-11-11T21:02:57.847115+00:00",
+  "run": {
+    "id": 43094657243,
+    "html_url": "https://github.com/Leon-Achteresch/betterjira/actions/runs/43094657243",
+    "status": "completed",
+    "conclusion": "failure",
+    "updated_at": "2026-11-11T21:01:02Z",
+    "head_sha": "ef11fea478177efb3e0c725cd262ebd5bfb7e15a",
+    "run_attempt": 1
+  },
+  "workflowError": {
+    "message": "Internal server error.",
+    "correlationId": "84bc1ff0-f919-47a2-9805-d0a6e57978c5",
+    "source": "https://github.com/Leon-Achteresch/betterjira/actions/runs/43094657243"
+  },
+  "jobs": [
+    {
+      "id": 130780254981,
+      "name": "test",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-11-11T20:14:40Z",
+      "completed_at": "2026-11-11T20:16:41Z",
+      "runner_id": 1000011188
+    },
+    {
+      "id": 130781348869,
+      "name": "version",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-11-11T20:16:45Z",
+      "completed_at": "2026-11-11T20:16:52Z",
+      "runner_id": 1000011189
+    },
+    {
+      "id": 130781437047,
+      "name": "release (ubuntu-22.04)",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-11-11T20:16:55Z",
+      "completed_at": "2026-11-11T20:23:27Z",
+      "runner_id": 1000011192
+    },
+    {
+      "id": 130781437055,
+      "name": "release (macos-latest, --target x86_64-apple-darwin)",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-11-11T20:16:56Z",
+      "completed_at": "2026-11-11T20:24:46Z",
+      "runner_id": 1000011191
+    },
+    {
+      "id": 130781437074,
+      "name": "release (macos-latest, --target aarch64-apple-darwin)",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-11-11T20:16:54Z",
+      "completed_at": "2026-11-11T20:21:15Z",
+      "runner_id": 1000011190
+    },
+    {
+      "id": 130781437238,
+      "name": "release (windows-latest)",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-11-11T20:16:56Z",
+      "completed_at": "2026-11-11T20:25:16Z",
+      "runner_id": 1000011193
+    },
+    {
+      "id": 130782336982,
+      "name": "updater-manifest",
+      "status": "queued",
+      "conclusion": null,
+      "started_at": "2026-11-11T20:25:17Z",
+      "completed_at": null,
+      "runner_id": null
+    }
+  ],
+  "release": {
+    "tag_name": "v0.12.0",
+    "html_url": "https://github.com/Leon-Achteresch/betterjira/releases/tag/v0.12.0",
+    "draft": false,
+    "prerelease": false,
+    "target_commitish": "ef11fea478177efb3e0c725cd262ebd5bfb7e15a",
+    "published_at": "2026-11-11T20:35:13Z"
+  },
+  "tagCommit": "ef11fea478177efb3e0c725cd262ebd5bfb7e15a",
+  "publicLatestUrl": "https://github.com/Leon-Achteresch/betterjira/releases/tag/v0.12.0",
+  "publicManifestUrl": "https://github.com/Leon-Achteresch/betterjira/releases/latest/download/latest.json",
+  "publicManifestVersion": "0.12.0",
+  "publicManifestPlatforms": [
+    "darwin-aarch64",
+    "darwin-aarch64-app",
+    "darwin-x86_64",
+    "darwin-x86_64-app",
+    "linux-x86_64",
+    "linux-x86_64-appimage",
+    "linux-x86_64-deb",
+    "linux-x86_64-rpm",
+    "windows-x86_64",
+    "windows-x86_64-msi",
+    "windows-x86_64-nsis"
+  ],
+  "verifiedUpdaterSignatures": 7,
+  "exactExpectedAssets": 17,
+  "verifiedAssets": [
+    {
+      "name": "betterjira-0.12.0-1.x86_64.rpm",
+      "size": 6445016,
+      "sha256": "sha256:aa6327ffcc74b4b7601e1a0e70303ad3e5dec4a7ca9909d256ab26545d46055c",
+      "verified": true
+    },
+    {
+      "name": "betterjira-0.12.0-1.x86_64.rpm.sig",
+      "size": 440,
+      "sha256": "sha256:fabb3713819814ccbc3611ecd086372f44caefe485846abef61f4d005a18577e",
+      "verified": true
+    },
+    {
+      "name": "betterjira_0.12.0_aarch64.app.tar.gz",
+      "size": 5299537,
+      "sha256": "sha256:7c34be63ad82f08c28e611b008d6f75a119d75ee53ed93b021bdc325b1be346a",
+      "verified": true
+    },
+    {
+      "name": "betterjira_0.12.0_aarch64.app.tar.gz.sig",
+      "size": 428,
+      "sha256": "sha256:64ffb83b35ab66997d506bc064d5ed28dd6df39ca7aeaa0751315250e7ff340c",
+      "verified": true
+    },
+    {
+      "name": "betterjira_0.12.0_aarch64.dmg",
+      "size": 5295163,
+      "sha256": "sha256:35b48801d5b0ff0844979d48844b197c0927c1b382b0c187e8e69d8c80e8bfef",
+      "verified": true
+    },
+    {
+      "name": "betterjira_0.12.0_amd64.AppImage",
+      "size": 84740600,
+      "sha256": "sha256:0e1893d8cc2dee8b5322f3fb8aa44050fc7e02c3070131e5eeaac0b789f5fc03",
+      "verified": true
+    },
+    {
+      "name": "betterjira_0.12.0_amd64.AppImage.sig",
+      "size": 444,
+      "sha256": "sha256:078a70d7eb2b8fa9f0e1ce9a7cfc8b8e30a559eff891597eb70af9078881109d",
+      "verified": true
+    },
+    {
+      "name": "betterjira_0.12.0_amd64.deb",
+      "size": 6438936,
+      "sha256": "sha256:9016890c3e2f728416cfdbf852bc76168b5c038777aa5fa1abaccbb4848b063b",
+      "verified": true
+    },
+    {
+      "name": "betterjira_0.12.0_amd64.deb.sig",
+      "size": 436,
+      "sha256": "sha256:9efd63508760dead58a11998ea3d3e01fe41123b70d09ce07c2ceef0746b5546",
+      "verified": true
+    },
+    {
+      "name": "betterjira_0.12.0_x64-setup.exe",
+      "size": 4218477,
+      "sha256": "sha256:ed5924bbebfd96aef28d13bcdf59dcfb11fe4eba5feac69081689d0d8fe6e051",
+      "verified": true
+    },
+    {
+      "name": "betterjira_0.12.0_x64-setup.exe.sig",
+      "size": 444,
+      "sha256": "sha256:1ecdb7743411ae43171877743b1b1414a20a0a141573e0af3af1b3adea6b09d8",
+      "verified": true
+    },
+    {
+      "name": "betterjira_0.12.0_x64.app.tar.gz",
+      "size": 5729961,
+      "sha256": "sha256:465ad709a427df874b6d119b9674d7edbf0c3e1f9241bc8d9202f48a480da644",
+      "verified": true
+    },
+    {
+      "name": "betterjira_0.12.0_x64.app.tar.gz.sig",
+      "size": 428,
+      "sha256": "sha256:f436ff251c7cbad53aa00f4b5a304a16b81b148d46a7b5f991313ced99f0f4b3",
+      "verified": true
+    },
+    {
+      "name": "betterjira_0.12.0_x64.dmg",
+      "size": 5756277,
+      "sha256": "sha256:1952ce7a81dc24795e66758b5d9f89b8ab9ed10b0ec75e9d94d5f5e21704e70b",
+      "verified": true
+    },
+    {
+      "name": "betterjira_0.12.0_x64_en-US.msi",
+      "size": 5652480,
+      "sha256": "sha256:fba7189643b9325719023b61872ba67482f8ef4183439213a4bb80707e86427d",
+      "verified": true
+    },
+    {
+      "name": "betterjira_0.12.0_x64_en-US.msi.sig",
+      "size": 444,
+      "sha256": "sha256:3a32b79b2c4daef1b9850fffc43997e3cc4a185d9965cfae5b75c888ab7168e2",
+      "verified": true
+    },
+    {
+      "name": "latest.json",
+      "size": 8187,
+      "sha256": "sha256:b8aa9fb1603c8e2fcd6663ea4e7d37a4ab13f3e49bc44261d6fa174486e80d3d",
+      "verified": true
+    }
+  ],
+  "finalization": "Previously completed locally at 20:35 UTC; verified intact after terminal workflow failure. No further release mutations performed."
+}
