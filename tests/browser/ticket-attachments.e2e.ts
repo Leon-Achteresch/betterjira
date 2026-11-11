@@ -68,6 +68,19 @@ test("öffnet Bilder in der Großansicht und Dateien extern", async ({ page }) =
   await expect.poll(() => opened(page)).toEqual(["https://example.atlassian.net/rest/api/3/attachment/content/att-4"]);
 });
 
+test("blendet die Kacheln auch ein, wenn das Ticket aus dem Cache öffnet", async ({ page }) => {
+  await page.goto(ISSUE("DEMO-1"));
+  const opacities = () => list(page).locator("li").evaluateAll((items) => items.map((item) => getComputedStyle(item).opacity));
+  await expect.poll(opacities).toEqual(Array(6).fill("1"));
+  await page.locator("section").filter({ has: page.getByRole("heading", { name: /^Verknüpfungen/ }) })
+    .getByRole("link", { name: /DEMO-2/ }).first().click();
+  await expect(page).toHaveURL(/\/issue\/DEMO-2$/);
+  await page.goBack();
+  await expect(page).toHaveURL(/\/issue\/DEMO-1$/);
+  await expect(names(page)).toHaveCount(6);
+  await expect.poll(opacities).toEqual(Array(6).fill("1"));
+});
+
 test("zeigt die neuesten zuerst und bei wenigen Anhängen keinen Verweis", async ({ page }) => {
   await page.addInitScript((files) => Object.assign(window, { __qaAttachments: files }), [
     attachment("att-alt", "alt.txt", "text/plain", "2026-11-01T09:00:00.000+0100"),
