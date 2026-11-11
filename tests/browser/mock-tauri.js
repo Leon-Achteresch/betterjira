@@ -1536,6 +1536,7 @@ window.__TAURI_INTERNALS__ = {
   },
   unregisterCallback: () => {},
   invoke: async (command, args = {}) => {
+    if (command === "native_material_enable") return false;
     window.__qa.commands.push(command);
     if (command.startsWith("zammad_")) return zammadInvoke(command, args);
     if (command === "session_get" && scenario === "scm-offline") return null;

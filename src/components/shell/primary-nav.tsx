@@ -44,13 +44,13 @@ export function PrimaryNav({ counts }: { counts: NavCounts }) {
       <LayoutGroup id="primary-nav">
         {GROUPS.map((group) => (
           <div key={group.label} className="flex flex-col">
-            <SidebarGroupLabel className="h-6 text-[11px] tracking-wide text-sidebar-foreground/55 uppercase">{group.label}</SidebarGroupLabel>
+            <SidebarGroupLabel className="h-6 text-xs font-medium text-muted-foreground">{group.label}</SidebarGroupLabel>
             <SidebarMenu>
               {group.items.map((item) => {
                 const count = "count" in item ? counts[item.count] : 0;
                 return (
                   <SidebarMenuItem key={item.to}>
-                    <SidebarMenuButton asChild tooltip={item.label} className="relative">
+                    <SidebarMenuButton asChild tooltip={item.label} className="relative isolate">
                       <Link
                         to={item.to}
                         activeOptions={item.activeOptions}
@@ -63,7 +63,7 @@ export function PrimaryNav({ counts }: { counts: NavCounts }) {
                               <motion.span
                                 layoutId="primary-nav-indicator"
                                 transition={reduce ? { duration: 0 } : SPRING_LAYOUT}
-                                className="absolute inset-y-1.5 left-0 w-0.5 rounded-full bg-primary"
+                                className="pointer-events-none absolute inset-0 -z-10 rounded-xl bg-sidebar-accent/80 ring-1 ring-border/50"
                               />
                             )}
                             <item.icon aria-hidden className={isActive ? "text-foreground" : "text-muted-foreground"} />

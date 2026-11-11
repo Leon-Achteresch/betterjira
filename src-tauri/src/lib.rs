@@ -67,6 +67,18 @@ fn session_delete() -> Result<(), String> {
     secrets::delete(SESSION_KEY)
 }
 
+#[tauri::command]
+fn native_material_enable(_window: tauri::Window) -> bool {
+    #[cfg(target_os = "windows")]
+    {
+        window_vibrancy::apply_mica(&_window, None).is_ok()
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        cfg!(target_os = "macos")
+    }
+}
+
 fn show_main(app: &tauri::AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.show();
@@ -91,6 +103,7 @@ pub fn run() {
             session_get,
             session_set,
             session_delete,
+            native_material_enable,
             attention::attention_serve,
             attention::attention_read,
             attention::attention_trigger,

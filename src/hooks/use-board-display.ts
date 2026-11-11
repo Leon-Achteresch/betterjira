@@ -1,5 +1,7 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { createJSONStorage, persist } from "zustand/middleware";
+import { LOCAL_PREFERENCE_STORAGE } from "@/lib/local-preference-storage";
+import { readBoardDisplay } from "@/lib/view-preferences";
 import { type CardProperty, DEFAULT_HIDDEN_PROPERTIES } from "@/lib/board-display";
 import { type InsightDimension, type InsightMeasure, type InsightSegment } from "@/lib/board-insights";
 
@@ -39,6 +41,13 @@ export const useBoardDisplay = create<BoardDisplayState>()(
         })),
       resetProperties: () => set({ hiddenProperties: DEFAULT_HIDDEN_PROPERTIES }),
     }),
-    { name: "betterjira-board-display" },
+    {
+      name: "betterjira-board-display",
+      version: 1,
+      storage: createJSONStorage(() => LOCAL_PREFERENCE_STORAGE),
+      partialize: ({ insightsOpen, measure, slice, segment, hiddenProperties }) => ({ insightsOpen, measure, slice, segment, hiddenProperties }),
+      migrate: (persisted) => readBoardDisplay(persisted),
+      merge: (persisted, current) => ({ ...current, ...readBoardDisplay(persisted) }),
+    },
   ),
 );

@@ -28,6 +28,8 @@ import { useDeviceOnline } from "@/hooks/connections/use-device-online";
 import { useMainContentFocus } from "@/hooks/use-main-content-focus";
 import { SkipLink } from "@/components/ui/skip-link";
 
+import { useInterfaceState } from "@/hooks/use-interface-state";
+import { useNativeGlass } from "@/hooks/use-native-glass";
 import { useReadabilitySync } from "@/hooks/use-readability";
 import { useFileDropGuard } from "@/hooks/use-file-drop-guard";
 
@@ -121,9 +123,12 @@ function NotFound() {
 }
 
 function Shell() {
+  useNativeGlass();
   const main = useMainContentFocus();
+  const sidebarOpen = useInterfaceState((state) => state.sidebarOpen);
+  const setSidebarOpen = useInterfaceState((state) => state.setSidebarOpen);
   return (
-    <SidebarProvider className="h-dvh min-h-0 flex-col">
+    <SidebarProvider open={sidebarOpen} onOpenChange={setSidebarOpen} className="h-dvh min-h-0 flex-col">
       <SkipLink href="#app-scroll" onClick={main.skipToContent}>
         Zum Inhalt
       </SkipLink>

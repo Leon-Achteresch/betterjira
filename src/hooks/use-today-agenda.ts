@@ -21,8 +21,10 @@ export const useTodayAgenda = ({ active, open }: Pick<AgendaInput, "active" | "o
     if (item.issueKey) void navigate({ to: "/issue/$key", params: { key: item.issueKey } });
   };
 
+  const items = todayAgenda({ now, directUnread, rollouts: rollouts.data ?? [], loggedSeconds, active, open });
   return {
-    items: todayAgenda({ now, directUnread, rollouts: rollouts.data ?? [], loggedSeconds, active, open }),
+    items,
+    urgent: items.filter((item) => item.tone === "urgent").length,
     onSelect: select,
   };
 };

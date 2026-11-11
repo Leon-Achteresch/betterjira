@@ -49,7 +49,7 @@ export function NotificationBell() {
           ref={triggerRef}
           type="button"
           aria-label={unread ? `Benachrichtigungen, ${unread} ungelesen` : "Benachrichtigungen"}
-          className="relative inline-flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground aria-expanded:bg-primary/12 aria-expanded:text-foreground"
+          className="relative inline-flex size-8 shrink-0 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-muted hover:text-foreground aria-expanded:bg-primary/12 aria-expanded:text-foreground"
         >
           <Bell className="size-4" strokeWidth={1.75} />
           <AnimatePresence>

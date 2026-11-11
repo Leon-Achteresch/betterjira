@@ -37,7 +37,6 @@ import {
   SidebarGroupAction,
   SidebarGroupContent,
   SidebarGroupLabel,
-  SidebarHeader,
   SidebarInput,
   SidebarMenu,
   SidebarMenuAction,
@@ -53,6 +52,7 @@ import {
 import { useJiraSite, type JiraProject } from "@/lib/jira/queries";
 import { useProfileMenu } from "@/hooks/jira/use-profile-menu";
 import { useProjectStats } from "@/hooks/jira/use-project-stats";
+import { useProjectExpansion, useSidebarSection } from "@/hooks/use-interface-state";
 import { useSidebarSearch } from "@/hooks/use-sidebar-search";
 import { useOwnedUnreadCount } from "@/hooks/notifications/use-notification-store";
 import type { ProjectPrefsControls } from "@/hooks/use-project-prefs";
@@ -98,7 +98,7 @@ type ProjectMenuPrefs = Pick<ProjectPrefsControls, "ready" | "favoriteIds" | "to
 function ProjectItem({ project, prefs }: { project: JiraProject; prefs: ProjectMenuPrefs }) {
   const site = useJiraSite();
   const { key } = useParams({ strict: false });
-  const [open, setOpen] = useState(key === project.key);
+  const { open, setOpen } = useProjectExpansion(project.key, key === project.key);
   const favorite = prefs.favoriteIds.includes(project.id);
   const [statsOpen, setStatsOpen] = useState(false);
   const stats = useProjectStats(project.key, statsOpen);
@@ -115,7 +115,7 @@ function ProjectItem({ project, prefs }: { project: JiraProject; prefs: ProjectM
                 params={{ key: project.key }}
                 search={{}}
                 activeProps={{ "data-active": true }}
-                onClick={() => setOpen(true)}
+                onClick={() => { setOpen(true); }}
               >
                 <ProjectAvatar project={project} className="size-5" />
                 <span>{project.name}</span>
@@ -158,11 +158,13 @@ function ProjectItem({ project, prefs }: { project: JiraProject; prefs: ProjectM
             void navigate({ to: "/issue/$key", params: { key: issueKey } });
           }}
         />
-        <CollapsibleTrigger asChild>
-          <SidebarMenuAction aria-label="Unterbereiche" className="data-[state=open]:rotate-90">
-            <ChevronRightIcon />
-          </SidebarMenuAction>
-        </CollapsibleTrigger>
+        <Tooltip content={open ? "Unterbereiche einklappen" : "Unterbereiche aufklappen"} side="right">
+          <CollapsibleTrigger asChild>
+            <SidebarMenuAction aria-label="Unterbereiche" className="top-0! right-0! size-8! data-[state=open]:rotate-90">
+              <ChevronRightIcon />
+            </SidebarMenuAction>
+          </CollapsibleTrigger>
+        </Tooltip>
         <CollapsibleContent>
           <ProjectBoards projectKey={project.key} />
         </CollapsibleContent>
@@ -182,11 +184,12 @@ function ProjectMenu({ projects, prefs }: { projects: JiraProject[]; prefs: Proj
 }
 
 function Section({ label, count, action, children }: { label: string; count?: number; action?: ReactNode; children: ReactNode }) {
+  const { open, setOpen } = useSidebarSection(label);
   return (
-    <Collapsible defaultOpen className="group/collapsible">
+    <Collapsible open={open} onOpenChange={setOpen} className="group/collapsible">
       <SidebarGroup className="py-1">
         <SidebarGroupLabel asChild>
-          <CollapsibleTrigger className={cn("gap-1 uppercase tracking-wider hover:text-sidebar-foreground", action && "pr-9")}>
+          <CollapsibleTrigger className={cn("gap-1 text-xs hover:text-sidebar-foreground", action && "pr-9")}>
             <ChevronRightIcon className="transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
             {label}
             {count !== undefined && <span className="ml-auto font-normal tabular-nums">{count}</span>}
@@ -223,7 +226,7 @@ export function AppSidebar() {
 
   return (
     <Sidebar className="top-(--app-header-height) h-[calc(100svh-var(--app-header-height))] border-r-sidebar-border/60">
-      <SidebarHeader className="gap-3 pt-3">
+      <SidebarContent className="gap-3 px-2 pt-3">
         <PrimaryNav counts={{ notifications: unread }} />
         {site.data && (
           <div className="relative">
@@ -232,14 +235,13 @@ export function AppSidebar() {
               type="search"
               placeholder="Bereiche und Filter filtern"
               aria-label="Bereiche und Filter suchen"
-              className="rounded-lg border-transparent bg-sidebar-accent/60 pl-8 focus-visible:bg-background"
+              className="rounded-xl border-border/60 glass-control pl-8 focus-visible:bg-background"
               value={search.query}
               onChange={(event) => search.setQuery(event.target.value)}
             />
           </div>
         )}
-      </SidebarHeader>
-      <SidebarContent>
+
         {site.data && (
           <>
             {projects.favorites.length > 0 && (

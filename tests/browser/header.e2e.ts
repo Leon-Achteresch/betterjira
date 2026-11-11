@@ -60,7 +60,9 @@ for (const width of WIDTHS) {
     await expect(tools(page).getByRole("button", { name: "Weiterarbeiten" })).toBeVisible();
     if (width >= 640) {
       await expect(page.getByRole("tablist", { name: "Geöffnete Tickets" }).getByRole("tab")).toHaveCount(12);
-      await expect(tools(page).getByRole("button", { name: /Design verwenden$/ })).toBeVisible();
+      await tools(page).getByRole("button", { name: "Weitere Aktionen" }).click();
+      await expect(page.getByRole("menuitem", { name: /Design verwenden$/ })).toBeVisible();
+      await page.keyboard.press("Escape");
     }
   });
 }

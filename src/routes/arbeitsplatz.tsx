@@ -1,5 +1,4 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { BriefcaseIcon } from "lucide-react";
 import { LoginPrompt } from "@/components/shell/login-prompt";
 import { SessionGate } from "@/components/shell/session-gate";
 import { WorkspaceNoteDialog } from "@/components/workspace/workspace-note-dialog";
@@ -20,9 +19,6 @@ function Arbeitsplatz() {
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 p-4 sm:p-8">
       <div className="flex items-center gap-3">
-        <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-muted">
-          <BriefcaseIcon className="size-5 text-muted-foreground" />
-        </div>
         <div className="min-w-0">
           <h1 className="text-2xl font-semibold text-balance">Arbeitsplatz</h1>
           <p className="text-sm text-muted-foreground">Angefangene Arbeit an einem Ort: Pins, Entwürfe, Notizen und Verlauf.</p>
@@ -35,6 +31,7 @@ function Arbeitsplatz() {
       >
         <WorkspaceOverview
           ready={page.ready}
+          showBrowseAction={page.showBrowseAction}
           filter={page.filter}
           query={page.query}
           sort={page.sort}

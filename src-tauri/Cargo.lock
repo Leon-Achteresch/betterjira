@@ -251,6 +251,7 @@ dependencies = [
  "tauri-plugin-process",
  "tauri-plugin-updater",
  "tiny_http",
+ "window-vibrancy",
 ]
 
 [[package]]

@@ -9,8 +9,9 @@ vi.mock("@tauri-apps/api/core", () => ({ invoke }));
 const session = { accessToken: "test-access", refreshToken: "test-refresh", expiresAt: 9e12, cloudId: "test-cloud", siteUrl: "https://jira.test", siteName: "Mock" };
 const Result = Schema.Struct({ ok: Schema.Boolean });
 
-beforeEach(() => {
+beforeEach(async () => {
   vi.resetModules();
+  await import("./client");
   vi.useFakeTimers();
   http.mockReset();
   invoke.mockReset();

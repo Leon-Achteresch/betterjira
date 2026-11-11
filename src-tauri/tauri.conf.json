@@ -29,7 +29,7 @@
         "additionalBrowserArgs": "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection --disable-background-timer-throttling --disable-renderer-backgrounding --disable-backgrounding-occluded-windows",
         "transparent": true,
         "windowEffects": {
-          "effects": ["sidebar"],
+          "effects": ["liquidGlassRegular", "sidebar"],
           "state": "followsWindowActiveState"
         }
       }

@@ -59,7 +59,7 @@
 
 :root, .light {
     color-scheme: light;
-    --background: oklch(0.993 0.002 265);
+    --background: oklch(0.985 0.001 265);
     --foreground: oklch(0.21 0.012 265);
     --card: oklch(1 0 0);
     --card-foreground: oklch(0.21 0.012 265);
@@ -70,7 +70,7 @@
     --secondary: oklch(0.955 0.004 265);
     --secondary-foreground: oklch(0.25 0.012 265);
     --muted: oklch(0.962 0.004 265);
-    --muted-foreground: oklch(0.52 0.014 265);
+    --muted-foreground: oklch(0.48 0.006 265);
     --accent: oklch(0.955 0.005 265);
     --accent-foreground: oklch(0.21 0.012 265);
     --destructive: oklch(0.55 0.22 27);
@@ -86,7 +86,7 @@
     --chart-4: oklch(0.76 0.15 75);
     --chart-5: oklch(0.64 0.19 15);
     --radius: 0.625rem;
-    --app-header-height: 2.875rem;
+    --app-header-height: 3rem;
     --sidebar: oklch(0.972 0.003 265);
     --sidebar-foreground: oklch(0.27 0.012 265);
     --sidebar-primary: oklch(0.53 0.19 259);
@@ -95,8 +95,8 @@
     --sidebar-accent-foreground: oklch(0.21 0.012 265);
     --sidebar-border: oklch(0.91 0.004 265);
     --sidebar-ring: oklch(0.62 0.17 258);
-    --glass-tint: color-mix(in oklch, var(--popover) 82%, transparent);
-    --glass-chrome: oklch(0.975 0.009 259 / 0.74);
+    --glass-tint: color-mix(in oklch, var(--popover) 88%, transparent);
+    --glass-chrome: oklch(0.97 0.008 259 / 0.62);
     --glass-control: oklch(1 0 0 / 0.62);
     --glass-card: oklch(1 0 0 / 0.72);
     --glass-ambient: oklch(0.86 0.055 259 / 0.26);
@@ -113,11 +113,11 @@
 
 .dark {
     color-scheme: dark;
-    --background: oklch(0.185 0.006 265);
+    --background: oklch(0.18 0.002 265);
     --foreground: oklch(0.965 0.003 265);
-    --card: oklch(0.215 0.007 265);
+    --card: oklch(0.215 0.002 265);
     --card-foreground: oklch(0.965 0.003 265);
-    --popover: oklch(0.235 0.008 265);
+    --popover: oklch(0.235 0.002 265);
     --popover-foreground: oklch(0.965 0.003 265);
     --primary: oklch(0.56 0.19 259);
     --primary-foreground: oklch(0.99 0 0);
@@ -139,7 +139,7 @@
     --chart-3: oklch(0.66 0.18 295);
     --chart-4: oklch(0.8 0.14 75);
     --chart-5: oklch(0.7 0.18 15);
-    --sidebar: oklch(0.165 0.006 265);
+    --sidebar: oklch(0.17 0.003 265);
     --sidebar-foreground: oklch(0.88 0.006 265);
     --sidebar-primary: oklch(0.56 0.19 259);
     --sidebar-primary-foreground: oklch(0.99 0 0);
@@ -148,10 +148,10 @@
     --sidebar-border: oklch(1 0 0 / 7%);
     --sidebar-ring: oklch(0.65 0.16 258);
     --glass-tint: color-mix(in oklch, var(--popover) 88%, transparent);
-    --glass-chrome: oklch(0.2 0.014 259 / 0.76);
+    --glass-chrome: oklch(0.205 0.008 259 / 0.64);
     --glass-control: oklch(0.32 0.012 259 / 0.5);
-    --glass-card: oklch(0.245 0.012 259 / 0.74);
-    --glass-ambient: oklch(0.4 0.065 259 / 0.22);
+    --glass-card: oklch(0.245 0.004 259 / 0.72);
+    --glass-ambient: oklch(0.5 0.045 259 / 0.2);
     --glass-highlight: oklch(1 0 0 / 0.18);
     --glass-rim: oklch(1 0 0 / 0.08);
     --glass-shade: oklch(0 0 0 / 0.25);
@@ -165,10 +165,12 @@
 
 :root.native-glass {
     --sidebar: oklch(0.972 0.003 265 / 0.22);
+    --glass-chrome: oklch(0.975 0.004 265 / 0.28);
 }
 
 :root.native-glass.dark {
     --sidebar: oklch(0.165 0.006 265 / 0.18);
+    --glass-chrome: oklch(0.2 0.004 265 / 0.3);
 }
 
 @utility glass {
@@ -217,7 +219,7 @@
 }
 
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-    .glass-chrome { background-color: var(--sidebar); }
+    .glass-chrome { background-color: var(--popover); }
 }
 
 @layer base {
@@ -234,6 +236,7 @@
     text-rendering: optimizeLegibility;
     background-image: radial-gradient(ellipse at 0% 0%, var(--glass-ambient), transparent 55%);
     background-attachment: fixed;
+    font-variant-numeric: tabular-nums;
     }
   :root[data-text-size] [data-slot=sidebar-inset] {
     --text-xs: calc(0.75rem * var(--content-text-scale));
@@ -255,7 +258,10 @@
   input, textarea { caret-color: var(--primary); }
   [data-slot=sidebar-inset] {
     background-color: color-mix(in oklch, var(--background) 90%, transparent);
-    border-radius: var(--radius-2xl) 0 0 0;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-2xl);
+    margin: 0 0.5rem 0.5rem 0;
+    min-width: 0;
     box-shadow: inset 1px 1px 0 var(--glass-rim);
   }
   [data-slot=table] { font-variant-numeric: tabular-nums; }
@@ -276,4 +282,13 @@
     border-top: 2px solid var(--primary);
     }
   .ProseMirror-focused .ProseMirror-gapcursor { display: block; }
+}
+
+@media (max-width: 767px) {
+    [data-slot=sidebar-inset] { margin-left: 0.5rem; }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+    .native-glass body { background-color: var(--background); }
+    .native-glass [data-slot=sidebar-inset] { background-color: var(--background); }
 }

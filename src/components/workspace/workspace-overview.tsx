@@ -22,6 +22,7 @@ import {
 
 type WorkspaceOverviewProps = {
   ready: boolean;
+  showBrowseAction: boolean;
   filter: WorkspacePageFilter;
   query: string;
   sort: WorkspacePageSort;
@@ -43,7 +44,7 @@ type WorkspaceOverviewProps = {
 export function WorkspaceOverview(props: WorkspaceOverviewProps) {
   const reduce = useReducedMotion();
   return (
-    <div className="flex flex-col gap-5">
+    <div className="glass-card flex flex-col gap-5 rounded-2xl p-4 sm:p-5">
       <div className="flex flex-col gap-3">
         <NavTabs id="workspace-filters" label="Arbeitskontexte filtern" className="md:border-b-0">
           {WORKSPACE_PAGE_FILTERS.map(({ id, label }) => (
@@ -113,6 +114,13 @@ export function WorkspaceOverview(props: WorkspaceOverviewProps) {
               <EmptyTitle>{props.emptyState.title}</EmptyTitle>
               <EmptyDescription>{props.emptyState.description}</EmptyDescription>
             </EmptyHeader>
+            {props.showBrowseAction && (
+              <EmptyContent>
+                <Button variant="outline" size="sm" asChild>
+                  <Link to="/tickets"><SearchIcon />Tickets durchsuchen</Link>
+                </Button>
+              </EmptyContent>
+            )}
             {props.query && (
               <EmptyContent>
                 <Button variant="outline" size="sm" onClick={() => props.onQueryChange("")}>

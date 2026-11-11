@@ -47,7 +47,7 @@ export function FacetMenu<Id extends string>({
       <DropdownMenuTrigger asChild>
         <Button variant={count > 0 ? "secondary" : "outline"} size="sm">
           <FilterIcon />
-          Filter
+          Eigenschaften
           <AnimatePresence initial={false} mode="popLayout">
             {count > 0 && (
               <motion.span

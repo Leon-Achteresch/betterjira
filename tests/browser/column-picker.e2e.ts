@@ -22,7 +22,9 @@ const headerOrder = (page: Page) =>
 const storedColumns = (page: Page) =>
   page.evaluate(() => {
     const raw = window.localStorage.getItem("betterjira-issue-views");
-    return raw ? (JSON.parse(raw).state?.views?.['project = "DEMO" ORDER BY updated DESC']?.columns ?? null) : null;
+    const views = raw ? JSON.parse(raw).state?.views : null;
+    const scope = JSON.stringify([JSON.stringify(["qa-cloud", "qa-user"]), 'project = "DEMO" ORDER BY updated DESC']);
+    return views?.[scope]?.columns ?? null;
   });
 
 const expectOrder = async (page: Page, labels: string[]) => {

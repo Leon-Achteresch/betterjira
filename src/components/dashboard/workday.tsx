@@ -1,8 +1,9 @@
 import type { ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
-import { formatDistanceToNowStrict } from "date-fns";
-import { de } from "date-fns/locale";
-import { ArrowRightIcon, CircleAlertIcon, WifiOffIcon } from "lucide-react";
+import { ArrowRightIcon, CircleAlertIcon, SearchIcon, WifiOffIcon } from "lucide-react";
+import { motion, useReducedMotion } from "motion/react";
+import { Fade } from "@/components/motion/fade";
+import { Stagger, StaggerItem } from "@/components/motion/stagger";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
@@ -14,23 +15,17 @@ import { IssueStatusMenu } from "@/components/issue-status-menu";
 import { ProjectAvatar } from "@/components/shell/project-avatar";
 import { SessionGate } from "@/components/shell/session-gate";
 import type { JiraProject, JiraWorkIssue } from "@/lib/jira/queries";
-import { useDashboard, type DashboardState } from "@/hooks/use-dashboard";
-import { useVisibleItems } from "@/hooks/use-visible-items";
+import type { DashboardState } from "@/hooks/use-dashboard";
+import { useDashboardIssues } from "@/hooks/use-dashboard-issues";
+import { SPRING_PRESS } from "@/lib/ease";
 import { cn } from "@/lib/utils";
 
-const reveal = "animate-in fade-in slide-in-from-bottom-2 fill-mode-both duration-500 motion-reduce:animate-none";
-
-export function Workday() {
-  const dashboard = useDashboard();
+export function Workday({ dashboard }: { dashboard: DashboardState }) {
   return (
     <SessionGate
       session={dashboard.session}
       className="flex h-full flex-col"
-      pending={
-        <div className="grid h-full place-items-center">
-          <Spinner />
-        </div>
-      }
+      pending={<DashboardSkeleton />}
       unconnected={<Welcome login={dashboard.login} />}
     >
       <Dashboard dashboard={dashboard} />
@@ -40,32 +35,30 @@ export function Workday() {
 
 function Welcome({ login }: { login: DashboardState["login"] }) {
   return (
-    <div className="relative grid h-full place-items-center overflow-hidden px-8">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,var(--border)_1px,transparent_1px),linear-gradient(to_bottom,var(--border)_1px,transparent_1px)] mask-[radial-gradient(ellipse_at_center,black,transparent_70%)] bg-size-[3rem_3rem]"
-      />
-      <div className={cn("relative flex max-w-xl flex-col items-start gap-8", reveal)}>
-        <img src="/logo.svg" alt="" className="size-14" />
-        <h1 className="text-5xl font-semibold tracking-tight text-balance">
-          Jira, aber nur das,
-          <br />
-          <span className="text-muted-foreground">was heute zählt.</span>
-        </h1>
-        <p className="max-w-md text-lg text-muted-foreground">
-          Verbinde deinen Atlassian-Account. betterjira zeigt dir danach, woran du gerade arbeitest, was als Nächstes
-          kommt und wo deine Arbeit liegt.
-        </p>
-        <Button size="lg" onClick={() => login.mutate()}>
-          {login.isPending && <Spinner />}
-          {login.isPending ? "Warte auf Browser – erneut öffnen" : "Mit Atlassian verbinden"}
-        </Button>
-        {login.error && (
-          <p role="alert" className="text-sm text-destructive">
-            {login.error.message}
+    <div className="grid min-h-full place-items-center px-6 py-10">
+      <Fade>
+        <div className="glass-card flex max-w-xl flex-col items-start gap-6 rounded-2xl p-6 sm:p-10">
+          <img src="/logo.svg" alt="" className="size-14" />
+          <h1 className="text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
+            Jira, aber nur das,
+            <br />
+            <span className="text-muted-foreground">was heute zählt.</span>
+          </h1>
+          <p className="max-w-md text-sm leading-relaxed text-muted-foreground">
+            Verbinde deinen Atlassian-Account. betterjira zeigt dir danach, woran du gerade arbeitest, was als Nächstes
+            kommt und wo deine Arbeit liegt.
           </p>
-        )}
-      </div>
+          <Button size="lg" onClick={() => login.mutate()}>
+            {login.isPending && <Spinner />}
+            {login.isPending ? "Warte auf Browser – erneut öffnen" : "Mit Atlassian verbinden"}
+          </Button>
+          {login.error && (
+            <p role="alert" className="text-sm text-destructive">
+              {login.error.message}
+            </p>
+          )}
+        </div>
+      </Fade>
     </div>
   );
 }
@@ -74,17 +67,17 @@ function Dashboard({ dashboard }: { dashboard: DashboardState }) {
   const { freshness, attention, active, next, done, open } = dashboard;
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-7 px-6 py-8 lg:px-10">
-      <header className={cn("flex flex-wrap items-end justify-between gap-6", reveal)}>
-        <div className="flex flex-col gap-3">
-          <p className="text-sm text-muted-foreground tabular-nums">
+    <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 px-4 py-5 sm:px-6 lg:px-8">
+      <header className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex min-w-0 flex-col gap-1">
+          <p className="text-xs text-muted-foreground tabular-nums">
             {dashboard.dateLabel} · {dashboard.session.site?.siteName}
           </p>
-          <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">{dashboard.greeting}</h1>
+          <h1 className="text-2xl font-semibold tracking-tight text-balance">{dashboard.greeting}</h1>
           {freshness.kind === "ready" && (
-            <p className="max-w-2xl text-lg text-balance text-muted-foreground">
-              <Figure value={active.length}>in Arbeit</Figure>, <Figure value={next.length}>als Nächstes</Figure> und{" "}
-              <Figure value={done.length}>diese Woche erledigt</Figure>.
+            <p className="text-sm text-muted-foreground">
+              <Figure value={active.length}>in Arbeit</Figure> · <Figure value={next.length}>als Nächstes</Figure> ·{" "}
+              <Figure value={done.length}>diese Woche erledigt</Figure>
             </p>
           )}
         </div>
@@ -99,11 +92,7 @@ function Dashboard({ dashboard }: { dashboard: DashboardState }) {
         )}
       </header>
 
-      {freshness.kind === "ready" && <TodayAgenda {...dashboard.agenda} />}
-      <ResumeWork />
-      <div className={cn(reveal, "delay-75")}>
-        <AttentionBriefing {...attention} onRun={attention.run} />
-      </div>
+      <ResumeWork item={dashboard.resume} />
 
       {freshness.kind === "error" ? (
         <LoadProblem
@@ -119,35 +108,48 @@ function Dashboard({ dashboard }: { dashboard: DashboardState }) {
           detail="Bisher wurde in dieser Sitzung noch kein Stand geladen."
         />
       ) : freshness.kind === "loading" ? (
-        <div className="flex flex-col gap-3" aria-busy>
-          <Skeleton className="h-3 w-full" />
-          {Array.from({ length: 6 }, (_, i) => (
-            <Skeleton key={i} className="h-10 w-full" />
-          ))}
-        </div>
+        <DashboardSkeleton />
       ) : (
-        <>
-          {dashboard.loadGroups.length > 1 && <LoadMap groups={dashboard.loadGroups} />}
-          <div
-            className={cn(
-              "grid gap-10",
-              (dashboard.favorites.length > 0 || done.length > 0) && "lg:grid-cols-[minmax(0,1fr)_18rem]",
-            )}
-          >
-            <div className="flex flex-col gap-10">
+        <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_19rem]">
+          <div className="flex min-w-0 flex-col gap-5">
+            <div className="glass-card flex min-w-0 flex-col gap-6 rounded-2xl p-4 sm:p-5">
               <IssueSection title="Jetzt" hint="Status in Arbeit" issues={active} accent />
               <IssueSection title="Als Nächstes" hint="Offen, dir zugewiesen" issues={next} />
               {open.length === 0 && (
-                <p className="text-muted-foreground">Nichts Offenes auf deinem Tisch. Genieß den Moment.</p>
+                <div className="flex flex-col items-start gap-3 py-3">
+                  <p className="text-sm text-muted-foreground">Nichts Offenes auf deinem Tisch. Genieß den Moment.</p>
+                  <Button variant="outline" size="sm" asChild>
+                    <Link to="/tickets"><SearchIcon />Tickets durchsuchen</Link>
+                  </Button>
+                </div>
               )}
             </div>
-            <aside className="flex flex-col gap-10">
-              <Favorites favorites={dashboard.favorites} />
-              <IssueSection title="Erledigt" hint="Letzte 7 Tage" issues={done} compact />
-            </aside>
+            <AttentionBriefing {...attention} onRun={attention.run} />
+            {dashboard.loadGroups.length > 1 && <LoadMap groups={dashboard.loadGroups} />}
           </div>
-        </>
+          <aside aria-label="Tagesübersicht" className="flex min-w-0 flex-col gap-5">
+            <TodayAgenda {...dashboard.agenda} />
+            <Favorites favorites={dashboard.favorites} />
+            {done.length > 0 && (
+              <div className="glass-card rounded-2xl p-4">
+                <IssueSection title="Erledigt" hint="Letzte 7 Tage" issues={done} compact />
+              </div>
+            )}
+          </aside>
+        </div>
       )}
+    </div>
+  );
+}
+
+function DashboardSkeleton() {
+  return (
+    <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 p-5" aria-busy aria-label="Arbeitsübersicht wird geladen">
+      <Skeleton className="h-5 w-48 rounded-xl" />
+      <Skeleton className="h-8 w-64 max-w-full rounded-xl" />
+      <div className="glass-card flex flex-col gap-3 rounded-2xl p-4">
+        {Array.from({ length: 6 }, (_, index) => <Skeleton key={index} className="h-10 w-full rounded-xl" />)}
+      </div>
     </div>
   );
 }
@@ -164,7 +166,7 @@ function LoadProblem({
   onRetry?: () => void;
 }) {
   return (
-    <div role="alert" className={cn("flex flex-wrap items-start gap-3 rounded-2xl border px-4 py-3.5", reveal)}>
+    <div role="alert" className="glass-card flex flex-wrap items-start gap-3 rounded-2xl px-4 py-3.5">
       {icon}
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         <p className="text-sm font-medium text-balance">{title}</p>
@@ -189,36 +191,22 @@ function Figure({ value, children }: { value: number; children: ReactNode }) {
 
 function LoadMap({ groups }: { groups: DashboardState["loadGroups"] }) {
   return (
-    <section aria-labelledby="load-title" className={cn("flex flex-col gap-3", reveal, "delay-100")}>
-      <h2 id="load-title" className="text-xs font-medium tracking-wider text-muted-foreground uppercase">
-        Wo deine Arbeit liegt
-      </h2>
-      <ul className="flex h-14 gap-1">
-        {groups.map(({ project, count, activeCount, fraction }) => {
-          return (
-            <li key={project.key} style={{ flexGrow: count }} className="min-w-10 basis-0">
-              <Link
-                to="/bereiche/$key"
-                params={{ key: project.key }}
-                title={`${project.name}: ${count} offen, ${activeCount} in Arbeit`}
-                className="group flex h-full flex-col justify-between overflow-hidden rounded-md bg-muted px-2.5 py-1.5 outline-none transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                <span className="flex items-baseline justify-between gap-2 text-xs">
-                  <span className="truncate font-mono text-muted-foreground group-hover:text-foreground">
-                    {project.key}
-                  </span>
-                  <span className="font-medium tabular-nums">{count}</span>
-                </span>
-                <span aria-hidden className="h-1 overflow-hidden rounded-full bg-background">
-                  <span
-                    className="block h-full rounded-full bg-sidebar-primary"
-                    style={{ width: `${fraction * 100}%` }}
-                  />
-                </span>
-              </Link>
-            </li>
-          );
-        })}
+    <section aria-labelledby="load-title" className="flex flex-col gap-2">
+      <h2 id="load-title" className="text-xs font-medium text-muted-foreground">Wo deine Arbeit liegt</h2>
+      <ul className="flex flex-wrap gap-2">
+        {groups.map(({ project, count, activeCount }) => (
+          <li key={project.key}>
+            <Link
+              to="/bereiche/$key"
+              params={{ key: project.key }}
+              title={`${project.name}: ${count} offen, ${activeCount} in Arbeit`}
+              className="flex min-h-8 items-center gap-2 rounded-xl bg-muted/60 px-3 text-xs outline-none transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <span className="font-mono text-muted-foreground">{project.key}</span>
+              <span className="font-medium tabular-nums">{count} offen</span>
+            </Link>
+          </li>
+        ))}
       </ul>
     </section>
   );
@@ -237,32 +225,34 @@ function IssueSection({
   accent?: boolean;
   compact?: boolean;
 }) {
-  const disclosure = useVisibleItems(issues, compact ? 3 : 6);
+  const disclosure = useDashboardIssues(issues, compact);
+  const reduce = useReducedMotion();
   if (issues.length === 0) return null;
   return (
-    <section className={cn("flex flex-col gap-2", reveal, "delay-200")}>
-      <h2 className="flex items-baseline gap-2 border-b pb-2">
+    <section className="flex min-w-0 flex-col gap-2">
+      <h2 className="flex flex-wrap items-baseline gap-x-2 gap-y-1 border-b border-border/60 pb-2">
         {accent && <span aria-hidden className="size-2 translate-y-[-1px] rounded-full bg-sidebar-primary" />}
         <span className="font-medium">{title}</span>
         <span className="text-sm text-muted-foreground tabular-nums">{issues.length}</span>
         <span className="ml-auto text-xs text-muted-foreground">{hint}</span>
       </h2>
-      <ul className="-mx-2 flex flex-col">
-        {disclosure.visible.map((issue) => (
-          <li
+      <Stagger role="list" aria-label={title} className="-mx-2 flex flex-col">
+        {disclosure.rows.map(({ issue, updatedLabel }) => (
+          <StaggerItem
+            role="listitem"
             key={issue.id}
             className={cn(
-              "group relative grid w-full items-baseline gap-x-4 rounded-md px-2 py-2 transition-colors hover:bg-muted has-[a:focus-visible]:ring-2 has-[a:focus-visible]:ring-ring",
-              compact ? "grid-cols-[1fr]" : "grid-cols-[6rem_minmax(0,1fr)_auto]",
+              "group relative grid min-h-12 w-full items-center gap-x-3 gap-y-1 rounded-xl px-2 py-2 transition-colors hover:bg-muted has-[a:focus-visible]:ring-2 has-[a:focus-visible]:ring-ring",
+              compact ? "grid-cols-[1fr]" : "grid-cols-[minmax(0,1fr)_auto] sm:grid-cols-[5.5rem_minmax(0,1fr)_auto]",
             )}
           >
-            <span className={cn("font-mono text-xs text-muted-foreground", compact && "hidden")}>{issue.key}</span>
+            <span className={cn("col-span-2 font-mono text-xs text-muted-foreground sm:col-span-1", compact && "hidden")}>{issue.key}</span>
             <Link
               to="/issue/$key"
               params={{ key: issue.key }}
               data-row-link
               className={cn(
-                "truncate outline-none after:absolute after:inset-0 after:rounded-md",
+                "line-clamp-2 min-w-0 text-sm outline-none after:absolute after:inset-0 after:rounded-xl",
                 compact && "text-sm text-muted-foreground line-through decoration-border",
               )}
             >
@@ -279,18 +269,20 @@ function IssueSection({
                 status={issue.fields.status}
                 className="relative z-10 hidden md:inline-flex"
               />
-              <span className="w-24 text-right tabular-nums">
-                {formatDistanceToNowStrict(new Date(issue.fields.updated), { locale: de, addSuffix: true })}
+              <span className="hidden w-24 text-right tabular-nums lg:block">
+                {updatedLabel}
               </span>
               <ArrowRightIcon className="size-3.5 opacity-0 transition-opacity group-hover:opacity-100 group-has-[a:focus-visible]:opacity-100" />
             </span>
-          </li>
+          </StaggerItem>
         ))}
-      </ul>
+      </Stagger>
       {disclosure.canExpand && (
-        <Button variant="ghost" size="sm" className="self-start text-muted-foreground" onClick={disclosure.toggle}>
-          {disclosure.expanded ? "Weniger anzeigen" : `Alle ${issues.length} anzeigen`}
-        </Button>
+        <motion.div whileTap={reduce ? undefined : { scale: 0.98 }} transition={SPRING_PRESS} className="self-start">
+          <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={disclosure.toggle}>
+            {disclosure.expanded ? "Weniger anzeigen" : `Alle ${issues.length} anzeigen`}
+          </Button>
+        </motion.div>
       )}
     </section>
   );
@@ -299,28 +291,22 @@ function IssueSection({
 function Favorites({ favorites }: { favorites: JiraProject[] }) {
   if (!favorites.length) return null;
   return (
-    <section className={cn("flex flex-col gap-2", reveal, "delay-150")}>
-      <h2 className="border-b pb-2 font-medium">Favoriten</h2>
-      {favorites.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
-          Markiere Bereiche per Rechtsklick in der Seitenleiste als Favorit.
-        </p>
-      ) : (
-        <ul className="-mx-2 flex flex-col">
-          {favorites.map((project) => (
-            <li key={project.id}>
-              <Link
-                to="/bereiche/$key"
-                params={{ key: project.key }}
-                className="flex items-center gap-3 rounded-md px-2 py-1.5 text-sm outline-none transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                <ProjectAvatar project={project} className="size-5" />
-                <span className="truncate">{project.name}</span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
+    <section className="glass-card flex flex-col gap-2 rounded-2xl p-4">
+      <h2 className="border-b border-border/60 pb-2 font-medium">Favoriten</h2>
+      <ul className="-mx-2 flex flex-col">
+        {favorites.map((project) => (
+          <li key={project.id}>
+            <Link
+              to="/bereiche/$key"
+              params={{ key: project.key }}
+              className="flex items-center gap-3 rounded-xl px-2 py-2 text-sm outline-none transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <ProjectAvatar project={project} className="size-5" />
+              <span className="truncate">{project.name}</span>
+            </Link>
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }

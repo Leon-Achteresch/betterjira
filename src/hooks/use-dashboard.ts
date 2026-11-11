@@ -11,6 +11,7 @@ import {
 } from "@/lib/jira/queries";
 import { useProjectPrefs } from "@/hooks/use-project-prefs";
 import { workdayGreeting } from "@/lib/workday";
+import { useResumeWork } from "@/hooks/use-resume-work";
 import { useTodayAgenda } from "@/hooks/use-today-agenda";
 
 export function useDashboard() {
@@ -20,6 +21,7 @@ export function useDashboard() {
   const projects = useJiraProjects();
   const login = useJiraLogin();
   const attention = useAttentionStatus();
+  const resume = useResumeWork();
   const { favoriteIds } = useProjectPrefs();
   const online = useDeviceOnline();
   const showsFavorites = favoriteIds.length > 0;
@@ -42,7 +44,6 @@ export function useDashboard() {
         project: group[0]!.fields.project,
         count: group.length,
         activeCount,
-        fraction: activeCount / group.length,
       };
     });
   const freshness = dashboardFreshness({
@@ -60,6 +61,7 @@ export function useDashboard() {
     session,
     login,
     attention,
+    resume,
     agenda,
     freshness,
     refresh,

@@ -1,5 +1,9 @@
+import { useMemo } from "react";
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { createJSONStorage, persist } from "zustand/middleware";
+import { useJiraAccountScope } from "@/hooks/jira/use-jira-account-scope";
+import { LOCAL_PREFERENCE_STORAGE } from "@/lib/local-preference-storage";
+import { boardPreferencePrefix, readBoardFilters, scopedBoardPreferences, scopedBoardView } from "@/lib/view-preferences";
 import { type BoardFilter, type BoardView, type FilterField, boardScopes, otherScopes } from "@/lib/board-filters";
 
 type BoardFiltersState = {
@@ -16,7 +20,7 @@ type BoardFiltersState = {
   toggleColumn: (board: string, column: string) => void;
 };
 
-export const useBoardFilters = create<BoardFiltersState>()(
+export const useBoardFiltersStore = create<BoardFiltersState>()(
   persist(
     (set) => ({
       filters: {},
@@ -57,6 +61,44 @@ export const useBoardFilters = create<BoardFiltersState>()(
           return { hiddenColumns: { ...hiddenColumns, [board]: next } };
         }),
     }),
-    { name: "betterjira-board-filters" },
+    {
+      name: "betterjira-board-filters",
+      version: 1,
+      storage: createJSONStorage(() => LOCAL_PREFERENCE_STORAGE),
+      partialize: ({ filters, ignoreBoard, views, hiddenColumns }) => ({ filters, ignoreBoard, views, hiddenColumns }),
+      migrate: (persisted) => readBoardFilters(persisted),
+      merge: (persisted, current) => ({ ...current, ...readBoardFilters(persisted) }),
+    },
   ),
 );
+
+export function useBoardFilters<T>(selector: (state: BoardFiltersState) => T): T {
+  const { scope } = useJiraAccountScope();
+  const stored = useBoardFiltersStore();
+  const scoped = useMemo<BoardFiltersState>(() => {
+    const prefix = scope === null ? null : boardPreferencePrefix(scope);
+    const qualify = (key: string) => `${prefix}${key}`;
+    const views = scopedBoardPreferences(stored.views, scope);
+    return {
+      filters: scopedBoardPreferences(stored.filters, scope),
+      ignoreBoard: scopedBoardPreferences(stored.ignoreBoard, scope),
+      hiddenColumns: scopedBoardPreferences(stored.hiddenColumns, scope),
+      views: Object.fromEntries(Object.entries(views).map(([board, entries]) => [board, entries.map((view) => scopedBoardView(view, scope))])),
+      toggle: (board, field, value) => { if (prefix !== null) stored.toggle(qualify(board), field, value); },
+      toggleIgnoreBoard: (board) => { if (prefix !== null) stored.toggleIgnoreBoard(qualify(board)); },
+      clear: (board) => { if (prefix !== null) stored.clear(qualify(board)); },
+      saveView: (board, name) => { if (prefix !== null) stored.saveView(qualify(board), name); },
+      applyView: (board, view) => {
+        if (prefix === null) return;
+        stored.applyView(qualify(board), {
+          ...view,
+          filters: Object.fromEntries(Object.entries(view.filters).map(([key, value]) => [qualify(key), value])),
+          ignoreBoard: Object.fromEntries(Object.entries(view.ignoreBoard).map(([key, value]) => [qualify(key), value])),
+        });
+      },
+      deleteView: (board, name) => { if (prefix !== null) stored.deleteView(qualify(board), name); },
+      toggleColumn: (board, column) => { if (prefix !== null) stored.toggleColumn(qualify(board), column); },
+    };
+  }, [stored, scope]);
+  return selector(scoped);
+}

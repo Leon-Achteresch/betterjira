@@ -310,7 +310,7 @@ export function IssueToolbar({
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="sm" className="text-muted-foreground">
-                Weitere Filter
+                Schnellfilter
                 {filters.activeSecondary.length > 0 && (
                   <span className="text-primary tabular-nums">{filters.activeSecondary.length}</span>
                 )}

@@ -205,14 +205,14 @@ export function WorkQueue() {
         <SheetTrigger asChild>
           <Button
             variant="ghost"
-            size="sm"
+            size="icon"
             aria-label="Weiterarbeiten"
             disabled={!queue.ready}
             data-tauri-drag-region="false"
             className="gap-1.5 text-muted-foreground"
           >
             <HistoryIcon />
-            <span className="hidden lg:inline">Weiterarbeiten</span>
+            <span className="sr-only">Weiterarbeiten</span>
           </Button>
         </SheetTrigger>
       </Tooltip>

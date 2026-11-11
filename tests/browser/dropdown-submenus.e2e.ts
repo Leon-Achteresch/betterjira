@@ -10,7 +10,7 @@ declare global {
 const TABLE = "/tests/browser/fixture.html?route=/bereiche/DEMO";
 
 const viewTrigger = (page: Page) => page.getByRole("button", { name: "Ansicht und Export" });
-const filterTrigger = (page: Page) => page.locator("button[aria-haspopup=menu]").filter({ hasText: /^Filter/ });
+const filterTrigger = (page: Page) => page.locator("button[aria-haspopup=menu]").filter({ hasText: /^Eigenschaften/ });
 const item = (page: Page, name: string) => page.getByRole("menuitem", { name, exact: true });
 const submenu = (page: Page) => page.locator("[data-slot=dropdown-menu-sub-content]");
 const copied = (page: Page) => page.evaluate(() => window.__qaCopied.at(-1));

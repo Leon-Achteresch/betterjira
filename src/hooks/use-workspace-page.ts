@@ -45,6 +45,7 @@ export function useWorkspacePage(search: WorkspacePageSearch) {
 
   return {
     ready,
+    showBrowseAction: entries.length === 0 && !query.trim() && (filter === "alle" || filter === "zuletzt"),
     filter,
     query,
     sort,

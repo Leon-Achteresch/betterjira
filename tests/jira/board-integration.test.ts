@@ -1,5 +1,5 @@
 import { InfiniteQueryObserver, QueryClient } from "@tanstack/react-query";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { createJiraMock } from "./mock-backend";
 import { useJiraMock } from "./tauri-mock";
 
@@ -18,6 +18,11 @@ const setup = async (pageLimit?: number) => {
   const { boardGroups } = await import("@/lib/jira/board");
   return { mock, options: boardQuery(client, board), boardGroups };
 };
+
+beforeAll(async () => {
+  await import("@/lib/jira/board-query");
+  await import("@/lib/jira/board");
+}, 30_000);
 
 beforeEach(() => {
   vi.useFakeTimers();

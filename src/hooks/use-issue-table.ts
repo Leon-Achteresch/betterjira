@@ -1,5 +1,8 @@
-import { useState } from "react";
 import { useDebouncedValue } from "@tanstack/react-pacer";
+import { useJiraAccountScope } from "@/hooks/jira/use-jira-account-scope";
+import { useTableSearch } from "@/hooks/use-interface-state";
+import { preferenceScope } from "@/lib/interface-state";
+import { legacyIssuePresentation } from "@/lib/view-preferences";
 import { useFieldCatalog } from "@/hooks/jira/use-field-catalog";
 import { useIssueCount } from "@/hooks/jira/use-issue-count";
 import { useIssueSearch } from "@/hooks/jira/use-issue-search";
@@ -33,19 +36,30 @@ export type ExportFormat = "tsv" | "markdown" | "keys" | "jql";
 export type IssueTableText = { value: string; onChange: (text: string) => void; placeholder: string };
 
 export function useIssueTable(scope: string, baseJql: string, externalText?: IssueTableText) {
-  const stored = useIssueViews((state) => state.views[scope]);
-  const savedViews = useIssueViews((state) => state.saved[scope]) ?? NO_SAVED_VIEWS;
-  const update = useIssueViews((state) => state.update);
-  const reset = useIssueViews((state) => state.reset);
-  const save = useIssueViews((state) => state.save);
-  const remove = useIssueViews((state) => state.remove);
-  const view = { ...DEFAULT_VIEW, ...stored };
+  const account = useJiraAccountScope();
+  const preferenceKey = account.scope === null ? null : preferenceScope(account.scope, scope);
+  const stored = useIssueViews((state) => preferenceKey === null ? undefined : state.views[preferenceKey]);
+  const legacy = useIssueViews((state) => state.views[scope]);
+  const presentation = legacyIssuePresentation(legacy);
+  const savedViews = useIssueViews((state) => preferenceKey === null ? undefined : state.saved[preferenceKey]) ?? NO_SAVED_VIEWS;
+  const storedUpdate = useIssueViews((state) => state.update);
+  const storedSave = useIssueViews((state) => state.save);
+  const storedRemove = useIssueViews((state) => state.remove);
+  const update = (_scope: string, change: Parameters<typeof storedUpdate>[1]) => {
+    if (preferenceKey !== null) storedUpdate(preferenceKey, change, presentation);
+  };
+  const reset = (_scope: string) => { if (preferenceKey !== null) storedUpdate(preferenceKey, () => DEFAULT_VIEW); };
+  const save = (_scope: string, name: string) => { if (preferenceKey !== null) storedSave(preferenceKey, name, presentation); };
+  const remove = (_scope: string, name: string) => { if (preferenceKey !== null) storedRemove(preferenceKey, name); };
+  const view = { ...DEFAULT_VIEW, ...presentation, ...stored };
   const quick = view.quick.filter((key) => key in QUICK_FILTERS);
 
-  const [localText, setLocalText] = useState("");
-  const text = externalText?.value ?? localText;
-  const setText = externalText?.onChange ?? setLocalText;
-  const [debouncedText] = useDebouncedValue(externalText ? "" : localText.trim(), { wait: 300 });
+  const searchText = useTableSearch(scope);
+  const text = externalText?.value ?? searchText.text;
+  const setText = externalText?.onChange ?? searchText.setText;
+  const searchPrefix = `${preferenceKey ?? ""}\u0000`;
+  const [debouncedSearch] = useDebouncedValue(`${searchPrefix}${externalText ? "" : searchText.text.trim()}`, { wait: 300 });
+  const debouncedText = debouncedSearch.startsWith(searchPrefix) ? debouncedSearch.slice(searchPrefix.length) : "";
 
   const clauses = [
     ...quick.map((key) => QUICK_FILTERS[key].jql),
