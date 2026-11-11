@@ -1,5 +1,52 @@
 # Änderungen
 
+## 0.11.0 – 2026-11-11
+
+### Neu
+
+- dateien erst beim absenden hochladen
+- datei-drops neben dem editor abfangen
+- dateien per drop in den editor einfügen
+- beschreibung im editor bearbeiten
+- bilder im editor einbetten und einfügen
+- anhänge direkt im ticket anzeigen
+- bilder in beschreibung und kommentaren
+- anhänge über provider bereitstellen
+- gerenderte fassung je ticket laden
+- gerenderte fassung abfragen
+- media-knoten anhängen zuordnen
+- benachrichtigung springt zum kommentar
+- jira-links in der app öffnen
+- zum kommentar springen
+- kommentare nach bestätigung löschen
+- kommentare an ort und stelle bearbeiten
+- aktionsmenü an kommentaren
+- datenbasis für kommentaraktionen
+- auf kommentare antworten
+- kommentar-sektion mit threads neu aufbauen
+- personen per @ im kommentar erwähnen
+- kommentarentwürfe als adf speichern
+- adf-editor von außen steuerbar machen
+- mentions im adf-editor verlustfrei abbilden
+- kommentare seitenweise laden und antworten
+- kommentar-threads und mention-ranking
+
+### Fehlerbehebung
+
+- anhang-kacheln aus dem cache einblenden
+- fremde kommentare nach abruf einordnen
+- ablagefläche für datei-drops freigeben
+- unlesbaren beschreibungsentwurf nicht senden
+- kopierten text nicht als bild einfügen
+- sprungziel bei nachladenden bildern halten
+- anhangsbilder mit accept */* laden
+- sprung, menüknopf und entwurfsbereinigung
+- bild-hinweise nachladen und nicht springen
+- review-befunde zum merge beheben
+- kommentar beim antworten nicht strecken
+- entwurf, strg-klick und spinner nachbessern
+- review-befunde zu antworten und mentions
+
 ## 0.10.0 – 2026-11-09
 
 ### Neu
