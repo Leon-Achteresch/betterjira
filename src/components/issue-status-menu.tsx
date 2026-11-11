@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Spinner } from "@/components/ui/spinner";
+import { useEditorMedia } from "@/hooks/jira/use-editor-media";
 import { encode, initialValue, isEmpty, jiraErrors, kindOf } from "@/lib/jira/field-values";
 import { useJiraSite, useJiraTransition, useJiraTransitions, type JiraTransition, type JiraTransitionField } from "@/lib/jira/queries";
 import { cn } from "@/lib/utils";
@@ -43,6 +44,8 @@ function TransitionDialog({
   const [touched, setTouched] = useState<Set<string>>(() => new Set());
   const [comment, setComment] = useState<unknown>(null);
   const [submitted, setSubmitted] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const media = useEditorMedia();
 
   const missing = (id: string, field: JiraTransitionField) => field.required && isEmpty(values[id]);
   const blocked = fields.filter(({ field, kind }) => !kind && field.required);
@@ -55,7 +58,7 @@ function TransitionDialog({
   const submit = (event: FormEvent) => {
     event.preventDefault();
     setSubmitted(true);
-    if (invalid || blocked.length > 0) return;
+    if (invalid || blocked.length > 0 || uploading) return;
     const changed = fields.filter(({ id, kind }) => kind && touched.has(id));
     mutation.mutate(
       {
@@ -116,7 +119,7 @@ function TransitionDialog({
             })}
             <Field>
               <FieldLabel htmlFor="transition-comment">Kommentar</FieldLabel>
-              <AdfEditor id="transition-comment" label="Kommentar" value={null} onChange={setComment} />
+              <AdfEditor id="transition-comment" label="Kommentar" value={null} onChange={setComment} media={media} onUploadingChange={setUploading} />
             </Field>
           </FieldGroup>
 
@@ -137,7 +140,7 @@ function TransitionDialog({
             <Button type="button" variant="outline" onClick={onClose}>
               Abbrechen
             </Button>
-            <Button type="submit" disabled={mutation.isPending || blocked.length > 0}>
+            <Button type="submit" disabled={mutation.isPending || blocked.length > 0 || uploading}>
               {mutation.isPending && <Spinner />}
               {transition.name}
             </Button>

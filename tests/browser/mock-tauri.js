@@ -20,6 +20,20 @@ const author = {
   displayName: "Alex Beispiel",
   avatarUrls: { "48x48": "/logo.svg" },
 };
+const person = (accountId, displayName, extra = {}) => ({
+  accountId,
+  accountType: "atlassian",
+  active: true,
+  displayName,
+  avatarUrls: { "48x48": "/logo.svg" },
+  ...extra,
+});
+const lea = person("qa-lea", "Lea Muster");
+const automation = person("qa-app", "Automation für Jira", { accountType: "app" });
+const former = person("qa-former", "Ehemalige Kollegin", { active: false });
+const kimExtern = person("qa-kim", "Kim Extern");
+const people = [author, lea, automation, former, kimExtern];
+const DEV_COMMENT_SCENARIOS = new Set(["comments", "comment-pages", "comment-links"]);
 const status = {
   id: "3",
   name: "In Arbeit",
@@ -29,7 +43,7 @@ const project = {
   id: "1",
   key: "DEMO",
   name: "Produktentwicklung",
-  projectTypeKey: "software",
+  projectTypeKey: scenario === "jsm" ? "service_desk" : "software",
   avatarUrls: author.avatarUrls,
 };
 const projects =
@@ -87,7 +101,7 @@ const issues = Array.from({ length: scenario === "busy" ? 35 : scenario === "wor
     status: { ...status },
     project,
     assignee: author,
-    reporter: author,
+    reporter: index === 0 && !DEV_COMMENT_SCENARIOS.has(scenario) ? former : author,
     priority: { name: "Mittel" },
     issuetype: { name: "Aufgabe" },
     created: "2026-11-01T09:00:00Z",
@@ -122,6 +136,92 @@ const issues = Array.from({ length: scenario === "busy" ? 35 : scenario === "wor
     worklog: { total: 0, worklogs: [] },
   },
 }));
+const entry = (id, who, created, text, parentId) => ({
+  id,
+  author: who,
+  created,
+  body: paragraph(text),
+  ...(parentId === undefined ? {} : { parentId }),
+});
+if (!DEV_COMMENT_SCENARIOS.has(scenario))
+  issues[0].fields.comment = {
+    total: 7,
+    comments: [
+      entry("10001", author, "2026-11-02T10:00:00Z", "Die erste Fassung ist bereit. Bitte besonders den Wechsel zwischen Vorgängen prüfen."),
+      entry("10002", lea, "2026-11-03T09:00:00Z", "Ich habe eine Rückfrage zur Reihenfolge der Schritte."),
+      entry("10003", author, "2026-11-03T11:00:00Z", "Die Reihenfolge folgt dem Ablauf im Team.", 10002),
+      entry("10004", automation, "2026-11-03T12:00:00Z", "Automatischer Hinweis: Fälligkeit in drei Tagen."),
+      entry("10005", lea, "2026-11-04T08:00:00Z", "Danke, dann passt es so.", "10002"),
+      entry("10006", lea, "2026-11-04T09:00:00Z", "Antwort auf einen Kommentar, der nicht mehr existiert.", 99999),
+      entry("10007", author, "2026-11-04T10:00:00Z", "Der aktuelle Stand ist mit dem Team abgestimmt."),
+    ],
+  };
+const lockedBody = {
+  type: "doc",
+  version: 1,
+  content: [
+    {
+      type: "bulletList",
+      content: [{ type: "listItem", content: [{ type: "codeBlock", content: [{ type: "text", text: "bun run release" }] }] }],
+    },
+  ],
+};
+const linkBody = {
+  type: "doc",
+  version: 1,
+  content: [
+    {
+      type: "paragraph",
+      content: [
+        { type: "text", text: "Siehe " },
+        {
+          type: "text",
+          text: "die Abstimmung in DEMO-2",
+          marks: [{ type: "link", attrs: { href: "https://example.atlassian.net/browse/DEMO-2?focusedCommentId=20012" } }],
+        },
+        { type: "text", text: ", das Ticket " },
+        { type: "inlineCard", attrs: { url: "https://example.atlassian.net/browse/DEMO-3" } },
+        { type: "text", text: " und " },
+        { type: "text", text: "die Doku", marks: [{ type: "link", attrs: { href: "https://example.com/doku" } }] },
+        { type: "text", text: "." },
+      ],
+    },
+  ],
+};
+if (!DEV_COMMENT_SCENARIOS.has(scenario)) {
+  issues[0].fields.comment.comments.push(
+    { id: "10008", author, created: "2026-11-04T11:00:00Z", updated: "2026-11-04T11:00:00Z", body: lockedBody },
+    {
+      id: "10009",
+      author,
+      created: "2026-11-04T12:00:00Z",
+      updated: "2026-11-04T12:00:00Z",
+      body: paragraph("Nur für Entwickler sichtbar: Die Zugangsdaten liegen im Tresor."),
+      visibility: { type: "role", value: "Developers", identifier: "Developers" },
+    },
+    {
+      id: "10010",
+      author: lea,
+      created: "2026-11-04T13:00:00Z",
+      updated: "2026-11-05T08:30:00Z",
+      updateAuthor: lea,
+      body: paragraph("Der Termin ist auf Donnerstag verschoben."),
+    },
+    { id: "10011", author, created: "2026-11-04T14:00:00Z", updated: "2026-11-04T14:00:00Z", body: linkBody },
+  );
+  issues[0].fields.comment.total = issues[0].fields.comment.comments.length;
+  issues.slice(1).forEach((issue, offset) => {
+    const index = offset + 1;
+    issue.fields.comment = {
+      total: 2,
+      comments: [
+        entry(String(20001 + index * 10), author, "2026-11-02T10:00:00Z", "Die erste Fassung ist bereit. Bitte besonders den Wechsel zwischen Vorgängen prüfen."),
+        entry(String(20002 + index * 10), author, "2026-11-04T10:00:00Z", "Der aktuelle Stand ist mit dem Team abgestimmt."),
+      ],
+    };
+  });
+}
+let nextCommentId = 30000;
 if (scenario?.startsWith("zammad")) {
   issues[0].names.customfield_10041 = "Helpdesk Ticketnummer";
   issues[0].names.customfield_10042 = "Helpdesk Ticket";
@@ -301,12 +401,111 @@ if (scenario === "comment-pages") {
       body: paragraph(`Verlaufseintrag ${index}: nachgeladener Testkommentar.`),
     });
 }
+const renderedHtml = { description: {}, comments: {} };
+if (scenario === "adf-images") {
+  const site = "https://example.atlassian.net";
+  const file = (id, filename, mimeType, size) => ({ id, filename, mimeType, size, created: "2026-11-03T09:00:00Z", author });
+  const doc = (...content) => ({ type: "doc", version: 1, content });
+  const line = (value) => ({ type: "paragraph", content: [{ type: "text", text: value }] });
+  const media = (id, extra = {}) => ({ type: "media", attrs: { id, type: "file", collection: "", ...extra } });
+  const inline = (id, extra = {}) => ({ type: "mediaInline", attrs: { id, type: "file", collection: "", ...extra } });
+  const external = (name) => ({ type: "mediaSingle", attrs: { layout: "center" }, content: [{ type: "media", attrs: { type: "external", url: `https://example.com/${name}`, alt: name } }] });
+  const img = (id, name) => `<img src="${site}/rest/api/3/attachment/content/${id}" alt="${name}" width="480">`;
+  const fileLink = (id, name, uuid) => `<a href="/rest/api/3/attachment/content/${id}" title="${name} attached to DEMO-1" data-attachment-type="file" data-attachment-name="${name}" data-media-services-type="file" data-media-services-id="${uuid}" rel="noreferrer">${name}<sup><img class="rendericon" src="/images/icons/link_attachment_7.gif" height="7" width="7" alt="" border="0"/></sup></a>`;
+  issues[0].fields.attachment = [
+    file("46883", "Ablauf Übergabe.png", "image/png", 245_000),
+    file("46884", "Fehlerbild.png", "image/png", 120_000),
+    file("46885", "Skizze.jpg", "image/jpeg", 64_000),
+    file("46886", "Angebot.pdf", "application/pdf", 1_840_000),
+    file("46887", "Kommentar Beleg.png", "image/png", 80_000),
+    file("46888", "Defekt.png", "image/png", 5_000),
+    file("46889", "Protokoll.txt", "text/plain", 2_000),
+    file("46890", "Messwerte.csv", "text/csv", 3_000),
+  ];
+  issues[0].fields.description = doc(
+    line("Vorher:"),
+    { type: "mediaSingle", attrs: { layout: "center", width: 480, widthType: "pixel" }, content: [media("uuid-a", { width: 1200, height: 600 })] },
+    line("Nachher:"),
+    { type: "mediaSingle", attrs: { layout: "center", width: 50 }, content: [media("uuid-b", { width: 800, height: 400 })] },
+    { type: "mediaGroup", content: [media("uuid-c", { width: 300, height: 200 }), media("uuid-d"), media("uuid-e")] },
+    external("extern-beschreibung.png"),
+    ...Array.from({ length: 40 }, (_, index) => line(`Fülltext ${index + 1} für den Abstand zu den Kommentaren.`)),
+  );
+  renderedHtml.description["DEMO-1"] = [
+    "<p>Vorher:</p>",
+    `<p>${img("46883", "Ablauf Übergabe.png")}</p>`,
+    "<p>Nachher:</p>",
+    `<p>${img("46884", "Fehlerbild.png")}</p>`,
+    `<p><a href="${site}/secure/attachment/46885/Skizze.jpg">${img("46885", "Skizze.jpg")}</a>`,
+    `<a href="${site}/secure/attachment/46886/Angebot.pdf">Angebot.pdf</a>`,
+    `<a href="${site}/secure/attachment/46888/Defekt.png">Defekt.png</a></p>`,
+    `<p><img src="https://example.com/extern-beschreibung.png" alt="extern-beschreibung.png"></p>`,
+  ].join("");
+  issues[0].fields.comment.comments.push(
+    {
+      id: "c-img",
+      author,
+      created: "2026-11-03T08:00:00Z",
+      body: doc(line("Beleg aus dem Test:"), { type: "mediaSingle", attrs: { layout: "center" }, content: [media("uuid-f", { width: 640, height: 320 })] }),
+    },
+    {
+      id: "c-inline",
+      author,
+      created: "2026-11-03T09:00:00Z",
+      body: doc({ type: "paragraph", content: [{ type: "text", text: "Protokoll und Messwerte: " }, inline("uuid-k"), { type: "text", text: " und " }, inline("uuid-j")] }),
+    },
+    {
+      id: "c-mix",
+      author,
+      created: "2026-11-06T08:00:00Z",
+      body: doc(
+        { type: "mediaSingle", attrs: { layout: "center" }, content: [media("uuid-g", { alt: "Kommentar Beleg.png", width: 640, height: 320 })] },
+        { type: "mediaSingle", attrs: { layout: "center" }, content: [media("uuid-h")] },
+        { type: "paragraph", content: [{ type: "text", text: "Siehe " }, inline("uuid-i", { alt: "Angebot.pdf" })] },
+        { type: "mediaSingle", attrs: { layout: "center" }, content: [{ type: "media", attrs: { type: "external", url: "https://example.com/extern.png", alt: "extern.png" } }] },
+      ),
+    },
+    {
+      id: "c-reply",
+      parentId: "c-img",
+      author,
+      created: "2026-11-07T08:00:00Z",
+      body: doc(line("Antwort mit Bild:"), { type: "mediaSingle", attrs: { layout: "center" }, content: [media("uuid-r", { width: 640, height: 320 })] }),
+    },
+  );
+  renderedHtml.comments["c-img"] = `<p>Beleg aus dem Test:</p><p>${img("46887", "Kommentar Beleg.png")}</p>`;
+  renderedHtml.comments["c-inline"] = `<p>Protokoll und Messwerte: <span class="nobr">${fileLink("46889", "Protokoll.txt", "uuid-j")}</span> und <span class="nobr">${fileLink("46890", "Messwerte.csv", "uuid-k")}</span></p>`;
+  renderedHtml.comments["c-reply"] = `<p>Antwort mit Bild:</p><p>${img("46884", "Fehlerbild.png")}</p>`;
+  renderedHtml.comments["c-mix"] = `<p>${img("46887", "Kommentar Beleg.png")}</p><p>Siehe </p><p><img src="https://example.com/extern.png" alt="extern.png"></p>`;
+  issues[0].fields.worklog.worklogs.push({
+    id: "wl-media",
+    author,
+    started: "2026-11-04T09:00:00.000+0100",
+    timeSpentSeconds: 1800,
+    timeSpent: "30m",
+    comment: doc({ type: "paragraph", content: [{ type: "text", text: "Messprotokoll " }, inline("uuid-w")] }, { type: "mediaSingle", attrs: { layout: "center" }, content: [media("uuid-v")] }),
+  });
+  issues[0].fields.worklog.total++;
+  window.__qaAdfImagesRevise = () => {
+    issues[0].fields.updated = "2026-11-05T10:00:00Z";
+    issues[0].fields.description = doc(
+      line("Neu:"),
+      { type: "mediaSingle", attrs: { layout: "center", width: 480, widthType: "pixel" }, content: [media("uuid-n", { width: 1200, height: 600 })] },
+    );
+    renderedHtml.description["DEMO-1"] = `<p>Neu:</p><p>${img("46887", "Kommentar Beleg.png")}</p>`;
+  };
+}
 const sortedComments = (issue) =>
   [...issue.fields.comment.comments].sort((a, b) => Date.parse(a.created) - Date.parse(b.created));
 const commentWindow = (issue) => {
   const all = sortedComments(issue);
   const limit = window.__qa.commentDetailLimit;
-  return { startAt: 0, maxResults: limit, total: all.length, comments: all.slice(0, limit) };
+  return { startAt: 0, maxResults: limit ?? all.length, total: all.length, comments: all.slice(0, limit).map(({ parentId, ...rest }) => rest) };
+};
+window.__qaForeignReply = (key, parentId, text) => {
+  const issue = issues.find((entry) => entry.key === key);
+  issue.fields.comment.comments.push({ id: String(++nextCommentId), author: lea, created: new Date().toISOString(), body: paragraph(text), parentId });
+  issue.fields.comment.total = issue.fields.comment.comments.length;
 };
 const attachmentSortFixture = (id, filename, mimeType, size, created) => ({ id, filename, mimeType, size, created, author });
 if (scenario === "attachment-sort") {
@@ -830,7 +1029,19 @@ window.__qa.filters = /^\/filter\/(100|200)/.test(new URLSearchParams(location.s
 ] : qaFilters;
 window.__qa.filterReads = [];
 window.__qa.commentPageReads = [];
-window.__qa.commentDetailLimit = scenario === "comment-pages" ? 2 : undefined;
+Object.assign(window.__qa, {
+  people,
+  commentPageSize: undefined,
+  readDelayMs: 0,
+  failCommentList: false,
+  failUserSearch: false,
+  rejectParentId: false,
+  ignoreParentId: false,
+  ownPermissionsOnly: new URLSearchParams(location.search).get("permissions") === "own",
+});
+window.__qa.commentDetailLimit = window.__qaCommentDetailLimit ?? (scenario === "comment-pages" ? 2 : scenario === "adf-images" ? 4 : undefined);
+window.__qa.renderedReads = [];
+window.__qa.commentPageExpands = [];
 window.__qa.notification = { permission: "denied", answer: "granted", checkDelayMs: 0, failCheck: false, requestDelayMs: 0, failRequest: false, checks: 0, requests: 0, sent: [], ...window.__qaNotificationInit };
 window.Notification = class QaNotification {
   static get permission() {
@@ -947,9 +1158,10 @@ const respond = async (request) => {
     if (uploadTarget) {
       const target = issues.find((issue) => issue.key === uploadTarget[1]);
       const text = new TextDecoder().decode(new Uint8Array(request.data ?? []));
-      const names = [...text.matchAll(/filename="([^"]*)"/g)].map((match) => match[1]);
-      const added = names.map((filename) =>
-        attachmentSortFixture(`qa-upload-${++nextId}`, filename, "text/plain", 1, new Date().toISOString()),
+      const parts = [...text.matchAll(/filename="([^"]*)"(?:\r\nContent-Type: ([^\r\n]+))?/g)];
+      const names = parts.map((match) => match[1]);
+      const added = parts.map(([, filename, mimeType]) =>
+        attachmentSortFixture(`qa-upload-${++nextId}`, filename, mimeType ?? "text/plain", 1, new Date().toISOString()),
       );
       target?.fields.attachment.push(...added);
       window.__qa.writes.push({ path, method: request.method, input: { files: names } });
@@ -1007,13 +1219,33 @@ const respond = async (request) => {
     }
     if (filter && request.method === "PUT") return { body: Object.assign(filter, input) };
     const issue = issues.find((issue) => path.startsWith(`/issue/${issue.key}/`) || path === `/issue/${issue.key}`);
-    if (path.endsWith("/comment") && issue)
-      issue.fields.comment.comments.push({
-        id: `new-${nextId}`,
+    const commentItem = path.match(/^\/issue\/([^/]+)\/comment\/([^/]+)$/);
+    if (commentItem && issue && (request.method === "PUT" || request.method === "DELETE")) {
+      const list = issue.fields.comment.comments;
+      const index = list.findIndex((entry) => entry.id === decodeURIComponent(commentItem[2]));
+      if (index === -1) return { status: 404, body: { errorMessages: ["Test: Kommentar nicht gefunden"] } };
+      if (request.method === "DELETE") {
+        list.splice(index, 1);
+        issue.fields.comment.total = list.length;
+        return { status: 204 };
+      }
+      list[index] = { ...list[index], body: input.body, updated: new Date().toISOString(), updateAuthor: author };
+      return { status: 200, body: list[index] };
+    }
+    if (path.endsWith("/comment") && issue && request.method === "POST") {
+      if (input.parentId !== undefined && window.__qa.rejectParentId)
+        return { status: 400, body: { errorMessages: ["Test: Jira lehnt parentId ab"] } };
+      const created = {
+        id: String(++nextCommentId),
         author,
         created: new Date().toISOString(),
-        body: paragraph(input.body),
-      });
+        body: typeof input.body === "string" ? paragraph(input.body) : input.body,
+        ...(input.parentId !== undefined && !window.__qa.ignoreParentId ? { parentId: input.parentId } : {}),
+      };
+      issue.fields.comment.comments.push(created);
+      issue.fields.comment.total = issue.fields.comment.comments.length;
+      return { status: 201, body: created };
+    }
     if (path.endsWith("/worklog") && issue) {
       issue.fields.worklog.worklogs.push({
         id: `work-${nextId}`,
@@ -1052,6 +1284,20 @@ const respond = async (request) => {
     if (rule.delayMs) await new Promise((resolve) => setTimeout(resolve, rule.delayMs));
     if (rule.status) return { status: rule.status, body: { errorMessages: [`Test: Jira antwortet mit ${rule.status}`] } };
     return { body: { isLast: true, values: rule.values ?? window.__qaProjects ?? (scenario === "create" ? createProjects : projects) } };
+  }
+  if (path === "/mypermissions" && url.searchParams.get("issueKey")) {
+    const all = !window.__qa.ownPermissionsOnly;
+    const grant = (key, havePermission) => [key, { id: key, key, name: key, type: "PROJECT", description: "", havePermission }];
+    return {
+      body: {
+        permissions: Object.fromEntries([
+          grant("EDIT_OWN_COMMENTS", true),
+          grant("DELETE_OWN_COMMENTS", true),
+          grant("EDIT_ALL_COMMENTS", all),
+          grant("DELETE_ALL_COMMENTS", all),
+        ]),
+      },
+    };
   }
   if (path === "/mypermissions") {
     const allowed = url.searchParams.get("projectId") !== "3";
@@ -1179,14 +1425,26 @@ const respond = async (request) => {
     const maxResults = Number(url.searchParams.get("maxResults") ?? 100);
     window.__qa.commentPageReads.push({ key, startAt, maxResults, orderBy: url.searchParams.get("orderBy") });
     const rule = window.__qaCommentPagesRule?.(key, startAt) ?? {};
-    if (rule.delayMs) await new Promise((resolve) => setTimeout(resolve, rule.delayMs));
+    const delayMs = rule.delayMs ?? window.__qa.readDelayMs;
+    if (delayMs) await new Promise((resolve) => setTimeout(resolve, delayMs));
     if (rule.status) return { status: rule.status, body: { errorMessages: [`Test: Jira antwortet mit ${rule.status}`] } };
+    if (window.__qa.failCommentList)
+      return { status: 503, body: { errorMessages: ["Test: Kommentare vorübergehend nicht abrufbar"] } };
     if (!target) return { status: 404, body: { errorMessages: [`Test: ${key} nicht gefunden`] } };
     const all = sortedComments(target);
     const from = rule.startAt ?? startAt;
-    const size = Math.min(rule.pageSize ?? maxResults, maxResults);
+    const size = Math.min(rule.pageSize ?? window.__qa.commentPageSize ?? maxResults, maxResults);
     const total = rule.total === null ? undefined : (rule.total ?? all.length);
-    return { body: { startAt: from, maxResults: rule.maxResults ?? size, total, comments: rule.omitComments ? undefined : (rule.comments ?? all.slice(from, from + size)) } };
+    const expand = url.searchParams.get("expand");
+    window.__qa.commentPageExpands.push(expand);
+    const pageComments = rule.comments ?? all.slice(from, from + size);
+    const delivered = expand === "renderedBody" ? pageComments.map((entry) => ({ ...entry, renderedBody: renderedHtml.comments[entry.id] ?? "" })) : pageComments;
+    return { body: { startAt: from, maxResults: rule.maxResults ?? size, total, comments: rule.omitComments ? undefined : delivered } };
+  }
+  if (path.startsWith("/user/viewissue/search")) {
+    if (window.__qa.failUserSearch) return { status: 503, body: { errorMessages: ["Test: Personensuche nicht erreichbar"] } };
+    const query = (url.searchParams.get("query") ?? "").toLocaleLowerCase("de");
+    return { body: people.filter((candidate) => candidate.displayName.toLocaleLowerCase("de").includes(query)) };
   }
   const issue = issues.find((issue) => path === `/issue/${issue.key}`);
   if (issue && url.searchParams.get("fields") === "summary") {
@@ -1217,12 +1475,41 @@ const respond = async (request) => {
     if (rule.status) return { status: rule.status, body: { errorMessages: [`Test: Jira antwortet mit ${rule.status}`] } };
     if (rule.summary) return { body: { ...issue, fields: { ...issue.fields, summary: rule.summary } } };
   }
-  if (issue && window.__qa.commentDetailLimit !== undefined)
-    return { body: { ...issue, fields: { ...issue.fields, comment: commentWindow(issue) } } };
-  if (issue) return { body: issue };
-  if (/^\/attachment\/(thumbnail|content)\/qa-att-/.test(path)) return { bytes: attachmentSortPixel, contentType: "image/png" };
+  if (issue && url.searchParams.get("fields") === "description,comment") {
+    window.__qa.renderedReads.push({ key: issue.key, expand: url.searchParams.get("expand") });
+    const rule = window.__qaRenderedRule?.(issue.key) ?? {};
+    if (rule.delayMs) await new Promise((resolve) => setTimeout(resolve, rule.delayMs));
+    if (rule.status) return { status: rule.status, body: { errorMessages: [`Test: Jira antwortet mit ${rule.status}`] } };
+    const comment = commentWindow(issue);
+    return {
+      body: {
+        id: issue.id,
+        key: issue.key,
+        fields: { description: issue.fields.description, comment },
+        renderedFields: {
+          description: renderedHtml.description[issue.key] ?? "",
+          comment: { comments: comment.comments.map((entry) => ({ id: entry.id, body: renderedHtml.comments[entry.id] ?? "" })) },
+        },
+      },
+    };
+  }
+  if (issue) return { body: { ...issue, fields: { ...issue.fields, comment: commentWindow(issue) } } };
+  const uploadedContent = path.match(/^\/attachment\/content\/qa-upload-(\d+)$/);
+  if (uploadedContent && request.maxRedirections === 0) {
+    const mediaId = `00000000-0000-4000-8000-${uploadedContent[1].padStart(12, "0")}`;
+    if (window.__qa.withholdMediaId) return { bytes: attachmentSortPixel, contentType: "image/png" };
+    return { status: 303, headers: { location: `https://api.media.atlassian.com/file/${mediaId}/binary?token=test&name=test` }, body: {} };
+  }
+  if (/^\/attachment\/(thumbnail|content)\/qa-(att|upload)-/.test(path)) return { bytes: attachmentSortPixel, contentType: "image/png" };
   if (scenario === "attachments" && /^\/attachment\/(thumbnail|content)\/att-1$/.test(path))
     return { bytes: attachmentSortPixel, contentType: "image/png" };
+  const adfImage = scenario === "adf-images" ? path.match(/^\/attachment\/(?:thumbnail|content)\/(\d+)$/) : null;
+  if (adfImage) {
+    const rule = window.__qaAttachmentRule?.(adfImage[1]) ?? {};
+    if (rule.delayMs) await new Promise((resolve) => setTimeout(resolve, rule.delayMs));
+    if (adfImage[1] === "46888") return { status: 404, body: { errorMessages: ["Test: Anhang nicht gefunden"] } };
+    return { bytes: attachmentSortPixel, contentType: "image/png" };
+  }
   return {
     status: 404,
     body: { errorMessages: [`Keine Testantwort für ${path}`] },

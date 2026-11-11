@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { Outlet, createRootRouteWithContext, useRouterState, type ErrorComponentProps } from "@tanstack/react-router";
 import type { QueryClient } from "@tanstack/react-query";
 import { ThemeProvider } from "next-themes";
@@ -6,6 +7,8 @@ import { Toaster } from "@/components/ui/sonner";
 import { AppHeader } from "@/components/shell/app-header";
 import { AppSidebar } from "@/components/shell/app-sidebar";
 import { useNotificationPoller } from "@/hooks/notifications/use-notification-poller";
+import { AdfLinkContext } from "@/components/adf-content";
+import { useAppLinkHandler } from "@/hooks/use-app-link-handler";
 import { useAttentionScheduler } from "@/hooks/attention/use-attention-scheduler";
 import { useAppUpdate } from "@/hooks/use-app-update";
 import { useBackgroundTabClick, useIssueTabScopeSync } from "@/hooks/use-issue-tabs";
@@ -26,6 +29,7 @@ import { useMainContentFocus } from "@/hooks/use-main-content-focus";
 import { SkipLink } from "@/components/ui/skip-link";
 
 import { useReadabilitySync } from "@/hooks/use-readability";
+import { useFileDropGuard } from "@/hooks/use-file-drop-guard";
 
 function NotificationPoller() {
   useNotificationPoller();
@@ -57,6 +61,11 @@ function ReadabilitySync() {
   return null;
 }
 
+function FileDropGuard() {
+  useFileDropGuard();
+  return null;
+}
+
 function BackgroundTabClick() {
   useBackgroundTabClick();
   return null;
@@ -65,6 +74,11 @@ function BackgroundTabClick() {
 function IssueTabScopeSync() {
   useIssueTabScopeSync();
   return null;
+}
+
+function AdfLinks({ children }: { children: ReactNode }) {
+  const openLink = useAppLinkHandler();
+  return <AdfLinkContext value={openLink}>{children}</AdfLinkContext>;
 }
 
 function Shortcuts() {
@@ -138,14 +152,17 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
       <ReadabilitySync />
       <TooltipProvider>
-        <Shell />
-        <Toaster />
-        <Shortcuts />
-        <NotificationPoller />
-        <AttentionScheduler />
-        <AppUpdater />
-        <BackgroundTabClick />
-        <IssueTabScopeSync />
+        <AdfLinks>
+          <Shell />
+          <Toaster />
+          <Shortcuts />
+          <NotificationPoller />
+          <AttentionScheduler />
+          <AppUpdater />
+          <BackgroundTabClick />
+          <FileDropGuard />
+          <IssueTabScopeSync />
+        </AdfLinks>
       </TooltipProvider>
     </ThemeProvider>
   ),

@@ -3,11 +3,16 @@ import { expect, test, type Page, type TestInfo } from "@playwright/test";
 type PageRead = { key: string; startAt: number; maxResults: number; orderBy: string | null };
 type QaState = {
   commentPageReads: PageRead[];
-  writes: { path: string; method: string }[];
+  writes: { path: string; method: string; input: { parentId?: unknown } }[];
   commands: string[];
   delayMs: number;
 };
-type QaWindow = { __qa: QaState; __qaCommentFail?: boolean; __qaEditorRef?: Element };
+type QaWindow = {
+  __qa: QaState;
+  __qaCommentFail?: boolean;
+  __qaEditorRef?: Element;
+  __qaForeignReply: (key: string, parentId: string, text: string) => void;
+};
 
 const ISSUE = (key: string, scenario = "comment-pages") =>
   `/tests/browser/fixture.html?scenario=${scenario}&route=/issue/${key}`;
@@ -16,10 +21,11 @@ const section = (page: Page) =>
 const items = (page: Page) => section(page).locator("ol > li");
 const progress = (page: Page) => section(page).locator('p[role="status"]');
 const more = (page: Page) => section(page).getByRole("button", { name: "Weitere Kommentare laden" });
-const editor = (page: Page) => page.getByRole("textbox", { name: "Kommentar" });
+const editor = (page: Page) => page.getByRole("textbox", { name: "Kommentar", exact: true });
 const qa = (page: Page) => page.evaluate(() => (window as unknown as QaWindow).__qa);
 const startsOf = async (page: Page, key = "DEMO-1") =>
   (await qa(page)).commentPageReads.filter((read) => read.key === key).map((read) => read.startAt);
+const pagesOf = (page: Page, rule: string) => page.addInitScript({ content: `window.__qaCommentPagesRule = ${rule};` });
 
 const shot = async (page: Page, testInfo: TestInfo, name: string) => {
   const dir = process.env.COMMENT_PAGES_SHOTS;
@@ -39,34 +45,33 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
-test("lädt beim Öffnen keine weiteren Seiten und zeigt geladen/gesamt", async ({ page }) => {
-  await page.goto(ISSUE("DEMO-1", "default"));
+test("lädt beim Öffnen nur die erste Seite und zeigt geladen/gesamt", async ({ page }) => {
+  await page.goto(ISSUE("DEMO-2", "default"));
   await expect(items(page)).toHaveCount(2);
+  await expect.poll(() => startsOf(page, "DEMO-2")).toEqual([0]);
   await expect(progress(page)).toHaveCount(0);
   await expect(more(page)).toHaveCount(0);
 
+  await pagesOf(page, "() => ({ pageSize: 2 })");
   await page.goto(ISSUE("DEMO-1"));
   await expect(section(page).getByRole("heading", { name: "Kommentare · 7" })).toBeVisible();
   await expect(items(page)).toHaveCount(2);
   await expect(progress(page)).toHaveText("2 von 7 Kommentaren geladen");
   await expect(more(page)).toBeVisible();
   await page.waitForTimeout(800);
-  expect((await qa(page)).commentPageReads).toEqual([]);
+  expect((await qa(page)).commentPageReads).toEqual([{ key: "DEMO-1", startAt: 0, maxResults: 50, orderBy: "created" }]);
 });
 
 test("lädt mehrere, auch kürzere Seiten mit Duplikaten lückenlos nach", async ({ page }, testInfo) => {
-  await page.addInitScript(() => {
-    Object.assign(window, {
-      __qaCommentPagesRule: (_key: string, startAt: number) => (startAt === 2 ? { startAt: 1, pageSize: 3 } : { pageSize: 2 }),
-    });
-  });
+  await pagesOf(page, "(_key, startAt) => (startAt === 2 ? { startAt: 1, pageSize: 3 } : { pageSize: 2 })");
   await page.goto(ISSUE("DEMO-1"));
+  await expect(progress(page)).toHaveText("2 von 7 Kommentaren geladen");
   await expect(items(page)).toHaveCount(2);
 
   await more(page).click();
   await expect(items(page)).toHaveCount(4);
   await expect(progress(page)).toHaveText("4 von 7 Kommentaren geladen");
-  expect((await qa(page)).commentPageReads[0]).toEqual({ key: "DEMO-1", startAt: 2, maxResults: 50, orderBy: "created" });
+  expect((await qa(page)).commentPageReads[1]).toEqual({ key: "DEMO-1", startAt: 2, maxResults: 50, orderBy: "created" });
 
   await more(page).click();
   await expect(items(page)).toHaveCount(6);
@@ -82,7 +87,7 @@ test("lädt mehrere, auch kürzere Seiten mit Duplikaten lückenlos nach", async
   expect(texts.findIndex((text) => text.includes("Verlaufseintrag 3:"))).toBeLessThan(
     texts.findIndex((text) => text.includes("Verlaufseintrag 7:")),
   );
-  expect(await startsOf(page)).toEqual([2, 4, 6]);
+  expect(await startsOf(page)).toEqual([0, 2, 4, 6]);
   await shot(page, testInfo, "alle-geladen");
 
   await section(page).getByRole("button", { name: "Älteste zuerst" }).click();
@@ -91,12 +96,12 @@ test("lädt mehrere, auch kürzere Seiten mit Duplikaten lückenlos nach", async
 });
 
 test("kurze Seiten ohne Gesamtzahl enden nicht vorzeitig; eine neuere Gesamtzahl wird übernommen", async ({ page }) => {
-  await page.addInitScript(() => {
-    Object.assign(window, {
-      __qaCommentPagesRule: (_key: string, startAt: number) => ({ pageSize: 1, maxResults: 50, total: startAt === 2 ? null : startAt === 3 ? 10 : 1 }),
-    });
-  });
+  await pagesOf(
+    page,
+    "(_key, startAt) => (startAt === 0 ? { pageSize: 2 } : { pageSize: 1, maxResults: 50, total: startAt === 2 ? null : startAt === 3 ? 10 : 1 })",
+  );
   await page.goto(ISSUE("DEMO-1"));
+  await expect(progress(page)).toHaveText("2 von 7 Kommentaren geladen");
   await more(page).click();
   await expect(items(page)).toHaveCount(3);
   await expect(more(page)).toBeVisible();
@@ -108,14 +113,13 @@ test("kurze Seiten ohne Gesamtzahl enden nicht vorzeitig; eine neuere Gesamtzahl
   await expect(items(page)).toHaveCount(5);
   await expect(progress(page)).toHaveText("5 von 10 Kommentaren geladen");
   await expect(more(page)).toBeVisible();
-  expect(await startsOf(page)).toEqual([2, 3, 4]);
+  expect(await startsOf(page)).toEqual([0, 2, 3, 4]);
 });
 
 test("fehlendes optionales comments-Feld gilt als leere Seite und benennt eine Lücke", async ({ page }) => {
-  await page.addInitScript(() => {
-    Object.assign(window, { __qaCommentPagesRule: () => ({ omitComments: true }) });
-  });
+  await pagesOf(page, "(_key, startAt) => (startAt === 0 ? { pageSize: 2 } : { omitComments: true })");
   await page.goto(ISSUE("DEMO-1"));
+  await expect(progress(page)).toHaveText("2 von 7 Kommentaren geladen");
   await more(page).click();
   await expect(progress(page)).toHaveText("2 von 7 Kommentaren geladen · Jira liefert keine weiteren");
   await expect(items(page)).toHaveCount(2);
@@ -123,10 +127,9 @@ test("fehlendes optionales comments-Feld gilt als leere Seite und benennt eine L
 });
 
 test("leere Seite vor der Gesamtzahl wird als Lücke benannt", async ({ page }) => {
-  await page.addInitScript(() => {
-    Object.assign(window, { __qaCommentPagesRule: () => ({ comments: [] }) });
-  });
+  await pagesOf(page, "(_key, startAt) => (startAt === 0 ? { pageSize: 2 } : { comments: [] })");
   await page.goto(ISSUE("DEMO-1"));
+  await expect(progress(page)).toHaveText("2 von 7 Kommentaren geladen");
   await more(page).click();
   await expect(progress(page)).toHaveText("2 von 7 Kommentaren geladen · Jira liefert keine weiteren");
   await expect(more(page)).toHaveCount(0);
@@ -134,12 +137,9 @@ test("leere Seite vor der Gesamtzahl wird als Lücke benannt", async ({ page }) 
 });
 
 test("Fehler beim Nachladen behält geladene Kommentare und lädt per Retry", async ({ page }, testInfo) => {
-  await page.addInitScript(() => {
-    Object.assign(window, {
-      __qaCommentPagesRule: () => ((window as unknown as QaWindow).__qaCommentFail ? { status: 503 } : { pageSize: 2 }),
-    });
-  });
+  await pagesOf(page, "() => (window.__qaCommentFail ? { status: 503 } : { pageSize: 2 })");
   await page.goto(ISSUE("DEMO-1"));
+  await expect(progress(page)).toHaveText("2 von 7 Kommentaren geladen");
   await more(page).click();
   await expect(items(page)).toHaveCount(4);
 
@@ -163,8 +163,26 @@ test("Fehler beim Nachladen behält geladene Kommentare und lädt per Retry", as
   await expect(more(page)).toBeVisible();
 });
 
-test("Offline wartet der Abruf erkennbar und setzt ohne doppelten Request fort", async ({ page }) => {
+test("scheitert schon die erste Seite, bleiben die eingebetteten Kommentare und Retry lädt sie", async ({ page }) => {
+  await pagesOf(page, "() => (window.__qaCommentFail ? { status: 503 } : { pageSize: 2 })");
+  await page.addInitScript({ content: "window.__qaCommentFail = true;" });
   await page.goto(ISSUE("DEMO-1"));
+  const alert = section(page).getByRole("alert");
+  await expect(alert).toContainText("Test: Jira antwortet mit 503");
+  await expect(items(page)).toHaveCount(2);
+  await page.evaluate(() => {
+    (window as unknown as QaWindow).__qaCommentFail = false;
+  });
+  await section(page).getByRole("button", { name: "Erneut versuchen" }).click();
+  await expect(alert).toHaveCount(0);
+  await expect(progress(page)).toHaveText("2 von 7 Kommentaren geladen");
+  await expect(more(page)).toBeVisible();
+});
+
+test("Offline wartet der Abruf erkennbar und setzt ohne doppelten Request fort", async ({ page }) => {
+  await pagesOf(page, "() => ({ pageSize: 2 })");
+  await page.goto(ISSUE("DEMO-1"));
+  await expect(progress(page)).toHaveText("2 von 7 Kommentaren geladen");
   await editor(page).fill("Entwurf bleibt auch offline");
   await page.evaluate(() => {
     Object.defineProperty(Navigator.prototype, "onLine", { configurable: true, get: () => false });
@@ -176,21 +194,20 @@ test("Offline wartet der Abruf erkennbar und setzt ohne doppelten Request fort",
   await expect(waiting).toHaveAttribute("aria-busy", "false");
   await expect(progress(page)).toContainText("Offline, Abruf wartet auf Verbindung");
   await page.keyboard.press("Enter");
-  expect(await startsOf(page)).toEqual([]);
+  expect(await startsOf(page)).toEqual([0]);
   await page.evaluate(() => {
     Object.defineProperty(Navigator.prototype, "onLine", { configurable: true, get: () => true });
     window.dispatchEvent(new Event("online"));
   });
-  await expect(items(page)).toHaveCount(7);
-  expect(await startsOf(page)).toEqual([2]);
-  await expect(editor(page)).toHaveValue("Entwurf bleibt auch offline");
+  await expect(items(page)).toHaveCount(4);
+  expect(await startsOf(page)).toEqual([0, 2]);
+  await expect(editor(page)).toHaveText("Entwurf bleibt auch offline");
 });
 
 test("Ticketwechsel bricht das Nachladen ab und zeigt keine fremden Kommentare", async ({ page }) => {
-  await page.addInitScript(() => {
-    Object.assign(window, { __qaCommentPagesRule: (key: string) => (key === "DEMO-1" ? { delayMs: 2000 } : {}) });
-  });
+  await pagesOf(page, "(key, startAt) => (key === 'DEMO-1' ? (startAt === 0 ? { pageSize: 2 } : { delayMs: 2000 }) : {})");
   await page.goto(ISSUE("DEMO-1"));
+  await expect(progress(page)).toHaveText("2 von 7 Kommentaren geladen");
   await more(page).click();
   await expect(more(page)).toHaveAttribute("aria-busy", "true");
 
@@ -210,12 +227,14 @@ test("Ticketwechsel bricht das Nachladen ab und zeigt keine fremden Kommentare",
   await expect(items(page)).toHaveCount(2);
   await expect(progress(page)).toHaveText("2 von 7 Kommentaren geladen");
   await expect(more(page)).not.toHaveAttribute("aria-busy", "true");
-  expect(await startsOf(page)).toEqual([2]);
-  expect(await startsOf(page, "DEMO-2")).toEqual([]);
+  expect(await startsOf(page)).toEqual([0, 2]);
+  expect(await startsOf(page, "DEMO-2")).toEqual([0]);
 });
 
 test("Nachladen behält Editor und Entwurf, Senden schreibt genau einmal", async ({ page }) => {
+  await pagesOf(page, "() => ({ pageSize: 5 })");
   await page.goto(ISSUE("DEMO-1"));
+  await expect(progress(page)).toHaveText("5 von 7 Kommentaren geladen");
   await editor(page).fill("QA: Nachladen mit offenem Entwurf");
   await editor(page).evaluate((element) => {
     (window as unknown as QaWindow).__qaEditorRef = element;
@@ -224,7 +243,7 @@ test("Nachladen behält Editor und Entwurf, Senden schreibt genau einmal", async
   await more(page).click();
   await expect(items(page)).toHaveCount(7);
   await expect(progress(page)).toHaveText("Alle 7 Kommentare geladen");
-  await expect(editor(page)).toHaveValue("QA: Nachladen mit offenem Entwurf");
+  await expect(editor(page)).toHaveText("QA: Nachladen mit offenem Entwurf");
   expect(await editor(page).evaluate((element) => element === (window as unknown as QaWindow).__qaEditorRef)).toBe(true);
 
   await page.evaluate(() => {
@@ -234,44 +253,39 @@ test("Nachladen behält Editor und Entwurf, Senden schreibt genau einmal", async
   await page.keyboard.press("Control+Enter");
   await page.keyboard.press("Control+Enter");
   await expect(items(page)).toHaveCount(8);
-  await expect(section(page)).toContainText("QA: Nachladen mit offenem Entwurf");
+  await expect(section(page).locator("ol")).toContainText("QA: Nachladen mit offenem Entwurf");
   await expect(progress(page)).toHaveText("Alle 8 Kommentare geladen");
   await expect(section(page).getByRole("heading", { name: "Kommentare · 8" })).toBeVisible();
-  await expect(editor(page)).toHaveValue("");
+  await expect(editor(page)).toHaveText("");
   expect(await editor(page).evaluate((element) => element === (window as unknown as QaWindow).__qaEditorRef)).toBe(true);
   const writes = (await qa(page)).writes.filter((write) => write.path.endsWith("/comment"));
   expect(writes).toHaveLength(1);
 });
 
-test("fehlgeschlagene Aktualisierung nach dem Senden bleibt sichtbar und Retry lädt vorhandene Seiten neu", async ({ page }) => {
-  await page.addInitScript(() => {
-    Object.assign(window, {
-      __qaCommentPagesRule: () => ((window as unknown as QaWindow).__qaCommentFail ? { status: 503 } : {}),
-    });
-  });
+test("fehlgeschlagene Aktualisierung nach dem Senden zeigt den Kommentar trotzdem, Retry lädt die Seiten neu", async ({ page }) => {
+  await pagesOf(page, "() => (window.__qaCommentFail ? { status: 503 } : {})");
   await page.goto(ISSUE("DEMO-1"));
-  await more(page).click();
   await expect(items(page)).toHaveCount(7);
+  await expect.poll(() => startsOf(page)).toEqual([0]);
   await page.evaluate(() => { (window as unknown as QaWindow).__qaCommentFail = true; });
   await editor(page).fill("QA: geschrieben, aber Aktualisierung fehlgeschlagen");
   await editor(page).focus();
   await page.keyboard.press("Control+Enter");
   await expect(section(page).getByRole("alert")).toContainText("Test: Jira antwortet mit 503");
-  await expect(editor(page)).toHaveValue("");
-  await expect(items(page)).toHaveCount(7);
-  await expect(progress(page)).toHaveText("7 von 8 Kommentaren geladen");
+  await expect(editor(page)).toHaveText("");
+  await expect(items(page)).toHaveCount(8);
+  await expect(section(page).locator("ol")).toContainText("QA: geschrieben, aber Aktualisierung fehlgeschlagen");
   await page.evaluate(() => { (window as unknown as QaWindow).__qaCommentFail = false; });
   await section(page).getByRole("button", { name: "Erneut versuchen" }).click();
   await expect(items(page)).toHaveCount(8);
-  await expect(progress(page)).toHaveText("Alle 8 Kommentare geladen");
   await expect(section(page).getByRole("alert")).toHaveCount(0);
   expect((await qa(page)).writes.filter((write) => write.path.endsWith("/comment"))).toHaveLength(1);
 });
 
-test("nach Rückkehr laden zuvor vollständige Cache-Seiten neue Kommentare ohne automatischen Seitenabruf nach", async ({ page }) => {
+test("nach Rückkehr bleibt der Seiten-Cache, ein neuer Kommentar erscheint ohne Klick", async ({ page }) => {
   await page.goto(ISSUE("DEMO-1"));
-  await more(page).click();
   await expect(items(page)).toHaveCount(7);
+  await expect.poll(() => startsOf(page)).toEqual([0]);
   await page.locator("section").filter({ has: page.getByRole("heading", { name: /^Verknüpfungen/ }) })
     .getByRole("group", { name: "blocks", exact: true })
     .getByRole("link", { name: /DEMO-2/ }).click();
@@ -279,26 +293,110 @@ test("nach Rückkehr laden zuvor vollständige Cache-Seiten neue Kommentare ohne
   await page.goBack();
   await expect(page).toHaveURL(/\/issue\/DEMO-1$/);
   await expect(items(page)).toHaveCount(7);
-  expect(await startsOf(page)).toEqual([2]);
+  expect(await startsOf(page)).toEqual([0]);
   await editor(page).fill("QA: Neuer Kommentar nach Rückkehr");
   await editor(page).focus();
   await page.keyboard.press("Control+Enter");
-  await expect(editor(page)).toHaveValue("");
-  await expect(progress(page)).toHaveText("7 von 8 Kommentaren geladen");
-  await expect(more(page)).toBeVisible();
-  expect(await startsOf(page)).toEqual([2]);
-  await more(page).click();
+  await expect(editor(page)).toHaveText("");
   await expect(items(page)).toHaveCount(8);
-  await expect(progress(page)).toHaveText("Alle 8 Kommentare geladen");
-  expect(await startsOf(page)).toEqual([2, 7]);
+  await expect(section(page).getByRole("heading", { name: "Kommentare · 8" })).toBeVisible();
+  await expect(more(page)).toHaveCount(0);
+});
+
+test("eigene Antwort erscheint sofort im Thread, auch wenn spätere Seiten fehlen", async ({ page }) => {
+  await pagesOf(page, "() => ({ pageSize: 2 })");
+  await page.addInitScript({ content: "window.__qaCommentDetailLimit = 2;" });
+  await page.goto(ISSUE("DEMO-1", "default"));
+  await expect(progress(page)).toHaveText("2 von 11 Kommentaren geladen");
+  const thread = items(page).filter({ hasText: "Ich habe eine Rückfrage" }).first();
+  await thread.getByRole("button", { name: "Antworten" }).first().click();
+  const reply = page.getByRole("textbox", { name: "Antwort", exact: true });
+  await expect(reply).toBeFocused();
+  await reply.pressSequentially("QA: Antwort ohne Nachladen");
+  await section(page).getByRole("button", { name: "Antwort senden" }).click();
+  await expect(thread.locator("ol > li").filter({ hasText: "QA: Antwort ohne Nachladen" })).toBeVisible();
+  await expect(more(page)).toBeVisible();
+  const write = (await qa(page)).writes.filter((entry) => entry.path.endsWith("/comment")).at(-1);
+  expect(write?.input.parentId).toBe(10002);
+});
+
+test("nur eingebettete Kommentare bleiben ohne „Antworten“ und ohne Menü, bis ihre Seite sie mit parentId liefert", async ({ page }) => {
+  await pagesOf(page, "() => ({ pageSize: 2 })");
+  await page.goto(ISSUE("DEMO-1", "default"));
+  // The detail embeds all eleven, so the count is complete before the pages confirm any parentId.
+  await expect(progress(page)).toHaveText("11 von 11 Kommentaren geladen");
+  await expect(more(page)).toBeVisible();
+  await expect.poll(() => startsOf(page)).toEqual([0]);
+  const entry = (text: string) => section(page).locator("article").filter({ hasText: text });
+  const replyButton = (text: string) => entry(text).getByRole("button", { name: "Antworten" });
+  const menuButton = (text: string) => entry(text).getByRole("button", { name: "Weitere Aktionen", exact: true });
+  const actionsOf = async (text: string, count: number) => {
+    await expect(replyButton(text)).toHaveCount(count);
+    await expect(menuButton(text)).toHaveCount(count);
+  };
+  const rootThread = items(page).filter({ hasText: "Ich habe eine Rückfrage" }).first();
+  const pagedRoots = ["Die erste Fassung", "Ich habe eine Rückfrage"];
+  const embeddedOnly = [
+    "Die Reihenfolge folgt",
+    "Automatischer Hinweis",
+    "Danke, dann passt",
+    "nicht mehr existiert",
+    "Der aktuelle Stand",
+    "bun run release",
+    "Nur für Entwickler sichtbar",
+    "Der Termin ist auf Donnerstag",
+    "die Abstimmung in DEMO-2",
+  ];
+  await expect(items(page)).toHaveCount(11);
+  for (const text of pagedRoots) await actionsOf(text, 1);
+  for (const text of embeddedOnly) await actionsOf(text, 0);
+  await expect(rootThread.locator("ol > li")).toHaveCount(0);
+
+  await more(page).click();
+  await expect.poll(() => startsOf(page)).toEqual([0, 2]);
+  await expect(rootThread.locator("ol > li").filter({ hasText: "Die Reihenfolge folgt" })).toBeVisible();
+  for (const text of embeddedOnly.slice(0, 2)) await actionsOf(text, 1);
+  for (const text of embeddedOnly.slice(2)) await actionsOf(text, 0);
+
+  for (const start of [4, 6, 8, 10]) {
+    await more(page).click();
+    await expect.poll(() => startsOf(page)).toContain(start);
+  }
+  await expect(progress(page)).toHaveText("Alle 11 Kommentare geladen");
+  await expect(rootThread.locator("ol > li")).toHaveCount(2);
+  for (const text of [...pagedRoots, ...embeddedOnly]) await actionsOf(text, 1);
+
+  await replyButton("Die Reihenfolge folgt").click();
+  const reply = page.getByRole("textbox", { name: "Antwort", exact: true });
+  await expect(reply).toBeFocused();
+  await reply.pressSequentially("QA: Antwort unter nachgeladener Antwort");
+  await section(page).getByRole("button", { name: "Antwort senden" }).click();
+  await expect(rootThread.locator("ol > li").filter({ hasText: "QA: Antwort unter nachgeladener Antwort" })).toBeVisible();
+  const write = (await qa(page)).writes.filter((item) => item.path.endsWith("/comment")).at(-1);
+  expect(write?.input.parentId).toBe(10002);
+});
+
+test("fremde Antwort hängt nach dem Aktualisieren im Thread und bekommt „Antworten“ und Menü", async ({ page }) => {
+  await page.goto(ISSUE("DEMO-1", "default"));
+  const thread = items(page).filter({ hasText: "Ich habe eine Rückfrage" }).first();
+  const foreign = thread.locator("article").filter({ hasText: "QA: Fremde Antwort" });
+  await expect(thread.getByRole("button", { name: "Antworten" }).first()).toBeVisible();
+  await expect.poll(() => startsOf(page)).toEqual([0]);
+
+  await page.evaluate(() => (window as unknown as QaWindow).__qaForeignReply("DEMO-1", "10002", "QA: Fremde Antwort"));
+  await page.getByRole("button", { name: "Weitere Ticketaktionen" }).click();
+  await page.getByRole("menuitem", { name: "Aktualisieren" }).click();
+
+  await expect(foreign).toBeVisible();
+  await expect(foreign.getByRole("button", { name: "Antworten" })).toHaveCount(1);
+  await expect(foreign.getByRole("button", { name: "Weitere Aktionen", exact: true })).toHaveCount(1);
+  expect(await startsOf(page)).toEqual([0, 0]);
 });
 
 test("Tastatur und 390 px dunkel ohne Seitenüberlauf", async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.emulateMedia({ colorScheme: "dark", reducedMotion: "reduce" });
-  await page.addInitScript(() => {
-    Object.assign(window, { __qaCommentPagesRule: () => ({ pageSize: 2 }) });
-  });
+  await pagesOf(page, "() => ({ pageSize: 2 })");
   await page.goto(ISSUE("DEMO-1"));
   const button = more(page);
   await button.scrollIntoViewIfNeeded();

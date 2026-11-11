@@ -953,6 +953,7 @@ export function AttachmentUpload({
         type="button"
         disabled={disabled || maxReached}
         data-dragging={dragging}
+        data-file-drop=""
         animate={
           reduce
             ? undefined

@@ -85,6 +85,94 @@ Mit `headers` liefert eine scheiternde Suchregel zusätzlich Antwort-Header, z. 
 
 Der vollständige Ablaufbericht einschließlich Vielnutzer, sorgfältigem Leser, Unterbrechungen und KI liegt in [docs/ux-arbeitsalltag.md](../../docs/ux-arbeitsalltag.md).
 
+## Kommentare, Antworten und Erwähnungen
+
+Öffnen: `http://localhost:1420/tests/browser/fixture.html?route=/issue/DEMO-1`. DEMO-1 hat elf Kommentare: Lea Musters Rückfrage mit zwei Antworten (`parentId` einmal als Zahl, einmal als Zeichenkette), eine verwaiste Antwort mit `parentId` 99999, einen Kommentar des App-Kontos „Automation für Jira“, einen eigenen Kommentar mit einer Liste, die mit Code beginnt (nicht bearbeitbar), einen eigenen Thread-Anfang mit `visibility` „Developers“, einen von Lea Muster bearbeiteten Kommentar und einen Kommentar mit Links auf Kommentar 20012 in DEMO-2, auf DEMO-3 und auf eine externe Seite. Melder ist die deaktivierte „Ehemalige Kollegin“. Die Detailantwort bettet die Kommentare ohne `parentId` ein; beim Öffnen lädt die App automatisch die erste Seite von `GET /comment` (bis zu 50 Einträge, mit `parentId`), weitere Seiten nur per Klick auf „Weitere Kommentare laden“. Die Szenarien `comments`, `comment-pages` und `comment-links` behalten ihre eigenen Kommentare.
+
+Testschalter in der Browserkonsole:
+
+```js
+window.__qa.commentPageSize = 2; // Standard: aus
+window.__qa.readDelayMs = 1500;
+window.__qa.failCommentList = true;
+window.__qa.failUserSearch = true;
+window.__qa.rejectParentId = true;
+window.__qa.ignoreParentId = true;
+window.__qa.ownPermissionsOnly = true;
+```
+
+`commentPageSize` begrenzt die Einträge je Seite von `GET /comment`; ohne Wert gilt die angefragte Seitengröße. Für einen Test schon beim Öffnen eignet sich `window.__qaCommentPagesRule = () => ({ pageSize: 2 })` und `window.__qaCommentDetailLimit = 2` per `addInitScript`. `readDelayMs` verzögert `GET /comment`. `failCommentList` lässt `GET /comment` mit HTTP 503 scheitern, solange der Schalter an ist. `failUserSearch` lässt `GET /user/viewissue/search` scheitern. `rejectParentId` beantwortet ein `POST /comment` mit `parentId` mit HTTP 400. `ignoreParentId` legt die Antwort ohne `parentId` an, wie ein Jira, das das Feld still verwirft. Projekt vom Typ `service_desk`: `http://localhost:1420/tests/browser/fixture.html?scenario=jsm&route=/issue/DEMO-1`.
+
+`ownPermissionsOnly` liefert bei `GET /mypermissions` nur `EDIT_OWN_COMMENTS` und `DELETE_OWN_COMMENTS`. Weil die App die Rechte je Ticket zwischenspeichert, am einfachsten mit `&permissions=own` in der Fixture-URL starten. `PUT` und `DELETE` auf `/issue/{key}/comment/{id}` ändern die Testdaten und stehen in `writes`; `failNextWrite` und `delayMs` gelten auch für sie.
+
+Alten Textentwurf vorbereiten: Fixture einmal öffnen, dann `http://localhost:1420/logo.svg` öffnen und das Snippet dort in der Konsole ausführen, denn die laufende Fixture überschreibt den Eintrag beim Verlassen. Danach die Fixture neu öffnen:
+
+```js
+const stored = JSON.parse(localStorage.getItem("betterjira-workspaces"));
+stored.state.workspaces[JSON.stringify(["qa-cloud", "qa-user"])].drafts = { "DEMO-2": "*Stand*\nZweite Zeile" };
+localStorage.setItem("betterjira-workspaces", JSON.stringify(stored));
+```
+
+Prüfliste:
+
+- [ ] Bei „Älteste zuerst“ und bei „Neueste zuerst“ steht die Kommentar-Box über der Liste; der Umschalter ordnet die Threads um.
+- [ ] Der Titel zeigt „Kommentare · 11“, alle elf Kommentare sind sichtbar; die Antworten hängen erst unter Leas Rückfrage, sobald die erste Seite geladen ist, und „Antworten“ sowie „Weitere Aktionen“ erscheinen erst dann.
+- [ ] Mit `__qaCommentPagesRule = () => ({ pageSize: 2 })` und `__qaCommentDetailLimit = 2` (per `addInitScript`) zeigt die Liste „2 von 11 Kommentaren geladen“; „Weitere Kommentare laden“ hängt die Antworten nach und nach unter ihre Wurzel, bis „Alle 11 Kommentare geladen“ steht.
+- [ ] Nur mit `__qaCommentPagesRule = () => ({ pageSize: 2 })` (ohne `__qaCommentDetailLimit`, die Detailantwort bettet alle elf ein) stehen nach der ersten Seite alle elf Kommentare, aber nur die beiden der geladenen Seite zeigen „Antworten“ und „Weitere Aktionen“; die übrigen bleiben Platzhalter ohne „Antworten“ und ohne Menü. Mit jedem „Weitere Kommentare laden“ rücken die Antworten unter Leas Rückfrage und bekommen „Antworten“ und Menü; „Antworten“ an einer nachgeladenen Antwort schickt die `parentId` der Wurzel (10002).
+- [ ] `readDelayMs = 1500` setzen und in der App ein noch nicht geöffnetes Ticket (DEMO-3) öffnen: die eingebetteten Kommentare stehen sofort, noch ohne „Antworten“, in die Box lässt sich tippen. Ein Skeleton steht nur, wenn die Detailantwort keine Kommentare einbettet.
+- [ ] Mit `failCommentList = true` (vor dem Öffnen eines noch nicht geladenen Tickets) erscheint unter der Liste die Meldung „Weitere Kommentare konnten nicht geladen werden“ mit „Erneut versuchen“, die eingebetteten Kommentare bleiben; nach `failCommentList = false` lädt „Erneut versuchen“ die erste Seite.
+- [ ] Lea Musters Rückfrage zeigt beide Antworten eingerückt in aufsteigender Zeit, in beiden Sortierungen, ohne Zuklappen.
+- [ ] Die verwaiste Antwort steht als eigener Thread-Anfang.
+- [ ] „Antworten“ an Leas Kommentar öffnet die Box am Ende des Threads mit Fokus und dem Inhalt „@Lea Muster “. Leas Kommentar darüber behält dabei in jedem Frame seine Höhe; gemessen wird mit `getBoundingClientRect()` pro `requestAnimationFrame` über 700 ms, ebenso beim Öffnen und Schließen des Bearbeiten-Editors.
+- [ ] „Antworten“ am eigenen Kommentar von Alex Beispiel öffnet die Box ohne Vorbelegung.
+- [ ] In Box A tippen, dann an einem anderen Thread „Antworten“: Box A schließt, ihr Thread zeigt an jedem Kommentar „Antwort fortsetzen“, beim Zurückkehren ist der Text da.
+- [ ] Antwort in Leas Thread senden: `window.__qa.writes.at(-1).input` hat `parentId` 10002 und `body.type` „doc“, die Meldung lautet „Antwort hinzugefügt“, die Box schließt, die Antwort erscheint sofort unter dem Thread, auch wenn mit `pageSize: 2` noch Seiten fehlen, der Titel zeigt 12.
+- [ ] Mit `ignoreParentId = true` meldet die App nach dem Senden, dass Jira die Antwort als normalen Kommentar angelegt hat; der Kommentar steht als neuer Thread.
+- [ ] Mit `rejectParentId = true` steht die Fehlermeldung in der Antwortbox, der Text bleibt.
+- [ ] Antwort auf die verwaiste Antwort sendet `parentId` 99999.
+- [ ] Escape (ohne offene Vorschlagsliste) und „Abbrechen“ schließen die Box und behalten den Entwurf; nach erneutem Öffnen der Fixture stehen „Antwort fortsetzen“ und der Text noch da, und die Arbeitsliste zeigt DEMO-1 unter „Angefangen“.
+- [ ] Im Szenario `jsm` gibt es keine Aktion „Antworten“.
+- [ ] `@` in der Kommentar-Box öffnet die Liste am Cursor, der Fokus bleibt im Editor; angeboten werden Alex Beispiel und Lea Muster, nicht „Automation für Jira“ und nicht „Ehemalige Kollegin“.
+- [ ] `@ki` zeigt nach etwa 200 ms „Kim Extern“, höchstens acht Einträge, je Avatar und Name, keine E-Mail-Adresse.
+- [ ] Pfeil hoch und runter bewegen die Markierung; in den DevTools trägt der Editor `aria-activedescendant` mit der `id` der markierten `option`, die Liste hat `role="listbox"`.
+- [ ] Enter und Tab fügen die markierte Person ein; Escape schließt nur die Liste, die Antwortbox bleibt offen.
+- [ ] Nach der Auswahl steht „@Kim Extern “ im Editor; der gesendete Body enthält `{"type":"mention","attrs":{"id":"qa-kim","text":"@Kim Extern"}}` ohne weitere Attribute.
+- [ ] Mit `failUserSearch = true` zeigt `@le` Lea Muster und „Suche gerade nicht möglich“; nach `failUserSearch = false` zeigt `@zzz` „Keine Person gefunden“.
+- [ ] ⌘ + Enter (macOS) oder Strg + Enter sendet ohne offene Liste; bei offener Liste fügt es die Person ein und sendet nicht.
+- [ ] Nur Leerzeichen: „Kommentieren“ ist gesperrt und das Kürzel sendet nicht; nur eine Erwähnung: Senden ist möglich.
+- [ ] Die Formatierleiste erscheint nur in der aufgeklappten Box; der Hinweis nennt „@ erwähnt eine Person“ und das Sende-Kürzel.
+- [ ] „Vorlage › Statusupdate“ hängt fettes „Stand“ und eine Aufzählung ans Ende des vorhandenen Texts; „Gespeichert“ ist sichtbar; Verwerfen und „Rückgängig“ stellen den Text wieder her.
+- [ ] Mit `delayMs = 1500` senden und sofort weitertippen: nach dem Erfolg bleibt der neue Text als Entwurf.
+- [ ] Der vorbereitete alte Textentwurf erscheint in DEMO-2 als zwei Absätze mit unverändertem Text, und DEMO-2 steht unter „Angefangen“.
+- [ ] Mit gespeichertem Entwurf die Fixture neu öffnen und sofort tippen: der Text erweitert den Entwurf, nichts wird überschrieben.
+- [ ] Bei offener Vorschlagsliste die Seite scrollen: die Liste bleibt am Cursor; im Status-Dialog und in Rich-Text-Feldern öffnet `@` keine Liste.
+- [ ] Antwortbox, Vorschlagsliste, neue Kommentare und die Markierung bewegen sich hell und dunkel mit Popover-Fläche, Schatten und Haarlinie; mit `&reduce=1` wird nur ein- und ausgeblendet.
+
+## Bearbeiten, Löschen, Verlinken
+
+Öffnen: `http://localhost:1420/tests/browser/fixture.html?route=/issue/DEMO-1`.
+
+- [ ] Ab 640 px Breite erscheint der Button „Weitere Aktionen“ nur bei Hover, Fokus im Kommentar oder offenem Menü; schmaler ist er immer sichtbar.
+- [ ] „Weitere Aktionen“ erscheint erst, wenn die erste Seite von `GET /comment` geladen ist. Das Menü zeigt „Link kopieren“, „Bearbeiten“, Trennlinie und rotes „Löschen…“; einen eigenen Link-Knopf in der Kopfzeile gibt es nicht mehr. „Link kopieren“ meldet „Link zum Kommentar kopiert“, die Zwischenablage enthält `https://example.atlassian.net/browse/DEMO-1?focusedCommentId=<id>#comment-<id>`. Ohne gültige Site-URL ist „Link kopieren“ deaktiviert und nennt „Kein Jira-Link verfügbar: keine gültige Jira-Verbindung“.
+- [ ] Kommentar 10008: „Bearbeiten“ ist deaktiviert und nennt „Enthält Inhalte, die sich nur in Jira bearbeiten lassen“.
+- [ ] Kommentar 10010 zeigt „bearbeitet“; der Tooltip lautet „Bearbeitet am 05.11.2026, … von Lea Muster“.
+- [ ] Mit `&permissions=own` in der Fixture-URL fehlen an Leas Kommentaren „Bearbeiten“ und „Löschen…“, „Link kopieren“ bleibt; an eigenen Kommentaren sind beide da. Im Szenario `jsm` fehlt „Bearbeiten“, „Löschen…“ bleibt.
+- [ ] „Bearbeiten“ ersetzt Text und Aktionen durch den Editor mit Formatierleiste, Fokus am Ende; `@` schlägt Personen vor; „Speichern“ ist gesperrt, solange nichts geändert ist.
+- [ ] Kommentar 10009 ändern und speichern: „Kommentar gespeichert“, `window.__qa.writes.at(-1)` ist `PUT` mit `input.visibility` `{ type: "role", value: "Developers", identifier: "Developers" }`; Antwort 10003 speichern: kein `visibility`, kein `parentId`; danach steht „bearbeitet“ am Kommentar.
+- [ ] Ändern und Escape drücken: Editor schließt, „Entwurf“ steht neben der Zeit, das Menü heißt „Bearbeitung fortsetzen“, DEMO-1 steht in der Arbeitsliste unter „Angefangen“; „Änderungen verwerfen“ setzt den Text zurück und der Knopf „Entwurf“ verschwindet.
+- [ ] Mit `delayMs = 1500` speichern und sofort weitertippen: Editor schließt nach dem Erfolg, „Entwurf“ steht am Kommentar, „Bearbeitung fortsetzen“ zeigt den neueren Text.
+- [ ] Mit `failNextWrite = true` speichern: Fehlermeldung im Editor, Inhalt bleibt. Mit `delayMs = 1500` und `failNextWrite = true` speichern und sofort einen anderen Kommentar bearbeiten: Toast „Kommentar konnte nicht gespeichert werden“, im zweiten Editor kein Fehler.
+- [ ] Leas Rückfrage 10002 löschen: Dialog „Kommentar löschen?“ nennt „Das lässt sich nicht rückgängig machen. Die 2 Antworten bleiben erhalten und stehen danach als eigener Thread.“; nach „Löschen“ meldet die App „Kommentar gelöscht“ und 10003 und 10005 stehen als eigener Thread.
+- [ ] Mit `delayMs = 1500` „Löschen“ bestätigen und sofort Escape drücken: der Dialog bleibt offen, „Löschen“ ist gesperrt, bis die Antwort kommt. Mit `failNextWrite = true` löschen: Dialog schließt, Toast „Kommentar konnte nicht gelöscht werden“ mit der Meldung „Test: Jira vorübergehend nicht erreichbar“.
+- [ ] Fixture neu öffnen, `failCommentList = true` setzen und in Kommentar 10011 „die Abstimmung in DEMO-2“ anklicken: DEMO-2 öffnet, keine Meldung „Kommentar nicht mehr vorhanden“, keine Meldung „An letzter Lesestelle fortgesetzt“, `comment` bleibt in der URL; nach `failCommentList = false` und „Erneut versuchen“ springt die Ansicht zu 20012.
+- [ ] Zurück in DEMO-1 „die Abstimmung in DEMO-2“ anklicken: DEMO-2 öffnet in der App, Kommentar 20012 steht mittig und ist etwa 2 Sekunden hinterlegt; Text und Menü bleiben lesbar und klickbar; die Seite springt danach nicht nach oben; die URL trägt kein `comment` mehr; keine Meldung „An letzter Lesestelle fortgesetzt“. Mit `&reduce=1` springt die Ansicht ohne Scroll-Animation.
+- [ ] In 10011 die Karte auf DEMO-3 öffnet DEMO-3 in der App; „die Doku“ öffnet im Browser. Strg-Klick (macOS: ⌘-Klick) auf die Karte öffnet DEMO-3 als Hintergrund-Tab, DEMO-1 bleibt offen.
+- [ ] In DEMO-2 Kommentar 20012 löschen, zurück in DEMO-1 „die Abstimmung in DEMO-2“ anklicken: nach einem Neuladen der Liste meldet die App „Kommentar nicht mehr vorhanden“, `comment` verschwindet aus der URL.
+- [ ] Mit `__qaCommentDetailLimit = 2` und `__qaCommentPagesRule = () => ({ pageSize: 2 })` (per `addInitScript`) einen Link auf einen Kommentar der dritten Seite öffnen, etwa `...fixture.html?route=%2Fissue%2FDEMO-1%3Fcomment%3D10005`: die App lädt Seiten nach, bis der Kommentar da ist, markiert ihn und meldet nicht „Kommentar nicht mehr vorhanden“. Eine offene Kommentarsuche schließt sie vorher.
+- [ ] Mit denselben Schaltern alle Seiten per „Weitere Kommentare laden“ nachladen, bis „Alle 11 Kommentare geladen“ steht, dann einen eigenen Kommentar der letzten Seite bearbeiten und einen anderen löschen: die Liste bleibt vollständig, nichts springt auf die erste Seite zurück, ein gelöschter Kommentar taucht nach dem Neuladen nicht wieder auf.
+- [ ] Bearbeitungsentwürfe zu Kommentaren auf noch nicht geladenen Seiten bleiben erhalten; bereinigt wird erst, wenn alle Seiten geladen sind.
+- [ ] Nur in FSI-38, weil die Fixture keine fremden neuen Kommentare erzeugt: eine Benachrichtigung über einen Kommentar öffnen (Zeile, Gruppenzeile oder Toast „Öffnen“): das Ticket öffnet und springt zu diesem Kommentar.
+
 ## Navigation und Jira-Tickets
 
 - Ticket-Seite mit Ansichten: `http://localhost:1420/tests/browser/fixture.html?route=/tickets` (`?ansicht=beobachtet` bzw. `alle` über die Tabs).
@@ -263,16 +351,16 @@ Der vollständige Ablaufbericht einschließlich Vielnutzer, sorgfältigem Leser,
 
 ## Kommentare nachladen
 
-- Ticket mit 7 lokalen Testkommentaren, von denen die Detailabfrage nur 2 liefert: `...fixture.html?scenario=comment-pages&route=/issue/DEMO-1`. „Weitere Kommentare laden“ ruft `GET /issue/{key}/comment?startAt=…&maxResults=50&orderBy=created` ab, erst nach Klick.
-- `window.__qa.commentDetailLimit` begrenzt die Kommentare der Detailantwort (Szenario: 2), `window.__qa.commentPageReads` protokolliert jede Seitenabfrage (`key`, `startAt`, `maxResults`, `orderBy`).
+- Ticket mit 7 lokalen Testkommentaren, von denen die Detailabfrage nur 2 liefert: `...fixture.html?scenario=comment-pages&route=/issue/DEMO-1`. Beim Öffnen lädt die App automatisch die erste Seite `GET /issue/{key}/comment?startAt=0&maxResults=50&orderBy=created`; damit sind hier alle sieben geladen. Folgeseiten ruft erst „Weitere Kommentare laden“ ab; mit `window.__qaCommentPagesRule = () => ({ pageSize: 2 })` zeigt die Liste dafür „2 von 7 Kommentaren geladen“.
+- `window.__qa.commentDetailLimit` begrenzt die Kommentare der Detailantwort (Szenario: 2; vorab per `window.__qaCommentDetailLimit` setzbar), `window.__qa.commentPageReads` protokolliert jede Seitenabfrage (`key`, `startAt`, `maxResults`, `orderBy`).
 - `window.__qaCommentPagesRule = (key, startAt) => ({ delayMs, status, pageSize, startAt, total, comments })` steuert einzelne Seiten: verzögern, mit HTTP-Status scheitern, kürzere Seiten, abweichend bestätigtes `startAt` (Duplikate), `total: null` (Gesamtzahl unbekannt) oder eine leere Seite.
 - Automatisch: `bunx playwright test tests/browser/comment-pages.e2e.ts --workers=1`; mit `COMMENT_PAGES_SHOTS=<Ordner>` zusätzlich Screenshots.
 
 ## Link zu einem Kommentar
 
-- `...fixture.html?scenario=comment-links&route=/issue/DEMO-1` zeigt zwei QA-Kommentare mit numerischen IDs (`10001`, `10002`), einer davon mit sehr langem Autorennamen. Jeder Kommentar hat die Aktion „Jira-Link zum Kommentar kopieren“; kopiert wird `https://example.atlassian.net/browse/DEMO-1?focusedCommentId=10001#comment-10001`.
+- `...fixture.html?scenario=comment-links&route=/issue/DEMO-1` zeigt zwei QA-Kommentare mit numerischen IDs (`10001`, `10002`), einer davon mit sehr langem Autorennamen. Jeder Kommentar hat im Menü „Weitere Aktionen“ den Eintrag „Link kopieren“; kopiert wird `https://example.atlassian.net/browse/DEMO-1?focusedCommentId=10001#comment-10001`.
 - `window.__qaSiteUrl` (per `addInitScript`) ersetzt die Instanzadresse der simulierten Sitzung, z. B. mit Kontextpfad, leer (keine Verbindung) oder mit Zugangsdaten (wird abgelehnt).
-- Automatisch: `bunx playwright test tests/browser/comment-link.e2e.ts --workers=1` prüft die tatsächlichen Bytes der Zwischenablage, einmaliges Kopieren bei Doppelklick, Tastatur, Fehler der Zwischenablage, fehlende oder ungültige Verbindung, unveränderten Entwurf und Sortierung, neu hinzugefügte Kommentare sowie 390 px hell und dunkel mit reduzierter Bewegung. Mit `COMMENT_LINK_SHOTS=<Ordner>` entstehen Screenshots.
+- Automatisch: `bunx playwright test tests/browser/comment-link.e2e.ts --workers=1` prüft die tatsächlichen Bytes der Zwischenablage, einmaliges Kopieren bei wiederholter Auswahl, Tastatur, Fehler der Zwischenablage, den deaktivierten Eintrag bei fehlender oder ungültiger Verbindung, unveränderten Entwurf und Sortierung, neu hinzugefügte Kommentare, 390 px hell und dunkel mit reduzierter Bewegung sowie mit Seiten zu je zwei Einträgen den Sprung zu einem Kommentar auf Seite 3 und Bearbeiten und Löschen nach dem Nachladen. Mit `COMMENT_LINK_SHOTS=<Ordner>` entstehen Screenshots.
 
 ## Ticketansicht nach Ladefehlern
 
@@ -327,11 +415,26 @@ Integration offener PRs:
 - Suche und Dateityp-Filter arbeiten nur auf den geladenen Metadaten. `window.__qa.opened` enthält extern geöffnete Anhang-URLs; ein Upload wird lokal simuliert und in `window.__qa.writes` protokolliert.
 - Automatisch: `bunx playwright test tests/browser/attachment-filter.e2e.ts --workers=1`; mit `ATTACHMENT_FILTER_SHOTS=<Ordner>` zusätzlich Screenshots.
 
+## Anhänge in der Ticketansicht
+
+- `...fixture.html?scenario=attachments&route=/issue/DEMO-1`: direkt unter der Beschreibung steht der Abschnitt „Anhänge · 7“ mit den sechs neuesten Anhängen als Zeilen-Kacheln (Vorschaubild oder Datei-Symbol, Name, Größe). „Alle anzeigen“ erscheint erst ab dem siebten Anhang und öffnet „Details“ → „Anhänge“ mit Suche, Sortierung und Upload.
+- Ein Bild öffnet die Großansicht, jede andere Datei den simulierten Opener (`window.__qa.opened`). Ohne Anhänge (`window.__qaAttachments = []` per `addInitScript`) fehlt der Abschnitt ganz.
+- Automatisch: `bunx playwright test tests/browser/ticket-attachments.e2e.ts --workers=1`; mit `TICKET_ATTACHMENTS_SHOTS=<Ordner>` zusätzlich Screenshots. Auswahl und Reihenfolge: `src/lib/attachment-preview.test.ts`.
+
 ## Anhänge sortieren
 
 - Fünf lokale Testanhänge an `DEMO-1` (natürliche Namen, leerer Name, ungültiges Datum, gleiche Größe und gleicher Zeitpunkt) und zwei an `DEMO-2`: `...fixture.html?scenario=attachments&route=/issue/DEMO-1`, dann „Weitere Ticketaktionen“ → „Anhänge“.
 - Bilder der Testanhänge (`qa-att-*`) liefert die Simulation als 1×1-PNG; Uploads (`POST /issue/{key}/attachments`) landen nur im Testticket und in `window.__qa.writes`, `window.__qa.delayMs` verzögert sie.
 - Automatisch: `bunx playwright test tests/browser/attachment-sort.e2e.ts --workers=1`; mit `ATTACHMENT_SORT_SHOTS=<Ordner>` entstehen Screenshots.
+
+## Bilder in Beschreibung und Kommentaren
+
+- `...fixture.html?scenario=adf-images&route=/issue/DEMO-1`: acht lokale Testanhänge mit numerischen IDs (`46883` bis `46890`: drei Bilder, ein PDF, ein Kommentarbild, ein Bild, das mit 404 scheitert, eine Text- und eine CSV-Datei). Die Beschreibung hat zwei `mediaSingle` (480 px fest und 50 % der Spalte), eine `mediaGroup` (Vorschaubild, PDF als Datei-Chip, scheiterndes Bild als Datei-Chip) und ein externes Bild als Hinweis „Anhang nicht verfügbar“, danach Fülltext für die Prüfung des späten Ladens.
+- Die Detailabfrage liefert vier Kommentare, darunter einen mit Bild und einen mit zwei Inline-Dateien, die über `data-media-services-id` und relative Links zugeordnet werden (die ADF-Reihenfolge ist absichtlich umgekehrt). Kommentarseite 0 lädt danach von selbst alle Kommentare mit `expand=renderedBody`, darunter zwei, die nur dort stehen: einen mit abweichender Zahl (ein Bild über den Dateinamen, ein Inline-Anhang als Datei-Chip, zwei Hinweise „Anhang nicht verfügbar“, einer davon für ein externes Bild, das nie geladen wird) und eine Antwort mit Bild auf den Kommentar „Beleg aus dem Test“. Den Lade- und Fehlerzustand der eingebetteten Kommentare sieht man nur, solange Seite 0 fehlt: `window.__qaCommentPagesRule = () => ({ delayMs })` bzw. `({ status: 503 })` per `addInitScript`. `?comment=c-reply` in der Route springt zur Antwort.
+- `...route=/issue/DEMO-1?bereich=zeit`: ein Eintrag im Arbeitsprotokoll mit Media zeigt zweimal „[Anhang]“, weil dort keine gerenderte Fassung vorgesehen ist.
+- Die gerenderte Fassung (`GET /issue/{key}?fields=description,comment&expand=renderedFields`) ist lokales Test-HTML; die App durchsucht es nur nach Anhangs-IDs und zeigt es nie an. `window.__qa.renderedReads` protokolliert diese Abfragen (`key`, `expand`), `window.__qa.commentPageExpands` den `expand`-Wert jeder Kommentarseite. `DEMO-2` hat keine Media-Knoten und löst keine solche Abfrage aus.
+- `window.__qaRenderedRule = (key) => ({ delayMs, status })` verzögert die gerenderte Fassung (Skeleton in Zielgröße bzw. Chip-Skeleton) oder lässt sie scheitern (dann Hinweis-Chips), `window.__qaAttachmentRule = (id) => ({ delayMs })` verzögert einzelne Bildabrufe (Skeleton in Zielgröße). Beides per `addInitScript` setzen. `window.__qaAdfImagesRevise()` setzt einen neuen Stand (`fields.updated`, Beschreibung und gerenderte Fassung); danach „Weitere Ticketaktionen“ → „Aktualisieren“. Dateien ohne Bild öffnen über den simulierten Opener; die Ziele stehen in `window.__qa.opened`.
+- Automatisch: `bunx playwright test tests/browser/adf-images.e2e.ts --workers=1`.
 
 ## Jira-Aktivitätshinweise
 

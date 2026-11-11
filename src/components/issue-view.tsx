@@ -8,10 +8,13 @@ import { motion, useReducedMotion, type Variants } from "motion/react";
 import { ChevronRightIcon } from "lucide-react";
 import { CreateBranchDialog } from "@/components/development/create-branch-dialog";
 import { IssueDevelopment } from "@/components/development/issue-development";
+import { IssueAttachmentPreview } from "@/components/issue-attachment-preview";
 import { IssueComments } from "@/components/issue-comments";
+import { IssueMediaProvider } from "@/components/issue-media-provider";
 import { IssueDrawer, type IssueDrawerTab } from "@/components/issue-drawer";
 import { EditableField, FieldValue, richFieldIds } from "@/components/issue-fields";
 import { IssueStatusMenu } from "@/components/issue-status-menu";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { IssueActions } from "@/components/issues/issue-actions";
 import { IssueLinksPanel } from "@/components/issues/issue-links-panel";
@@ -27,9 +30,12 @@ import { useIssueHistory } from "@/hooks/jira/use-issue-history";
 import { useIssueLinks } from "@/hooks/jira/use-issue-links";
 import { useRemoteLinks } from "@/hooks/jira/use-remote-links";
 import { useIssueCommentPages } from "@/hooks/jira/use-issue-comment-pages";
+import { useIssueRendered } from "@/hooks/jira/use-issue-rendered";
 import { useIssueView } from "@/hooks/jira/use-issue-view";
+import { ATTACHMENT_PREVIEW_LIMIT } from "@/lib/attachment-preview";
 import { EASE_OUT } from "@/lib/ease";
 import { useJiraSite, type JiraIssueDetail } from "@/lib/jira/queries";
+import { renderedDescription } from "@/lib/jira/rendered-issue";
 import { cn } from "@/lib/utils";
 
 const VITALS = ["assignee", "reporter", "priority", "duedate", "labels"];
@@ -125,12 +131,22 @@ export function IssueViewSkeleton() {
   );
 }
 
-export function IssueView({ issueKey, initialTab }: { issueKey: string; initialTab?: IssueDrawerTab }) {
+export function IssueView({
+  issueKey,
+  initialTab,
+  focusComment,
+  onFocusHandled,
+}: {
+  issueKey: string;
+  initialTab?: IssueDrawerTab;
+  focusComment?: string;
+  onFocusHandled: () => void;
+}) {
   const site = useJiraSite();
   const view = useIssueView(issueKey);
   const reduce = useReducedMotion();
   const helpdesk = useJiraHelpdesk(view.issue);
-  useIssueReadingPosition(issueKey, !!view.issue);
+  useIssueReadingPosition(issueKey, !!view.issue, !!focusComment);
   const actions = useIssueActions(view.issue, site.data?.siteUrl, initialTab);
   const history = useIssueHistory(issueKey);
   const links = useIssueLinks(issueKey);
@@ -140,6 +156,7 @@ export function IssueView({ issueKey, initialTab }: { issueKey: string; initialT
     view.issue?.fields.comment?.comments ?? [],
     view.issue?.fields.comment,
   );
+  const rendered = useIssueRendered(view.issue);
   const development = useIssueDevelopmentPanel(
     issueKey,
     view.issue && { projectKey: view.issue.fields.project.key, summary: view.issue.fields.summary },
@@ -152,6 +169,7 @@ export function IssueView({ issueKey, initialTab }: { issueKey: string; initialT
   const issue = view.load.data;
   const { fields } = issue;
   const subtasks = fields.subtasks ?? [];
+  const attachmentCount = fields.attachment?.length ?? 0;
 
   return (
     <motion.article variants={container} initial="hidden" animate="show" className={LAYOUT.article}>
@@ -185,7 +203,7 @@ export function IssueView({ issueKey, initialTab }: { issueKey: string; initialT
 
         <IssueActions
           actions={actions}
-          attachmentCount={fields.attachment?.length ?? 0}
+          attachmentCount={attachmentCount}
           timeSpent={fields.timetracking?.timeSpent}
           refreshing={view.refreshing}
           onRefresh={view.refresh}
@@ -212,47 +230,71 @@ export function IssueView({ issueKey, initialTab }: { issueKey: string; initialT
         <Vitals issue={issue} />
       </motion.aside>
 
-      <div className={LAYOUT.body}>
-        <Section title="Beschreibung">
-          <EditableField issue={issue} id="description" className="text-[0.95rem] leading-relaxed">
-            {fields.description ? (
-              <FieldValue value={fields.description} />
-            ) : (
-              <p className="text-sm text-muted-foreground">Keine Beschreibung.</p>
-            )}
-          </EditableField>
-        </Section>
-
-        <JiraHelpdeskLinks references={helpdesk} />
-
-        {subtasks.length > 0 && (
-          <Section title="Unteraufgaben">
-            <IssueSubtasks key={issue.key} subtasks={subtasks} />
+      <IssueMediaProvider attachments={fields.attachment}>
+        <div className={LAYOUT.body}>
+          <Section title="Beschreibung">
+            <EditableField issue={issue} id="description" className="text-[0.95rem] leading-relaxed">
+              {fields.description ? (
+                <FieldValue value={fields.description} rendered={renderedDescription(rendered)} />
+              ) : (
+                <p className="text-sm text-muted-foreground">Keine Beschreibung.</p>
+              )}
+            </EditableField>
           </Section>
-        )}
 
-        <Section title={links.summary ? `Verknüpfungen · ${links.summary.total}` : "Verknüpfungen"}>
-          <IssueLinksPanel
-            summary={links.summary}
-            error={links.error}
-            refreshError={links.refreshError}
-            retrying={links.retrying}
-            onRetry={links.retry}
-          />
-        </Section>
+          {attachmentCount > 0 && (
+            <Section
+              title={`Anhänge · ${attachmentCount}`}
+              aside={
+                attachmentCount > ATTACHMENT_PREVIEW_LIMIT && (
+                  <Button variant="ghost" size="sm" className="-my-1.5 h-8 rounded-xl px-2 text-xs text-muted-foreground" onClick={() => actions.show("attachments")}>
+                    Alle anzeigen
+                  </Button>
+                )
+              }
+            >
+              <IssueAttachmentPreview />
+            </Section>
+          )}
 
-        <motion.div variants={reveal(reduce)}>
-          <RemoteLinksPanel {...remoteLinks} />
-        </motion.div>
+          <JiraHelpdeskLinks references={helpdesk} />
 
-        <Section title={`Kommentare · ${commentPages.total ?? commentPages.loaded}`}>
-          <IssueComments key={issue.key} issueKey={issue.key} pages={commentPages} />
-        </Section>
+          {subtasks.length > 0 && (
+            <Section title="Unteraufgaben">
+              <IssueSubtasks key={issue.key} subtasks={subtasks} />
+            </Section>
+          )}
 
-        <motion.div variants={reveal(reduce)}>
-          <IssueHistoryPanel {...history} />
-        </motion.div>
-      </div>
+          <Section title={links.summary ? `Verknüpfungen · ${links.summary.total}` : "Verknüpfungen"}>
+            <IssueLinksPanel
+              summary={links.summary}
+              error={links.error}
+              refreshError={links.refreshError}
+              retrying={links.retrying}
+              onRetry={links.retry}
+            />
+          </Section>
+
+          <motion.div variants={reveal(reduce)}>
+            <RemoteLinksPanel {...remoteLinks} />
+          </motion.div>
+
+          <Section title={`Kommentare · ${commentPages.total ?? commentPages.loaded}`}>
+            <IssueComments
+              key={issue.key}
+              issue={issue}
+              pages={commentPages}
+              rendered={rendered}
+              focusComment={focusComment}
+              onFocusHandled={onFocusHandled}
+            />
+          </Section>
+
+          <motion.div variants={reveal(reduce)}>
+            <IssueHistoryPanel {...history} />
+          </motion.div>
+        </div>
+      </IssueMediaProvider>
 
       <IssueDrawer
         key={issue.key}

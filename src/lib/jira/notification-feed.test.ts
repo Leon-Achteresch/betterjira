@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  commentIdOfNotification,
   countUnread,
   describeChanges,
   isNoiseChange,
@@ -115,5 +116,13 @@ describe("isNoiseChange", () => {
   it("erkennt reine Hintergrundänderungen", () => {
     expect(isNoiseChange([{ field: "Rank" }, { field: "timespent" }])).toBe(true);
     expect(isNoiseChange([{ field: "Rank" }, { field: "status" }])).toBe(false);
+  });
+});
+
+describe("Benachrichtigung über einen Kommentar", () => {
+  it("liest die Kommentar-ID nur aus c:{id}", () => {
+    expect(commentIdOfNotification("c:10002")).toBe("10002");
+    expect(commentIdOfNotification("h:5")).toBeUndefined();
+    expect(commentIdOfNotification("DEMO-1:created")).toBeUndefined();
   });
 });

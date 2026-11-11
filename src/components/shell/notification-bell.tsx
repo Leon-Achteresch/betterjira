@@ -13,6 +13,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useNotificationFeed } from "@/hooks/notifications/use-notification-feed";
 import { openNotification, useOwnedUnreadCount } from "@/hooks/notifications/use-notification-store";
 import type { NotificationKind } from "@/lib/jira/notification-feed";
+import { issueSearch } from "@/lib/jira/issue-link";
 import { useJiraSite } from "@/lib/jira/queries";
 import { EASE_OUT } from "@/lib/ease";
 
@@ -30,9 +31,9 @@ export function NotificationBell() {
   const navigate = useNavigate();
   if (!site.data) return null;
   const { siteUrl } = site.data;
-  const openIssue = (key: string) => {
+  const openIssue = (key: string, commentId?: string) => {
     setOpen(false);
-    void navigate({ to: "/issue/$key", params: { key } });
+    void navigate({ to: "/issue/$key", params: { key }, search: issueSearch(commentId) });
   };
   const openExternal = (key: string) => void openUrl(`${siteUrl}/browse/${key}`);
   const openInbox = () => {

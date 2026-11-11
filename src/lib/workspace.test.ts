@@ -1,19 +1,34 @@
 import { describe, expect, it } from "vitest";
 import { Schema } from "effect";
+import { appendBlocks, isEditableAdf, type AdfNode } from "./jira/adf";
 import {
+  ADF_COMMENT_TEMPLATES,
   EMPTY_WORKSPACE,
   RECENT_ISSUE_LIMIT,
   Workspaces,
-  appendTemplate,
-  clearSubmittedDraft,
+  clearSubmittedEditDraft,
+  clearSubmittedMainDraft,
+  clearSubmittedReplyDraft,
+  editDraftOf,
+  mainDraftOf,
+  migrateLegacyDrafts,
+  migrateWorkspaces,
+  pruneEditDrafts,
   rememberIssue,
-  setCommentDraft,
-  togglePinnedIssue,
-  workspaceId,
+  replyDraftOf,
+  restoreWorkspaces,
+  setEditDraft,
   setIssueContext,
+  setMainDraft,
+  setReplyDraft,
   scopedFieldDraftKeys,
+  togglePinnedIssue,
   workQueueItems,
+  workspaceId,
 } from "./workspace";
+
+const line = (text: string): AdfNode => ({ type: "paragraph", content: [{ type: "text", text }] });
+const doc = (...lines: string[]): AdfNode => ({ type: "doc", version: 1, content: lines.map(line) });
 
 describe("lokaler Arbeitsbereich", () => {
   it("trennt Instanzen und Konten ohne mehrdeutige Schlüssel", () => {
@@ -52,25 +67,6 @@ describe("lokaler Arbeitsbereich", () => {
     expect(togglePinnedIssue(togglePinnedIssue(workspace, issue), issue)).toEqual(workspace);
   });
 
-  it("behält Entwürfe anderer Vorgänge beim Löschen", () => {
-    const workspace = setCommentDraft(setCommentDraft(EMPTY_WORKSPACE, "A-1", "Erster"), "A-2", "Zweiter");
-    expect(setCommentDraft(workspace, "A-1", "").drafts).toEqual({
-      "A-2": "Zweiter",
-    });
-    expect(workspace.drafts["A-1"]).toBe("Erster");
-  });
-
-  it("löscht nach dem Absenden nur den tatsächlich gesendeten Entwurf", () => {
-    const workspace = setCommentDraft(EMPTY_WORKSPACE, "A-1", "Neu während Anfrage");
-    expect(clearSubmittedDraft(workspace, "A-1", "Alter Text")).toBe(workspace);
-    expect(clearSubmittedDraft(workspace, "A-1", "Neu während Anfrage").drafts).toEqual({});
-  });
-
-  it("ergänzt Vorlagen ohne vorhandenen Text zu überschreiben", () => {
-    expect(appendTemplate("Meine Notiz", "Vorlage")).toBe("Meine Notiz\n\nVorlage");
-    expect(appendTemplate("  ", "Vorlage")).toBe("Vorlage");
-  });
-
   it("weist beschädigte gespeicherte Daten zurück", () => {
     expect(Schema.is(Workspaces)({ test: EMPTY_WORKSPACE })).toBe(true);
     expect(
@@ -107,7 +103,7 @@ describe("Wiederaufnahme im Arbeitsalltag", () => {
 
   it("behält Entwürfe und Notizen unabhängig von fünfzig zuletzt geöffneten Tickets erreichbar", () => {
     let workspace = rememberIssue(EMPTY_WORKSPACE, { key: "A-0", summary: "Nicht vergessen" });
-    workspace = setCommentDraft(workspace, "A-0", "Antwort begonnen");
+    workspace = setMainDraft(workspace, "A-0", doc("Antwort begonnen"));
     workspace = setIssueContext(workspace, "A-0", { note: "Morgen mit Lea besprechen", scrollTop: 720 });
     for (let index = 1; index <= 65; index++)
       workspace = rememberIssue(workspace, { key: `A-${index}`, summary: `Aufgabe ${index}` });
@@ -156,5 +152,191 @@ describe("Wiederaufnahme im Arbeitsalltag", () => {
     expect(keys).toEqual(["A-1"]);
     expect(scopedFieldDraftKeys(ids, undefined)).toEqual([]);
     expect(workQueueItems(EMPTY_WORKSPACE, "drafts", "", keys)[0]).toMatchObject({ key: "A-1", hasFieldDraft: true });
+  });
+});
+
+describe("Kommentarentwürfe als ADF", () => {
+  it("behält Hauptentwürfe anderer Tickets beim Löschen", () => {
+    const workspace = setMainDraft(setMainDraft(EMPTY_WORKSPACE, "A-1", doc("Erster")), "A-2", doc("Zweiter"));
+    expect(setMainDraft(workspace, "A-1", undefined).commentDrafts).toEqual({ "A-2": doc("Zweiter") });
+    expect(mainDraftOf(workspace, "A-1")).toEqual(doc("Erster"));
+  });
+
+  it("speichert leere Dokumente nicht, Leerzeichen aber schon", () => {
+    expect(setMainDraft(EMPTY_WORKSPACE, "A-1", { type: "doc", version: 1, content: [{ type: "paragraph" }] }).commentDrafts).toEqual({});
+    expect(mainDraftOf(setMainDraft(EMPTY_WORKSPACE, "A-1", doc(" ")), "A-1")).toEqual(doc(" "));
+  });
+
+  it("löscht nach dem Senden nur den unveränderten Hauptentwurf", () => {
+    const workspace = setMainDraft(EMPTY_WORKSPACE, "A-1", doc("Neu während Anfrage"));
+    expect(clearSubmittedMainDraft(workspace, "A-1", doc("Alter Text"))).toBe(workspace);
+    expect(clearSubmittedMainDraft(workspace, "A-1", doc("Neu während Anfrage")).commentDrafts).toEqual({});
+  });
+
+  it("speichert Antwortentwürfe je Ticket und Thread-Schlüssel", () => {
+    let workspace = setReplyDraft(EMPTY_WORKSPACE, "A-1", "10", doc("Antwort 10"));
+    workspace = setReplyDraft(workspace, "A-1", "20", doc("Antwort 20"));
+    workspace = setReplyDraft(workspace, "B-1", "10", doc("Anderes Ticket"));
+    expect(replyDraftOf(workspace, "A-1", "10")).toEqual(doc("Antwort 10"));
+    expect(replyDraftOf(workspace, "B-1", "10")).toEqual(doc("Anderes Ticket"));
+    workspace = setReplyDraft(workspace, "A-1", "10", undefined);
+    expect(workspace.replyDrafts?.["A-1"]).toEqual({ "20": doc("Antwort 20") });
+    workspace = setReplyDraft(workspace, "A-1", "20", undefined);
+    expect(workspace.replyDrafts).toEqual({ "B-1": { "10": doc("Anderes Ticket") } });
+  });
+
+  it("löscht nach dem Senden nur die unveränderte Antwort", () => {
+    const workspace = setReplyDraft(EMPTY_WORKSPACE, "A-1", "10", doc("Weiter getippt"));
+    expect(clearSubmittedReplyDraft(workspace, "A-1", "10", doc("Gesendet"))).toBe(workspace);
+    expect(replyDraftOf(clearSubmittedReplyDraft(workspace, "A-1", "10", doc("Weiter getippt")), "A-1", "10")).toBeUndefined();
+  });
+
+  it("übernimmt alte Textentwürfe als Absätze und entfernt sie aus drafts", () => {
+    const legacy = { ...EMPTY_WORKSPACE, drafts: { "A-1": "*Stand*\n\n[~accountid:1] bitte prüfen", "A-2": "  " } };
+    const migrated = migrateLegacyDrafts(legacy);
+    expect(migrated.drafts).toEqual({});
+    expect(mainDraftOf(migrated, "A-1")).toEqual({
+      type: "doc",
+      version: 1,
+      content: [line("*Stand*"), { type: "paragraph" }, line("[~accountid:1] bitte prüfen")],
+    });
+    expect(mainDraftOf(migrated, "A-2")).toBeUndefined();
+    expect(migrateLegacyDrafts(migrated)).toBe(migrated);
+  });
+
+  it("hängt einen alten Textentwurf an einen vorhandenen ADF-Entwurf an", () => {
+    const both = { ...EMPTY_WORKSPACE, drafts: { "A-1": "Alt" }, commentDrafts: { "A-1": doc("Neu") } };
+    expect(mainDraftOf(migrateLegacyDrafts(both), "A-1")).toEqual(doc("Neu", "Alt"));
+  });
+
+  it("migriert alle Konten beim Laden", () => {
+    const workspaces = { a: { ...EMPTY_WORKSPACE, drafts: { "A-1": "Text" } }, b: EMPTY_WORKSPACE };
+    const migrated = migrateWorkspaces(workspaces);
+    expect(mainDraftOf(migrated["a"], "A-1")).toEqual(doc("Text"));
+    expect(migrated["b"]).toBe(workspaces.b);
+  });
+
+  it("lädt Arbeitsbereiche aus der Version vor ADF-Entwürfen vollständig", () => {
+    const legacy = { recent: [{ key: "A-1", summary: "Früher" }], pinned: [], drafts: { "A-1": "Text" }, newestFirst: true, contexts: {} };
+    expect(Schema.is(Workspaces)({ account: legacy })).toBe(true);
+    expect(workQueueItems(legacy, "drafts")[0]).toMatchObject({ key: "A-1", hasDraft: true });
+  });
+
+  it("bleibt für ältere App-Versionen lesbar", () => {
+    const Remembered = Schema.Struct({ key: Schema.String, summary: Schema.String });
+    const OldWorkspace = Schema.Struct({
+      recent: Schema.Array(Remembered),
+      pinned: Schema.Array(Remembered),
+      drafts: Schema.Record(Schema.String, Schema.String),
+      newestFirst: Schema.Boolean,
+    });
+    const current = setReplyDraft(setMainDraft(EMPTY_WORKSPACE, "A-1", doc("Neu")), "A-1", "10", doc("Antwort"));
+    expect(Schema.is(OldWorkspace)(current)).toBe(true);
+  });
+
+  it("weist beschädigte ADF-Entwürfe zurück", () => {
+    expect(Schema.is(Workspaces)({ test: { ...EMPTY_WORKSPACE, commentDrafts: { "A-1": "Text" } } })).toBe(false);
+    expect(Schema.is(Workspaces)({ test: { ...EMPTY_WORKSPACE, replyDrafts: { "A-1": { "10": { type: "paragraph" } } } } })).toBe(false);
+  });
+
+  it("zählt Haupt- und Antwortentwürfe als angefangen und behält ihren Kontext", () => {
+    let workspace = rememberIssue(EMPTY_WORKSPACE, { key: "A-0", summary: "Hauptentwurf" });
+    workspace = rememberIssue(workspace, { key: "B-0", summary: "Antwortentwurf" });
+    workspace = setMainDraft(workspace, "A-0", doc("Begonnen"));
+    workspace = setReplyDraft(workspace, "B-0", "10", doc("Antwort begonnen"));
+    for (let index = 1; index <= 65; index++) workspace = rememberIssue(workspace, { key: `A-${index}`, summary: `Aufgabe ${index}` });
+    const pending = workQueueItems(workspace, "drafts");
+    expect(pending.map((item) => item.key).sort()).toEqual(["A-0", "B-0"]);
+    expect(pending.every((item) => item.hasDraft)).toBe(true);
+    expect(workspace.contexts?.["A-0"]?.summary).toBe("Hauptentwurf");
+    expect(workspace.contexts?.["B-0"]?.summary).toBe("Antwortentwurf");
+  });
+
+  it("fügt Vorlagen als fette Überschrift mit Aufzählung am Ende ein", () => {
+    const [status] = ADF_COMMENT_TEMPLATES;
+    const result = appendBlocks(doc("Meine Notiz"), status.blocks);
+    expect(result.content?.[0]).toEqual(line("Meine Notiz"));
+    expect(result.content?.[1]).toEqual({ type: "paragraph", content: [{ type: "text", text: "Stand", marks: [{ type: "strong" }] }] });
+    expect(result.content?.[2]?.type).toBe("bulletList");
+    expect(ADF_COMMENT_TEMPLATES.map((template) => template.label)).toEqual(["Statusupdate", "Rückfrage", "Übergabe"]);
+    expect(ADF_COMMENT_TEMPLATES.every((template) => isEditableAdf(appendBlocks(undefined, template.blocks)))).toBe(true);
+  });
+});
+
+describe("Bearbeitungsentwürfe", () => {
+  it("speichert je Ticket und Kommentar-ID und verwirft leere Entwürfe", () => {
+    const workspace = setEditDraft(EMPTY_WORKSPACE, "A-1", "10", doc("Neu"));
+    expect(editDraftOf(workspace, "A-1", "10")).toEqual(doc("Neu"));
+    expect(editDraftOf(workspace, "A-1", "11")).toBeUndefined();
+    expect(editDraftOf(workspace, "A-2", "10")).toBeUndefined();
+    expect(setEditDraft(workspace, "A-1", "10", { type: "doc", version: 1, content: [{ type: "paragraph" }] }).editDrafts).toEqual({});
+  });
+
+  it("löscht nach dem Speichern nur einen Entwurf, der dem gesendeten Inhalt gleicht", () => {
+    const workspace = setEditDraft(EMPTY_WORKSPACE, "A-1", "10", doc("Neu"));
+    expect(editDraftOf(clearSubmittedEditDraft(workspace, "A-1", "10", doc("Neu")), "A-1", "10")).toBeUndefined();
+    expect(editDraftOf(clearSubmittedEditDraft(workspace, "A-1", "10", doc("Alt")), "A-1", "10")).toEqual(doc("Neu"));
+  });
+
+  it("zählt ein Ticket mit Bearbeitungsentwurf als angefangen", () => {
+    const items = workQueueItems(setEditDraft(EMPTY_WORKSPACE, "A-1", "10", doc("Neu")), "drafts");
+    expect(items.map((item) => [item.key, item.hasDraft])).toEqual([["A-1", true]]);
+  });
+
+  it("räumt Entwürfe zu nicht mehr vorhandenen Kommentaren auf", () => {
+    let workspace = setEditDraft(EMPTY_WORKSPACE, "A-1", "10", doc("Bleibt"));
+    workspace = setEditDraft(workspace, "A-1", "11", doc("Weg"));
+    workspace = setEditDraft(workspace, "A-2", "20", doc("Anderes Ticket"));
+    const pruned = pruneEditDrafts(workspace, "A-1", ["10", "12"]);
+    expect(pruned.editDrafts).toEqual({ "A-1": { "10": doc("Bleibt") }, "A-2": { "20": doc("Anderes Ticket") } });
+    expect(pruneEditDrafts(pruned, "A-1", ["10"])).toBe(pruned);
+    expect(pruneEditDrafts(pruned, "A-1", []).editDrafts).toEqual({ "A-2": { "20": doc("Anderes Ticket") } });
+  });
+
+  it("liest gespeicherte Arbeitsbereiche mit und ohne editDrafts", () => {
+    const legacy = { recent: [], pinned: [], drafts: {}, newestFirst: false };
+    expect(Schema.is(Workspaces)({ a: legacy })).toBe(true);
+    expect(Schema.is(Workspaces)({ a: { ...legacy, editDrafts: { "A-1": { "10": doc("x") } } } })).toBe(true);
+  });
+});
+
+describe("Gespeicherte Arbeitsbereiche lesen", () => {
+  const issue = { key: "A-1", summary: "Ticket" };
+  const base = { recent: [issue], pinned: [issue], drafts: {}, newestFirst: true };
+
+  it("behält recent und pinned, wenn Entwürfe kaputt gespeichert sind", () => {
+    const restored = restoreWorkspaces({
+      a: {
+        ...base,
+        commentDrafts: { "A-1": "Text", "A-2": doc("Bleibt") },
+        replyDrafts: null,
+        editDrafts: { "A-1": { "10": "Text", "11": doc("Gültig") }, "A-3": "kaputt" },
+      },
+    });
+    expect(restored.a?.recent).toEqual([issue]);
+    expect(restored.a?.pinned).toEqual([issue]);
+    expect(restored.a?.newestFirst).toBe(true);
+    expect(restored.a?.commentDrafts).toEqual({ "A-2": doc("Bleibt") });
+    expect(restored.a?.replyDrafts).toEqual({});
+    expect(restored.a?.editDrafts).toEqual({ "A-1": { "11": doc("Gültig") } });
+  });
+
+  it("verwirft nur den Arbeitsbereich, der sich auch bereinigt nicht lesen lässt", () => {
+    const restored = restoreWorkspaces({ a: base, b: { recent: "kaputt" }, c: null });
+    expect(Object.keys(restored)).toEqual(["a"]);
+    expect(restoreWorkspaces("kaputt")).toEqual({});
+  });
+
+  it("ergänzt keine fehlenden Entwurfsfelder, damit unberührte Arbeitsbereiche gleich bleiben", () => {
+    const restored = restoreWorkspaces({ a: base });
+    expect(restored.a).toEqual(base);
+    expect(restored.a).not.toHaveProperty("replyDrafts");
+    expect(restored.a).not.toHaveProperty("editDrafts");
+  });
+
+  it("überführt alte Textentwürfe weiterhin", () => {
+    const restored = restoreWorkspaces({ a: { ...base, drafts: { "A-1": "Hallo" } } });
+    expect(restored.a?.drafts).toEqual({});
+    expect(mainDraftOf(restored.a!, "A-1")).toEqual(doc("Hallo"));
   });
 });

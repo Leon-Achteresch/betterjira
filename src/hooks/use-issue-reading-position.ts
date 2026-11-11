@@ -1,10 +1,14 @@
-import { useLayoutEffect } from "react";
+import { useLayoutEffect, useRef } from "react";
 import { toast } from "sonner";
 import { useWorkspace, useWorkspaceStore } from "@/hooks/use-workspace";
 import { setIssueContext } from "@/lib/workspace";
 
-export function useIssueReadingPosition(issueKey: string, loaded: boolean) {
+export function useIssueReadingPosition(issueKey: string, loaded: boolean, jumpPending: boolean) {
   const { id } = useWorkspace();
+  const jumping = useRef(jumpPending);
+  useLayoutEffect(() => {
+    jumping.current = jumpPending;
+  });
 
   useLayoutEffect(() => {
     if (!id || !loaded) return;
@@ -55,8 +59,11 @@ export function useIssueReadingPosition(issueKey: string, loaded: boolean) {
       clearTimeout(timer);
       timer = setTimeout(save, 200);
     };
-    observer.observe(article);
-    restore();
+    if (jumping.current) interact();
+    else {
+      observer.observe(article);
+      restore();
+    }
     const deadline = setTimeout(() => finishRestoring(), 1500);
     container.addEventListener("scroll", onScroll, { passive: true });
     container.addEventListener("wheel", interact, { passive: true, once: true });

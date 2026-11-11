@@ -1,6 +1,7 @@
 import { Effect, Schema } from "effect";
 import { jira } from "./client";
-import { IssueComment, jiraKeys } from "./queries";
+import { RawComment, toIssueComment, type IssueComment } from "./comment-thread";
+import { jiraKeys } from "./keys";
 
 export const COMMENT_PAGE_SIZE = 50;
 
@@ -8,19 +9,21 @@ const CommentPageResponse = Schema.Struct({
   startAt: Schema.optional(Schema.Number),
   maxResults: Schema.optional(Schema.Number),
   total: Schema.optional(Schema.Number),
-  comments: Schema.optional(Schema.Array(IssueComment)),
+  comments: Schema.optional(Schema.Array(RawComment)),
 });
 
-export type JiraComment = typeof IssueComment.Type;
+export type JiraComment = IssueComment;
 
 export type CommentPage = Omit<typeof CommentPageResponse.Type, "comments"> & { comments: readonly JiraComment[]; requestedAt: number };
 
-export type CommentThread = {
+export type LoadedComments = {
   comments: JiraComment[];
   loaded: number;
   total?: number;
   next?: number;
   incomplete: boolean;
+  /** Ids only known from the embedded detail response: no page and no own post confirmed their parentId. */
+  embeddedOnly: ReadonlySet<string>;
 };
 
 const count = (value: number | undefined) =>
@@ -38,10 +41,28 @@ export const nextCommentPosition = (page: CommentPage): number | undefined => {
 export const initialCommentPosition = (first: CommentPage) =>
   (count(first.startAt) ?? 0) > 0 || (first.comments.length === 0 && count(first.total) === undefined) ? 0 : nextCommentPosition(first);
 
-export const summarizeCommentThread = (first: CommentPage, pages: readonly CommentPage[]): CommentThread => {
+export const summarizeCommentPages = (
+  first: CommentPage,
+  pages: readonly CommentPage[],
+  posted: readonly JiraComment[] = [],
+): LoadedComments => {
+  // Precedence: embedded detail < own posted comment < /comment pages; only the latter two carry parentId.
   const byId = new Map<string, JiraComment>();
-  for (const page of [first, ...pages])
-    for (const comment of page.comments) if (!byId.has(comment.id)) byId.set(comment.id, comment);
+  for (const comment of first.comments) if (!byId.has(comment.id)) byId.set(comment.id, comment);
+  const confirmed = new Set<string>();
+  for (const comment of posted) {
+    confirmed.add(comment.id);
+    byId.set(comment.id, comment);
+  }
+  const fetched = new Set<string>();
+  for (const page of pages)
+    for (const comment of page.comments)
+      if (!fetched.has(comment.id)) {
+        fetched.add(comment.id);
+        confirmed.add(comment.id);
+        byId.set(comment.id, comment);
+      }
+  const embeddedOnly = new Set([...byId.keys()].filter((id) => !confirmed.has(id)));
   const last = pages.at(-1);
   const reported = [first, ...pages].reduce<number | undefined>((known, page) => {
     const total = count(page.total);
@@ -56,10 +77,37 @@ export const summarizeCommentThread = (first: CommentPage, pages: readonly Comme
     total,
     next,
     incomplete: next === undefined && total !== undefined && loaded < total,
+    embeddedOnly,
   };
 };
 
-export const commentProgressLabel = ({ loaded, total, next, incomplete }: CommentThread) => {
+export const withPostedComment = (posted: readonly JiraComment[] | undefined, comment: JiraComment): JiraComment[] => [
+  ...(posted ?? []).filter(({ id }) => id !== comment.id),
+  comment,
+];
+
+export const withoutPostedComment = (posted: readonly JiraComment[] | undefined, id: string): JiraComment[] =>
+  (posted ?? []).filter((comment) => comment.id !== id);
+
+export const withEditedPostedComment = (
+  posted: readonly JiraComment[] | undefined,
+  id: string,
+  body: unknown,
+  updated: string,
+): JiraComment[] => (posted ?? []).map((comment) => (comment.id === id ? { ...comment, body, updated } : comment));
+
+type EmbeddedComments = { total?: number; comments: readonly { id: string; updated?: string }[] } | undefined;
+
+const embeddedSignature = (field: EmbeddedComments) =>
+  JSON.stringify([field?.total, (field?.comments ?? []).map(({ id, updated }) => [id, updated])]);
+
+export const embeddedCommentsChanged = (previous: EmbeddedComments, next: EmbeddedComments) =>
+  embeddedSignature(previous) !== embeddedSignature(next);
+
+export const pagesOutdatedBy = (pages: { dataUpdatedAt: number; fetchStatus: string } | undefined, detailStartedAt: number) =>
+  !!pages && pages.fetchStatus === "idle" && pages.dataUpdatedAt > 0 && pages.dataUpdatedAt < detailStartedAt;
+
+export const commentProgressLabel = ({ loaded, total, next, incomplete }: Omit<LoadedComments, "embeddedOnly">) => {
   const known = total === undefined ? `${loaded} Kommentare geladen · Gesamtzahl unbekannt` : `${loaded} von ${total} Kommentaren geladen`;
   if (incomplete) return `${known} · Jira liefert keine weiteren`;
   if (total === undefined && next === undefined) return `${known} · Jira liefert keine weiteren`;
@@ -70,14 +118,18 @@ export const commentProgressLabel = ({ loaded, total, next, incomplete }: Commen
 export const commentPageKeys = {
   issue: (cloudId: string, accountId: string, key: string) =>
     [...jiraKeys.issue(key), "comment-pages", cloudId, accountId] as const,
+  posted: (cloudId: string, accountId: string, key: string) => ["jira", "comment-posted", key, cloudId, accountId] as const,
 };
 
+export const commentPagePath = (key: string, startAt: number) =>
+  `/issue/${encodeURIComponent(key)}/comment?${new URLSearchParams({
+    startAt: String(startAt),
+    maxResults: String(COMMENT_PAGE_SIZE),
+    orderBy: "created",
+    expand: "renderedBody",
+  })}`;
+
 export const fetchCommentPage = (key: string, startAt: number) =>
-  jira(
-    `/issue/${encodeURIComponent(key)}/comment?${new URLSearchParams({
-      startAt: String(startAt),
-      maxResults: String(COMMENT_PAGE_SIZE),
-      orderBy: "created",
-    })}`,
-    CommentPageResponse,
-  ).pipe(Effect.map((page): CommentPage => ({ ...page, comments: page.comments ?? [], requestedAt: startAt })));
+  jira(commentPagePath(key, startAt), CommentPageResponse).pipe(
+    Effect.map((page): CommentPage => ({ ...page, comments: (page.comments ?? []).map(toIssueComment), requestedAt: startAt })),
+  );

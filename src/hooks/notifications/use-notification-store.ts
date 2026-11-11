@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { commentIdOfNotification } from "@/lib/jira/notification-feed";
 import type { JiraNotification } from "@/lib/jira/notifications";
 import { useJiraMyself, useJiraSite } from "@/lib/jira/queries";
 import { workspaceId } from "@/lib/workspace";
@@ -76,8 +77,8 @@ export const useOwnedCheckedAt = () => {
   return useNotifications((state) => (owner !== null && state.owner === owner ? state.checkedAt : null));
 };
 
-export const openNotification = (item: JiraNotification, openIssue: (key: string) => void) => {
+export const openNotification = (item: JiraNotification, openIssue: (key: string, commentId?: string) => void) => {
   const { items, setRead } = useNotifications.getState();
   setRead(items.filter((entry) => entry.issueKey === item.issueKey).map((entry) => entry.id), true);
-  openIssue(item.issueKey);
+  openIssue(item.issueKey, commentIdOfNotification(item.id));
 };

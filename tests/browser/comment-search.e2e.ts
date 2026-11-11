@@ -82,24 +82,25 @@ test("Entwurf bleibt beim Suchen erhalten und wird mit aktivem Filter gesendet",
   await searchbox(page).fill("freigabe");
   await expect(items(page)).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Suche zurücksetzen" })).toBeVisible();
-  await expect(draft(page)).toHaveValue("Entwurf zur Freigabe");
+  await expect(draft(page)).toHaveText("Entwurf zur Freigabe");
   await expect(draft(page)).toHaveAttribute("data-qa-mounted", "1");
 
   await draft(page).click();
   await page.keyboard.type(" heute");
   await expect(draft(page)).toBeFocused();
   await expect(searchbox(page)).toHaveValue("freigabe");
-  await expect(draft(page)).toHaveValue("Entwurf zur Freigabe heute");
+  await expect(draft(page)).toHaveText("Entwurf zur Freigabe heute");
 
   await page.getByRole("button", { name: "Vorlage" }).click();
   await page.getByRole("menuitem").first().click();
   await expect(draft(page)).toBeFocused();
-  await expect(draft(page)).toHaveValue(/^Entwurf zur Freigabe heute\n/);
+  await expect(draft(page).locator("p").first()).toHaveText("Entwurf zur Freigabe heute");
+  await expect(draft(page)).toContainText("Stand");
   await expect(searchbox(page)).toHaveValue("freigabe");
 
   const sent = await writes(page);
   await page.keyboard.press("Control+Enter");
-  await expect(draft(page)).toHaveValue("");
+  await expect(draft(page)).toHaveText("");
   expect(await writes(page)).toBe(sent + 1);
   await expect(searchbox(page)).toHaveValue("freigabe");
   await expect(status(page)).toHaveText("1 von 6 geladenen Kommentaren");

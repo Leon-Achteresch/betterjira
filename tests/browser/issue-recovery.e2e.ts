@@ -125,7 +125,7 @@ test("fehlgeschlagene Aktualisierung behält Inhalt, Kommentare, Entwurf und Edi
   await expect(notice).toContainText(/Stand \d{2}:\d{2} Uhr/);
   await expect(title(page)).toHaveText(DEMO_1);
   await expect(page.getByText("Die erste Fassung ist bereit.")).toBeVisible();
-  await expect(comment(page)).toHaveValue("Entwurf während der Störung");
+  await expect(comment(page)).toHaveText("Entwurf während der Störung");
   await expect(comment(page)).toHaveAttribute("data-qa-keep", "1");
   await shot(page, testInfo, "aktualisierungsfehler");
 
@@ -133,7 +133,7 @@ test("fehlgeschlagene Aktualisierung behält Inhalt, Kommentare, Entwurf und Edi
   await retry(page, notice).click();
   await expect(notice).toHaveCount(0);
   await expect(title(page)).toHaveText("Frisch aus Jira");
-  await expect(comment(page)).toHaveValue("Entwurf während der Störung");
+  await expect(comment(page)).toHaveText("Entwurf während der Störung");
   await expect(comment(page)).toHaveAttribute("data-qa-keep", "1");
 });
 

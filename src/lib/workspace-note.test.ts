@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { EMPTY_WORKSPACE, rememberIssue, setCommentDraft, setIssueContext, togglePinnedIssue, workspaceId } from "./workspace";
+import { EMPTY_WORKSPACE, mainDraftOf, rememberIssue, setMainDraft, setIssueContext, togglePinnedIssue, workspaceId } from "./workspace";
 import {
   activeNoteEdit,
   noteConflict,
@@ -10,6 +10,7 @@ import {
   writeNote,
   type NoteEdit,
 } from "./workspace-note";
+import { textToAdf } from "./jira/adf";
 
 const own = workspaceId("qa-cloud", "qa-user");
 const colleague = workspaceId("qa-cloud", "qa-colleague");
@@ -21,7 +22,7 @@ const busy = () => {
     { note: "Alt", scrollTop: 640, visitedAt: 7, statusName: "In Arbeit", statusColor: "yellow" },
   );
   workspace = togglePinnedIssue(workspace, { key: "A-1", summary: "Suche" });
-  return setCommentDraft(workspace, "A-1", "Kommentarentwurf");
+  return setMainDraft(workspace, "A-1", textToAdf("Kommentarentwurf"));
 };
 
 describe("Notiz-Bearbeitung: Scope", () => {
@@ -70,7 +71,7 @@ describe("Notiz schreiben", () => {
     expect(normalizedNote(" Text ")).toBe(" Text ");
     const after = writeNote(busy(), "A-1", normalizedNote("   "));
     expect(after.contexts?.["A-1"]).toMatchObject({ note: "", scrollTop: 640, visitedAt: 7, statusName: "In Arbeit" });
-    expect(after.drafts["A-1"]).toBe("Kommentarentwurf");
+    expect(mainDraftOf(after, "A-1")).toEqual(textToAdf("Kommentarentwurf"));
     expect(after.pinned).toEqual([{ key: "A-1", summary: "Suche" }]);
   });
 

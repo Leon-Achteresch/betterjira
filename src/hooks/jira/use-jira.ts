@@ -1,9 +1,12 @@
 import { invalidateIssueChange } from "@/lib/jira/mutation-cache";
 import { patchBoardIssue, rollbackBoardPatches } from "@/lib/jira/board-cache";
 import { deduplicateMutation } from "@/lib/jira/deduplicate-mutation";
+import { resolvePendingMedia } from "@/hooks/jira/use-pending-uploads";
 import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { Effect, Schema } from "effect";
 import { currentSite, jira, jiraImage, jiraSend, logout, runLogin } from "@/lib/jira/client";
+import { commentPageKeys, embeddedCommentsChanged, pagesOutdatedBy } from "@/lib/jira/comment-pages";
+import { RawComment } from "@/lib/jira/comment-thread";
 import { JiraStatus } from "@/lib/jira/status";
 import { JiraUser } from "@/lib/jira/user";
 import { withJiraQueryScope, type JiraQueryScope } from "@/lib/jira/query-scope";
@@ -198,13 +201,6 @@ const IssueUser = Schema.Struct({
   avatarUrls: Schema.Struct({ "48x48": Schema.String }),
 });
 
-export const IssueComment = Schema.Struct({
-  id: Schema.String,
-  author: Schema.optional(IssueUser),
-  body: Schema.Unknown,
-  created: Schema.String,
-});
-
 const IssueDetail = Schema.Struct({
   id: Schema.String,
   key: Schema.String,
@@ -218,7 +214,7 @@ const IssueDetail = Schema.Struct({
       created: Schema.String,
       updated: Schema.String,
       issuetype: Schema.Struct({ name: Schema.String }),
-      project: Schema.Struct({ key: Schema.String, name: Schema.String }),
+      project: Schema.Struct({ key: Schema.String, name: Schema.String, projectTypeKey: Schema.optional(Schema.String) }),
       parent: Schema.optional(Schema.Struct({ key: Schema.String, fields: Schema.Struct({ summary: Schema.String }) })),
       subtasks: Schema.optional(
         Schema.Array(Schema.Struct({ id: Schema.String, key: Schema.String, fields: Schema.Struct({ summary: Schema.String, status: JiraStatus }) })),
@@ -228,7 +224,7 @@ const IssueDetail = Schema.Struct({
           startAt: Schema.optional(Schema.Number),
           maxResults: Schema.optional(Schema.Number),
           total: Schema.optional(Schema.Number),
-          comments: Schema.Array(IssueComment),
+          comments: Schema.Array(RawComment),
         }),
       ),
       attachment: Schema.optional(
@@ -275,8 +271,18 @@ export const issueQuery = (key: string, scope: JiraQueryScope | undefined, clien
   queryKey: jiraKeys.issueDetail(key, scope),
   enabled: !!scope,
   retryOnMount: false,
-  queryFn: ({ signal }: { signal: AbortSignal }) =>
-    Effect.runPromise(withJiraQueryScope(client, scope, jira(`/issue/${encodeURIComponent(key)}?fields=*all&expand=names,editmeta`, IssueDetail)), { signal }),
+  queryFn: async ({ signal }: { signal: AbortSignal }) => {
+    const startedAt = Date.now();
+    const issue = await Effect.runPromise(
+      withJiraQueryScope(client, scope, jira(`/issue/${encodeURIComponent(key)}?fields=*all&expand=names,editmeta`, IssueDetail)),
+      { signal },
+    );
+    const previous = client.getQueryData<JiraIssueDetail>(jiraKeys.issueDetail(key, scope));
+    const pagesKey = scope && commentPageKeys.issue(scope.cloudId, scope.accountId, key);
+    if (previous && pagesKey && embeddedCommentsChanged(previous.fields.comment, issue.fields.comment) && pagesOutdatedBy(client.getQueryState(pagesKey), startedAt))
+      void client.invalidateQueries({ queryKey: pagesKey, exact: true });
+    return issue;
+  },
 });
 
 const TransitionField = Schema.Struct({
@@ -341,8 +347,11 @@ export const useJiraTransition = () => {
   return useMutation({
     mutationKey: ["jira", "transition"],
     mutationFn: ({ issueKey, body }: JiraTransitionRequest) =>
-      deduplicateMutation(queryClient, JSON.stringify([issueKey, "transition", body]), () => Effect.runPromise(
-        jiraSend(`/issue/${encodeURIComponent(issueKey)}/transitions`, { method: "POST", body: JSON.stringify(body) }),
+      deduplicateMutation(queryClient, JSON.stringify([issueKey, "transition", body]), async () => Effect.runPromise(
+        jiraSend(`/issue/${encodeURIComponent(issueKey)}/transitions`, {
+          method: "POST",
+          body: JSON.stringify(await resolvePendingMedia(queryClient, issueKey, body)),
+        }),
       )),
     onMutate: async ({ issueKey, body }) => {
       await queryClient.cancelQueries({ queryKey: jiraKeys.allBoards });

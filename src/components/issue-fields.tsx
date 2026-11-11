@@ -1,19 +1,25 @@
-import { useState, type FormEvent, type ReactNode } from "react";
+import { useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { PencilIcon } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { AdfContent, ExternalLink, safeUrl } from "@/components/adf-content";
 import { encode, initialValue, jiraErrors, JiraFieldInput, kindOf } from "@/components/jira-field-input";
 import { JiraUserLabel } from "@/components/jira-user-avatar";
+import { MentionEditor } from "@/components/mention-editor";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useJiraEditIssue, useJiraWikiField } from "@/hooks/jira/use-issue-mutations";
-import { useFieldDraft, useFieldDraftPresence } from "@/hooks/use-field-draft";
+import { useIssueRendered } from "@/hooks/jira/use-issue-rendered";
+import { useAdfFieldDraftPresence, useFieldDraft, useFieldDraftPresence } from "@/hooks/use-field-draft";
 import { EASE_OUT } from "@/lib/ease";
+import { EMPTY_ADF_DRAFT, parseAdfDraft } from "@/lib/field-draft";
+import { editBaseline } from "@/lib/jira/comment-edit";
+import type { MentionCandidate } from "@/lib/jira/people";
 import { IS_MAC } from "@/lib/platform";
 import type { JiraIssueDetail } from "@/lib/jira/queries";
+import { renderedDescription, type RenderedDoc } from "@/lib/jira/rendered-issue";
 import { cn } from "@/lib/utils";
 
 const HIDDEN = new Set([
@@ -110,11 +116,11 @@ function DevSummary({ items }: { items: (DevOverall & { type: string })[] }) {
   );
 }
 
-export function FieldValue({ value }: { value: unknown }) {
+export function FieldValue({ value, rendered }: { value: unknown; rendered?: RenderedDoc }) {
   if (blank(value) || value === "{}") return <span className="text-muted-foreground">–</span>;
   const dev = typeof value === "string" ? devSummary(value) : undefined;
   if (dev) return <DevSummary items={dev} />;
-  if (isAdf(value)) return <AdfContent doc={value} />;
+  if (isAdf(value)) return <AdfContent doc={value} rendered={rendered} />;
   if (isUser(value)) return <JiraUserLabel user={value} />;
   if (Array.isArray(value)) {
     return (
@@ -170,7 +176,10 @@ export function EditableField({
   const edit = useJiraEditIssue(issue.key);
   const [draft, setDraft] = useState<{ value: unknown }>();
   const current = issue.fields[id];
-  const hasSavedDraft = useFieldDraftPresence(issue.key, id);
+  const hasWikiDraft = useFieldDraftPresence(issue.key, id);
+  const hasAdfDraft = useAdfFieldDraftPresence(issue.key, id);
+  const hasSavedDraft = hasWikiDraft || hasAdfDraft;
+  const [wiki, setWiki] = useState(false);
 
   if (!editable) return <div className={className}>{children}</div>;
   const { meta, kind } = editable;
@@ -182,6 +191,7 @@ export function EditableField({
         aria-label={hasSavedDraft ? `${meta.name}: Entwurf fortsetzen` : `${meta.name} bearbeiten`}
         onClick={() => {
           edit.reset();
+          setWiki(hasWikiDraft && !hasAdfDraft);
           setDraft({ value: initialValue(kind, current) });
         }}
         className={cn(
@@ -202,7 +212,25 @@ export function EditableField({
   }
 
   if (kind === "richtext") {
-    return <WikiEditor issueKey={issue.key} id={id} className={className} onDone={() => setDraft(undefined)} />;
+    const saved = current == null ? undefined : editBaseline(current);
+    const baseline = current == null ? EMPTY_ADF_DRAFT : saved && JSON.stringify(saved);
+    const done = () => setDraft(undefined);
+    if (wiki || baseline === undefined) {
+      return <WikiEditor issueKey={issue.key} id={id} className={className} onDone={done} onSwitch={baseline === undefined ? undefined : () => setWiki(false)} />;
+    }
+    return (
+      <StringFieldForm
+        issueKey={issue.key}
+        id={id}
+        initial={baseline}
+        mode="adf"
+        field={meta}
+        issue={issue}
+        className={className}
+        onDone={done}
+        onSwitch={() => setWiki(true)}
+      />
+    );
   }
 
   if (kind === "text") {
@@ -252,7 +280,19 @@ export function EditableField({
   );
 }
 
-function WikiEditor({ issueKey, id, className, onDone }: { issueKey: string; id: string; className?: string; onDone: () => void }) {
+function WikiEditor({
+  issueKey,
+  id,
+  className,
+  onDone,
+  onSwitch,
+}: {
+  issueKey: string;
+  id: string;
+  className?: string;
+  onDone: () => void;
+  onSwitch?: () => void;
+}) {
   const wiki = useJiraWikiField(issueKey, id);
   if (wiki.error) {
     return (
@@ -262,7 +302,7 @@ function WikiEditor({ issueKey, id, className, onDone }: { issueKey: string; id:
     );
   }
   if (wiki.data === undefined) return <Spinner />;
-  return <StringFieldForm issueKey={issueKey} id={id} initial={wiki.data} mode="wiki" className={className} onDone={onDone} />;
+  return <StringFieldForm issueKey={issueKey} id={id} initial={wiki.data} mode="wiki" className={className} onDone={onDone} onSwitch={onSwitch} />;
 }
 
 function StringFieldForm({
@@ -273,29 +313,54 @@ function StringFieldForm({
   onDone,
   mode,
   field,
+  issue,
+  onSwitch,
 }: {
   issueKey: string;
   id: string;
   initial: string;
   className?: string;
   onDone: () => void;
-  mode: "text" | "wiki";
+  mode: "text" | "wiki" | "adf";
   field?: JiraIssueDetail["editmeta"]["fields"][string];
+  issue?: JiraIssueDetail;
+  onSwitch?: () => void;
 }) {
   const editor = useFieldDraft({ issueKey, field: id, initial, mode, onClose: onDone });
   const reduce = useReducedMotion();
+  const rendered = useIssueRendered(mode === "adf" && id === "description" ? issue : undefined);
+  const doc = useMemo(() => (mode === "adf" ? (parseAdfDraft(editor.text) ?? parseAdfDraft(initial)) : undefined), [mode, editor.text, initial]);
+  const [uploading, setUploading] = useState(false);
 
   return (
     <motion.form
       initial={{ opacity: 0, y: reduce ? 0 : 4 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.18, ease: EASE_OUT }}
-      onSubmit={editor.submit}
-      onKeyDown={editor.onKeyDown}
+      onSubmit={(event) => {
+        event.preventDefault();
+        if (!uploading) void editor.submit();
+      }}
+      onKeyDown={mode === "adf" ? undefined : editor.onKeyDown}
       className={cn("flex flex-col gap-2", className)}
     >
       <fieldset disabled={!editor.ready} className="min-w-0">
-        {mode === "wiki" ? (
+        {mode === "adf" ? (
+          <MentionEditor
+            id={`field-${id}`}
+            label={field?.name ?? id}
+            value={doc}
+            onChange={(value) => editor.setText(JSON.stringify(value))}
+            disabled={!editor.ready}
+            autoFocus
+            issueKey={issueKey}
+            participants={NO_PARTICIPANTS}
+            mediaSource={{ doc: issue?.fields[id], rendered: id === "description" ? renderedDescription(rendered) : undefined }}
+            onSubmitShortcut={() => void editor.submit()}
+            onEscape={editor.close}
+            onUploadingChange={setUploading}
+          />
+        ) : mode === "wiki" ? (
           <Textarea
             autoFocus
             value={editor.text}
@@ -320,7 +385,7 @@ function StringFieldForm({
         </p>
       ))}
       <div className="flex flex-wrap items-center gap-2">
-        <Button type="submit" size="sm" disabled={!editor.ready || editor.pending}>
+        <Button type="submit" size="sm" disabled={!editor.ready || editor.pending || uploading}>
           {editor.pending && <Spinner />}
           Speichern
         </Button>
@@ -346,16 +411,23 @@ function StringFieldForm({
             </motion.span>
           )}
         </AnimatePresence>
+        {onSwitch && (
+          <Button type="button" size="sm" variant="ghost" className={cn("text-muted-foreground", !editor.hasDraft && "ml-auto")} onClick={onSwitch}>
+            {mode === "wiki" ? "Zum Editor" : "Wiki-Markup"}
+          </Button>
+        )}
       </div>
-      {mode === "wiki" && (
+      {mode !== "text" && (
         <span className="text-xs text-muted-foreground">
-          Jira-Wiki-Syntax · {IS_MAC ? "⌘" : "Strg"} + Enter speichert
+          {mode === "wiki" ? "Jira-Wiki-Syntax" : "Bilder per Einfügen oder Ziehen"} · {IS_MAC ? "⌘" : "Strg"} + Enter speichert
         </span>
       )}
       {editor.notice && <p role="status" className="text-xs text-muted-foreground">{editor.notice}</p>}
     </motion.form>
   );
 }
+
+const NO_PARTICIPANTS: readonly MentionCandidate[] = [];
 
 const rank = (id: string) => {
   if (FIRST.includes(id)) return FIRST.indexOf(id);

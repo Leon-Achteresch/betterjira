@@ -12,7 +12,9 @@ const mock = useJiraMock(createJiraMock({ issues: 2500, projects: ["PERF"] }));
 const { jiraAgile } = await import("@/lib/jira/client");
 const { BoardConfiguration, Sprints } = await import("@/lib/jira/board");
 const { countIssues, searchIssues, validateJql } = await import("@/lib/jira/search");
-const { addComment, addWorklog, editIssue } = await import("@/lib/jira/issue");
+const { addWorklog, editIssue } = await import("@/lib/jira/issue");
+const { postComment } = await import("@/lib/jira/comments");
+const { textToAdf } = await import("@/lib/jira/adf");
 const { fetchProjectStatsIssues } = await import("@/lib/jira/project-stats");
 
 const run = <A, E>(effect: Effect.Effect<A, E>) => Effect.runPromise(effect);
@@ -40,7 +42,7 @@ describe("Produktions-Client gegen den Jira-Mock", () => {
 
   it("schreibt über die echten Mutationen und lädt Statistik-Seiten bis zum Limit", async () => {
     await run(editIssue("PERF-3", { summary: "Vom Client" }));
-    await run(addComment("PERF-3", "Kommentar"));
+    await run(postComment("PERF-3", textToAdf("Kommentar")));
     await run(addWorklog("PERF-3", { timeSpent: "2h", started: "2026-11-09T09:00:00.000+0000" }));
     const stats = await run(fetchProjectStatsIssues("PERF"));
     const issue = mock.jira.findIssue("PERF-3");

@@ -1,7 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Effect } from "effect";
 import {
-  addComment,
   addWorklog,
   attachmentImage,
   editIssue,
@@ -9,10 +8,21 @@ import {
   uploadAttachments,
   wikiField,
 } from "@/lib/jira/issue";
-import { jiraKeys, useJiraSite } from "@/lib/jira/queries";
+import type { AdfNode } from "@/lib/jira/adf";
+import {
+  commentPageKeys,
+  withEditedPostedComment,
+  withoutPostedComment,
+  withPostedComment,
+  type JiraComment,
+} from "@/lib/jira/comment-pages";
+import type { CommentEditPayload, IssueComment } from "@/lib/jira/comment-thread";
+import { deleteComment, postComment, postReply, updateComment } from "@/lib/jira/comments";
+import { jiraKeys, useJiraMyself, useJiraSite } from "@/lib/jira/queries";
 import { invalidateIssueChange } from "@/lib/jira/mutation-cache";
 import { patchBoardIssue, rollbackBoardPatches } from "@/lib/jira/board-cache";
 import { deduplicateMutation } from "@/lib/jira/deduplicate-mutation";
+import { resolvePendingMedia } from "@/hooks/jira/use-pending-uploads";
 
 const useIssueMutation = <A>(
   key: string,
@@ -20,19 +30,27 @@ const useIssueMutation = <A>(
   run: (input: A) => Effect.Effect<unknown, unknown>,
   affectsLists = false,
   optimistic?: (input: A) => Record<string, unknown>,
+  settled?: (input: A) => void,
 ) => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: A) => operation === "attachments"
-      ? Effect.runPromise(run(input))
-      : deduplicateMutation(queryClient, JSON.stringify([key, operation, input]), () => Effect.runPromise(run(input))),
+      ? Effect.runPromise(run(input)).then(() => input)
+      : deduplicateMutation(queryClient, JSON.stringify([key, operation, input]), async () => {
+          const sent = await resolvePendingMedia(queryClient, key, input);
+          await Effect.runPromise(run(sent));
+          return sent;
+        }) as Promise<A>,
     onMutate: async (input) => {
       if (!optimistic) return [];
       await queryClient.cancelQueries({ queryKey: jiraKeys.allBoards });
       return patchBoardIssue(queryClient, key, optimistic(input));
     },
     onError: (_error, _input, patches) => rollbackBoardPatches(queryClient, patches ?? []),
-    onSuccess: () => invalidateIssueChange(queryClient, key, affectsLists),
+    onSuccess: (sent) => {
+      settled?.(sent);
+      invalidateIssueChange(queryClient, key, affectsLists);
+    },
   });
 };
 
@@ -41,8 +59,60 @@ export const useJiraEditIssue = (key: string) =>
     editIssue(key, fields), true, (fields) => fields,
   );
 
-export const useJiraAddComment = (key: string) =>
-  useIssueMutation(key, "comment", (body: string) => addComment(key, body));
+const usePostedComments = (key: string) => {
+  const queryClient = useQueryClient();
+  const site = useJiraSite();
+  const myself = useJiraMyself();
+  const cloudId = site.data?.cloudId;
+  const accountId = myself.data?.accountId;
+  return (update: (posted: readonly JiraComment[] | undefined) => JiraComment[]) => {
+    if (cloudId && accountId) queryClient.setQueryData<JiraComment[]>(commentPageKeys.posted(cloudId, accountId, key), update);
+  };
+};
+
+const useCommentMutation = <A>(
+  key: string,
+  run: (input: A) => Effect.Effect<IssueComment, unknown>,
+  dedupeKey?: (input: A) => string,
+) => {
+  const queryClient = useQueryClient();
+  const updatePosted = usePostedComments(key);
+  return useMutation({
+    mutationFn: (input: A): Promise<IssueComment> => {
+      const send = async () => Effect.runPromise(run(await resolvePendingMedia(queryClient, key, input)));
+      return dedupeKey ? (deduplicateMutation(queryClient, dedupeKey(input), send) as Promise<IssueComment>) : send();
+    },
+    onSuccess: (created) => {
+      updatePosted((posted) => withPostedComment(posted, created));
+      invalidateIssueChange(queryClient, key, false);
+    },
+  });
+};
+
+export const useJiraPostComment = (key: string) =>
+  useCommentMutation(key, (body: AdfNode) => postComment(key, body), (body) => JSON.stringify([key, "comment", body]));
+
+export const useJiraPostReply = (key: string) =>
+  useCommentMutation(key, ({ body, threadKey }: { body: AdfNode; threadKey: string }) => postReply(key, body, threadKey));
+
+export const useJiraUpdateComment = (key: string) => {
+  const updatePosted = usePostedComments(key);
+  return useIssueMutation(
+    key,
+    "comment-edit",
+    ({ id, payload }: { id: string; payload: CommentEditPayload }) => updateComment(key, id, payload),
+    false,
+    undefined,
+    ({ id, payload }) => updatePosted((posted) => withEditedPostedComment(posted, id, payload.body, new Date().toISOString())),
+  );
+};
+
+export const useJiraDeleteComment = (key: string) => {
+  const updatePosted = usePostedComments(key);
+  return useIssueMutation(key, "comment-delete", (id: string) => deleteComment(key, id), false, undefined, (id) =>
+    updatePosted((posted) => withoutPostedComment(posted, id)),
+  );
+};
 
 export const useJiraAddWorklog = (key: string) =>
   useIssueMutation(

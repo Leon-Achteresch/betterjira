@@ -31,11 +31,35 @@ const startEditing = async (page: Page, key: string, action: "bearbeiten" | "hin
   return button;
 };
 
-const storage = (page: Page) =>
-  page.evaluate(() => ({
+type StoredWorkspace = {
+  drafts: Record<string, string>;
+  commentDrafts?: Record<string, unknown>;
+  contexts: Record<string, { note: string }>;
+} & Record<string, unknown>;
+const textDoc = (text: string) => ({
+  type: "doc",
+  version: 1,
+  content: text.split("\n").map((line) => ({ type: "paragraph", content: line ? [{ type: "text", text: line }] : [] })),
+});
+const migrated = ({ drafts, commentDrafts, ...rest }: StoredWorkspace): StoredWorkspace => ({
+  ...rest,
+  drafts: {},
+  commentDrafts: { ...commentDrafts, ...Object.fromEntries(Object.entries(drafts).map(([key, text]) => [key, textDoc(text)])) },
+});
+const storage = async (page: Page) => {
+  const raw: { workspaces: Record<string, StoredWorkspace>; fieldDrafts: string | null } = await page.evaluate(() => ({
     workspaces: JSON.parse(localStorage.getItem("betterjira-workspaces") ?? "{}").state.workspaces,
     fieldDrafts: localStorage.getItem("betterjira-field-drafts"),
   }));
+  return {
+    ...raw,
+    workspaces: Object.fromEntries(Object.entries(raw.workspaces).map(([id, workspace]) => [id, migrated(workspace)])),
+  };
+};
+
+// Raw storage without the test-side migration: proves the app itself migrated and saved the legacy drafts.
+const rawWorkspaces = (page: Page): Promise<Record<string, StoredWorkspace>> =>
+  page.evaluate(() => JSON.parse(localStorage.getItem("betterjira-workspaces") ?? "{}").state.workspaces);
 
 const settle = async (page: Page) => {
   await page.mouse.move(0, 0);
@@ -98,6 +122,11 @@ test("Notiz im Arbeitsplatz bearbeiten bleibt lokal, persistent und mit dem Tick
   expect(after.workspaces[colleague]).toEqual(before.workspaces[colleague]);
   expect(after.fieldDrafts).toBe(before.fieldDrafts);
   expect(await jiraWrites(page)).toBe(0);
+  const raw = await rawWorkspaces(page);
+  for (const [account, key] of [[own, "DEMO-3"], [colleague, "DEMO-12"]]) {
+    expect(raw[account].drafts ?? {}).toEqual({});
+    expect(raw[account].commentDrafts?.[key]).toBeDefined();
+  }
 
   await open(page);
   await expect(row(page, "DEMO-4")).toContainText("QA-Notiz: neu aus dem Arbeitsplatz");
@@ -143,7 +172,7 @@ test("Notiz hinzufügen ändert nur die Notiz und kein Blur speichert heimlich",
     ...before.workspaces[own].contexts["DEMO-1"],
     note: "Lesestelle prüfen",
   });
-  expect(after.workspaces[own].drafts).toEqual(before.workspaces[own].drafts);
+  expect(after.workspaces[own].commentDrafts).toEqual(before.workspaces[own].commentDrafts);
   expect(await jiraWrites(page)).toBe(0);
 });
 
@@ -173,7 +202,7 @@ test("Leeren entfernt nur die Notiz, Fokus folgt dem Filter und Rückgängig ste
   const cleared = await storage(page);
   for (const key of ["DEMO-2", "DEMO-4"])
     expect(cleared.workspaces[own].contexts[key]).toEqual({ ...before.workspaces[own].contexts[key], note: "" });
-  expect(cleared.workspaces[own].drafts).toEqual(before.workspaces[own].drafts);
+  expect(cleared.workspaces[own].commentDrafts).toEqual(before.workspaces[own].commentDrafts);
   expect(cleared.workspaces[own].pinned).toEqual(before.workspaces[own].pinned);
   expect(cleared.workspaces[colleague]).toEqual(before.workspaces[colleague]);
 

@@ -1,12 +1,11 @@
-import { useRef, useState } from "react";
-import { openUrl } from "@tauri-apps/plugin-opener";
+import { useRef } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { ArrowDownUpIcon, FileIcon, PaperclipIcon, SearchXIcon } from "lucide-react";
+import { ArrowDownUpIcon, PaperclipIcon, SearchXIcon } from "lucide-react";
+import { AttachmentTile } from "@/components/issue-attachment-tile";
 import { SearchField } from "@/components/motion/search-field";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useAttachmentFilter } from "@/hooks/use-attachment-filter";
@@ -14,21 +13,12 @@ import { useJiraAttachmentImage, useJiraUploadAttachments } from "@/hooks/jira/u
 import { ATTACHMENT_KINDS, type AttachmentKind, attachmentName } from "@/lib/attachment-filter";
 import { EASE_OUT, SPRING_LAYOUT } from "@/lib/ease";
 import { useAttachmentSort } from "@/hooks/use-attachment-sort";
-import { type JiraIssueDetail, useJiraSite } from "@/lib/jira/queries";
+import { type JiraIssueDetail } from "@/lib/jira/queries";
+import { useAttachmentOpener } from "@/hooks/jira/use-attachment-opener";
 
 type Attachment = NonNullable<JiraIssueDetail["fields"]["attachment"]>[number];
 
-const fileSize = (bytes: number) =>
-  bytes < 1024 ? `${bytes} B` : bytes < 1024 ** 2 ? `${(bytes / 1024).toFixed(0)} KB` : `${(bytes / 1024 ** 2).toFixed(1)} MB`;
-
-function Thumbnail({ attachment }: { attachment: Attachment }) {
-  const image = useJiraAttachmentImage(attachment.id, "thumbnail");
-  if (image.data) return <img src={image.data} alt="" className="size-full object-cover" />;
-  if (image.isPending) return <Skeleton className="size-full rounded-none" />;
-  return <FileIcon className="size-6 text-muted-foreground" />;
-}
-
-function Preview({ attachment, onClose }: { attachment: Attachment; onClose: () => void }) {
+export function Preview({ attachment, onClose }: { attachment: Attachment; onClose: () => void }) {
   const image = useJiraAttachmentImage(attachment.id, "content");
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
@@ -135,18 +125,12 @@ function NoMatches({ total, onReset }: { total: number; onReset: () => void }) {
 }
 
 export function IssueAttachments({ issueKey, attachments }: { issueKey: string; attachments: readonly Attachment[] }) {
-  const site = useJiraSite();
+  const opener = useAttachmentOpener();
   const upload = useJiraUploadAttachments(issueKey);
   const input = useRef<HTMLInputElement>(null);
-  const [preview, setPreview] = useState<Attachment>();
   const filter = useAttachmentFilter(attachments);
   const sort = useAttachmentSort(issueKey, attachments);
   const reduce = useReducedMotion();
-
-  const open = (attachment: Attachment) => {
-    if (attachment.mimeType.startsWith("image/")) return setPreview(attachment);
-    if (site.data) void openUrl(`${site.data.siteUrl}/rest/api/3/attachment/content/${attachment.id}`);
-  };
 
   return (
     <div className="flex flex-col gap-3">
@@ -189,24 +173,7 @@ export function IssueAttachments({ issueKey, attachments }: { issueKey: string; 
               hidden={!filter.visibleIds.has(attachment.id)}
               className="min-w-0"
             >
-              <button
-                type="button"
-                onClick={() => open(attachment)}
-                title={attachmentName(attachment.filename)}
-                className="flex w-full flex-col overflow-hidden rounded-lg border text-left outline-none transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                <span className="grid h-24 place-items-center overflow-hidden bg-muted">
-                  {attachment.mimeType.startsWith("image/") ? (
-                    <Thumbnail attachment={attachment} />
-                  ) : (
-                    <FileIcon className="size-6 text-muted-foreground" />
-                  )}
-                </span>
-                <span className="flex flex-col px-2 py-1.5">
-                  <span className="truncate text-xs font-medium">{attachmentName(attachment.filename)}</span>
-                  <span className="text-[11px] text-muted-foreground">{fileSize(attachment.size)}</span>
-                </span>
-              </button>
+              <AttachmentTile attachment={attachment} onOpen={opener.open} />
             </motion.li>
           ))}
         </ul>
@@ -236,7 +203,7 @@ export function IssueAttachments({ issueKey, attachments }: { issueKey: string; 
           </p>
         )}
       </div>
-      {preview && <Preview attachment={preview} onClose={() => setPreview(undefined)} />}
+      {opener.preview && <Preview attachment={opener.preview} onClose={opener.close} />}
     </div>
   );
 }

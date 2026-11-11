@@ -1,28 +1,53 @@
-import type { ReactNode } from "react";
+import { createContext, use, type ReactNode } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
+import { AdfMediaGroup, AdfMediaInline, AdfMediaSingle } from "@/components/adf-media";
+import { useAdfMedia, type AdfMediaRender } from "@/hooks/jira/use-adf-media";
+import type { AdfNode } from "@/lib/jira/adf";
+import { isAdfNode } from "@/lib/jira/adf-media";
+import type { RenderedDoc } from "@/lib/jira/rendered-issue";
 import { cn } from "@/lib/utils";
-
-type AdfMark = { type: string; attrs?: Record<string, unknown> };
-type AdfNode = { type: string; text?: string; attrs?: Record<string, unknown>; marks?: AdfMark[]; content?: AdfNode[] };
-
-const isNode = (value: unknown): value is AdfNode =>
-  typeof value === "object" && value !== null && typeof (value as AdfNode).type === "string";
 
 export const safeUrl = (value: unknown) => (typeof value === "string" && /^https?:\/\//i.test(value) ? value : undefined);
 
-export function ExternalLink({ href, children, className }: { href: string; children: ReactNode; className?: string }) {
+export type LinkOpenOptions = { background: boolean };
+export type LinkOpener = (href: string, options?: LinkOpenOptions) => void;
+
+const openInBrowser: LinkOpener = (href) => void openUrl(href);
+
+export const AdfLinkContext = createContext<LinkOpener>(openInBrowser);
+
+export function ExternalLink({
+  href,
+  children,
+  className,
+  onOpen = openInBrowser,
+}: {
+  href: string;
+  children: ReactNode;
+  className?: string;
+  onOpen?: LinkOpener;
+}) {
   return (
     <a
       href={href}
       onClick={(event) => {
         event.preventDefault();
-        void openUrl(href);
+        onOpen(href, { background: event.ctrlKey || event.metaKey });
       }}
       title={href}
       className={cn("text-info underline underline-offset-2", className)}
     >
       {children}
     </a>
+  );
+}
+
+function AdfLink({ href, children }: { href: string; children: ReactNode }) {
+  const open = use(AdfLinkContext);
+  return (
+    <ExternalLink href={href} onOpen={open}>
+      {children}
+    </ExternalLink>
   );
 }
 
@@ -41,7 +66,7 @@ function renderText(node: AdfNode, key: number) {
         return <code className="rounded bg-muted px-1 py-0.5 font-mono text-[0.9em]">{child}</code>;
       case "link": {
         const href = safeUrl(mark.attrs?.href);
-        return href ? <ExternalLink href={href}>{child}</ExternalLink> : child;
+        return href ? <AdfLink href={href}>{child}</AdfLink> : child;
       }
       default:
         return child;
@@ -49,12 +74,12 @@ function renderText(node: AdfNode, key: number) {
   }, <span key={key}>{node.text}</span>);
 }
 
-function renderNodes(nodes: unknown) {
-  return Array.isArray(nodes) ? nodes.filter(isNode).map(renderNode) : null;
+function renderNodes(nodes: unknown, media?: AdfMediaRender) {
+  return Array.isArray(nodes) ? nodes.filter(isAdfNode).map((node, index) => renderNode(node, index, media)) : null;
 }
 
-function renderNode(node: AdfNode, key: number): ReactNode {
-  const children = renderNodes(node.content);
+function renderNode(node: AdfNode, key: number, media?: AdfMediaRender): ReactNode {
+  const children = renderNodes(node.content, media);
   const attrs = node.attrs ?? {};
   switch (node.type) {
     case "doc":
@@ -112,7 +137,7 @@ function renderNode(node: AdfNode, key: number): ReactNode {
     case "inlineCard":
     case "blockCard": {
       const href = safeUrl(attrs.url);
-      return href ? <ExternalLink key={key} href={href}>{href}</ExternalLink> : null;
+      return href ? <AdfLink key={key} href={href}>{href}</AdfLink> : null;
     }
     case "table":
       return (
@@ -129,18 +154,22 @@ function renderNode(node: AdfNode, key: number): ReactNode {
     case "tableCell":
       return <td key={key} className="border px-2 py-1">{children}</td>;
     case "mediaSingle":
+      return media ? <AdfMediaSingle key={key} node={node} media={media} /> : <p key={key} className="text-sm text-muted-foreground italic">[Anhang]</p>;
     case "mediaGroup":
-      return <p key={key} className="text-sm text-muted-foreground italic">[Anhang]</p>;
+      return media ? <AdfMediaGroup key={key} node={node} media={media} /> : <p key={key} className="text-sm text-muted-foreground italic">[Anhang]</p>;
+    case "mediaInline":
+      return media ? <AdfMediaInline key={key} node={node} media={media} /> : <span key={key} className="text-muted-foreground italic">[Anhang]</span>;
     default:
       return children ? <div key={key}>{children}</div> : null;
   }
 }
 
-export function AdfContent({ doc, className }: { doc: unknown; className?: string }) {
-  if (!isNode(doc)) return null;
-  return <div className={cn("flex min-w-0 flex-col gap-3 text-sm leading-relaxed wrap-anywhere [&_li>p]:inline [&_p]:min-h-[1lh]", className)}>{renderNodes(doc.content)}</div>;
+export function AdfContent({ doc, rendered, className }: { doc: unknown; rendered?: RenderedDoc; className?: string }) {
+  const media = useAdfMedia(doc, rendered);
+  if (!isAdfNode(doc)) return null;
+  return <div className={cn("flex min-w-0 flex-col gap-3 text-sm leading-relaxed wrap-anywhere [&_li>p]:inline [&_p]:min-h-[1lh]", className)}>{renderNodes(doc.content, media)}</div>;
 }
 
-export function AdfNodeView({ node }: { node: unknown }) {
-  return isNode(node) ? renderNode(node, 0) : null;
+export function AdfNodeView({ node, media }: { node: unknown; media?: AdfMediaRender }) {
+  return isAdfNode(node) ? renderNode(node, 0, media) : null;
 }

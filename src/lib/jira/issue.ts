@@ -1,5 +1,6 @@
 import { Effect, Schema } from "effect";
-import { jira, jiraImage, jiraSend } from "./client";
+import { jira, jiraImage, JiraApiError, jiraRedirectLocation, jiraSend } from "./client";
+import { mediaIdFromLocation } from "./adf-media";
 
 const issuePath = (key: string) => `/issue/${encodeURIComponent(key)}`;
 const json = (method: string, body: unknown) => ({
@@ -12,22 +13,49 @@ const WikiFields = Schema.Struct({
 
 export const editIssue = (key: string, fields: Record<string, unknown>) =>
   jiraSend(issuePath(key), json("PUT", { fields }));
-export const addComment = (key: string, body: string) =>
-  jiraSend(`${issuePath(key)}/comment`, json("POST", { body }), "api/2");
 export const addWorklog = (
   key: string,
   worklog: { timeSpent: string; started: string; comment?: string },
 ) => jiraSend(`${issuePath(key)}/worklog`, json("POST", worklog), "api/2");
 
+const UploadedAttachments = Schema.Array(
+  Schema.Struct({
+    id: Schema.Union([Schema.String, Schema.Number]),
+    filename: Schema.String,
+    size: Schema.Number,
+    mimeType: Schema.String,
+    created: Schema.String,
+  }),
+);
+
 export const uploadAttachments = (key: string, files: File[]) => {
   const form = new FormData();
-  for (const file of files) form.append("file", file);
-  return jiraSend(`${issuePath(key)}/attachments`, {
+  for (const file of files) form.append("file", file, file.name);
+  return jira(`${issuePath(key)}/attachments`, UploadedAttachments, {
     method: "POST",
     body: form,
     headers: { "X-Atlassian-Token": "no-check" },
-  });
+  }).pipe(Effect.map((attachments) => attachments.map((attachment) => ({ ...attachment, id: String(attachment.id) }))));
 };
+
+export const attachmentMediaId = (id: string) =>
+  jiraRedirectLocation(`/attachment/content/${encodeURIComponent(id)}`).pipe(
+    Effect.flatMap((location) => {
+      const mediaId = mediaIdFromLocation(location);
+      return mediaId
+        ? Effect.succeed(mediaId)
+        : Effect.fail(new JiraApiError({ status: 502, body: "Jira hat für den Anhang keine Medien-Kennung geliefert" }));
+    }),
+  );
+
+export const uploadFile = (key: string, file: File) =>
+  uploadAttachments(key, [file]).pipe(
+    Effect.flatMap(([attachment]) =>
+      attachment ? Effect.succeed(attachment) : Effect.fail(new JiraApiError({ status: 502, body: "Jira hat den Anhang nicht bestätigt" })),
+    ),
+  );
+
+export const optionalAttachmentMediaId = (id: string) => attachmentMediaId(id).pipe(Effect.orElseSucceed(() => undefined));
 
 export const attachmentImage = (id: string, variant: "thumbnail" | "content") =>
   jiraImage(`/attachment/${variant}/${id}?redirect=false`);

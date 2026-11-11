@@ -160,8 +160,8 @@ test("kopiert die gespeicherte Beschreibung per Tastatur als lesbaren Klartext o
 test("verwendet den gespeicherten Stand, nicht den offenen Editorentwurf", async ({ page }) => {
   await page.goto(ISSUE("DEMO-1"));
   await page.getByRole("button", { name: "Beschreibung bearbeiten" }).click();
-  const editor = page.getByRole("textbox", { name: "Text bearbeiten" });
-  await expect(editor).toBeEnabled();
+  const editor = page.getByRole("textbox", { name: "Beschreibung" });
+  await expect(editor).toBeFocused();
   await editor.fill("UNGESPEICHERTER ENTWURF");
   await useRealClipboard(page);
   const before = await traffic(page);
@@ -173,7 +173,7 @@ test("verwendet den gespeicherten Stand, nicht den offenen Editorentwurf", async
   const copied = Buffer.from(await clipboardBytes(page)).toString("utf8");
   expect(copied).toBe(EXPECTED_CLIPBOARD);
   expect(copied).not.toContain("UNGESPEICHERT");
-  await expect(editor).toHaveValue("UNGESPEICHERTER ENTWURF");
+  await expect(editor).toHaveText("UNGESPEICHERTER ENTWURF");
   expect(await traffic(page)).toEqual(before);
 });
 

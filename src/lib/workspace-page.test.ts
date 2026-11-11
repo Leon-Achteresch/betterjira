@@ -3,7 +3,7 @@ import {
   EMPTY_WORKSPACE,
   RECENT_ISSUE_LIMIT,
   rememberIssue,
-  setCommentDraft,
+  setMainDraft,
   setIssueContext,
   togglePinnedIssue,
   type Workspace,
@@ -19,14 +19,15 @@ import {
   workspacePageSortOf,
   type WorkspaceEntry,
 } from "./workspace-page";
+import { textToAdf } from "./jira/adf";
 
 const busy = (): Workspace => {
   let workspace = rememberIssue(EMPTY_WORKSPACE, { key: "A-1", summary: "Suche verbessern" }, { visitedAt: 3 });
   workspace = rememberIssue(workspace, { key: "A-2", summary: "Editor prüfen" }, { visitedAt: 4 });
   workspace = togglePinnedIssue(workspace, { key: "A-1", summary: "Suche verbessern" });
   workspace = togglePinnedIssue(workspace, { key: "P-9", summary: "Nur angeheftet" });
-  workspace = setCommentDraft(workspace, "A-2", "Bitte Tastatur prüfen");
-  workspace = setCommentDraft(workspace, "D-5", "Rückfrage zum Rollout");
+  workspace = setMainDraft(workspace, "A-2", textToAdf("Bitte Tastatur prüfen"));
+  workspace = setMainDraft(workspace, "D-5", textToAdf("Rückfrage zum Rollout"));
   return setIssueContext(workspace, "N-7", { note: "Mit Sam klären" });
 };
 

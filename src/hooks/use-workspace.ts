@@ -6,6 +6,7 @@ import { useLatestRef } from "@/hooks/use-latest-ref";
 import { useJiraMyself, useJiraSite } from "@/lib/jira/queries";
 import {
   EMPTY_WORKSPACE,
+  restoreWorkspaces,
   WORKSPACE_STORAGE_KEY,
   Workspaces,
   workspaceId,
@@ -20,7 +21,7 @@ type WorkspaceState = {
   restoreRecent: (id: string, removed: RemovedRecentIssue) => void;
 };
 
-const PersistedState = Schema.Struct({ workspaces: Workspaces });
+const PersistedState = Schema.Struct({ workspaces: Schema.Unknown });
 
 export const useWorkspaceStore = create<WorkspaceState>()(
   persist(
@@ -51,7 +52,7 @@ export const useWorkspaceStore = create<WorkspaceState>()(
       name: WORKSPACE_STORAGE_KEY,
       merge: (persisted, current) =>
         Schema.is(PersistedState)(persisted)
-          ? { ...current, workspaces: persisted.workspaces }
+          ? { ...current, workspaces: restoreWorkspaces(persisted.workspaces) }
           : current,
     },
   ),
