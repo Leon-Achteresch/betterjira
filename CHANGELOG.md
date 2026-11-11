@@ -11,6 +11,7 @@
 
 ### Fehlerbehebung
 
+- Fehlgeschlagene Kontoprüfungen werden nicht bei jedem neuen UI-Beobachter wiederholt; der manuelle Retry bleibt erreichbar.
 - Eingeklappte Navigation erhält keinen unsichtbaren Tastaturfokus mehr; beim Einklappen kehrt der Fokus zum sichtbaren Auslöser zurück.
 - Schmale Windows-Fensterleisten überdecken keine Aktionen mehr.
 - Defekte oder gesperrte lokale Speicherdaten blockieren die Oberfläche nicht. Vorhandene Spalten und Zeilendichte bleiben erhalten.

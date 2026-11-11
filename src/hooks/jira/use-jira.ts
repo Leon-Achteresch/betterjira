@@ -35,6 +35,7 @@ export const useJiraMyself = () => {
     queryKey: jiraKeys.myself,
     queryFn: ({ signal }) => Effect.runPromise(jira("/myself", Myself), { signal }),
     enabled: !!site.data,
+    retryOnMount: false,
   });
 };
 

@@ -6,7 +6,7 @@ declare global {
   interface Window {
     __qaMyselfRule?: () => { delayMs?: number; status?: number };
     __qaIssueRule?: (key: string) => IssueRule;
-    __qa: { issueReads: string[]; writes: unknown[]; sessionFailure: boolean };
+    __qa: { issueReads: string[]; writes: unknown[]; sessionFailure: boolean; myselfCalls: number };
   }
 }
 
@@ -71,9 +71,14 @@ test("fehlgeschlagene Kontoprüfung bietet Retry statt endloser Ticket-Platzhalt
   await expect(title(page)).toHaveCount(0);
   await expect(loginPrompt(page)).toHaveCount(0);
   expect(await detailReads(page, "DEMO-1")).toBe(0);
-  await page.evaluate(() => { window.__qaMyselfRule = undefined; });
+  await expect(retry(page, error)).toBeEnabled();
+  expect(await page.evaluate(() => window.__qa.myselfCalls)).toBe(1);
+  await retry(page, error).evaluate((button) => {
+    button.addEventListener("click", () => { window.__qaMyselfRule = undefined; }, { capture: true, once: true });
+  });
   await retry(page, error).click();
   await expect(title(page)).toHaveText(DEMO_1);
+  expect(await page.evaluate(() => window.__qa.myselfCalls)).toBe(2);
 });
 
 test("erster 503 erklärt den Fehler ohne Ticketinhalt und Retry lädt das Ticket", async ({ page }, testInfo) => {

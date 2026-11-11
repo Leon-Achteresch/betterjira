@@ -42,3 +42,6 @@ Auf ausdrücklichen Auftrag werden alle Development-Änderungen gemeinsam veröf
 Der fehlgeschlagene Release 0.11.0 existiert nur als Entwurf mit Zielcommit e014cc8; es gibt noch keinen Tag. Deshalb erhält die neue vollständige Fassung bewusst Version 0.12.0, damit der alte Entwurf nicht Pakete verschiedener Quellstände mischt. Der bestehende Workflow übernimmt diese noch ungetaggte Version.
 
 Der kritische Kernablauf-Review erreichte nach nachgetesteten Korrekturen 95/100; Maßstab und Einschränkungen stehen in `ux-review-2026-11-11.md`. Alle 996 Unit-Tests, Typecheck, Produktionsbuild und nativer Rust-Check bestanden. Die vollständigen Browser- und Releaseergebnisse werden nach Abschluss ergänzt.
+
+
+Vorabprüfung für 0.12.0: 996 Unit-Tests, Typecheck und Produktionsbuild nach der letzten funktionalen Korrektur erfolgreich. Browser: 897 eindeutige Fälle bestanden, 15 bewusst ausgelassen; die zwei Findings des Gesamtlaufs wurden behoben und die betroffenen 154 Fälle erneut geprüft. Details und Abgrenzung in `ux-review-2026-11-11.md`.

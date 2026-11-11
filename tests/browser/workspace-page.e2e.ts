@@ -365,7 +365,7 @@ test("Sortierung ist per Tastatur und bei 390 px in hell und dunkel bedienbar", 
   await seedSortable(page);
   await open(page);
   await expect(rows(page)).toHaveCount(5);
-  expect((await sortControl(page).boundingBox())?.height).toBeGreaterThanOrEqual(32);
+  await expect.poll(async () => Math.round(((await sortControl(page).boundingBox())?.height ?? 0) * 100) / 100).toBeGreaterThanOrEqual(32);
 
   await sortControl(page).focus();
   await page.keyboard.press("Enter");
