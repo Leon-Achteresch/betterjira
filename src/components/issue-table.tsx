@@ -87,9 +87,10 @@ export function IssueTable({
         onOpenSearch={openSearch ? (composed) => void navigate({ to: "/suche", search: { jql: composed } }) : undefined}
       />
       <SelectionToolbar
+        bulk={table.bulk}
         count={table.selection.selected.length}
         loaded={table.issues.length}
-        disabled={table.isPlaceholder}
+        disabled={table.isPlaceholder || table.bulk.pending}
         onCopyKeys={() => void table.exportAs("keys", true)}
         onCopyTable={() => void table.exportAs("tsv", true)}
         onCopyMarkdown={() => void table.exportAs("markdown", true)}
@@ -167,11 +168,12 @@ export function IssueTable({
           >
             <IssueGrid
               columns={table.columns}
-              issues={table.issues}
+              entries={table.entries}
+              onToggleGroup={table.toggleGroup}
               dense={table.dense}
               selectedKeys={table.selection.selectedKeys}
               allSelected={table.selection.allSelected}
-              selectionDisabled={table.isPlaceholder}
+              selectionDisabled={table.isPlaceholder || table.bulk.pending}
               onToggleSelection={table.selection.toggle}
               onToggleAll={table.selection.toggleAll}
               siteUrl={site.data?.siteUrl}

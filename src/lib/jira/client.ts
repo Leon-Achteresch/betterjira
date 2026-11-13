@@ -15,10 +15,14 @@ let rateLimitedUntil = 0;
 const CALLBACK_PORT = 8742;
 const REDIRECT_URI = `http://localhost:${CALLBACK_PORT}/callback`;
 const SCOPES =
-  "read:jira-work write:jira-work read:jira-user read:me offline_access read:board-scope:jira-software read:board-scope.admin:jira-software read:sprint:jira-software read:project:jira read:issue-filter:jira";
+  "read:jira-work write:jira-work read:jira-user read:me offline_access read:board-scope:jira-software read:board-scope.admin:jira-software read:sprint:jira-software read:project:jira read:issue-filter:jira write:issue:jira-software write:sprint:jira-software write:board-scope:jira-software";
 
 export class JiraAuthError extends Data.TaggedError("JiraAuthError")<{ message: string; cause?: unknown }> {}
 export class NotAuthenticated extends Data.TaggedError("NotAuthenticated")<{}> {}
+export class JiraRequestScopeChanged extends Data.TaggedError("JiraRequestScopeChanged")<{}> {
+  override get message() { return "Das Jira-Konto hat sich geändert. Bitte die Aktion im aktuellen Konto erneut ausführen."; }
+}
+export type JiraRequestScope = { cloudId: string; isCurrent: () => boolean };
 export class JiraApiError extends Data.TaggedError("JiraApiError")<{ status: number; body: string; retryAfterMs?: number; retryAt?: number; handledRetries?: boolean }> {
   override get message() {
     if (this.status === 429) return rateLimitMessage(this.retryAt, Date.now());
@@ -210,10 +214,11 @@ export const currentSite = validSession().pipe(
   Effect.catchTag("NotAuthenticated", () => Effect.succeed(null)),
 );
 
-const authedAttempt = (path: string, init?: RequestInit & ClientOptions) =>
+const authedAttempt = (path: string, init?: RequestInit & ClientOptions, scope?: JiraRequestScope) =>
   Effect.gen(function* () {
-    const call = (session: Session) =>
-      send(`https://api.atlassian.com/ex/jira/${session.cloudId}/rest/${path}`, {
+    const call = (session: Session) => Effect.gen(function* () {
+      if (scope && (session.cloudId !== scope.cloudId || !scope.isCurrent())) return yield* new JiraRequestScopeChanged();
+      return yield* send(`https://api.atlassian.com/ex/jira/${session.cloudId}/rest/${path}`, {
         ...init,
         headers: {
           Accept: "application/json",
@@ -222,6 +227,7 @@ const authedAttempt = (path: string, init?: RequestInit & ClientOptions) =>
           Authorization: `Bearer ${session.accessToken}`,
         },
       });
+    });
     const session = yield* validSession();
     const response = yield* call(session);
     if (response.status !== 401) return response;
@@ -239,16 +245,16 @@ const awaitRateLimit = Effect.gen(function* () {
   }
 });
 
-export type JiraRequestInit = RequestInit & ClientOptions & { retry?: boolean };
+export type JiraRequestInit = RequestInit & ClientOptions & { retry?: boolean; scope?: JiraRequestScope };
 
 const authedFetch = (path: string, init?: JiraRequestInit) => Effect.gen(function* () {
-  const { retry = true, ...requestInit } = init ?? {};
+  const { retry = true, scope, ...requestInit } = init ?? {};
   const read = isRetryableRead(path, requestInit.method);
   const slots = read ? readSlots : writeSlots;
   for (let attempt = 0; ; attempt++) {
     const response = yield* Effect.gen(function* () {
       yield* awaitRateLimit;
-      const response = yield* authedAttempt(path, requestInit);
+      const response = yield* authedAttempt(path, requestInit, scope);
       if (response.status === 429) {
         rateLimitedUntil = Math.max(rateLimitedUntil, Date.now() + (retryAfterMs(response.headers.get("Retry-After")) || 1000));
       }
@@ -266,7 +272,7 @@ type ApiVersion = "api/2" | "api/3";
 export const jira = <S extends Schema.Decoder<unknown>>(path: string, schema: S, init?: JiraRequestInit, api: ApiVersion = "api/3") =>
   authedFetch(`${api}${path}`, init).pipe(Effect.flatMap(decode(schema)));
 
-export const jiraSend = (path: string, init: RequestInit, api: ApiVersion = "api/3") =>
+export const jiraSend = (path: string, init: JiraRequestInit, api: ApiVersion = "api/3") =>
   Effect.gen(function* () {
     const response = yield* authedFetch(`${api}${path}`, init);
     if (response.ok) return;
@@ -276,6 +282,27 @@ export const jiraSend = (path: string, init: RequestInit, api: ApiVersion = "api
 
 export const jiraAgile = <S extends Schema.Decoder<unknown>>(path: string, schema: S) =>
   authedFetch(`agile/1.0${path}`).pipe(Effect.flatMap(decode(schema)));
+
+const AgileWriteResults = Schema.Struct({ entries: Schema.Array(Schema.Struct({
+  issueId: Schema.Number,
+  issueKey: Schema.String,
+  status: Schema.Number,
+  errors: Schema.optional(Schema.Array(Schema.String)),
+})) });
+
+export const jiraAgileWrite = (path: string, init: JiraRequestInit, issueKey: string) =>
+  Effect.gen(function* () {
+    const response = yield* authedFetch(`agile/1.0${path}`, init);
+    if (response.status === 204) return;
+    if (response.status === 207) {
+      const result = yield* decode(AgileWriteResults)(response);
+      const entry = result.entries.find((entry) => entry.issueKey === issueKey);
+      if (entry && entry.status >= 200 && entry.status < 300) return;
+      return yield* new JiraApiError({ status: entry?.status ?? 502, body: entry?.errors?.join(" ") || "Jira hat die Rangänderung nicht bestätigt." });
+    }
+    const body = yield* Effect.promise(() => response.text());
+    return yield* apiError(response, body);
+  });
 
 export const jiraRedirectLocation = (path: string) =>
   Effect.gen(function* () {

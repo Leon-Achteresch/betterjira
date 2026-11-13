@@ -126,3 +126,55 @@ describe("Jira image downloads", () => {
     expect(new Headers(http.mock.calls[0][1].headers).get("Accept")).toBe("*/*");
   });
 });
+
+describe("Jira mutation request scope", () => {
+  it("rejects stale accounts and different tenants before sending, without forwarding the guard", async () => {
+    const { jiraSend } = await import("./client");
+    await expect(Effect.runPromise(jiraSend("/issue/X-1", { method: "PUT", scope: { cloudId: session.cloudId, isCurrent: () => false } }))).rejects.toMatchObject({ _tag: "JiraRequestScopeChanged" });
+    await expect(Effect.runPromise(jiraSend("/issue/X-1", { method: "PUT", scope: { cloudId: "other-cloud", isCurrent: () => true } }))).rejects.toMatchObject({ _tag: "JiraRequestScopeChanged" });
+    expect(http).not.toHaveBeenCalled();
+    http.mockResolvedValue(new Response(null, { status: 204 }));
+    await Effect.runPromise(jiraSend("/issue/X-1", { method: "PUT", scope: { cloudId: session.cloudId, isCurrent: () => true } }));
+    expect(http.mock.calls[0][1]).not.toHaveProperty("scope");
+  });
+
+  it("rechecks the account after a queued write acquires capacity", async () => {
+    const { jiraSend } = await import("./client");
+    let current = true;
+    http.mockImplementation(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      return new Response(null, { status: 204 });
+    });
+    const occupied = Array.from({ length: JIRA_WRITE_CONCURRENCY }, (_, index) => Effect.runPromise(jiraSend(`/issue/BLOCK-${index}`, { method: "PUT" })));
+    await vi.advanceTimersByTimeAsync(1);
+    const queued = Effect.runPromise(jiraSend("/issue/X-1", { method: "PUT", scope: { cloudId: session.cloudId, isCurrent: () => current } })).catch((error: unknown) => error);
+    current = false;
+    await vi.runAllTimersAsync();
+    await Promise.all(occupied);
+    expect(await queued).toMatchObject({ _tag: "JiraRequestScopeChanged" });
+    expect(http).toHaveBeenCalledTimes(JIRA_WRITE_CONCURRENCY);
+  });
+
+  it("does not send a status transition after the account changed during transition lookup", async () => {
+    const { bulkEditIssue } = await import("./bulk-edit");
+    let current = true;
+    http.mockImplementation(async () => {
+      current = false;
+      return Response.json({ transitions: [{ id: "11", to: { id: "done", name: "Fertig" } }] });
+    });
+    await expect(Effect.runPromise(bulkEditIssue("X-1", { kind: "status", statusId: "done" }, { cloudId: session.cloudId, isCurrent: () => current }))).rejects.toMatchObject({ _tag: "JiraRequestScopeChanged" });
+    expect(http).toHaveBeenCalledTimes(1);
+    expect(http.mock.calls[0][0]).toContain("/transitions?");
+  });
+
+  it("rejects a tenant change before retrying an unauthorized write", async () => {
+    const { jiraSend, logout } = await import("./client");
+    http.mockImplementationOnce(async () => {
+      await Effect.runPromise(logout);
+      invoke.mockImplementation(async (command: string) => command === "session_get" ? JSON.stringify({ ...session, cloudId: "other-cloud", accessToken: "new-access" }) : undefined);
+      return new Response("expired", { status: 401 });
+    });
+    await expect(Effect.runPromise(jiraSend("/issue/X-1", { method: "PUT", scope: { cloudId: session.cloudId, isCurrent: () => true } }))).rejects.toMatchObject({ _tag: "JiraRequestScopeChanged" });
+    expect(http).toHaveBeenCalledTimes(1);
+  });
+});

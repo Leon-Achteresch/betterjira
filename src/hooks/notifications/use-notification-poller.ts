@@ -18,6 +18,7 @@ import { readSystemPermission, sendSystemNotification } from "@/lib/notification
 import { workspaceId } from "@/lib/workspace";
 import { useActivityAlertPrefs } from "./use-activity-alert-prefs";
 import { openNotification, useNotificationOwner, useNotifications, useOwnedUnreadCount } from "./use-notification-store";
+import { useNotificationSnoozeTimer } from "./use-notification-snooze-timer";
 
 const POLL_INTERVAL = 20_000;
 
@@ -33,54 +34,100 @@ const systemGate = (currentOwner: () => string | null) => {
   return { system, systemEpoch, owner: currentOwner() };
 };
 
-const notifySystem = (message: AlertMessage, currentOwner: () => string | null) => {
-  const before = systemGate(currentOwner);
-  return readSystemPermission.pipe(
-    Effect.flatMap((permission) =>
-      permission === "granted" && systemAlertStillAllowed(before, systemGate(currentOwner))
-        ? sendSystemNotification({ title: message.title, body: message.body })
-        : Effect.void,
-    ),
-    Effect.ignore,
-  );
-};
-
-const showToast = (message: AlertMessage, items: JiraNotification[], open: AlertTargets) => {
+const showToast = (message: AlertMessage, items: JiraNotification[], open: AlertTargets, allowed: () => boolean) => {
   const [first] = items;
   toast(message.title, {
     description: message.body,
     action:
       message.issueKey && first
-        ? { label: "Öffnen", onClick: () => openNotification(first, open.issue) }
+        ? { label: "Öffnen", onClick: () => { if (allowed()) openNotification(first, open.issue); } }
         : { label: "Anzeigen", onClick: open.inbox },
   });
 };
 
 export const deliverActivityAlerts = (
   fresh: JiraNotification[],
-  focused: boolean,
+  focused: boolean | (() => boolean),
   open: AlertTargets,
   currentOwner: () => string | null = storedOwner,
   now = Date.now(),
 ): Promise<void> => {
-  if (fresh.length === 0 || currentOwner() === null || currentOwner() !== storedOwner()) return Promise.resolve();
-  if (cooldownOwner !== currentOwner()) {
+  const owner = currentOwner();
+  if (fresh.length === 0 || owner === null || owner !== storedOwner()) return Promise.resolve();
+  if (cooldownOwner !== owner) {
     alertCooldown.clear();
-    cooldownOwner = currentOwner();
+    cooldownOwner = owner;
   }
+  const isFocused = () => typeof focused === "function" ? focused() : focused;
   const prefs = useActivityAlertPrefs.getState();
-  const channel = activityAlertChannel(focused, prefs);
+  const channel = activityAlertChannel(isFocused(), prefs);
   if (!channel) return Promise.resolve();
   const items = alertableItems(fresh, prefs.watching, alertCooldown, now);
   const message = alertMessage(items);
   if (!message) return Promise.resolve();
   for (const item of items) alertCooldown.set(item.issueKey, now);
-  if (channel === "system") return Effect.runPromise(notifySystem(message, currentOwner));
-  showToast(message, items, open);
-  return Promise.resolve();
+  const release = (delivered: readonly JiraNotification[]) => {
+    const issues = new Set(delivered.map((item) => item.issueKey));
+    for (const item of items) {
+      if (!issues.has(item.issueKey) && cooldownOwner === owner && alertCooldown.get(item.issueKey) === now) alertCooldown.delete(item.issueKey);
+    }
+  };
+  const guardedOpen: AlertTargets = {
+    issue: (key, commentId) => { if (currentOwner() === owner && storedOwner() === owner) open.issue(key, commentId); },
+    inbox: () => { if (currentOwner() === owner && storedOwner() === owner) open.inbox(); },
+  };
+  if (channel === "in-app") {
+    showToast(message, items, guardedOpen, () => currentOwner() === owner && storedOwner() === owner);
+    return Promise.resolve();
+  }
+  const before = systemGate(currentOwner);
+  return Effect.runPromise(readSystemPermission.pipe(
+    Effect.flatMap((permission) => {
+      if (storedOwner() !== owner || !systemAlertStillAllowed(before, systemGate(currentOwner))) return Effect.succeed([]);
+      const currentPrefs = useActivityAlertPrefs.getState();
+      const readIds = new Set(useNotifications.getState().items.filter((item) => item.read).map((item) => item.id));
+      const pending = items.filter((item) => !readIds.has(item.id) && (currentPrefs.watching || item.kind === "direct"));
+      const updatedMessage = alertMessage(pending);
+      if (!updatedMessage) return Effect.succeed([]);
+      if (isFocused()) {
+        if (!currentPrefs.inApp) return Effect.succeed([]);
+        showToast(updatedMessage, pending, guardedOpen, () => currentOwner() === owner && storedOwner() === owner);
+        return Effect.succeed(pending);
+      }
+      if (permission !== "granted") return Effect.succeed([]);
+      return sendSystemNotification({ title: updatedMessage.title, body: updatedMessage.body }).pipe(Effect.as(pending));
+    }),
+    Effect.catch(() => Effect.succeed([])),
+    Effect.map(release),
+  ));
+};
+
+export const pollNotificationActivity = async (
+  owner: string,
+  me: string,
+  signal: AbortSignal,
+  open: AlertTargets,
+  currentOwner: () => string | null,
+  focused: () => boolean,
+) => {
+  const startedAt = Date.now();
+  if (signal.aborted || currentOwner() !== owner) return startedAt;
+  useNotifications.getState().adopt(owner);
+  const { checkedAt } = useNotifications.getState();
+  if (checkedAt === null) {
+    useNotifications.getState().receive([], startedAt);
+    return startedAt;
+  }
+  const activity = await Effect.runPromise(fetchActivity(me, checkedAt), { signal });
+  const state = useNotifications.getState();
+  if (signal.aborted || currentOwner() !== owner || state.owner !== owner || state.checkedAt !== checkedAt) return startedAt;
+  const fresh = state.receive(activity, startedAt);
+  void deliverActivityAlerts(fresh, focused, open, currentOwner);
+  return startedAt;
 };
 
 export const useNotificationPoller = () => {
+  useNotificationSnoozeTimer();
   const owner = useNotificationOwner();
   const me = useJiraMyself().data?.accountId;
   const navigate = useNavigate();
@@ -97,20 +144,7 @@ export const useNotificationPoller = () => {
 
   useQuery({
     queryKey: notificationKey(owner ?? ""),
-    queryFn: async ({ signal }) => {
-      const startedAt = Date.now();
-      useNotifications.getState().adopt(owner!);
-      const { checkedAt, receive } = useNotifications.getState();
-      if (checkedAt === null) {
-        receive([], startedAt);
-        return startedAt;
-      }
-      const activity = await Effect.runPromise(fetchActivity(me!, checkedAt), { signal });
-      if (useNotifications.getState().owner !== owner) return startedAt;
-      const fresh = receive(activity, startedAt);
-      void deliverActivityAlerts(fresh, document.hasFocus(), open, currentOwner);
-      return startedAt;
-    },
+    queryFn: ({ signal }) => pollNotificationActivity(owner!, me!, signal, open, currentOwner, () => document.hasFocus()),
     enabled: owner !== null && !!me,
     refetchInterval: POLL_INTERVAL,
     refetchIntervalInBackground: true,

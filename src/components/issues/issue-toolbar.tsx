@@ -7,6 +7,8 @@ import {
   ClipboardCopyIcon,
   CodeIcon,
   EllipsisIcon,
+  GroupIcon,
+  ImportIcon,
   RefreshCwIcon,
   RotateCcwIcon,
   Rows3Icon,
@@ -19,6 +21,9 @@ import {
 import { ColumnPicker } from "@/components/issues/column-picker";
 import { FacetMenu, FacetOptionIcon } from "@/components/issues/facet-menu";
 import { NameDialog } from "@/components/issues/name-dialog";
+import { ViewImportContent } from "@/components/issues/view-import-content";
+import { Tooltip } from "@/components/motion/tooltip";
+import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -26,6 +31,8 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuSub,
   DropdownMenuSubContent,
@@ -37,6 +44,7 @@ import type { IssueTableState } from "@/hooks/use-issue-table";
 import { useIssueToolbar, type IssueToolbarFilters } from "@/hooks/use-issue-toolbar";
 import { EASE_OUT, SPRING_LAYOUT, SPRING_PRESS } from "@/lib/ease";
 import { QUICK_FILTERS } from "@/lib/jira/issue-view";
+import { ISSUE_GROUPINGS } from "@/lib/jira/issue-grouping";
 import { cn } from "@/lib/utils";
 
 function QuickFilterChip({ active, label, onClick }: { active: boolean; label: string; onClick: () => void }) {
@@ -92,13 +100,37 @@ function ViewMenu({
   const [saving, setSaving] = useState(false);
   return (
     <>
+      <Popover open={table.transfer.open} onOpenChange={table.transfer.setOpen}>
       <DropdownMenu>
+        <Tooltip content="Ansicht und Export">
+        <PopoverAnchor asChild>
         <DropdownMenuTrigger asChild>
           <Button variant="outline" size="icon-sm" aria-label="Ansicht und Export">
             <EllipsisIcon />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="min-w-60">
+        </PopoverAnchor>
+        </Tooltip>
+        <DropdownMenuContent align="end" className="min-w-60 [&_[role=menuitem]]:min-h-8 [&_[role=menuitem]]:rounded-xl" onCloseAutoFocus={(event) => { if (table.transfer.open) event.preventDefault(); }}>
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger>
+              <GroupIcon />
+              Gruppieren nach
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent className="min-w-48">
+              <DropdownMenuRadioGroup value={table.groupBy} onValueChange={table.setGrouping}>
+                {Object.entries(ISSUE_GROUPINGS).map(([value, label]) => (
+                  <DropdownMenuRadioItem key={value} value={value} className="min-h-8 rounded-xl">{label}</DropdownMenuRadioItem>
+                ))}
+              </DropdownMenuRadioGroup>
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
+          {table.groupBy !== "none" && (
+            <>
+              <DropdownMenuItem onSelect={table.expandGroups} disabled={!table.hasCollapsedGroups}>Alle Gruppen aufklappen</DropdownMenuItem>
+              <DropdownMenuItem onSelect={table.collapseGroups}>Alle Gruppen einklappen</DropdownMenuItem>
+            </>
+          )}
           <DropdownMenuCheckboxItem
             checked={table.dense}
             onCheckedChange={(checked) => table.setDense(checked === true)}
@@ -164,17 +196,29 @@ function ViewMenu({
             <BookmarkPlusIcon />
             Ansicht speichern…
           </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => void table.transfer.copy()}>
+            <CodeIcon />
+            Ansichtsdefinition kopieren
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => table.transfer.setOpen(true)}>
+            <ImportIcon />
+            Ansicht importieren…
+          </DropdownMenuItem>
           <DropdownMenuItem onSelect={table.resetView}>
             <RotateCcwIcon />
             Auf Standard zurücksetzen
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+      <PopoverContent align="end" aria-label="Ansicht importieren" className="w-[min(26rem,calc(100vw-2rem))]">
+        <ViewImportContent transfer={table.transfer} />
+      </PopoverContent>
+      </Popover>
       <NameDialog
         open={saving}
         onOpenChange={setSaving}
         title="Ansicht speichern"
-        description="Spalten, Sortierung und Filter werden lokal gespeichert."
+        description="Spalten, Gruppierung, Sortierung und Filter werden für dieses Konto lokal gespeichert."
         onSubmit={(name) => {
           table.saveView(name);
           setSaving(false);
@@ -358,6 +402,21 @@ export function IssueToolbar({
         </div>
       </div>
       <ActiveFilters table={table} filters={filters} />
+      <AnimatePresence initial={false}>
+        {table.groupBy !== "none" && (
+          <motion.p
+            key={table.groupBy}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.16, ease: EASE_OUT }}
+            className="text-xs text-muted-foreground"
+            role="status"
+          >
+            Gruppiert nach {ISSUE_GROUPINGS[table.groupBy]}. Gruppen zählen nur die geladenen Vorgänge.
+          </motion.p>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

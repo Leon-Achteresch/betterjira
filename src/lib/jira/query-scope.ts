@@ -1,6 +1,6 @@
 import type { QueryClient } from "@tanstack/react-query";
 import { Data, Effect, Schema } from "effect";
-import { currentSite } from "./client";
+import { currentSite, type JiraRequestScope } from "./client";
 import { jiraKeys } from "./queries";
 
 export type JiraQueryScope = { cloudId: string; accountId: string };
@@ -16,6 +16,11 @@ export const jiraQueryScopeMatches = (client: QueryClient, scope: JiraQueryScope
   return !!scope && Schema.is(SiteScope)(site) && site.cloudId === scope.cloudId
     && Schema.is(AccountScope)(account) && account.accountId === scope.accountId;
 };
+
+export const jiraRequestScope = (client: QueryClient, scope: JiraQueryScope): JiraRequestScope => ({
+  cloudId: scope.cloudId,
+  isCurrent: () => jiraQueryScopeMatches(client, scope),
+});
 
 const ensureScope = (client: QueryClient, scope: JiraQueryScope | undefined) =>
   Effect.gen(function* () {

@@ -6,6 +6,8 @@ import { useRecentRemoval } from "@/hooks/use-recent-removal";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { RECENT_ISSUE_LIMIT, scopedFieldDraftKeys, togglePinnedIssue, type Workspace } from "@/lib/workspace";
 import { useWorkspaceNoteEditor } from "@/hooks/use-workspace-note-editor";
+import { usePersonalPlan } from "@/hooks/use-personal-plan";
+import type { PlanBucket } from "@/lib/workspace-plan";
 import {
   visibleWorkspaceEntries,
   workspaceEmptyState,
@@ -42,6 +44,8 @@ export function useWorkspacePage(search: WorkspacePageSearch) {
   const entries = workspaceEntries(workspace, draftKeys);
   const visible = visibleWorkspaceEntries(entries, filter, query, sort);
   const note = useWorkspaceNoteEditor(visible);
+  const plan = usePersonalPlan();
+  const orderedPlan = sort === "standard" && !query.trim() && (filter === "heute" || filter === "spaeter");
 
   return {
     ready,
@@ -53,6 +57,12 @@ export function useWorkspacePage(search: WorkspacePageSearch) {
     counts: workspaceFilterCounts(entries),
     entries: visible,
     note,
+    planFor: (entry: WorkspaceEntry, bucket: PlanBucket | null) => {
+      plan.assign(entry, bucket);
+      if (filter === "heute" || filter === "spaeter") requestAnimationFrame(() => focus(undefined));
+    },
+    movePlan: (entry: WorkspaceEntry, direction: -1 | 1) => plan.move(entry.key, direction),
+    canMovePlan: (entry: WorkspaceEntry, direction: -1 | 1) => orderedPlan && (direction === -1 ? visible[0]?.key !== entry.key : visible.at(-1)?.key !== entry.key),
     emptyState: workspaceEmptyState(filter, query),
     recentLimit: RECENT_ISSUE_LIMIT,
     entryRef: refFor,

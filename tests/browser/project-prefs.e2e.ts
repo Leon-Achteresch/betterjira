@@ -168,11 +168,15 @@ const accountState = {
 
 test("Verzögerte Kontoprüfung zeigt erst danach die eigenen Einstellungen", async ({ page }) => {
   await seed(page, accountState);
-  await page.addInitScript(() => Object.assign(window, { __qaMyselfDelayMs: 2500 }));
+  await page.addInitScript(() => {
+    const state = window as unknown as { __qaMyselfGate: Promise<void>; __qaReleaseMyself?: () => void };
+    state.__qaMyselfGate = new Promise<void>((resolve) => { state.__qaReleaseMyself = resolve; });
+  });
   await open(page);
   await expect(page.getByRole("main").getByRole("status")).toBeVisible();
   await expect(star(page, "Produktentwicklung")).toHaveCount(0);
   await expect(legacyNotice(page)).toHaveCount(0);
+  await page.evaluate(() => (window as unknown as { __qaReleaseMyself?: () => void }).__qaReleaseMyself?.());
 
   await expect(star(page, "Produktentwicklung")).toHaveAttribute("aria-pressed", "true");
   await expect(legacyNotice(page)).toBeVisible();

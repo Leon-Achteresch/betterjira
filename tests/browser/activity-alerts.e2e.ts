@@ -47,12 +47,12 @@ const storePrefs = (page: Page, value: string) =>
     [STORAGE_KEY, value],
   );
 
-const withActivity = (page: Page, { focused = true, delayMs = 0, native = {} }: { focused?: boolean; delayMs?: number; native?: Partial<QaNotificationState> } = {}) =>
+const withActivity = (page: Page, { focused = true, delayMs = 0, native = {}, ids = ["qa-neu-1"] }: { focused?: boolean; delayMs?: number; native?: Partial<QaNotificationState>; ids?: string[] } = {}) =>
   page.addInitScript(
-    ({ focused, delayMs, native }) => {
+    ({ focused, delayMs, native, ids }) => {
       const qaWindow = window as unknown as QaWindow & { __qaSearchRule: (jql: string) => object; __qaNotificationInit: Partial<QaNotificationState> };
       qaWindow.__qaNotificationInit = native;
-      qaWindow.__qaActivity = ["qa-neu-1"];
+      qaWindow.__qaActivity = ids;
       qaWindow.__qaActivityDelayMs = delayMs;
       qaWindow.__qaFocused = focused;
       document.hasFocus = () => qaWindow.__qaFocused;
@@ -83,7 +83,7 @@ const withActivity = (page: Page, { focused = true, delayMs = 0, native = {} }: 
             }
           : {};
     },
-    { focused, delayMs, native },
+    { focused, delayMs, native, ids },
   );
 
 const poll = (page: Page) => page.evaluate(() => window.dispatchEvent(new Event("visibilitychange")));
@@ -307,4 +307,43 @@ test("Screenshots Desktop hell und 390 px dunkel", async ({ page }) => {
   await page.waitForTimeout(400);
   await geist();
   await page.screenshot({ path: `${shots}/schmal-dunkel-390.png` });
+});
+
+test("Doppelte Ereignisse zählen und melden nur einmal, auch nach Neustart", async ({ page }) => {
+  await withActivity(page, { focused: false, native: { permission: "granted" }, ids: ["duplicate", "duplicate"] });
+  await open(page, "/benachrichtigungen");
+  await expect(bell(page)).toHaveAccessibleName("Benachrichtigungen, 10 ungelesen");
+  await expect.poll(async () => (await qa(page)).sent.length).toBe(1);
+  await page.getByRole("button", { name: "4 ungelesene in „Direkt“ als gelesen markieren" }).click();
+  await open(page, "/benachrichtigungen");
+  await expect(page.getByRole("button", { name: "Jetzt prüfen", exact: true })).toHaveAttribute("aria-disabled", "false");
+  await expect(bell(page)).toHaveAccessibleName("Benachrichtigungen, 6 ungelesen");
+  expect((await qa(page)).sent).toEqual([]);
+});
+
+test("Mehr als 200 Ereignisse werden nach erneuter Prüfung und Neustart nicht wieder gemeldet", async ({ page }) => {
+  await withActivity(page, { focused: false, native: { permission: "granted" }, ids: Array.from({ length: 250 }, (_, id) => `burst-${id}`) });
+  await open(page, "/benachrichtigungen");
+  await expect(bell(page)).toHaveAccessibleName("Benachrichtigungen, 200 ungelesen");
+  await expect.poll(async () => (await qa(page)).sent.length).toBe(1);
+  await page.getByRole("button", { name: "200 ungelesene in „Direkt“ als gelesen markieren" }).click();
+  const checked = () => page.locator("time").first().getAttribute("datetime");
+  const before = await checked();
+  await page.getByRole("button", { name: "Jetzt prüfen", exact: true }).click();
+  await expect.poll(checked).not.toBe(before);
+  await expect(bell(page)).toHaveAccessibleName("Benachrichtigungen");
+  expect((await qa(page)).sent).toHaveLength(1);
+  await open(page, "/benachrichtigungen");
+  await expect(page.getByRole("button", { name: "Jetzt prüfen", exact: true })).toHaveAttribute("aria-disabled", "false");
+  await expect(bell(page)).toHaveAccessibleName("Benachrichtigungen");
+  expect((await qa(page)).sent).toEqual([]);
+});
+
+test("Fokuswechsel während OS-Prüfung zeigt nur das Popup in der App", async ({ page }) => {
+  await withActivity(page, { focused: false, native: { permission: "granted", checkDelayMs: 1500 } });
+  await open(page, "/benachrichtigungen");
+  await expect(bell(page)).toHaveAccessibleName("Benachrichtigungen, 10 ungelesen");
+  await page.evaluate(() => { (window as unknown as QaWindow).__qaFocused = true; });
+  await expect(inAppToast(page)).toBeVisible();
+  expect((await qa(page)).sent).toEqual([]);
 });

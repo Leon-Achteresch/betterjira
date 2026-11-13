@@ -1,6 +1,7 @@
 import { fieldText } from "./field-text";
 import { EMPTY_VALUE, type JqlSort } from "./jql";
 import type { JiraFieldInfo } from "./search";
+import type { IssueGrouping } from "./issue-grouping";
 
 export const KEY_COLUMN = "key";
 
@@ -35,9 +36,11 @@ export type IssueView = {
   quick: QuickFilter[];
   facets: FacetSelection;
   dense: boolean;
+  groupBy?: IssueGrouping;
+  collapsedGroups?: string[];
 };
 
-export const DEFAULT_VIEW: IssueView = { columns: DEFAULT_COLUMNS, sort: [], quick: [], facets: {}, dense: false };
+export const DEFAULT_VIEW: IssueView = { columns: DEFAULT_COLUMNS, sort: [], quick: [], facets: {}, dense: false, groupBy: "none", collapsedGroups: [] };
 
 export const toggleValue = <T>(values: readonly T[], value: T) =>
   values.includes(value) ? values.filter((item) => item !== value) : [...values, value];

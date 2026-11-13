@@ -12,6 +12,9 @@ import {
   SlidersHorizontalIcon,
   StickyNoteIcon,
   TimerIcon,
+  SunIcon,
+  CalendarClockIcon,
+  ListMinusIcon,
 } from "lucide-react";
 import { Tooltip } from "@/components/motion/tooltip";
 import { Button } from "@/components/ui/button";
@@ -79,6 +82,14 @@ export function IssueActions({
           </DropdownMenuTrigger>
         </Tooltip>
         <DropdownMenuContent align="end" className="w-64">
+          <DropdownMenuItem disabled={!actions.ready || actions.planned === "today"} onSelect={() => actions.planFor("today")}>
+            <SunIcon /> Für heute planen
+          </DropdownMenuItem>
+          <DropdownMenuItem disabled={!actions.ready || actions.planned === "later"} onSelect={() => actions.planFor("later")}>
+            <CalendarClockIcon /> Für später planen
+          </DropdownMenuItem>
+          {actions.planned && <DropdownMenuItem onSelect={() => actions.planFor(null)}><ListMinusIcon /> Aus persönlichem Plan entfernen</DropdownMenuItem>}
+          <DropdownMenuSeparator />
           <DropdownMenuItem onSelect={() => actions.show("note")}>
             <StickyNoteIcon />
             Private Notiz für später

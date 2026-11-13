@@ -1,4 +1,6 @@
 import { useDebouncedValue } from "@tanstack/react-pacer";
+import { Schema } from "effect";
+import { useBulkEdit } from "@/hooks/jira/use-bulk-edit";
 import { useJiraAccountScope } from "@/hooks/jira/use-jira-account-scope";
 import { useTableSearch } from "@/hooks/use-interface-state";
 import { preferenceScope } from "@/lib/interface-state";
@@ -7,6 +9,7 @@ import { useFieldCatalog } from "@/hooks/jira/use-field-catalog";
 import { useIssueCount } from "@/hooks/jira/use-issue-count";
 import { useIssueSearch } from "@/hooks/jira/use-issue-search";
 import { useIssueSelection } from "@/hooks/use-issue-selection";
+import { useIssueViewTransfer } from "@/hooks/use-issue-view-transfer";
 import { type SavedIssueView, useIssueViews } from "@/hooks/use-issue-views";
 import { copyToClipboard } from "@/lib/clipboard";
 import { fieldText } from "@/lib/jira/field-text";
@@ -27,6 +30,7 @@ import {
 } from "@/lib/jira/issue-view";
 import { type SortDirection, composeJql, cycleSort, textClause, valuesClause } from "@/lib/jira/jql";
 import { toMarkdown, toTsv } from "@/lib/table-export";
+import { groupIssues, issueGridEntries, IssueGrouping } from "@/lib/jira/issue-grouping";
 
 const FACET_KEYS = Object.keys(FACETS) as Facet[];
 const NO_SAVED_VIEWS: SavedIssueView[] = [];
@@ -52,6 +56,8 @@ export function useIssueTable(scope: string, baseJql: string, externalText?: Iss
   const save = (_scope: string, name: string) => { if (preferenceKey !== null) storedSave(preferenceKey, name, presentation); };
   const remove = (_scope: string, name: string) => { if (preferenceKey !== null) storedRemove(preferenceKey, name); };
   const view = { ...DEFAULT_VIEW, ...presentation, ...stored };
+  const transfer = useIssueViewTransfer(view, (imported) => update(scope, () => ({ ...DEFAULT_VIEW, groupBy: "none", collapsedGroups: [], ...imported })));
+  const groupBy = view.groupBy ?? "none";
   const quick = view.quick.filter((key) => key in QUICK_FILTERS);
 
   const searchText = useTableSearch(scope);
@@ -67,7 +73,7 @@ export function useIssueTable(scope: string, baseJql: string, externalText?: Iss
     textClause(debouncedText),
   ];
   const jql = composeJql(baseJql, clauses, view.sort);
-  const fields = ["summary", "status", ...view.columns.filter((column) => column !== KEY_COLUMN && column !== "summary" && column !== "status")];
+  const fields = [...new Set(["summary", "status", ...groupBy === "none" ? [] : [groupBy], ...view.columns.filter((column) => column !== KEY_COLUMN)])];
 
   const catalog = useFieldCatalog();
   const fieldById = new Map((catalog.data ?? []).map((field) => [field.id, field]));
@@ -76,8 +82,11 @@ export function useIssueTable(scope: string, baseJql: string, externalText?: Iss
   const facetSource = useIssueSearch(composeJql(baseJql, []), FACET_KEYS, 100);
 
   const issues = search.data?.pages.flatMap((page) => page.issues) ?? [];
+  const groups = groupIssues(issues, groupBy);
+  const entries = issueGridEntries(issues, groups, groupBy, view.collapsedGroups ?? []);
   const isPlaceholder = search.isPlaceholderData;
-  const selection = useIssueSelection(JSON.stringify([scope, jql]), issues);
+  const selection = useIssueSelection(JSON.stringify([preferenceKey, scope, jql]), issues);
+  const bulk = useBulkEdit(selection.selected.map(({ key }) => key), isPlaceholder);
   const canLoadMore = search.hasNextPage && !isPlaceholder && !search.isFetching;
   const facetIssues = facetSource.data?.pages[0]?.issues ?? [];
 
@@ -119,17 +128,26 @@ export function useIssueTable(scope: string, baseJql: string, externalText?: Iss
 
   return {
     scope,
+    transfer,
+    bulk,
     selection: {
       ...selection,
       toggle: (key: string) => {
-        if (!isPlaceholder) selection.toggle(key);
+        if (!isPlaceholder && !bulk.pending) selection.toggle(key);
       },
       toggleAll: () => {
-        if (!isPlaceholder) selection.toggleAll();
+        if (!isPlaceholder && !bulk.pending) selection.toggleAll();
       },
     },
     jql,
     issues,
+    entries,
+    groupBy,
+    hasCollapsedGroups: groups.some((group) => view.collapsedGroups?.includes(group.id)),
+    toggleGroup: (id: string) => update(scope, (current) => ({ collapsedGroups: toggleValue(current.collapsedGroups ?? [], id) })),
+    setGrouping: (groupBy: string) => { if (Schema.is(IssueGrouping)(groupBy)) update(scope, () => ({ groupBy })); },
+    expandGroups: () => update(scope, () => ({ collapsedGroups: [] })),
+    collapseGroups: () => update(scope, (current) => ({ collapsedGroups: [...new Set([...(current.collapsedGroups ?? []), ...groups.map((group) => group.id)])] })),
     columns,
     dense: view.dense,
     quick,
@@ -177,7 +195,7 @@ export function useIssueTable(scope: string, baseJql: string, externalText?: Iss
     setDense: (dense: boolean) => update(scope, () => ({ dense })),
     resetView: () => reset(scope),
     saveView: (name: string) => save(scope, name),
-    applyView: ({ name: _, ...saved }: SavedIssueView) => update(scope, () => saved),
+    applyView: ({ name: _, ...saved }: SavedIssueView) => update(scope, () => ({ ...DEFAULT_VIEW, ...saved })),
     removeView: (name: string) => remove(scope, name),
     exportAs,
   };

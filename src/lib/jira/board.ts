@@ -22,6 +22,7 @@ export type JiraBoard = (typeof BoardPage.Type)["values"][number];
 
 export const BoardConfiguration = Schema.Struct({
   filter: Schema.Struct({ id: Schema.String }),
+  ranking: Schema.optional(Schema.Struct({ rankCustomFieldId: Schema.Number })),
   estimation: Schema.optional(Schema.Struct({ field: Schema.optional(Schema.Struct({ fieldId: Schema.String })) })),
   columnConfig: Schema.Struct({
     columns: Schema.Array(

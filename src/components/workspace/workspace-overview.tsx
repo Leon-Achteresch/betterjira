@@ -11,6 +11,7 @@ import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/in
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EASE_OUT, SPRING_LAYOUT } from "@/lib/ease";
+import type { PlanBucket } from "@/lib/workspace-plan";
 import {
   WORKSPACE_PAGE_FILTERS,
   WORKSPACE_PAGE_SORTS,
@@ -39,6 +40,9 @@ type WorkspaceOverviewProps = {
   onTogglePin: (entry: WorkspaceEntry) => void;
   onRemoveRecent: (entry: WorkspaceEntry) => void;
   onEditNote: (entry: WorkspaceEntry) => void;
+  onPlan: (entry: WorkspaceEntry, bucket: PlanBucket | null) => void;
+  onMovePlan: (entry: WorkspaceEntry, direction: -1 | 1) => void;
+  canMovePlan: (entry: WorkspaceEntry, direction: -1 | 1) => boolean;
 };
 
 export function WorkspaceOverview(props: WorkspaceOverviewProps) {
@@ -93,6 +97,7 @@ export function WorkspaceOverview(props: WorkspaceOverviewProps) {
       <p aria-live="polite" className="sr-only">
         {props.ready ? `${props.entries.length} Arbeitskontexte` : ""}
       </p>
+      {(props.filter === "heute" || props.filter === "spaeter") && <p className="text-xs text-muted-foreground">Dein Plan bleibt erhalten, bis du ihn änderst. Status und Fälligkeit in Jira bleiben unverändert. {props.sort !== "standard" || props.query ? "Zum Umordnen Standard wählen und Suche leeren." : "Reihenfolge ändern: Menü am Ticket."}</p>}
       {!props.ready ? (
         <div aria-busy className="flex flex-col gap-2">
           {[0, 1, 2, 3].map((index) => (
@@ -147,6 +152,10 @@ export function WorkspaceOverview(props: WorkspaceOverviewProps) {
                   onTogglePin={() => props.onTogglePin(entry)}
                   onRemoveRecent={() => props.onRemoveRecent(entry)}
                   onEditNote={() => props.onEditNote(entry)}
+                  onPlan={(bucket) => props.onPlan(entry, bucket)}
+                  onMovePlan={(direction) => props.onMovePlan(entry, direction)}
+                  canMoveUp={props.canMovePlan(entry, -1)}
+                  canMoveDown={props.canMovePlan(entry, 1)}
                 />
               </StaggerItem>
             ))}

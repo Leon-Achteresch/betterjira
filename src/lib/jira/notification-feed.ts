@@ -124,12 +124,13 @@ export const sectionByDay = <T extends FeedItem>(groups: FeedGroup<T>[], now: nu
     .map((id) => ({ id, label: SECTION_LABELS[id], groups: sections.get(id)! }));
 };
 
-export type InboxSearch = { ansicht?: "beobachtet"; nur?: "ungelesen"; suche?: string };
+export type InboxSearch = { ansicht?: "beobachtet"; nur?: "ungelesen"; suche?: string; ablage?: "spaeter" };
 
 export const inboxSearchOf = (search: Record<string, unknown>): InboxSearch => ({
   ...(search.ansicht === "beobachtet" && { ansicht: "beobachtet" as const }),
   ...(search.nur === "ungelesen" && { nur: "ungelesen" as const }),
   ...(typeof search.suche === "string" && search.suche.trim() && { suche: search.suche }),
+  ...(search.ablage === "spaeter" && { ablage: "spaeter" as const }),
 });
 
 export const inboxKindOf = (search: InboxSearch): NotificationKind => (search.ansicht === "beobachtet" ? "watching" : "direct");

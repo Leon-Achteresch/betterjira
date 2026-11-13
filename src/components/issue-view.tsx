@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { IssueActions } from "@/components/issues/issue-actions";
 import { IssueLinksPanel } from "@/components/issues/issue-links-panel";
+import { AddIssueLink } from "@/components/issues/add-issue-link";
 import { RemoteLinksPanel } from "@/components/issues/remote-links-panel";
 import { IssueSubtasks } from "@/components/issues/issue-subtasks";
 import { IssueHistoryPanel } from "@/components/issues/issue-history-panel";
@@ -51,7 +52,7 @@ function Section({ title, aside, children }: { title: string; aside?: ReactNode;
   const reduce = useReducedMotion();
   return (
     <motion.section variants={reveal(reduce)} className="flex flex-col gap-3">
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <h2 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">{title}</h2>
         {aside}
       </div>
@@ -259,14 +260,15 @@ export function IssueView({
 
           <JiraHelpdeskLinks references={helpdesk} />
 
-          {subtasks.length > 0 && (
-            <Section title="Unteraufgaben">
-              <IssueSubtasks key={issue.key} subtasks={subtasks} />
+          {(subtasks.length > 0 || !fields.issuetype.subtask) && (
+            <Section title="Unteraufgaben" aside={!fields.issuetype.subtask && <Button variant="ghost" asChild className="ml-auto"><Link to="/neu" search={{ parent: issue.key }}>Unteraufgabe erstellen</Link></Button>}>
+              {subtasks.length > 0 ? <IssueSubtasks key={issue.key} subtasks={subtasks} /> : <p className="text-sm text-muted-foreground">Noch keine Unteraufgaben.</p>}
             </Section>
           )}
 
-          <Section title={links.summary ? `Verknüpfungen · ${links.summary.total}` : "Verknüpfungen"}>
+          <Section title={links.summary ? `Verknüpfungen · ${links.summary.total}` : "Verknüpfungen"} aside={<AddIssueLink actions={links.actions} />}>
             <IssueLinksPanel
+              actions={links.actions}
               summary={links.summary}
               error={links.error}
               refreshError={links.refreshError}

@@ -160,3 +160,82 @@ describe("deliverActivityAlerts", () => {
   });
 
 });
+
+describe("delivery races", () => {
+  it("does not consume the cooldown when OS permission is denied", async () => {
+    native.isPermissionGranted.mockResolvedValue(false);
+    await deliverActivityAlerts([notification("1")], false, openIssue, undefined, 0);
+    await deliverActivityAlerts([{ ...notification("1"), id: "next" }], true, openIssue, undefined, 1000);
+    expect(sonner.toast).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not consume the cooldown when native delivery throws", async () => {
+    native.sendNotification.mockImplementationOnce(() => { throw new Error("unavailable"); });
+    await deliverActivityAlerts([notification("1")], false, openIssue, undefined, 0);
+    await deliverActivityAlerts([{ ...notification("1"), id: "next" }], false, openIssue, undefined, 1000);
+    expect(native.sendNotification).toHaveBeenCalledTimes(2);
+  });
+
+  it("suppresses already read notifications", async () => {
+    await deliverActivityAlerts([{ ...notification("1"), read: true }], true, openIssue);
+    expect(sonner.toast).not.toHaveBeenCalled();
+  });
+});
+
+describe("delayed system permission", () => {
+  it.each([true, false])("uses only an in-app toast when focus returns (permission %s)", async (permission) => {
+    const check = deferred<boolean>();
+    native.isPermissionGranted.mockReturnValue(check.promise);
+    let focused = false;
+    const delivery = deliverActivityAlerts([notification("1")], () => focused, openIssue);
+    focused = true;
+    check.resolve(permission);
+    await delivery;
+    expect(sonner.toast).toHaveBeenCalledTimes(1);
+    expect(native.sendNotification).not.toHaveBeenCalled();
+  });
+
+  it("does not alert after the item was read during the permission check", async () => {
+    const check = deferred<boolean>();
+    native.isPermissionGranted.mockReturnValue(check.promise);
+    useNotifications.setState({ items: [notification("1")] });
+    const delivery = deliverActivityAlerts([notification("1")], false, openIssue);
+    useNotifications.getState().markAllRead();
+    check.resolve(true);
+    await delivery;
+    expect(native.sendNotification).not.toHaveBeenCalled();
+  });
+
+  it("rechecks the watching preference during delivery", async () => {
+    const check = deferred<boolean>();
+    native.isPermissionGranted.mockReturnValue(check.promise);
+    useActivityAlertPrefs.getState().setWatching(true);
+    const delivery = deliverActivityAlerts([{ ...notification("1"), kind: "watching" }], false, openIssue);
+    useActivityAlertPrefs.getState().setWatching(false);
+    check.resolve(true);
+    await delivery;
+    expect(native.sendNotification).not.toHaveBeenCalled();
+  });
+
+  it("reserves the issue while permission is pending to avoid concurrent delivery", async () => {
+    const check = deferred<boolean>();
+    native.isPermissionGranted.mockReturnValue(check.promise);
+    const first = deliverActivityAlerts([notification("1")], false, openIssue);
+    const second = deliverActivityAlerts([notification("1")], true, openIssue);
+    check.resolve(true);
+    await Promise.all([first, second]);
+    expect(native.sendNotification).toHaveBeenCalledTimes(1);
+    expect(sonner.toast).not.toHaveBeenCalled();
+  });
+
+  it("ignores an old toast action after switching accounts", async () => {
+    const issue = vi.fn();
+    await deliverActivityAlerts([notification("1")], true, { ...openIssue, issue });
+    const action = sonner.toast.mock.calls[0][1].action;
+    useNotifications.getState().adopt("konto-b");
+    useNotifications.setState({ items: [notification("1")] });
+    action.onClick();
+    expect(issue).not.toHaveBeenCalled();
+    expect(useNotifications.getState().items[0].read).toBe(false);
+  });
+});

@@ -1,5 +1,5 @@
 import { Data, Effect, Schema } from "effect";
-import { jira } from "./client";
+import { jira, type JiraRequestScope } from "./client";
 
 const MAX_PAGES = 20;
 const PAGE_SIZE = 100;
@@ -98,7 +98,7 @@ export const canCreateIssues = (projectId: string) =>
 
 export class CreateIssueResponseError extends Data.TaggedError("CreateIssueResponseError")<{}> {}
 
-export const createIssue = (payload: CreateIssuePayload) =>
-  jira("/issue", CreatedIssue, { method: "POST", body: JSON.stringify(payload) }).pipe(
+export const createIssue = (payload: CreateIssuePayload, requestScope?: JiraRequestScope) =>
+  jira("/issue", CreatedIssue, { method: "POST", body: JSON.stringify(payload), scope: requestScope }).pipe(
     Effect.catchTag("SchemaError", () => Effect.fail(new CreateIssueResponseError())),
   );

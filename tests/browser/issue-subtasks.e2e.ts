@@ -75,8 +75,9 @@ test("Filter per Tastatur bedienbar und 390 px ohne Seitenüberlauf", async ({ p
   expect(overflow).toBeLessThanOrEqual(0);
 });
 
-test("Ticket ohne Unteraufgaben zeigt keinen Abschnitt", async ({ page }) => {
+test("Ticket ohne Unteraufgaben bietet die erste Unteraufgabe an", async ({ page }) => {
   await page.goto(ISSUE("DEMO-3"));
   await expect(page.getByRole("heading", { name: /^Kommentare/ })).toBeVisible();
-  await expect(section(page)).toHaveCount(0);
+  await expect(section(page).getByText("Noch keine Unteraufgaben.")).toBeVisible();
+  await expect(section(page).getByRole("link", { name: "Unteraufgabe erstellen" })).toHaveAttribute("href", "/neu?parent=DEMO-3");
 });

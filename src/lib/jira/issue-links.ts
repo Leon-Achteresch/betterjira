@@ -3,6 +3,7 @@ import { jira } from "./client";
 import { jiraKeys } from "./queries";
 
 const LinkType = Schema.Struct({
+  id: Schema.optional(Schema.String),
   name: Schema.optional(Schema.NullOr(Schema.String)),
   inward: Schema.optional(Schema.NullOr(Schema.String)),
   outward: Schema.optional(Schema.NullOr(Schema.String)),
@@ -14,6 +15,7 @@ const LinkedIssue = Schema.Struct({
 });
 
 const IssueLink = Schema.Struct({
+  id: Schema.optional(Schema.String),
   type: Schema.optional(Schema.NullOr(LinkType)),
   inwardIssue: Schema.optional(Schema.NullOr(LinkedIssue)),
   outwardIssue: Schema.optional(Schema.NullOr(LinkedIssue)),
@@ -35,10 +37,13 @@ const IssueLinksResponse = Schema.Struct({
   }),
 });
 
-type IssueLinkDirection = "inward" | "outward";
+export type IssueLinkDirection = "inward" | "outward";
+
+export type IssueLinkReference = { id: string; typeId: string; typeName: string; direction: IssueLinkDirection };
 
 export type LinkedIssueRow = {
   key: string;
+  link?: IssueLinkReference;
   summary?: string;
   status?: typeof LinkedStatus.Type;
   issuetype?: typeof LinkedIssueType.Type;
@@ -99,6 +104,7 @@ export const summarizeIssueLinks = (links: readonly unknown[]): IssueLinkSummary
     const groupKey = label.toLocaleLowerCase("de");
     const group = groups.get(groupKey) ?? { label, issues: [] };
     const row = rowOf(side.issue);
+    if (link.id && link.type?.id && link.type.name) row.link = { id: link.id, typeId: link.type.id, typeName: link.type.name, direction: side.direction };
     if (!group.issues.some((issue) => issue.key === row.key)) group.issues.push(row);
     groups.set(groupKey, group);
   }

@@ -9,6 +9,7 @@ import type { FeedGroup } from "@/lib/jira/notification-feed";
 import type { JiraNotification } from "@/lib/jira/notifications";
 import { EASE_OUT, SPRING_LAYOUT } from "@/lib/ease";
 import { cn } from "@/lib/utils";
+import { NotificationSnoozeMenu } from "./notification-snooze-menu";
 
 type Group = FeedGroup<JiraNotification>;
 
@@ -17,6 +18,9 @@ type Props = {
   onOpen: (item: JiraNotification) => void;
   onOpenExternal: (issueKey: string) => void;
   onToggleRead: (group: Group) => void;
+  snoozedUntil?: number;
+  onSnooze?: (group: Group, until: number) => void;
+  onResume?: (group: Group) => void;
 };
 
 const timeAgo = (created: number) => formatDistanceToNow(created, { addSuffix: true, locale: de });
@@ -35,7 +39,7 @@ function NotificationEvent({ item, muted }: { item: JiraNotification; muted: boo
   );
 }
 
-export function NotificationGroupRow({ group, onOpen, onOpenExternal, onToggleRead }: Props) {
+export function NotificationGroupRow({ group, onOpen, onOpenExternal, onToggleRead, snoozedUntil, onSnooze, onResume }: Props) {
   const reduceMotion = useReducedMotion();
   const [expanded, setExpanded] = useState(false);
   const older = group.items.slice(1);
@@ -62,6 +66,7 @@ export function NotificationGroupRow({ group, onOpen, onOpenExternal, onToggleRe
           <span className="font-mono font-medium text-foreground/80">{group.issueKey}</span> · {group.summary}
         </p>
         <NotificationEvent item={group.latest} muted={!unread} />
+        {snoozedUntil && <p className="mt-1 text-xs text-primary tabular-nums">Zurückgestellt bis {new Date(snoozedUntil).toLocaleString("de-DE", { dateStyle: "medium", timeStyle: "short" })}</p>}
         {older.length > 0 && (
           <button
             type="button"
@@ -93,6 +98,7 @@ export function NotificationGroupRow({ group, onOpen, onOpenExternal, onToggleRe
         </AnimatePresence>
       </div>
       <div className="relative -my-1 flex shrink-0 flex-col items-center">
+        {onSnooze && onResume && <NotificationSnoozeMenu issueKey={group.issueKey} until={snoozedUntil} onSnooze={(until) => onSnooze(group, until)} onResume={() => onResume(group)} />}
         <Tooltip content={unread ? "Als gelesen markieren" : "Als ungelesen markieren"} side="left">
           <button
             type="button"

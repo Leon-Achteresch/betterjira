@@ -36,8 +36,8 @@ import { Table, TableCell, TableHead, TableHeader, TableRow } from "@/components
 import { copyToClipboard } from "@/lib/clipboard";
 import { EASE_OUT, SPRING_SWAP } from "@/lib/ease";
 import { KEY_COLUMN } from "@/lib/jira/issue-view";
+import type { IssueGridEntry } from "@/lib/jira/issue-grouping";
 import type { SortDirection } from "@/lib/jira/jql";
-import type { SearchIssue } from "@/lib/jira/search";
 import { cn } from "@/lib/utils";
 
 export type GridColumn = {
@@ -176,7 +176,8 @@ function ColumnHeader({
 
 export function IssueGrid({
   columns,
-  issues,
+  entries,
+  onToggleGroup,
   dense,
   selectedKeys,
   allSelected,
@@ -190,7 +191,8 @@ export function IssueGrid({
   onMove,
 }: {
   columns: GridColumn[];
-  issues: SearchIssue[];
+  entries: IssueGridEntry[];
+  onToggleGroup: (id: string) => void;
   dense: boolean;
   selectedKeys: ReadonlySet<string>;
   allSelected: boolean;
@@ -249,10 +251,30 @@ export function IssueGrid({
         className="[&_tr:last-child]:border-0"
       >
         <AnimatePresence initial={false}>
-          {issues.map((issue) => {
+          {entries.map((entry) => {
+            if (entry.kind === "group") return (
+              <MotionRow key={entry.id} variants={ROW_REDUCED} exit="exit" className="bg-muted/40 hover:bg-muted/40">
+                <TableCell colSpan={columns.length + 1} className="p-1">
+                  <button
+                    type="button"
+                    aria-expanded={!entry.collapsed}
+                    aria-label={`${entry.label}: ${entry.count} geladene Vorgänge`}
+                    onClick={() => onToggleGroup(entry.id)}
+                    className="flex min-h-9 w-full items-center gap-2 rounded-xl px-2 text-left text-sm font-medium outline-none transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    <motion.span animate={{ rotate: entry.collapsed ? -90 : 0 }} transition={{ duration: reduce ? 0 : 0.16, ease: EASE_OUT }}>
+                      <ChevronDownIcon className="size-4 text-muted-foreground" aria-hidden />
+                    </motion.span>
+                    {entry.label}
+                    <span className="text-xs font-normal text-muted-foreground tabular-nums">{entry.count}</span>
+                  </button>
+                </TableCell>
+              </MotionRow>
+            );
+            const issue = entry.issue;
             const url = siteUrl && `${siteUrl}/browse/${issue.key}`;
             return (
-              <ContextMenu key={issue.id}>
+              <ContextMenu key={entry.id}>
                 <IssuePreviewTooltip issueKey={issue.key}>
                   <ContextMenuTrigger asChild>
                     <MotionRow

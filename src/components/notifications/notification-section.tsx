@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import type { FeedGroup } from "@/lib/jira/notification-feed";
 import type { JiraNotification } from "@/lib/jira/notifications";
 import { EASE_OUT } from "@/lib/ease";
+import type { SnoozedIssues } from "@/lib/notifications/snooze";
 
 const VISIBLE_GROUPS = 7;
 
@@ -16,6 +17,9 @@ type Props = {
   onOpen: (item: JiraNotification) => void;
   onOpenExternal: (issueKey: string) => void;
   onToggleRead: (group: FeedGroup<JiraNotification>) => void;
+  snoozed?: SnoozedIssues;
+  onSnooze?: (group: FeedGroup<JiraNotification>, until: number) => void;
+  onResume?: (group: FeedGroup<JiraNotification>) => void;
 };
 
 export function NotificationSection({ id, label, groups, ...actions }: Props) {

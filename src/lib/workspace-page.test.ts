@@ -48,12 +48,14 @@ describe("Arbeitsplatz-Ableitung", () => {
   it("zählt jede Kategorie getrennt", () => {
     expect(workspaceFilterCounts(workspaceEntries(busy(), ["F-3"]))).toEqual({
       alle: 6,
+      heute: 0,
+      spaeter: 0,
       angeheftet: 2,
       entwuerfe: 3,
       notizen: 1,
       zuletzt: 2,
     });
-    expect(workspaceFilterCounts([])).toEqual({ alle: 0, angeheftet: 0, entwuerfe: 0, notizen: 0, zuletzt: 0 });
+    expect(workspaceFilterCounts([])).toEqual({ alle: 0, heute: 0, spaeter: 0, angeheftet: 0, entwuerfe: 0, notizen: 0, zuletzt: 0 });
   });
 
   it("filtert nach Kategorie und durchsucht Schlüssel, Titel, Notiz und Entwurf", () => {

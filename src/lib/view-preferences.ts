@@ -3,6 +3,7 @@ import { type BoardFilter, type BoardView } from "@/lib/board-filters";
 import { DEFAULT_HIDDEN_PROPERTIES, type CardProperty } from "@/lib/board-display";
 import { type InsightDimension, type InsightMeasure, type InsightSegment } from "@/lib/board-insights";
 import { DEFAULT_VIEW, type IssueView } from "@/lib/jira/issue-view";
+import { IssueGrouping } from "@/lib/jira/issue-grouping";
 
 const isRecord = Schema.is(Schema.Record(Schema.String, Schema.Unknown));
 const Strings = Schema.mutable(Schema.Array(Schema.String));
@@ -10,12 +11,14 @@ const isStrings = Schema.is(Strings);
 const BooleanMap = Schema.Record(Schema.String, Schema.Boolean);
 const Filter = Schema.Struct({ assignee: Schema.optional(Strings), issuetype: Schema.optional(Strings), priority: Schema.optional(Strings), label: Schema.optional(Strings) });
 const BoardViewSchema = Schema.Struct({ name: Schema.String, filters: Schema.Record(Schema.String, Filter), ignoreBoard: BooleanMap });
-const IssueViewSchema = Schema.Struct({
+export const IssueViewSchema = Schema.Struct({
   columns: Strings,
   sort: Schema.mutable(Schema.Array(Schema.Struct({ field: Schema.String, direction: Schema.Literals(["ASC", "DESC"]) }))),
   quick: Schema.mutable(Schema.Array(Schema.Literals(["mine", "unassigned", "open", "recent", "overdue", "reported", "watching"]))),
   facets: Schema.Struct({ status: Schema.optional(Strings), issuetype: Schema.optional(Strings), priority: Schema.optional(Strings), assignee: Schema.optional(Strings), labels: Schema.optional(Strings) }),
   dense: Schema.Boolean,
+  groupBy: Schema.optional(IssueGrouping),
+  collapsedGroups: Schema.optional(Strings),
 });
 const isIssueView = Schema.is(IssueViewSchema);
 const isFilter = Schema.is(Filter);

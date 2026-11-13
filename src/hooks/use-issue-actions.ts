@@ -3,6 +3,8 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { useDescriptionCopy } from "@/hooks/use-description-copy";
 import { useFieldDraftStore } from "@/hooks/use-field-drafts";
 import { useWorkspace } from "@/hooks/use-workspace";
+import { usePersonalPlan } from "@/hooks/use-personal-plan";
+import type { PlanBucket } from "@/lib/workspace-plan";
 import { copyToClipboard } from "@/lib/clipboard";
 import { rememberIssue, scopedFieldDraftKeys, togglePinnedIssue } from "@/lib/workspace";
 import type { JiraIssueDetail } from "@/lib/jira/queries";
@@ -10,6 +12,7 @@ import type { IssueDrawerTab } from "@/components/issue-drawer";
 
 export function useIssueActions(issue: JiraIssueDetail | undefined, siteUrl?: string, initialTab?: IssueDrawerTab) {
   const { id, workspace, update, ready } = useWorkspace();
+  const plan = usePersonalPlan();
   const [drawer, setDrawer] = useState(!!initialTab);
   const [tab, setTab] = useState<IssueDrawerTab>(initialTab ?? "details");
   const detailsRef = useRef<HTMLButtonElement>(null);
@@ -47,6 +50,10 @@ export function useIssueActions(issue: JiraIssueDetail | undefined, siteUrl?: st
       (returnFocus.current ?? detailsRef.current)?.focus({ preventScroll: true });
     },
     ready,
+    planned: plan.entries.find((entry) => entry.key === key)?.bucket,
+    planFor: (bucket: PlanBucket | null) => {
+      if (issue) plan.assign({ key: issue.key, summary: issue.fields.summary }, bucket);
+    },
     pinned: workspace.pinned.some((pinned) => pinned.key === key),
     togglePin: () => {
       if (issue)

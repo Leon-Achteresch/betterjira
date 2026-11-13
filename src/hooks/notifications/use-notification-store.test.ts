@@ -31,3 +31,29 @@ describe("useNotifications", () => {
     expect(useNotifications.getState()).toMatchObject({ owner: "second", items: [], checkedAt: null });
   });
 });
+
+describe("notification deduplication", () => {
+  it("accepts an event only once within the same response", () => {
+    useNotifications.getState().adopt("batch");
+    const item = notification("duplicate");
+    expect(useNotifications.getState().receive([item, item], 10)).toHaveLength(1);
+    expect(useNotifications.getState().items).toHaveLength(1);
+  });
+
+  it("remembers events evicted from the visible inbox across overlapping polls", () => {
+    useNotifications.getState().adopt("overflow");
+    const batch = Array.from({ length: 250 }, (_, index) => notification(String(index)));
+    useNotifications.getState().receive(batch, 10);
+    useNotifications.getState().markAllRead();
+    expect(useNotifications.getState().items).toHaveLength(200);
+    expect(useNotifications.getState().receive(batch, 20)).toEqual([]);
+    expect(useNotifications.getState().items.every((item) => item.read)).toBe(true);
+  });
+
+  it("never moves the successful polling watermark backwards", () => {
+    useNotifications.getState().adopt("watermark");
+    useNotifications.getState().receive([], 20);
+    useNotifications.getState().receive([], 10);
+    expect(useNotifications.getState().checkedAt).toBe(20);
+  });
+});

@@ -42,7 +42,7 @@ function PopoverContent({
           align={align}
           sideOffset={sideOffset}
           className={cn(
-            "z-50 flex w-72 origin-(--radix-popover-content-transform-origin) flex-col gap-2.5 rounded-2xl glass p-2.5 text-sm text-popover-foreground shadow-md ring-1 ring-foreground/10 outline-hidden",
+            "z-50 flex max-h-(--radix-popover-content-available-height) w-72 origin-(--radix-popover-content-transform-origin) flex-col gap-2.5 overflow-y-auto overscroll-contain rounded-2xl glass p-2.5 text-sm text-popover-foreground shadow-md ring-1 ring-foreground/10 outline-hidden",
             className,
           )}
           {...props}

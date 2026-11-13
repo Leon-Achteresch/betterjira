@@ -1,7 +1,10 @@
 import type { ReactNode } from "react";
+import { Link } from "@tanstack/react-router";
 import { AlertCircleIcon, ExternalLinkIcon, InfoIcon, LockIcon, RotateCwIcon } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { AdfEditor } from "@/components/adf-editor";
+import { TemplateMenu } from "@/components/create-issue/template-menu";
+import { Checkbox } from "@/components/motion/checkbox";
 import { JiraFieldInput } from "@/components/jira-field-input";
 import { ProjectAvatar } from "@/components/shell/project-avatar";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -25,12 +28,17 @@ const NOTICES = {
   "no-types": {
     icon: InfoIcon,
     title: "Kein Vorgangstyp verfügbar",
-    text: "Jira liefert für dieses Projekt keinen Vorgangstyp, den betterjira anlegen kann. Unteraufgaben werden hier noch nicht unterstützt.",
+    text: "Jira liefert für dieses Projekt keinen passenden Vorgangstyp. Unteraufgaben legst du direkt im übergeordneten Ticket an.",
   },
   blocked: {
     icon: InfoIcon,
     title: "Erstellen hier nicht möglich",
     text: "Dieser Vorgangstyp verlangt Pflichtfelder, die betterjira noch nicht ausfüllen kann:",
+  },
+  "parent-invalid": {
+    icon: InfoIcon,
+    title: "Keine weitere Unteraufgabe möglich",
+    text: "Dieses Ticket ist bereits eine Unteraufgabe. Wähle ein übergeordnetes Ticket.",
   },
 } as const;
 
@@ -84,14 +92,15 @@ export function CreateIssueForm({ form }: { form: CreateIssueFormModel }) {
 
   return (
     <form onSubmit={form.submit} onKeyDown={form.onKeyDown} aria-busy={form.pending} className="flex flex-col gap-6" noValidate>
-      <fieldset disabled={form.pending} className="flex min-w-0 flex-col gap-5 rounded-2xl border bg-card p-4 shadow-xs sm:p-6">
+      <fieldset disabled={form.pending || !form.draftReady} className="flex min-w-0 flex-col gap-5 rounded-2xl border bg-card p-4 shadow-xs sm:p-6">
         <legend className="sr-only">Neues Ticket</legend>
+        {form.parent && <div className="text-sm"><span className="text-muted-foreground">Übergeordnet: </span><Link to="/issue/$key" params={{ key: form.parent.key }} className="underline underline-offset-4">{form.parent.key} · {form.parent.fields.summary}</Link></div>}
         <div className="grid gap-4 sm:grid-cols-2">
           <FieldBlock id="create-project" label="Projekt" required>
             {form.projectsLoading ? (
               <Skeleton className="h-8 w-full rounded-lg" />
             ) : (
-              <Select value={form.project?.id ?? ""} onValueChange={form.selectProject}>
+              <Select value={form.project?.id ?? ""} onValueChange={form.selectProject} disabled={!!form.parentKey}>
                 <SelectTrigger id="create-project" className="w-full">
                   <SelectValue placeholder={form.projects.length ? "Projekt wählen…" : "Keine Projekte sichtbar"} />
                 </SelectTrigger>
@@ -117,10 +126,10 @@ export function CreateIssueForm({ form }: { form: CreateIssueFormModel }) {
                 </SelectTrigger>
                 <SelectContent>
                   {form.issueTypes.map((type) => (
-                    <SelectItem key={type.id} value={type.id} disabled={type.subtask}>
+                    <SelectItem key={type.id} value={type.id} disabled={type.subtask && !form.parentKey}>
                       {type.iconUrl && <img src={type.iconUrl} alt="" className="size-4" />}
                       {type.name}
-                      {type.subtask && <span className="text-xs text-muted-foreground">nur in Jira</span>}
+                      {type.subtask && !form.parentKey && <span className="text-xs text-muted-foreground">über ein Ticket erstellen</span>}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -128,6 +137,19 @@ export function CreateIssueForm({ form }: { form: CreateIssueFormModel }) {
             )}
           </FieldBlock>
         </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="mr-auto text-xs text-muted-foreground">Entwurf bleibt für dein Konto auf diesem Gerät erhalten.</span>
+          {form.hasDraft && <Button type="button" variant="ghost" onClick={form.discardDraft}>Entwurf verwerfen</Button>}
+          <TemplateMenu form={form} />
+        </div>
+        <AnimatePresence initial={false}>
+          {form.staleFields.length > 0 && (
+            <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15, ease: EASE_OUT }} role="status" className="text-xs text-muted-foreground">
+              Gespeicherte Angaben sind nicht mehr verfügbar. Bitte erneut ausfüllen: {form.staleFields.join(", ")}.
+            </motion.p>
+          )}
+        </AnimatePresence>
 
         <FieldBlock id="create-summary" label="Titel" required error={fieldError("summary", "Titel")}>
           <Input
@@ -151,7 +173,7 @@ export function CreateIssueForm({ form }: { form: CreateIssueFormModel }) {
                 required={form.plan.description?.required}
                 error={fieldError("description", "Beschreibung")}
               >
-                <AdfEditor id="create-field-description" label="Beschreibung" value={form.description} onChange={form.setDescription} />
+                <AdfEditor id="create-field-description" label="Beschreibung" value={form.description} onChange={form.setDescription} disabled={form.pending || !form.draftReady} />
               </FieldBlock>
             </motion.div>
           )}
@@ -212,7 +234,7 @@ export function CreateIssueForm({ form }: { form: CreateIssueFormModel }) {
                 <notice.icon />
                 <AlertTitle>{notice.title}</AlertTitle>
                 <AlertDescription>
-                  <p>{notice.text}</p>
+                  <p>{form.parentKey && form.status === "no-types" ? "Für dieses Projekt sind keine Unteraufgabentypen verfügbar." : notice.text}</p>
                   {form.status === "blocked" && (
                     <ul className="mt-1 list-disc pl-5">
                       {form.plan.blocked.map((field) => (
@@ -260,6 +282,7 @@ export function CreateIssueForm({ form }: { form: CreateIssueFormModel }) {
       </fieldset>
 
       <div className="flex flex-wrap items-center gap-2">
+        <Checkbox checked={form.createAnother} onCheckedChange={form.setCreateAnother} disabled={form.pending} label="Weiteres Ticket erstellen" className="min-h-8 [&_button]:size-8 [&_button]:rounded-xl" />
         {form.project && (
           <Button type="button" variant="ghost" onClick={form.openInJira} disabled={form.pending}>
             <ExternalLinkIcon />

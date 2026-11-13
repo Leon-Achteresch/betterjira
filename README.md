@@ -27,6 +27,10 @@ bun run tauri dev
 
 Empfohlene IDE: VS Code mit den Erweiterungen [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) und [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer).
 
+## Sprint-Planung und OAuth
+
+Die Sprint-Planung auf Scrum-Boards speichert Reihenfolge und Sprint-Zuordnung direkt in Jira. Der Atlassian-OAuth-Client benötigt zusätzlich `write:issue:jira-software`, `write:sprint:jira-software` und `write:board-scope:jira-software`. Diese Berechtigungen müssen in der Atlassian Developer Console freigeschaltet sein. Bereits angemeldete Nutzer melden sich danach erneut an, um die erweiterten Berechtigungen zu bestätigen. Jira-Projektrechte zum Bearbeiten und Planen von Vorgängen gelten weiterhin.
+
 ## Mitmachen
 
 Siehe [CONTRIBUTING.md](CONTRIBUTING.md). Architektur- und Animationsregeln stehen in [AGENTS.md](AGENTS.md), Designregeln in [DESIGN.md](DESIGN.md).

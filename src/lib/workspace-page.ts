@@ -1,8 +1,11 @@
 import { adfToText } from "@/lib/jira/adf";
 import { mainDraftOf, workQueueItems, type WorkQueueItem, type Workspace } from "@/lib/workspace";
+import type { PlanBucket } from "@/lib/workspace-plan";
 
 export const WORKSPACE_PAGE_FILTERS = [
   { id: "alle", label: "Alle" },
+  { id: "heute", label: "Heute" },
+  { id: "spaeter", label: "Später" },
   { id: "angeheftet", label: "Angeheftet" },
   { id: "entwuerfe", label: "Entwürfe" },
   { id: "notizen", label: "Notizen" },
@@ -49,6 +52,8 @@ export type WorkspaceEntry = WorkQueueItem & {
   draft: string;
   recent: boolean;
   known: boolean;
+  planBucket?: PlanBucket;
+  planOrder?: number;
 };
 
 const draftText = (workspace: Workspace, key: string) => {
@@ -63,12 +68,18 @@ export const workspaceEntries = (workspace: Workspace, fieldDraftKeys: readonly 
     draft: draftText(workspace, item.key),
     recent: recentKeys.has(item.key),
     known: item.summary !== item.key,
+    ...(workspace.plan?.some((entry) => entry.key === item.key) && {
+      planBucket: workspace.plan.find((entry) => entry.key === item.key)?.bucket,
+      planOrder: workspace.plan.findIndex((entry) => entry.key === item.key),
+    }),
   }));
 };
 
 const matchesFilter = (entry: WorkspaceEntry, filter: WorkspacePageFilter) =>
   ({
     alle: true,
+    heute: entry.planBucket === "today",
+    spaeter: entry.planBucket === "later",
     angeheftet: entry.pinned,
     entwuerfe: entry.hasDraft || entry.hasFieldDraft,
     notizen: !!entry.note.trim(),
@@ -83,6 +94,8 @@ export const workspaceFilterCounts = (entries: readonly WorkspaceEntry[]): Recor
   const count = (filter: WorkspacePageFilter) => entries.filter((entry) => matchesFilter(entry, filter)).length;
   return {
     alle: count("alle"),
+    heute: count("heute"),
+    spaeter: count("spaeter"),
     angeheftet: count("angeheftet"),
     entwuerfe: count("entwuerfe"),
     notizen: count("notizen"),
@@ -131,9 +144,21 @@ export const visibleWorkspaceEntries = (
   filter: WorkspacePageFilter,
   query: string,
   sort: WorkspacePageSort,
-) => sortWorkspaceEntries(filterWorkspaceEntries(entries, filter, query), sort);
+) => {
+  const filtered = filterWorkspaceEntries(entries, filter, query);
+  if (sort === "standard" && (filter === "heute" || filter === "spaeter")) return filtered.sort((a, b) => (a.planOrder ?? 0) - (b.planOrder ?? 0));
+  return sortWorkspaceEntries(filtered, sort);
+};
 
 const EMPTY_STATES: Record<WorkspacePageFilter, { title: string; description: string }> = {
+  heute: {
+    title: "Dein Tagesplan ist frei",
+    description: "Plane ein Ticket über dessen Aktionen für heute. Die Reihenfolge bestimmst du selbst, unabhängig vom Jira-Status.",
+  },
+  spaeter: {
+    title: "Nichts für später geplant",
+    description: "Merke dir Tickets für später, um deinen Tagesplan übersichtlich zu halten.",
+  },
   alle: {
     title: "Noch kein Arbeitskontext",
     description: "Öffne ein Ticket. Lesestelle, Entwürfe und Notizen erscheinen danach hier.",

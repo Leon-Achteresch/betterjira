@@ -9,11 +9,12 @@ import { IconAction } from "@/components/motion/icon-action";
 import { EASE_OUT } from "@/lib/ease";
 import type { WorkspaceEntryRowProps } from "@/types/workspace-row";
 import { cn } from "@/lib/utils";
+import { PersonalPlanMenu } from "./personal-plan-menu";
 
 const CHIP = "inline-flex items-center gap-1 rounded-xl px-2 py-0.5 text-[0.7rem] font-medium";
 const ROW_ACTION = "text-muted-foreground sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100";
 
-export function WorkspaceEntryRow({ entry, linkRef, onTogglePin, onRemoveRecent, onEditNote }: WorkspaceEntryRowProps) {
+export function WorkspaceEntryRow({ entry, linkRef, onTogglePin, onRemoveRecent, onEditNote, onPlan, onMovePlan, canMoveUp, canMoveDown }: WorkspaceEntryRowProps) {
   const reduce = useReducedMotion();
   const detailsId = useId();
   const hasNote = !!entry.note.trim();
@@ -31,20 +32,21 @@ export function WorkspaceEntryRow({ entry, linkRef, onTogglePin, onRemoveRecent,
         aria-describedby={detailsId}
         className="flex min-w-0 flex-1 flex-col gap-1.5 rounded-xl px-3 py-2.5 outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
-        <span className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
-          <span className={cn("font-mono", !entry.known && "text-sm font-medium text-foreground")}>{entry.key}</span>
+        <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+          <span className={cn("shrink-0 whitespace-nowrap font-mono", !entry.known && "text-sm font-medium text-foreground")}>{entry.key}</span>
           {entry.status && (
-            <span title="Status beim letzten Öffnen">
+            <span title="Status beim letzten Öffnen" className="shrink-0">
               <JiraStatusBadge status={entry.status} className="text-[0.6rem]" />
             </span>
           )}
           {entry.visitedAt > 0 && (
-            <time dateTime={new Date(entry.visitedAt).toISOString()} className="ml-auto shrink-0 tabular-nums">
+            <time dateTime={new Date(entry.visitedAt).toISOString()} className="shrink-0 tabular-nums max-sm:basis-full sm:ml-auto">
               {formatDistanceToNowStrict(entry.visitedAt, { addSuffix: true, locale: de })}
             </time>
           )}
         </span>
         {entry.known && <span className="text-sm font-medium leading-snug text-pretty">{entry.summary}</span>}
+        {entry.planBucket && <span className="text-xs font-medium text-primary">{entry.planBucket === "today" ? "Für heute geplant" : "Für später geplant"}</span>}
         <span id={detailsId} className="flex flex-col gap-1.5 empty:hidden">
           {entry.note.trim() && (
             <span className="flex items-start gap-1.5 text-sm text-muted-foreground">
@@ -78,7 +80,8 @@ export function WorkspaceEntryRow({ entry, linkRef, onTogglePin, onRemoveRecent,
           )}
         </span>
       </Link>
-      <div className="mt-1.5 flex shrink-0 items-center">
+      <div className="mt-1.5 flex shrink-0 flex-wrap items-center max-sm:max-w-20">
+        <PersonalPlanMenu issueKey={entry.key} bucket={entry.planBucket} onPlan={onPlan} onMove={onMovePlan} canMoveUp={canMoveUp} canMoveDown={canMoveDown} />
         <IconAction label={`Notiz zu ${entry.key} ${hasNote ? "bearbeiten" : "hinzufügen"}`} tooltip={noteAction} onClick={onEditNote} aria-haspopup="dialog" data-note-trigger className={ROW_ACTION}><NotebookPenIcon /></IconAction>
         <IconAction
           label={`${entry.key} ${entry.pinned ? "lösen" : "anheften"}`}

@@ -1,5 +1,6 @@
 import { Schema } from "effect";
 import { AdfDoc, appendBlocks, isAdfDoc, isBlankAdf, sameAdf, textToAdf, type AdfNode } from "./jira/adf";
+import { PlanEntry, sanitizePlan } from "./workspace-plan";
 
 const RememberedIssue = Schema.Struct({
   key: Schema.String,
@@ -22,6 +23,7 @@ export const Workspace = Schema.Struct({
   pinned: Schema.Array(RememberedIssue),
   drafts: Schema.Record(Schema.String, Schema.String),
   newestFirst: Schema.Boolean,
+  plan: Schema.optional(Schema.Array(PlanEntry)),
   contexts: Schema.optional(Schema.Record(Schema.String, IssueContext)),
   commentDrafts: Schema.optional(Schema.Record(Schema.String, AdfDoc)),
   replyDrafts: Schema.optional(Schema.Record(Schema.String, Schema.Record(Schema.String, AdfDoc))),
@@ -70,6 +72,7 @@ export const rememberIssue = (
   const retained = new Set([
     ...recent.map((entry) => entry.key),
     ...workspace.pinned.map((entry) => entry.key),
+    ...(workspace.plan ?? []).map((entry) => entry.key),
     ...draftKeys(workspace),
     ...retainedKeys,
   ]);
@@ -145,7 +148,7 @@ export const workQueueItems = (
   query = "",
   fieldDraftKeys: readonly string[] = [],
 ) => {
-  const remembered = new Map([...workspace.pinned, ...workspace.recent].map((issue) => [issue.key, issue]));
+  const remembered = new Map([...(workspace.plan ?? []), ...workspace.pinned, ...workspace.recent].map((issue) => [issue.key, issue]));
   const contextKeys = Object.keys(workspace.contexts ?? {}).filter((key) => workspace.contexts?.[key]?.note.trim());
   const keys = [
     ...new Set([
@@ -273,6 +276,7 @@ export const sanitizeWorkspace = (value: unknown): Workspace | undefined => {
   if (!isRecord(value)) return undefined;
   const cleaned = {
     ...value,
+    ...("plan" in value && { plan: sanitizePlan(value.plan) }),
     ...("commentDrafts" in value && { commentDrafts: docsOnly(value.commentDrafts) }),
     ...("replyDrafts" in value && { replyDrafts: nestedDocsOnly(value.replyDrafts) }),
     ...("editDrafts" in value && { editDrafts: nestedDocsOnly(value.editDrafts) }),

@@ -214,7 +214,7 @@ const IssueDetail = Schema.Struct({
       status: JiraStatus,
       created: Schema.String,
       updated: Schema.String,
-      issuetype: Schema.Struct({ name: Schema.String }),
+      issuetype: Schema.Struct({ name: Schema.String, subtask: Schema.optional(Schema.Boolean) }),
       project: Schema.Struct({ key: Schema.String, name: Schema.String, projectTypeKey: Schema.optional(Schema.String) }),
       parent: Schema.optional(Schema.Struct({ key: Schema.String, fields: Schema.Struct({ summary: Schema.String }) })),
       subtasks: Schema.optional(

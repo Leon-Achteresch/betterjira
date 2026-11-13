@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import base from "./playwright.config";
 
 const directory = process.env.BROWSER_QA_DIRECTORY ?? join(tmpdir(), "betterjira-browser-qa");
-const url = "http://127.0.0.1:5341";
+const url = `http://127.0.0.1:${process.env.BROWSER_QA_PORT ?? "5341"}`;
 
 export default defineConfig({
   ...base,

@@ -1,6 +1,8 @@
 import { Link } from "@tanstack/react-router";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { ChevronDownIcon, InfoIcon, TriangleAlertIcon } from "lucide-react";
+import { ChevronDownIcon, InfoIcon, TriangleAlertIcon, UnlinkIcon } from "lucide-react";
+import { IconAction } from "@/components/motion/icon-action";
+import type { IssueLinkActions } from "@/hooks/jira/use-issue-link-actions";
 import { JiraStatusBadge } from "@/components/jira-status-badge";
 import { IssuePreviewTooltip } from "@/components/issues/issue-preview";
 import { Stagger, StaggerItem } from "@/components/motion/stagger";
@@ -17,6 +19,7 @@ import { cn } from "@/lib/utils";
 const GROUP_LIMIT = 5;
 
 type IssueLinksPanelProps = {
+  actions: IssueLinkActions;
   summary?: IssueLinkSummary;
   error: unknown;
   refreshError: unknown;
@@ -64,7 +67,7 @@ function LinkedIssue({ issue }: { issue: LinkedIssueRow }) {
   );
 }
 
-function LinkGroup({ group }: { group: IssueLinkGroup }) {
+function LinkGroup({ group, actions }: { group: IssueLinkGroup; actions: IssueLinkActions }) {
   const reduce = useReducedMotion();
   const { visible, expanded, canExpand, toggle } = useVisibleItems(group.issues, GROUP_LIMIT);
   const hidden = group.issues.length - GROUP_LIMIT;
@@ -84,7 +87,10 @@ function LinkGroup({ group }: { group: IssueLinkGroup }) {
               exit={{ opacity: 0, transition: { duration: 0.12, ease: EASE_OUT } }}
               transition={{ duration: 0.18, ease: EASE_OUT }}
             >
-              <LinkedIssue issue={issue} />
+              <div className="flex items-center gap-1">
+                <div className="min-w-0 flex-1"><LinkedIssue issue={issue} /></div>
+                {issue.link && actions.canRemove && <IconAction label={`Verknüpfung zu ${issue.key} entfernen`} tooltip="Verknüpfung entfernen" disabled={actions.pending} onClick={() => actions.remove(issue)}><UnlinkIcon /></IconAction>}
+              </div>
             </motion.li>
           ))}
         </AnimatePresence>
@@ -113,14 +119,14 @@ function LinksSkeleton() {
   );
 }
 
-function LinksContent({ summary }: { summary: IssueLinkSummary }) {
+function LinksContent({ summary, actions }: { summary: IssueLinkSummary; actions: IssueLinkActions }) {
   if (summary.total === 0 && summary.unreadable === 0) {
     return <p className="text-sm text-muted-foreground">Keine verknüpften Tickets.</p>;
   }
   return (
     <Stagger className="-mx-2 flex flex-col gap-4">
       {summary.groups.map((group) => (
-        <LinkGroup key={group.label} group={group} />
+        <LinkGroup key={group.label} group={group} actions={actions} />
       ))}
       {summary.unreadable > 0 && (
         <StaggerItem className="flex items-start gap-2 px-2 text-xs text-muted-foreground">
@@ -137,7 +143,7 @@ function LinksContent({ summary }: { summary: IssueLinkSummary }) {
   );
 }
 
-export function IssueLinksPanel({ summary, error, refreshError, retrying, onRetry }: IssueLinksPanelProps) {
+export function IssueLinksPanel({ summary, error, refreshError, retrying, onRetry, actions }: IssueLinksPanelProps) {
   const reduce = useReducedMotion();
   const fade = {
     initial: { opacity: 0, y: reduce ? 0 : -4 },
@@ -165,7 +171,7 @@ export function IssueLinksPanel({ summary, error, refreshError, retrying, onRetr
       <AnimatePresence initial={false} mode="wait">
         {summary ? (
           <motion.div key="content" {...fade}>
-            <LinksContent summary={summary} />
+            <LinksContent summary={summary} actions={actions} />
           </motion.div>
         ) : error ? (
           <motion.div

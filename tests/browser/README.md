@@ -1,5 +1,46 @@
 # Browser-Prüfung ohne Jira-Konto
 
+## UX-Release 0.13.0
+
+Neue Abläufe liegen in `bulk-edit.e2e.ts`, `create-drafts.e2e.ts`, `create-subtask.e2e.ts`, `issue-link-actions.e2e.ts`, `notification-snooze.e2e.ts`, `personal-plan.e2e.ts`, `grouped-views.e2e.ts`, `board-planning.e2e.ts` und `issue-commands.e2e.ts`. Sie verwenden ausschließlich lokale Jira-/Tauri-Simulationen. Die Browserprojekte decken Desktop sowie schmale Fenster mit Dark Mode und reduzierter Bewegung ab; ausgewählte Fälle prüfen zusätzlich 390 px.
+
+Bei paralleler Implementierung einen eingefrorenen Build verwenden: HMR kann die Fixture-Brücke entfernen und dadurch falsche Fehler erzeugen. Eigene Ausgabeordner verhindern, dass parallele Läufe gegenseitig Traces löschen.
+
+```sh
+export BROWSER_QA_DIRECTORY=/tmp/betterjira-browser-qa
+export BROWSER_QA_PORT=5341
+bunx vite build --config vite.browser-qa.config.ts
+node .github/scripts/derive-browser-fixture.mjs "$PWD" "$BROWSER_QA_DIRECTORY/dist"
+E2E_BROWSER_CHANNEL=chromium bunx playwright test --config=playwright.browser-qa.config.ts --workers=4
+```
+
+Für einen zweiten Snapshot sowohl `BROWSER_QA_DIRECTORY` als auch `BROWSER_QA_PORT` ändern. Der Bericht steht in `$BROWSER_QA_DIRECTORY/report.json`, Traces und Screenshots in `results/`. Ein neuer Build darf erst nach Ende des zugehörigen Browserlaufs in denselben Ordner geschrieben werden.
+
+Die Simulation prüft Request-Payloads, Fehler, Rollback und Konto-/Instanzgrenzen. Sie ersetzt keine Live-Jira-Abnahme, OAuth-Freigabe oder native Betriebssystemprüfung. Für Sprint-Schreibaktionen sind die in der Projekt-README dokumentierten zusätzlichen OAuth-Scopes erforderlich.
+
+### Prüfstand vom 13.11.2026
+
+| Prüfung | Ergebnis |
+| --- | --- |
+| `bun run test` | 1.098 Tests in 125 Dateien bestanden |
+| `cargo test --locked --manifest-path src-tauri/Cargo.toml` | 12 Rust-Tests bestanden |
+| `bun run build` | TypeScript und Produktionsbuild erfolgreich |
+| Gesamte Browserregression | 968 Fälle: zunächst 947 bestanden, 6 fehlgeschlagen, 15 planmäßig übersprungen |
+| Nachprüfung auf finalem Build | 54 von 54 Fällen bestanden; alle sechs Befunde abgedeckt |
+| Zusammengeführter Browserstand | 953 verschiedene Fälle bestanden, 15 planmäßig übersprungen, kein offener Fehler |
+
+Die Nachprüfung umfasst Sprint-Planung, Command-Palette, Unteraufgaben, Textgrößen und Arbeitsplatz. Behoben wurden ein 16-px-Überlauf bei 390 px und sehr großer Schrift sowie veraltete Prüfannahmen zu neuen Unteraufgaben-Aktionen, der Tab-Reihenfolge und mehrdeutigen Palette-Texten. Die Sammelbearbeitung wurde zusammen mit Planung und Palette zusätzlich in einem separaten Lauf geprüft (12/12). Übersprungene Fälle sind optionale Screenshot-Aufnahmen oder im zweiten Browserprofil absichtlich nicht wiederholte, selbst konfigurierte Ansichten.
+
+Geprüft wurden außerdem Teilfehler und Wiederholung, Rollback, Mehrfachklicks, Persistenz, Konto-/Instanzwechsel sowie wartende Schreibanfragen beim Kontowechsel. Der Build meldet weiterhin große JavaScript-Chunks; Rust meldet eine ungenutzte Outlook-Hilfsfunktion auf macOS. Beide Hinweise sind nicht blockierend. Ein signiertes Installationspaket, Live-Jira-Workflows und native Systembenachrichtigungen wurden nicht abgenommen.
+
+### Weiterer Feinschliff vom 13.11.2026
+
+Arbeitsweise: konkrete UX-Schwächen im Code und im gerenderten Ablauf suchen, mit gezielten Browserfällen reproduzieren, Fehlerzustände und Darstellung verbessern, anschließend betroffene gemeinsame Bausteine nachtesten. Funktionale Probleme und verlorener Fokus kommen vor kosmetischen Änderungen. Jeder Durchgang verwendet einen unveränderlichen Browser-Build.
+
+Sieben neue Szenarien decken Aktualisierungs- und Folgefehler in der Sprint-Planung, Tastaturfokus nach Umordnen/Verschieben, lange Titel bei 390 px, Sammelbearbeitung in einem 360 px hohen Fenster sowie Bearbeitung und Validierung bestehender Wiedervorlagen ab. Vor der Korrektur schlugen alle sieben Szenarien im Desktop-Profil fehl. Die Planung behält jetzt bereits geladene Daten sichtbar, wiederholt gezielt fehlgeschlagene Folgeseiten und bietet direktes Aktualisieren an. Beim Entfernen einer Planungszeile folgt der Fokus dem nächsten Ticket oder dem Abschnittskopf. Popover begrenzen ihre Höhe und scrollen intern; bestehende Wiedervorlagetermine werden vorausgefüllt und Datumsfehler am Feld erklärt.
+
+Auf dem finalen Build: **118/118 Browserfälle bestanden**, einschließlich der neuen Szenarien in beiden Profilen und bestehender Abläufe für Motion, Spaltenauswahl, Erstellen, Entwürfe, Ansichtsimport, Verknüpfungen und private Notizen. **1.098/1.098 Unit-Tests sowie TypeScript und Produktionsbuild erfolgreich.** Die Oberfläche wurde anhand gerenderter Aufnahmen zusätzlich in Light/Dark Mode, bei 390 px Breite und in niedrigen Fenstern kontrolliert. Die bekannten Build-Hinweise bleiben bestehen; Live-Jira und native Systemfunktionen waren nicht Teil dieses zusätzlichen Durchgangs.
+
 `bun run dev` starten und `http://localhost:1420/tests/browser/fixture.html` öffnen. Die Seite lädt die echte App mit drei lokalen Testtickets und einer simulierten Tauri-Bridge. Alle Jira-Anfragen bleiben in dieser Simulation. Die Daten sind ausdrücklich Testdaten; sie landen nicht in einem echten Jira.
 
 Für die Tabelle: `http://localhost:1420/tests/browser/fixture.html?route=/bereiche/DEMO`.

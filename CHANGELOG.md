@@ -1,5 +1,39 @@
 # Änderungen
 
+## 0.13.0 – 2026-11-13
+
+### Neu
+
+- Sammelbearbeitung ausgewählter Tickets: Bearbeiter, Priorität, Labels und gemeinsame Statuswechsel. Teilergebnisse pro Ticket, Wiederholung nur fehlgeschlagener Änderungen und sofortige Tabellenaktualisierung mit Rollback bei Feldfehlern.
+- Persönliche, kontogebundene Erstellungsentwürfe und Projekt-/Typvorlagen. „Weiteres Ticket erstellen“ hält den Erfassungsfluss offen; Verwerfen und Vorlagenwechsel sind rückgängig machbar.
+- Inbox-Wiedervorlage mit Schnellterminen und eigener Datumswahl. Zurückgestellte Tickets besitzen eine eigene Ablage und kehren bei Fälligkeit oder neuer Aktivität zurück.
+- Tabellen nach Status, Bearbeiter oder Priorität gruppieren, Gruppen einklappen und mit benannten Ansichten speichern. Validierter JSON-Import und -Export für die Darstellung.
+- Jira-Beziehungen direkt suchen, anlegen und mit Rückgängig entfernen. Unteraufgaben aus dem übergeordneten Ticket erstellen, einschließlich Jira-Pflichtfeldern.
+- Sprint-Planung für Scrum-Boards: Backlog und Sprints durchsuchen, Reihenfolge per Tastatur/Menü ändern und Tickets einem Sprint zuweisen oder in den Backlog zurücklegen.
+- Persönlicher Tagesplan im Arbeitsplatz mit „Heute“, „Später“, manueller Reihenfolge und Rückgängig. Der Plan verändert weder Jira-Status noch Fälligkeit.
+- Kontextaktionen in der Command-Palette: aktuelles Ticket anheften, Schlüssel/Link kopieren, aktualisieren, sich zuweisen und für heute/später planen.
+
+### Qualität und Grenzen
+
+- Neue Fachlogik liegt in Hooks und React-freien API-/Datenmodulen; vorhandene UI- und Motion-Bausteine werden wiederverwendet.
+- Wartende Schreibaktionen prüfen unmittelbar vor dem Senden erneut das ursprüngliche Jira-Konto. Ein Kontowechsel kann keine vorbereitete Änderung im neuen Konto auslösen.
+- Große Schrift bleibt auch bei 390 px ohne horizontalen Seitenüberlauf bedienbar; die neue Unteraufgaben-Aktion bricht bei Bedarf um.
+- Die Sprint-Planung behält geladene Vorgänge bei Aktualisierungs- und Folgefehlern sichtbar. Eine fehlgeschlagene Folgeseite lässt sich einzeln erneut laden; Aktualisieren ist direkt erreichbar.
+- Nach Rangänderungen und Sprint-Verschiebungen bleibt der Tastaturfokus am Ticket oder wechselt zum nächsten Eintrag. Lange Titel bleiben auf zwei Zeilen begrenzt, Ticketschlüssel zusammenhängend.
+- Popover bleiben auch in niedrigen Fenstern scrollbar. Bestehende Wiedervorlagen füllen ihren Zeitpunkt vor; Datumsfehler werden direkt am Feld erklärt und beim erneuten Öffnen zurückgesetzt.
+- Die Sprint-Planung benötigt zusätzliche Jira-Software-OAuth-Rechte. Bereits verbundene Konten müssen sich erneut anmelden; Projektberechtigungen bleiben erforderlich.
+- Entwürfe, Vorlagen, Wiedervorlagen, Ansichten und Tagesplan werden lokal je Konto gespeichert. Die Ansichtsdefinition enthält keine Tickets und ersetzt nicht die Basisabfrage der Zielansicht. Kein Team-Sync.
+- Wiedervorlagen werden bei laufender App oder beim nächsten Öffnen fällig. Keine Hintergrundzustellung bei geschlossener Anwendung. Der Tagesplan bleibt bis zur manuellen Änderung bestehen.
+- Statuswechsel mit zusätzlichen Pflichtangaben erfolgen weiterhin im einzelnen Ticket. Sprint-Erstellung/-Abschluss, automatische Regeln, KI-Triage und Duplikat-Zusammenführung sind nicht Teil dieses Releases.
+
+Prüfstand: 1.098 Unit-Tests, 12 Rust-Tests und Produktionsbuild erfolgreich. Über Gesamtprüfung und gezielte Nachläufe sind 953 Browserfälle grün; 15 optionale oder doppelte Profilfälle werden planmäßig übersprungen. Details und Testgrenzen stehen im [Browser-Prüfbericht](tests/browser/README.md#prüfstand-vom-13112026).
+
+Im anschließenden Feinschliff wurden sieben weitere Szenarien ergänzt. Der abschließende Lauf für Planung, Wiedervorlage und gemeinsame Popover bestand 118/118 Browserfälle; Unit-Tests und Produktionsbuild wurden erneut erfolgreich geprüft.
+
+### Recherche
+
+Die UX-Auswahl wurde mit Sol 6.1 high anhand offizieller Dokumentation von [Linear](https://linear.app/docs/triage), [Jira](https://support.atlassian.com/jira-software-cloud/docs/rank-an-issue/), [GitHub Projects](https://docs.github.com/en/issues/planning-and-tracking-with-projects/understanding-fields/about-iteration-fields), [Asana](https://help.asana.com/s/article/my-tasks), [ClickUp](https://help.clickup.com/hc/en-us/articles/6309490332695-Manage-subtasks-in-a-task-window-using-the-Bulk-Action-Toolbar), [YouTrack](https://www.jetbrains.com/help/youtrack/cloud/commands.html) und [Trello](https://support.atlassian.com/trello/docs/trello-inbox/) abgeglichen. Keine interaktiven Tests in angemeldeten Wettbewerberkonten; Height war nicht als aktueller offizieller Benchmark verifizierbar.
+
 ## 0.12.0 – 2026-11-11
 
 ### Neu

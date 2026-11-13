@@ -849,6 +849,11 @@ const createMeta = {
         }),
         metaField("customfield_kunde", "Kunde", { type: "string", custom: "com.atlassian.jira.plugin.system.customfieldtypes:textfield" }),
       ],
+      10003: [
+        ...baseFields,
+        metaField("parent", "Übergeordnet", { type: "issuelink", system: "parent" }),
+        metaField("description", "Beschreibung", { type: "string", system: "description" }, { required: false }),
+      ],
       10002: [
         ...baseFields,
         metaField("description", "Beschreibung", { type: "string", system: "description" }, { required: false }),
@@ -925,6 +930,16 @@ const issueLinks = {
     ];
   },
 };
+const addedIssueLinks = [];
+const removedIssueLinks = new Set();
+const currentIssueLinks = (key) => [
+  ...(issueLinks[key] ?? []).filter((link) => !removedIssueLinks.has(link.id)),
+  ...addedIssueLinks.filter((link) => !removedIssueLinks.has(link.id) && (link.inwardIssue.key === key || link.outwardIssue.key === key)).map((link) => ({
+    id: link.id,
+    type: link.type,
+    ...(link.inwardIssue.key === key ? { outwardIssue: linkedRef(link.outwardIssue.key) } : { inwardIssue: linkedRef(link.inwardIssue.key) }),
+  })),
+];
 const remoteLinks = {
   "DEMO-1": [
     {
@@ -1146,6 +1161,7 @@ const respond = async (request) => {
   if (request.method !== "GET") {
     if (path.endsWith("approximate-count")) return { body: { count: issues.length } };
     if (path.startsWith("/jql/parse")) return { body: { queries: [{ errors: [] }] } };
+    if (window.__qaWriteGate) await window.__qaWriteGate;
     if (window.__qa.delayMs) await new Promise((resolve) => setTimeout(resolve, window.__qa.delayMs));
     if (window.__qa.failNextWrite) {
       window.__qa.failNextWrite = false;
@@ -1168,13 +1184,31 @@ const respond = async (request) => {
       return { body: added };
     }
     const input = request.data ? JSON.parse(new TextDecoder().decode(new Uint8Array(request.data))) : {};
+    if (path === "/issue/rank" || path === "/backlog/issue" || /^\/sprint\/\d+\/issue$/.test(path)) {
+      const result = window.__qaPlanningWrite?.(path, input) ?? { status: 204 };
+      window.__qa.writes.push({ path, method: request.method, input });
+      return result;
+    }
     if (path === "/issue" && window.__qa.createFailure) {
       const failure = window.__qa.createFailure;
       window.__qa.createFailure = null;
       window.__qa.writes.push({ path, method: request.method, input, failed: failure.status });
       return failure;
     }
+    const bulkFailure = window.__qaBulkWriteRule?.(path, input);
+    if (bulkFailure) {
+      window.__qa.writes.push({ path, method: request.method, input, failed: bulkFailure.status });
+      return bulkFailure;
+    }
     window.__qa.writes.push({ path, method: request.method, input });
+    if (path === "/issueLink" && request.method === "POST") {
+      addedIssueLinks.push({ ...input, id: `qa-link-${addedIssueLinks.length + 1}`, type: Object.values(linkTypes).find((type) => type.id === input.type.id) });
+      return { status: 201, body: null };
+    }
+    if (path.startsWith("/issueLink/") && request.method === "DELETE") {
+      removedIssueLinks.add(path.split("/").at(-1));
+      return { status: 204, body: null };
+    }
     if (path === "/issue" && request.method === "POST") {
       const target = createProjects.find((entry) => entry.id === input.fields.project.id) ?? project;
       const key = `${target.key}-${issues.length + 1}`;
@@ -1186,12 +1220,19 @@ const respond = async (request) => {
         fields: {
           ...issues[0].fields,
           summary: input.fields.summary,
+          issuetype: createMeta[target.id]?.types.find((type) => type.id === input.fields.issuetype.id) ?? issues[0].fields.issuetype,
+          parent: input.fields.parent ? { key: input.fields.parent.key, fields: { summary: issues.find((entry) => entry.key === input.fields.parent.key)?.fields.summary ?? "" } } : undefined,
+          subtasks: [],
           project: target,
           description: input.fields.description ?? null,
           comment: { total: 0, comments: [] },
           worklog: { total: 0, worklogs: [] },
         },
       });
+      if (input.fields.parent) {
+        const parent = issues.find((entry) => entry.key === input.fields.parent.key);
+        if (parent) parent.fields.subtasks = [...(parent.fields.subtasks ?? []), { id, key, fields: { summary: input.fields.summary, status: issues.at(-1).fields.status } }];
+      }
       return { status: 201, body: { id, key, self: `https://example.atlassian.net/rest/api/3/issue/${id}` } };
     }
     const favourite = qaFilters.find((filter) => path === `/filter/${filter.id}/favourite`);
@@ -1264,10 +1305,23 @@ const respond = async (request) => {
         issue.fields.description = paragraph(input.fields.description);
       }
     }
+    if (request.method === "PUT" && issue && input.update?.labels) {
+      const labels = new Set(issue.fields.labels ?? []);
+      for (const change of input.update.labels) {
+        if (change.add) labels.add(change.add);
+        if (change.remove) labels.delete(change.remove);
+      }
+      issue.fields.labels = [...labels];
+    }
     return { status: 204 };
   }
   window.__qaReads?.push(path);
   window.__qa.reads.push(path);
+  if (/^\/issue\/[^/]+\/editmeta$/.test(path)) return { body: { fields: {
+    assignee: { required: false, operations: ["set"] },
+    priority: { operations: ["set"], allowedValues: [{ id: "1", name: "Hoch" }, { id: "2", name: "Mittel" }] },
+    labels: { operations: ["add", "remove"] },
+  } } };
   if (path === "/myself") {
     if (window.__qaMyselfGate) await window.__qaMyselfGate;
     window.__qa.myselfCalls++;
@@ -1285,6 +1339,9 @@ const respond = async (request) => {
     if (rule.status) return { status: rule.status, body: { errorMessages: [`Test: Jira antwortet mit ${rule.status}`] } };
     return { body: { isLast: true, values: rule.values ?? window.__qaProjects ?? (scenario === "create" ? createProjects : projects) } };
   }
+  if (path === "/issueLinkType") return { body: { issueLinkTypes: Object.values(linkTypes) } };
+  if (path === "/mypermissions" && url.searchParams.get("permissions") === "LINK_ISSUES")
+    return { body: { permissions: { LINK_ISSUES: { havePermission: window.__qaLinkPermission !== false } } } };
   if (path === "/mypermissions" && url.searchParams.get("issueKey")) {
     const all = !window.__qa.ownPermissionsOnly;
     const grant = (key, havePermission) => [key, { id: key, key, name: key, type: "PROJECT", description: "", havePermission }];
@@ -1465,7 +1522,7 @@ const respond = async (request) => {
     const rule = window.__qaIssueLinksRule?.(issue.key) ?? {};
     if (rule.delayMs) await new Promise((resolve) => setTimeout(resolve, rule.delayMs));
     if (rule.status) return { status: rule.status, body: { errorMessages: [`Test: Jira antwortet mit ${rule.status}`] } };
-    return { body: { id: issue.id, key: issue.key, fields: { issuelinks: rule.issuelinks ?? issueLinks[issue.key] ?? [] } } };
+    return { body: { id: issue.id, key: issue.key, fields: { issuelinks: rule.issuelinks ?? currentIssueLinks(issue.key) } } };
   }
   if (issue && url.pathname.includes("/api/2/") && url.searchParams.get("fields") === "description")
     return { body: { fields: { description: wiki[issue.key] } } };

@@ -1,7 +1,7 @@
 import { format, formatDistanceToNow } from "date-fns";
 import { de } from "date-fns/locale";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { BellIcon, CheckCheck, RefreshCwIcon, SearchXIcon } from "lucide-react";
+import { AlarmClockIcon, BellIcon, CheckCheck, RefreshCwIcon, SearchXIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { SearchField } from "@/components/motion/search-field";
 import { Stagger, StaggerItem } from "@/components/motion/stagger";
@@ -19,6 +19,7 @@ import type { JiraNotification } from "@/lib/jira/notifications";
 import type { NotificationSyncPhase } from "@/lib/jira/notification-sync";
 import { EASE_OUT } from "@/lib/ease";
 import { cn } from "@/lib/utils";
+import type { SnoozedIssues } from "@/lib/notifications/snooze";
 
 type Props = {
   kind: NotificationKind;
@@ -38,6 +39,12 @@ type Props = {
   toggleGroupRead: (group: FeedGroup<JiraNotification>) => void;
   openItem: (item: JiraNotification) => void;
   openExternal: (issueKey: string) => void;
+  showSnoozed: boolean;
+  snoozedCount: number;
+  snoozed: SnoozedIssues;
+  setShowSnoozed: (show: boolean) => void;
+  snoozeGroup: (group: FeedGroup<JiraNotification>, until: number) => void;
+  resumeGroup: (group: FeedGroup<JiraNotification>) => void;
 };
 
 const SYNC_STATUS: Record<NotificationSyncPhase, string> = {
@@ -86,6 +93,9 @@ function InboxContent(props: Props) {
               onOpen={props.openItem}
               onOpenExternal={props.openExternal}
               onToggleRead={props.toggleGroupRead}
+              snoozed={props.snoozed}
+              onSnooze={props.snoozeGroup}
+              onResume={props.resumeGroup}
             />
           </StaggerItem>
         ))}
@@ -117,6 +127,8 @@ function InboxContent(props: Props) {
         }
       />
     );
+  if (props.showSnoozed)
+    return <InboxEmpty icon={<AlarmClockIcon />} title="Nichts zurückgestellt" description={`In „${KIND_LABELS[props.kind]}“ sind keine Benachrichtigungen zurückgestellt. Wähle am Ticket einen Zeitpunkt für die Wiedervorlage.`} />;
   return <InboxEmpty icon={<BellIcon />} title={`Nichts in „${KIND_LABELS[props.kind]}“`} description={EMPTY_KIND[props.kind]} />;
 }
 
@@ -124,6 +136,15 @@ export function NotificationInbox(props: Props) {
   const reduce = useReducedMotion();
   return (
     <div className="flex flex-col gap-4">
+      <Tabs value={props.showSnoozed ? "snoozed" : "inbox"} onValueChange={(value) => props.setShowSnoozed(value === "snoozed")}>
+        <TabsList variant="line" aria-label="Ablage der Benachrichtigungen">
+          <TabsTrigger value="inbox" id="notification-inbox-location" className="h-8 rounded-xl">Eingang</TabsTrigger>
+          <TabsTrigger value="snoozed" className="h-8 rounded-xl">
+            Zurückgestellt
+            <UnreadCount value={props.snoozedCount} />
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <Tabs value={props.kind} onValueChange={(value) => props.setKind(value as NotificationKind)}>
           <TabsList variant="line" aria-label="Art der Benachrichtigung">
@@ -247,7 +268,7 @@ export function NotificationInbox(props: Props) {
       </AnimatePresence>
       <AnimatePresence mode="wait" initial={false}>
         <motion.div
-          key={`${props.kind}-${props.unreadOnly}`}
+          key={`${props.kind}-${props.unreadOnly}-${props.showSnoozed}`}
           initial={{ opacity: 0, y: reduce ? 0 : 4 }}
           animate={{ opacity: 1, y: 0, transition: { duration: 0.18, ease: EASE_OUT } }}
           exit={{ opacity: 0, transition: { duration: 0.1, ease: EASE_OUT } }}

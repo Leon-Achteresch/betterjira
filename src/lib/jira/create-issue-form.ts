@@ -17,10 +17,10 @@ const inputKind = (field: CreateField) => {
   return OPTION_KINDS.has(kind) && optionsOf(field).length === 0 ? undefined : kind;
 };
 
-export const planFields = (fields: readonly CreateField[]): CreatePlan => {
+export const planFields = (fields: readonly CreateField[], parentKey?: string): CreatePlan => {
   const plan: CreatePlan = { description: fields.find((field) => field.fieldId === "description"), inputs: [], blocked: [] };
   for (const field of fields) {
-    if (HANDLED.has(field.fieldId) || !field.required || field.hasDefaultValue) continue;
+    if (HANDLED.has(field.fieldId) || (parentKey && field.fieldId === "parent") || !field.required || field.hasDefaultValue) continue;
     const kind = inputKind(field);
     if (kind) plan.inputs.push({ field, kind });
     else plan.blocked.push(field);
@@ -41,12 +41,13 @@ export const missingFields = (draft: CreateDraft, plan: CreatePlan) => [
     .map(({ field }) => field.fieldId),
 ];
 
-export const createPayload = (projectId: string, issueTypeId: string, draft: CreateDraft, plan: CreatePlan): CreateIssuePayload => {
+export const createPayload = (projectId: string, issueTypeId: string, draft: CreateDraft, plan: CreatePlan, parentKey?: string): CreateIssuePayload => {
   const fields: Record<string, unknown> = {
     project: { id: projectId },
     issuetype: { id: issueTypeId },
     summary: draft.summary.trim(),
   };
+  if (parentKey) fields.parent = { key: parentKey };
   const description = plan.description ? encode("richtext", draft.description) : null;
   if (description) fields.description = description;
   for (const input of plan.inputs) {

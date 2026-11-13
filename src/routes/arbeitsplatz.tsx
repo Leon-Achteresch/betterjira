@@ -48,6 +48,9 @@ function Arbeitsplatz() {
           onTogglePin={page.togglePin}
           onRemoveRecent={page.removeRecent}
           onEditNote={page.note.start}
+          onPlan={page.planFor}
+          onMovePlan={page.movePlan}
+          canMovePlan={page.canMovePlan}
         />
         <WorkspaceNoteDialog
           open={page.note.open}

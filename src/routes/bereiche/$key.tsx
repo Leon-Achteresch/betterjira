@@ -10,6 +10,8 @@ import { ProjectAvatar } from "@/components/shell/project-avatar";
 import { IssueTable } from "@/components/issue-table";
 import { IssuePreviewTooltip } from "@/components/issues/issue-preview";
 import { BoardSkeleton } from "@/components/issues/board-skeleton";
+import { BoardPlanning } from "@/components/issues/board-planning";
+import { useBoardPlanning } from "@/hooks/jira/use-board-planning";
 import { LoadFailed, RefreshFailed } from "@/components/issues/load-recovery";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BoardPagination } from "@/components/issues/board-pagination";
@@ -549,6 +551,7 @@ function Board({
   onSprintChange: (sprint?: BoardSprint) => void;
 }) {
   const backlog = sprintId === BACKLOG;
+  const planning = useBoardPlanning(board);
   const sprints = useJiraBoard(board, backlog ? undefined : sprintId, !backlog);
   const backlogJql = useJiraBacklogJql(board);
   const queryClient = useQueryClient();
@@ -632,6 +635,7 @@ function Board({
           />
         )}
       </AnimatePresence>
+      {board.type === "scrum" && <BoardPlanning plan={planning} />}
       {backlog ? (
         backlogJql.data ? (
           <IssueTable jql={backlogJql.data} />

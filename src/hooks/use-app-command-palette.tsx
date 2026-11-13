@@ -1,4 +1,5 @@
 import { useHelpdeskCommandSearch } from "@/hooks/zammad/use-helpdesk-command-search";
+import { useIssueCommands } from "@/hooks/use-issue-commands";
 import { useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useDebouncedValue } from "@tanstack/react-pacer";
@@ -84,6 +85,7 @@ const THEMES: { value: ThemePreference; label: string; icon: typeof SunIcon }[] 
 export function useAppCommandPalette() {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const issueCommands = useIssueCommands(open);
   const [debounced] = useDebouncedValue(query.trim(), { wait: 250 });
   const helpdesk = useHelpdeskCommandSearch(debounced, open);
   const navigate = useNavigate();
@@ -136,6 +138,7 @@ export function useAppCommandPalette() {
   const searchKeys = new Set(search.data?.issues.map((issue) => issue.key));
 
   const items: CommandItem[] = [
+    ...issueCommands,
     ...remembered
       .filter((issue) => issue.key !== issueKey)
       .map((issue) => ({

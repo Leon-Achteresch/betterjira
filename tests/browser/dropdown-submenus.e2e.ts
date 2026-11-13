@@ -114,6 +114,8 @@ for (const narrow of [false, true]) {
     test("Tastatur: Pfeiltasten, Enter, Escape und Fokusrückgabe", async ({ page }) => {
       await viewTrigger(page).focus();
       await page.keyboard.press("Enter");
+      await expect(item(page, "Gruppieren nach")).toBeFocused();
+      await page.getByRole("menuitemcheckbox", { name: "Kompakte Zeilen" }).focus();
       await expect(page.getByRole("menuitemcheckbox", { name: "Kompakte Zeilen" })).toBeFocused();
       await page.keyboard.press("ArrowDown");
       await expect(item(page, "Kopieren als")).toBeFocused();
@@ -134,6 +136,8 @@ for (const narrow of [false, true]) {
       expect(await copied(page)).toMatch(/^[^\n]+\t[^\n]+\nDEMO-/);
 
       await page.keyboard.press("Enter");
+      await expect(item(page, "Gruppieren nach")).toBeFocused();
+      await page.getByRole("menuitemcheckbox", { name: "Kompakte Zeilen" }).focus();
       await expect(page.getByRole("menuitemcheckbox", { name: "Kompakte Zeilen" })).toBeFocused();
       await page.keyboard.press("ArrowDown");
       await expect(item(page, "Kopieren als")).toBeFocused();

@@ -2,6 +2,8 @@ import { expect, test, type Page, type TestInfo } from "@playwright/test";
 
 declare global {
   interface Window {
+    __qaWriteGate?: Promise<void>;
+    __qaReleaseWrite?: () => void;
     __qa: { commands: string[]; writes: { path: string }[]; opened?: string[]; delayMs: number };
   }
 }
@@ -79,13 +81,14 @@ test("Dateiaktionen und Upload bleiben bei aktivem Filter nutzbar", async ({ pag
   await expect(search(page)).toHaveValue("screenshot");
   await expect(list(page)).toBeVisible();
 
-  await page.evaluate(() => (window.__qa.delayMs = 800));
+  await page.evaluate(() => { window.__qaWriteGate = new Promise<void>((resolve) => { window.__qaReleaseWrite = resolve; }); });
   const upload = page.getByRole("button", { name: "Datei anhängen" });
   await page.locator('input[type="file"]').setInputFiles({ name: "qa.txt", mimeType: "text/plain", buffer: Buffer.from("lokal") });
   await expect(upload).toBeDisabled();
   await search(page).fill("angebot");
   await kind(page, "Dokumente").click();
   await expect(upload).toBeDisabled();
+  await page.evaluate(() => { window.__qaReleaseWrite?.(); window.__qaWriteGate = undefined; });
   await expect(upload).toBeEnabled();
   const writes = await page.evaluate(() => window.__qa.writes.map((write) => write.path));
   expect(writes).toEqual(["/issue/DEMO-1/attachments"]);

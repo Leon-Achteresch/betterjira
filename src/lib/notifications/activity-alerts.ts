@@ -44,7 +44,7 @@ export const alertableItems = (
   now: number,
 ) =>
   fresh
-    .filter((item) => (watching || item.kind === "direct") && now - (lastAlerted.get(item.issueKey) ?? -Infinity) >= ALERT_COOLDOWN_MS)
+    .filter((item) => !item.read && (watching || item.kind === "direct") && now - (lastAlerted.get(item.issueKey) ?? -Infinity) >= ALERT_COOLDOWN_MS)
     .sort((a, b) => b.created - a.created);
 
 const listFormat = new Intl.ListFormat("de", { type: "conjunction" });
