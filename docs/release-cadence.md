@@ -53,3 +53,15 @@ Vorabprüfung für 0.12.0: 996 Unit-Tests, Typecheck und Produktionsbuild nach d
 
 
 Abschluss der Überwachung: Der ursprüngliche GitHub-Lauf endete am 11. November um 21:01:02 UTC mit einem internen GitHub-Serverfehler. Tests, Versionierung und sämtliche Paketjobs sind erfolgreich; der letzte Job erhielt keinen Runner. Die bereits lokal abgeschlossene Veröffentlichung bleibt gültig. Nach Endzustand wurden nochmals alle 17 Assets mit Hashes, sieben Update-Signaturen, elf Updater-Aliase sowie veröffentlichte Version und Tagquelle erfolgreich geprüft. Nachweise: `release-verification-0.12.0.json`. Keine weitere Release-Änderung nötig; Beobachtung beendet.
+
+## UX-Release 0.13.0 am 13. November 2026
+
+Auf ausdrücklichen Auftrag wurde der gesamte geprüfte Stand einschließlich Feinschliff gemeinsam veröffentlicht: 116 geänderte oder neue Dateien in Commit `c8697895afc06acd0a60b05fc75f3cb9fd58edf2`. Development und Main waren zuvor synchron und wurden atomar auf diesen Commit aktualisiert. Alle Versionsdateien enthalten 0.13.0; der vorhandene Release-Workflow hat diese noch ungetaggte Version übernommen.
+
+Vorabprüfung: 1.098 Unit-Tests, 12 Rust-Tests, TypeScript und Produktionsbuild erfolgreich. Im ersten Release-Durchgang wurden über Gesamtregression und gezielte Nachprüfungen 953 Browserfälle erfolgreich geprüft, 15 planmäßig ausgelassen. Der anschließende Feinschliff ergänzt sieben Szenarien; sein finaler Lauf bestand 118/118 Browserfälle in Desktop sowie schmaler Darstellung mit Dark Mode und reduzierter Bewegung. Details stehen in `tests/browser/README.md`.
+
+Der [Release-Lauf](https://github.com/Leon-Achteresch/betterjira/actions/runs/43389677125) und die Development-CI sind vollständig erfolgreich. Alle vier Paketjobs, der Windows-Prozessstart und die Veröffentlichung mit Updater-Prüfung sind grün. [Version 0.13.0](https://github.com/Leon-Achteresch/betterjira/releases/tag/v0.13.0) ist öffentlich und als aktuelles Release gesetzt; Tag und Paketquellen zeigen auf `c869789`.
+
+Alle 17 veröffentlichten Dateien wurden heruntergeladen und gegen Größe und SHA-256-Digest geprüft. Sieben Update-Signaturen sind kryptografisch gültig; die elf Plattform-Aliase im öffentlichen `latest.json` verweisen auf die passenden Pakete und Signaturen. Beide macOS-App-Pakete bestehen `codesign --verify --deep --strict`; Version, Bundle-Version und Architektur stimmen. Live-Jira-Schreibzugriffe oder neue interaktive native Ablaufprüfungen waren nicht Teil dieser Veröffentlichung.
+
+Nachweise: [release-verification-0.13.0.json](release-verification-0.13.0.json). Keine offenen Release-Jobs oder nachträglichen manuellen Veröffentlichungsarbeiten.
