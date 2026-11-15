@@ -1,5 +1,6 @@
 import { Effect, Schema } from "effect";
 import { jira, jiraImage, JiraApiError, jiraRedirectLocation, jiraSend } from "./client";
+import { worklogEstimateQuery } from "./worklog";
 import { mediaIdFromLocation } from "./adf-media";
 
 const issuePath = (key: string) => `/issue/${encodeURIComponent(key)}`;
@@ -15,8 +16,15 @@ export const editIssue = (key: string, fields: Record<string, unknown>) =>
   jiraSend(issuePath(key), json("PUT", { fields }));
 export const addWorklog = (
   key: string,
-  worklog: { timeSpent: string; started: string; comment?: string },
-) => jiraSend(`${issuePath(key)}/worklog`, json("POST", worklog), "api/2");
+  worklog: { timeSpent: string; started: string; comment?: string; remainingEstimate?: string },
+) => Effect.suspend(() => {
+  const { remainingEstimate, ...body } = worklog;
+  try {
+    return jiraSend(`${issuePath(key)}/worklog${worklogEstimateQuery(remainingEstimate)}`, json("POST", body), "api/2");
+  } catch {
+    return Effect.fail(new JiraApiError({ status: 400, body: "Gib eine Restarbeit wie 0m oder 2h ein." }));
+  }
+});
 
 const UploadedAttachments = Schema.Array(
   Schema.Struct({

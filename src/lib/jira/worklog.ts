@@ -30,3 +30,16 @@ export const validateWorklog = (
     return "Der Beginn darf nicht in der Zukunft liegen.";
   return undefined;
 };
+
+export const normalizeRemainingEstimate = (value: string) => {
+  const trimmed = value.trim().toLowerCase();
+  if (/^(?:0+\s*[wdhm]\s*)+$/.test(trimmed)) return "0m";
+  return normalizeDuration(value);
+};
+
+export const worklogEstimateQuery = (remainingEstimate?: string) => {
+  if (!remainingEstimate?.trim()) return "";
+  const normalized = normalizeRemainingEstimate(remainingEstimate);
+  if (!normalized) throw new Error("Gib eine Restarbeit wie 0m oder 2h ein.");
+  return "?" + new URLSearchParams({ adjustEstimate: "new", newEstimate: normalized });
+};

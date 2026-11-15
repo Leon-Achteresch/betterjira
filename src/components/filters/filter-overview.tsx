@@ -18,7 +18,7 @@ import {
   type FilterOverviewView,
 } from "@/lib/filter-overview";
 
-type OverviewFilter = { id: string; name: string; favourite?: boolean };
+type OverviewFilter = { id: string; name: string; favourite?: boolean; jql?: string };
 
 type FilterOverviewProps<T extends OverviewFilter> = {
   status: FilterOverviewStatus;
@@ -80,7 +80,7 @@ export function FilterOverview<T extends OverviewFilter>(props: FilterOverviewPr
           <InputGroupInput
             type="search"
             aria-label="Filter durchsuchen"
-            placeholder="Filtername …"
+            placeholder="Name oder JQL …"
             value={props.query}
             onChange={(event) => props.onQueryChange(event.target.value)}
           />
@@ -166,6 +166,7 @@ export function FilterOverview<T extends OverviewFilter>(props: FilterOverviewPr
                 <FilterOverviewRow
                   id={filter.id}
                   name={filter.name}
+                  jql={filter.jql}
                   favourite={!!filter.favourite}
                   pending={props.pendingIds.includes(filter.id)}
                   onToggleFavourite={() => props.onToggleFavourite(filter)}

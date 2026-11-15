@@ -84,6 +84,13 @@ export function IssueWorklog({
             onChange={(event) => editor.setComment(event.target.value)}
             className="min-w-48 flex-1"
           />
+          <Input
+            aria-label="Neue Restarbeit"
+            placeholder="Neue Restarbeit (optional), z. B. 0m"
+            value={editor.remainingEstimate}
+            onChange={(event) => editor.setRemainingEstimate(event.target.value)}
+            className="w-full sm:w-56"
+          />
           <Button
             type="button"
             variant="ghost"

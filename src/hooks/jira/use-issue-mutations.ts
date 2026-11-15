@@ -118,7 +118,7 @@ export const useJiraAddWorklog = (key: string) =>
   useIssueMutation(
     key,
     "worklog",
-    (worklog: { timeSpent: string; started: string; comment?: string }) =>
+    (worklog: { timeSpent: string; started: string; comment?: string; remainingEstimate?: string }) =>
       addWorklog(key, worklog),
   );
 

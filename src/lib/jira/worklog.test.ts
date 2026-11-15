@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { normalizeDuration, validateWorklog } from "./worklog";
+import { normalizeDuration, normalizeRemainingEstimate, worklogEstimateQuery, validateWorklog } from "./worklog";
 
 describe("Zeiterfassung", () => {
   it.each(["15m", "30m", "1h", "2h", "1w 2d 3h 4m"])(
@@ -35,5 +35,17 @@ describe("Zeiterfassung", () => {
     expect(validateWorklog("30m", "2026-11-05T09:00:00Z", now)).toContain(
       "Zukunft",
     );
+  });
+});
+
+
+describe("Explizite neue Restarbeit", () => {
+  it("unterscheidet keine Vorgabe von bewusstem Nullwert", () => {
+    expect(worklogEstimateQuery()).toBe("");
+    expect(worklogEstimateQuery(" ")).toBe("");
+    expect(normalizeRemainingEstimate("0h 0m")).toBe("0m");
+    expect(worklogEstimateQuery("0m")).toBe("?adjustEstimate=new&newEstimate=0m");
+    expect(worklogEstimateQuery("2h 30m")).toBe("?adjustEstimate=new&newEstimate=2h+30m");
+    expect(() => worklogEstimateQuery("-1h")).toThrow();
   });
 });

@@ -194,3 +194,12 @@ test("Command Palette und Seitenleiste führen per Tastatur und bei 390 px zur �
   }
   await shoot(page, "390");
 });
+
+
+test("Die Übersicht findet einen Filter über geladene JQL statt nur den Namen", async ({ page }) => {
+  await open(page);
+  await search(page).fill("updated");
+  await expect(rows(page)).toHaveCount(7);
+  await expect(list(page).getByRole("link", { name: "Offene Bugs Team", exact: true })).toBeVisible();
+  await expect(list(page).getByText("project = DEMO ORDER BY updated DESC").first()).toBeVisible();
+});

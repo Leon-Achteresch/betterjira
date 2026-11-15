@@ -113,14 +113,14 @@ export const useJiraIssues = (jql: string, enabled = true) => {
   });
 };
 
-const Filters = Schema.Array(Schema.Struct({ id: Schema.String, name: Schema.String, favourite: Schema.optional(Schema.Boolean) }));
+const Filters = Schema.Array(Schema.Struct({ id: Schema.String, name: Schema.String, favourite: Schema.optional(Schema.Boolean), jql: Schema.optional(Schema.String) }));
 
 export const useJiraFilters = () => {
   const site = useJiraSite();
   return useQuery({
     queryKey: jiraKeys.filters,
     queryFn: ({ signal }) =>
-      Effect.runPromise(jira("/filter/my?includeFavourites=true", Filters), { signal }),
+      Effect.runPromise(jira("/filter/my?includeFavourites=true&expand=jql", Filters), { signal }),
     enabled: !!site.data,
   });
 };
