@@ -1,5 +1,11 @@
 # Änderungen
 
+## 0.14.0 – 2026-11-15
+
+### Neu
+
+- search saved queries and set remaining work
+
 ## 0.13.0 – 2026-11-13
 
 ### Neu
