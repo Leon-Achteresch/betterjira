@@ -91,3 +91,13 @@ describe("filterOverviewEmptyState", () => {
     expect(filterOverviewEmptyState("favoriten", "").title).toBe("Keine Favoriten");
   });
 });
+
+
+describe("JQL-Inhaltssuche", () => {
+  it("findet geladene Abfragen und wahrt den Favoritenumfang", () => {
+    const rows = [{ id: "1", name: "Offene Arbeit", jql: 'project = DEMO AND component = Versand', favourite: true }, { id: "2", name: "Archiv", jql: 'component = Versand' }, { id: "3", name: "Ohne Abfrage" }];
+    expect(visibleFilters(rows, "favoriten", "  VERSAND ").map(f => f.id)).toEqual(["1"]);
+    expect(visibleFilters(rows, "alle", "component").map(f => f.id)).toEqual(["1", "2"]);
+    expect(visibleFilters(rows, "alle", "ohne").map(f => f.id)).toEqual(["3"]);
+  });
+});

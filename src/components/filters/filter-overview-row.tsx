@@ -1,3 +1,4 @@
+import { useId } from "react";
 import { Link } from "@tanstack/react-router";
 import { motion, useReducedMotion } from "motion/react";
 import { ChevronRightIcon, FunnelIcon, StarIcon } from "lucide-react";
@@ -12,23 +13,27 @@ const MotionButton = motion.create(Button);
 type FilterOverviewRowProps = {
   id: string;
   name: string;
+  jql?: string;
   favourite: boolean;
   pending: boolean;
   onToggleFavourite: () => void;
 };
 
-export function FilterOverviewRow({ id, name, favourite, pending, onToggleFavourite }: FilterOverviewRowProps) {
+export function FilterOverviewRow({ id, name, jql, favourite, pending, onToggleFavourite }: FilterOverviewRowProps) {
   const reduce = useReducedMotion();
+  const queryId = useId();
   const label = favourite ? "Aus Favoriten entfernen" : "Zu Favoriten hinzufügen";
   return (
     <div className="group flex items-center gap-1 rounded-xl p-1 transition-colors hover:bg-muted/60 has-[a:focus-visible]:bg-muted/60">
       <Link
         to="/filter/$id"
+        aria-label={name}
+        aria-describedby={jql ? queryId : undefined}
         params={{ id }}
         className="flex min-h-10 min-w-0 flex-1 items-center gap-3 rounded-xl px-3 py-2 outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <FunnelIcon aria-hidden className="size-4 shrink-0 text-muted-foreground" />
-        <span className="min-w-0 flex-1 truncate text-sm font-medium">{name}</span>
+        <span className="min-w-0 flex-1"><span className="block truncate text-sm font-medium">{name}</span>{jql && <span id={queryId} className="block truncate text-xs text-muted-foreground" title={jql}>{jql}</span>}</span>
         <ChevronRightIcon
           aria-hidden
           className="size-4 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100"

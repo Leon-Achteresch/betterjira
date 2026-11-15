@@ -7,7 +7,7 @@ export type FilterOverviewView = (typeof FILTER_OVERVIEW_VIEWS)[number]["id"];
 
 export type FilterOverviewSearch = { ansicht?: FilterOverviewView; q?: string };
 
-type OverviewFilter = { id: string; name: string; favourite?: boolean };
+type OverviewFilter = { id: string; name: string; favourite?: boolean; jql?: string };
 
 export const filterOverviewViewOf = (value: unknown): FilterOverviewView =>
   FILTER_OVERVIEW_VIEWS.find((view) => view.id === value)?.id ?? "alle";
@@ -32,7 +32,7 @@ export const filterOverviewCounts = (filters: readonly OverviewFilter[]): Record
 export const visibleFilters = <T extends OverviewFilter>(filters: readonly T[], view: FilterOverviewView, query: string) => {
   const needle = query.trim().toLocaleLowerCase("de");
   return filters
-    .filter((filter) => inView(filter, view) && filter.name.toLocaleLowerCase("de").includes(needle))
+    .filter((filter) => inView(filter, view) && (filter.name.toLocaleLowerCase("de").includes(needle) || (filter.jql ?? "").toLocaleLowerCase("de").includes(needle)))
     .sort(
       (a, b) =>
         Number(!!b.favourite) - Number(!!a.favourite) || a.name.localeCompare(b.name, "de", { sensitivity: "base" }),
@@ -60,5 +60,5 @@ const EMPTY_STATES: Record<FilterOverviewView, { title: string; description: str
 
 export const filterOverviewEmptyState = (view: FilterOverviewView, query: string) =>
   query.trim()
-    ? { title: "Kein passender Filter", description: "Die Suche prüft die Namen deiner eigenen und favorisierten Filter." }
+    ? { title: "Kein passender Filter", description: "Die Suche prüft Namen und geladene JQL deiner eigenen und favorisierten Filter." }
     : EMPTY_STATES[view];
