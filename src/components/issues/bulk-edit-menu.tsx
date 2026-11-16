@@ -19,6 +19,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Fade } from "@/components/motion/fade";
 import type { BulkEditState } from "@/hooks/jira/use-bulk-edit";
+import { DueDateShiftPanel } from "./due-date-shift-panel";
 
 export function BulkEditMenu({
   state,
@@ -47,65 +48,66 @@ export function BulkEditMenu({
           Nur die ausgewählten geladenen Tickets werden geändert. Jira prüft die
           Berechtigung für jedes Ticket.
         </p>
-        {state.loading ? (
+        <Label htmlFor="bulk-operation">Änderung</Label>
+        <Select
+          value={state.operation}
+          onValueChange={state.setOperation}
+          disabled={state.pending}
+        >
+          <SelectTrigger id="bulk-operation" className="w-full rounded-xl">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="self" disabled={!state.options.assign}>
+              Mir zuweisen
+            </SelectItem>
+            <SelectItem value="person" disabled={!state.options.assign}>
+              Person zuweisen
+            </SelectItem>
+            <SelectItem
+              value="unassigned"
+              disabled={!state.options.unassign}
+            >
+              Zuweisung entfernen
+            </SelectItem>
+            <SelectItem
+              value="priority"
+              disabled={!state.options.priorities.length}
+            >
+              Priorität ändern
+            </SelectItem>
+            <SelectItem
+              value="status"
+              disabled={!state.options.statuses.length}
+            >
+              Status ändern
+            </SelectItem>
+            <SelectItem
+              value="add-labels"
+              disabled={!state.options.addLabels}
+            >
+              Labels hinzufügen
+            </SelectItem>
+            <SelectItem
+              value="remove-labels"
+              disabled={!state.options.removeLabels}
+            >
+              Labels entfernen
+            </SelectItem>
+            <SelectItem value="shift-due-date">Fälligkeiten verschieben</SelectItem>
+          </SelectContent>
+        </Select>
+        {state.operation === "shift-due-date" ? (
+          <DueDateShiftPanel state={state.dueShift} />
+        ) : state.loading ? (
           <Skeleton className="h-20 rounded-xl" />
         ) : state.error ? (
           <div role="alert" className="text-sm">
             <p>Bearbeitbare Felder konnten nicht geladen werden.</p>
-            <Button variant="outline" size="sm" onClick={state.reload}>
-              Erneut laden
-            </Button>
+            <Button variant="outline" size="sm" onClick={state.reload}>Erneut laden</Button>
           </div>
         ) : (
           <>
-            <Label htmlFor="bulk-operation">Änderung</Label>
-            <Select
-              value={state.operation}
-              onValueChange={state.setOperation}
-              disabled={state.pending}
-            >
-              <SelectTrigger id="bulk-operation" className="w-full rounded-xl">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="self" disabled={!state.options.assign}>
-                  Mir zuweisen
-                </SelectItem>
-                <SelectItem value="person" disabled={!state.options.assign}>
-                  Person zuweisen
-                </SelectItem>
-                <SelectItem
-                  value="unassigned"
-                  disabled={!state.options.unassign}
-                >
-                  Zuweisung entfernen
-                </SelectItem>
-                <SelectItem
-                  value="priority"
-                  disabled={!state.options.priorities.length}
-                >
-                  Priorität ändern
-                </SelectItem>
-                <SelectItem
-                  value="status"
-                  disabled={!state.options.statuses.length}
-                >
-                  Status ändern
-                </SelectItem>
-                <SelectItem
-                  value="add-labels"
-                  disabled={!state.options.addLabels}
-                >
-                  Labels hinzufügen
-                </SelectItem>
-                <SelectItem
-                  value="remove-labels"
-                  disabled={!state.options.removeLabels}
-                >
-                  Labels entfernen
-                </SelectItem>
-              </SelectContent>
-            </Select>
             <AnimatePresence initial={false} mode="wait">
               {state.operation === "status" && (
                 <Fade key="status">
@@ -203,7 +205,7 @@ export function BulkEditMenu({
             </Button>
           </>
         )}
-        {state.total > 0 && (
+        {state.operation !== "shift-due-date" && state.total > 0 && (
           <Fade>
             <p role="status" className="text-xs tabular-nums">
               {state.succeeded} von {state.total} geändert

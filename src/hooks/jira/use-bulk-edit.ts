@@ -7,6 +7,7 @@ import {
   type JiraUserResult,
 } from "@/hooks/jira/use-jira";
 import { useLatestRef } from "@/hooks/use-latest-ref";
+import { useDueDateShift } from "./use-due-date-shift";
 import {
   bulkEditIssue,
   bulkEditMetadata,
@@ -46,8 +47,9 @@ type Operation =
   | "status"
   | "add-labels"
   | "remove-labels";
+type BulkOperation = Operation | "shift-due-date";
 
-export function useBulkEdit(keys: readonly string[], disabled: boolean) {
+export function useBulkEdit(keys: readonly string[], disabled: boolean, selectionContext = "") {
   const client = useQueryClient();
   const site = useJiraSite();
   const myself = useJiraMyself();
@@ -58,7 +60,7 @@ export function useBulkEdit(keys: readonly string[], disabled: boolean) {
   const scopeKey = JSON.stringify(scope);
   const latestScope = useLatestRef(scopeKey);
   const [open, setOpen] = useState(false);
-  const [operation, setOperation] = useState<Operation>("self");
+  const [operation, setOperation] = useState<BulkOperation>("self");
   const [priority, setPriority] = useState("");
   const [status, setStatus] = useState("");
   const [assignee, setAssignee] = useState<JiraUserResult | null>(null);
@@ -84,7 +86,7 @@ export function useBulkEdit(keys: readonly string[], disabled: boolean) {
         ),
         { signal },
       ),
-    enabled: open && !!scope && keys.length > 0 && !disabled,
+    enabled: open && operation !== "shift-due-date" && !!scope && keys.length > 0 && !disabled,
     staleTime: 30_000,
   });
   const options = commonBulkOptions(metadata.data ?? []);
@@ -168,10 +170,11 @@ export function useBulkEdit(keys: readonly string[], disabled: boolean) {
       lock.current = false;
     },
   });
+  const dueShift = useDueDateShift(keys, disabled || mutation.isPending, open && operation === "shift-due-date", selectionContext);
   const visibleResults = resultScope === scopeKey ? results : [];
   const failed = visibleResults.filter(({ error }) => error);
   const submit = (retry = false) => {
-    if (lock.current || disabled || !scope) return;
+    if (lock.current || dueShift.isBusy() || disabled || !scope) return;
     const previous = last.current;
     const sent =
       retry && previous?.scopeKey === scopeKey ? previous.action : action;
@@ -201,9 +204,11 @@ export function useBulkEdit(keys: readonly string[], disabled: boolean) {
   };
   return {
     open,
-    setOpen,
+    setOpen: (value: boolean) => { if (!dueShift.isBusy()) setOpen(value); },
+    dueShift,
     operation,
     setOperation: (value: string) => {
+      if (lock.current || dueShift.isBusy()) return;
       if (
         value === "self" ||
         value === "person" ||
@@ -211,7 +216,8 @@ export function useBulkEdit(keys: readonly string[], disabled: boolean) {
         value === "priority" ||
         value === "status" ||
         value === "add-labels" ||
-        value === "remove-labels"
+        value === "remove-labels" ||
+        value === "shift-due-date"
       )
         setOperation(value);
     },
@@ -231,7 +237,7 @@ export function useBulkEdit(keys: readonly string[], disabled: boolean) {
     succeeded: visibleResults.length - failed.length,
     total: resultScope === scopeKey ? total : 0,
     failed: failed.length,
-    pending: mutation.isPending,
+    pending: mutation.isPending || dueShift.pending,
     loading: metadata.isPending,
     error: metadata.error,
     canSubmit:
@@ -239,6 +245,7 @@ export function useBulkEdit(keys: readonly string[], disabled: boolean) {
       !!keys.length &&
       !disabled &&
       !mutation.isPending &&
+      !dueShift.pending &&
       metadata.isSuccess,
     submit: () => submit(),
     retry: () => submit(true),

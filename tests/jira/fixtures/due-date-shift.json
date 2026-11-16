@@ -1,0 +1,10 @@
+{
+  "issues": [
+    {"id":"1","key":"DEMO-1","fields":{"duedate":"2026-03-28","project":{"id":"p"},"issuetype":{"id":"task"}}},
+    {"id":"2","key":"DEMO-2","fields":{"duedate":"2026-10-24","project":{"id":"p"},"issuetype":{"id":"task"}}},
+    {"id":"3","key":"DEMO-3","fields":{"duedate":null,"project":{"id":"p"},"issuetype":{"id":"task"}}},
+    {"id":"4","key":"DEMO-4","fields":{"duedate":"2026-02-30","project":{"id":"p"},"issuetype":{"id":"task"}}},
+    {"id":"5","key":"DEMO-5","fields":{"duedate":"2026-11-16","project":{"id":"p"},"issuetype":{"id":"task"}}},
+    {"id":"6","key":"DEMO-6","fields":{"duedate":"2026-11-17","project":{"id":"p"},"issuetype":{"id":"task"}}}
+  ]
+}

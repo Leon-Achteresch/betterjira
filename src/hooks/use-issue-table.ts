@@ -85,8 +85,9 @@ export function useIssueTable(scope: string, baseJql: string, externalText?: Iss
   const groups = groupIssues(issues, groupBy);
   const entries = issueGridEntries(issues, groups, groupBy, view.collapsedGroups ?? []);
   const isPlaceholder = search.isPlaceholderData;
-  const selection = useIssueSelection(JSON.stringify([preferenceKey, scope, jql]), issues);
-  const bulk = useBulkEdit(selection.selected.map(({ key }) => key), isPlaceholder);
+  const selectionContext = JSON.stringify([preferenceKey, scope, jql]);
+  const selection = useIssueSelection(selectionContext, issues);
+  const bulk = useBulkEdit(selection.selected.map(({ key }) => key), isPlaceholder, selectionContext);
   const canLoadMore = search.hasNextPage && !isPlaceholder && !search.isFetching;
   const facetIssues = facetSource.data?.pages[0]?.issues ?? [];
 

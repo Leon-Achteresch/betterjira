@@ -24,6 +24,7 @@ export function optimisticBulkFields(
     return { field: "assignee", value: displayValue };
   if (action.kind === "priority")
     return { field: "priority", value: displayValue };
+  if (action.kind === "due-date") return { field: "duedate", value: action.value };
   const labels = Array.isArray(issue.fields.labels)
     ? issue.fields.labels.filter(
         (value): value is string => typeof value === "string",

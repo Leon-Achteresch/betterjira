@@ -33,6 +33,7 @@ export type BulkMetadata = typeof EditMetadata.Type & {
 export type BulkAction =
   | { kind: "assignee"; accountId: string | null }
   | { kind: "priority"; id: string }
+  | { kind: "due-date"; value: string }
   | { kind: "status"; statusId: string }
   | { kind: "add-labels" | "remove-labels"; labels: readonly string[] };
 export type BulkResult = { key: string; error?: string };
@@ -45,9 +46,11 @@ const availableTransitions = (key: string) =>
 const simpleTransition = (
   transition: (typeof BulkTransitions.Type.transitions)[number],
 ) => !Object.values(transition.fields ?? {}).some((field) => field.required);
+export const bulkIssueEditMetadata = (key: string, scope?: JiraRequestScope) =>
+  jira(`/issue/${encodeURIComponent(key)}/editmeta`, EditMetadata, { scope, cache: "no-store" });
 export const bulkEditMetadata = (key: string) =>
   Effect.all({
-    metadata: jira(`/issue/${encodeURIComponent(key)}/editmeta`, EditMetadata),
+    metadata: bulkIssueEditMetadata(key),
     transitions: availableTransitions(key).pipe(
       Effect.orElseSucceed(() => ({ transitions: [] })),
     ),
@@ -121,6 +124,7 @@ export const bulkEditBody = (action: BulkAction) => {
     };
   if (action.kind === "priority")
     return { fields: { priority: { id: action.id } } };
+  if (action.kind === "due-date") return { fields: { duedate: action.value } };
   const operation = action.kind === "add-labels" ? "add" : "remove";
   return {
     update: { labels: action.labels.map((label) => ({ [operation]: label })) },
@@ -140,6 +144,7 @@ export const bulkEditIssue = (
         method: "PUT",
         body: JSON.stringify(bulkEditBody(action)),
         scope,
+        ...(action.kind === "due-date" ? { retry: false } : {}),
       });
     const { transitions } = yield* availableTransitions(key);
     const transition = transitions.find(

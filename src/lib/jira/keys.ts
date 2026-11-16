@@ -5,6 +5,8 @@ export const jiraKeys = {
   allIssues: ["jira", "issues"] as const,
   allBoards: ["jira", "board"] as const,
   bulkEdit: (scope: string, keys: readonly string[]) => ["jira", "bulk-edit", scope, [...keys].sort()] as const,
+  dueDateShiftPreview: (context: string, days: number | null) => ["jira", "due-date-shift", "preview", context, days] as const,
+  dueDateShiftWrite: (scope: JiraQueryScope | undefined) => ["jira", "due-date-shift", "write", scope?.cloudId ?? "", scope?.accountId ?? ""] as const,
   attachment: (variant: string, id: string) => ["jira", "attachment", variant, id] as const,
   attachmentMediaId: (id: string) => ["jira", "attachment", "media-id", id] as const,
   attachmentManagement: (key: string, scope: JiraQueryScope | undefined) => ["jira", "issue", key, "attachment-management", scope?.cloudId ?? "", scope?.accountId ?? ""] as const,
