@@ -19,6 +19,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { fieldInputId, type CreateIssueForm as CreateIssueFormModel } from "@/hooks/jira/use-create-issue-form";
 import { EASE_OUT } from "@/lib/ease";
 import { IS_MAC } from "@/lib/platform";
+import { ComponentLeadHints } from "@/components/issues/component-lead-hints";
 
 const NOTICES = {
   "no-permission": {
@@ -224,6 +225,7 @@ export function CreateIssueForm({ form }: { form: CreateIssueFormModel }) {
                         value={form.valueOf(input)}
                         onChange={(value) => form.setValue(input.field.fieldId, value)}
                       />
+                      {input.field.fieldId === "components" && <ComponentLeadHints state={form.componentLeads} />}
                     </FieldBlock>
                   </motion.div>
                 );

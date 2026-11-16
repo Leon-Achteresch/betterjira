@@ -35,7 +35,7 @@ vi.mock("./use-create-issue", () => ({
   useCreateIssue: () => ({ error: null, reset: mock.reset, mutateAsync: mock.create }),
   useCreatePermission: () => ({ data: true, isPending: false, error: null }),
   useCreateIssueTypes: () => ({ data: [{ id: "target-type", name: "Task" }], isPending: false, error: null }),
-  useCreateFields: () => ({ data: fixture.fields, isPending: false, error: null }),
+  useCreateFields: () => ({ data: offeredFields, isPending: false, error: null }),
 }));
 vi.mock("@/components/ui/popover", () => ({
   Popover: ({ children }: { children: ReactNode }) => <>{children}</>,
@@ -58,6 +58,7 @@ const { workspaceId } = await import("@/lib/workspace");
 const { TemplateTargetError } = await import("@/lib/jira/create-metadata-query");
 const template = Schema.decodeUnknownSync(IssueTemplate)(fixture.template);
 const fields = Schema.decodeUnknownSync(Schema.Array(CreateField))(fixture.fields);
+let offeredFields: readonly typeof CreateField.Type[];
 const account = workspaceId("site-a", "account-a");
 const scope = creationFieldScope("target", "target-type");
 let client: QueryClient;
@@ -78,6 +79,7 @@ beforeEach(() => {
   client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity }, mutations: { retry: false, gcTime: Infinity } } });
   client.setQueryData(jiraKeys.site, { cloudId: "site-a" });
   client.setQueryData(jiraKeys.myself, { accountId: "account-a" });
+  offeredFields = fields;
   mock.permission.mockReset().mockReturnValue(Effect.succeed(true));
   mock.types.mockReset().mockReturnValue(Effect.succeed([{ id: "target-type", name: "Task" }]));
   mock.fields.mockReset().mockReturnValue(Effect.succeed(fields));
@@ -87,6 +89,21 @@ beforeEach(() => {
 afterEach(() => client.clear());
 
 describe("projektübergreifende Vorlagen im bestehenden Erstellungsformular", () => {
+  it("bindet Komponenten-Rollenhinweise an die tatsaechliche Auswahl und den Projektkontext ohne Zuweisung", () => {
+    offeredFields = [...fields, Schema.decodeUnknownSync(CreateField)({ fieldId: "components", name: "Komponenten", required: true, schema: { type: "array", items: "component", system: "components" }, allowedValues: [{ id: "c1", name: "Backend" }], operations: ["set"] })];
+    mount().setValue("components", [{ id: "c1", name: "Backend" }]);
+    const form = mount();
+    expect(form.componentLeads.visible).toBe(true);
+    expect(form.componentLeads.projectLabel).toBe("TARGET");
+    expect(form.componentLeads.rows.map((row) => row.id)).toEqual(["c1"]);
+    expect(form.componentLeads.open).toBe(false);
+    expect(store.getState().workspaces[account].draft.values[scope].assignee).toBeUndefined();
+    expect(mock.create).not.toHaveBeenCalled();
+    form.selectProject("source");
+    const changed = mount();
+    expect(changed.componentLeads.projectLabel).toBe("SOURCE");
+    expect(changed.componentLeads.visible).toBe(false);
+  });
   it("zeigt die fremde Projektvorlage bewusst als Quelle und wendet sie im gewählten Ziel an", async () => {
     const form = mount();
     expect(form.templateGroups.map((group) => group.id)).toEqual(["other"]);

@@ -21,6 +21,8 @@ import { IS_MAC } from "@/lib/platform";
 import type { JiraIssueDetail } from "@/lib/jira/queries";
 import { renderedDescription, type RenderedDoc } from "@/lib/jira/rendered-issue";
 import { cn } from "@/lib/utils";
+import { useComponentLeads } from "@/hooks/jira/use-component-leads";
+import { ComponentLeadHints } from "@/components/issues/component-lead-hints";
 
 const HIDDEN = new Set([
   "summary",
@@ -176,38 +178,42 @@ export function EditableField({
   const edit = useJiraEditIssue(issue.key);
   const [draft, setDraft] = useState<{ value: unknown }>();
   const current = issue.fields[id];
+  const componentLeads = useComponentLeads({ selection: id === "components" ? draft ? draft.value : current : undefined, project: { key: issue.fields.project.key, id: issue.fields.project.id }, context: issue.key });
   const hasWikiDraft = useFieldDraftPresence(issue.key, id);
   const hasAdfDraft = useAdfFieldDraftPresence(issue.key, id);
   const hasSavedDraft = hasWikiDraft || hasAdfDraft;
   const [wiki, setWiki] = useState(false);
 
-  if (!editable) return <div className={className}>{children}</div>;
+  if (!editable) return <div className={className}>{children}<ComponentLeadHints state={componentLeads} /></div>;
   const { meta, kind } = editable;
 
   if (!draft) {
     return (
-      <button
-        type="button"
-        aria-label={hasSavedDraft ? `${meta.name}: Entwurf fortsetzen` : `${meta.name} bearbeiten`}
-        onClick={() => {
-          edit.reset();
-          setWiki(hasWikiDraft && !hasAdfDraft);
-          setDraft({ value: initialValue(kind, current) });
-        }}
-        className={cn(
-          "group relative -mx-1.5 flex w-[calc(100%+0.75rem)] rounded-md px-1.5 py-0.5 text-left outline-none transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring",
-          className,
-        )}
-      >
-        <span className="min-w-0 flex-1">{children}</span>
-        <AnimatePresence initial={false}>
-          {hasSavedDraft && <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15, ease: EASE_OUT }} className="ml-2 shrink-0 self-start"><Badge variant="secondary">Entwurf</Badge></motion.span>}
-        </AnimatePresence>
-        <PencilIcon
-          aria-label={`${meta.name} bearbeiten`}
-          className="mt-0.5 size-3.5 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
-        />
-      </button>
+      <>
+        <button
+          type="button"
+          aria-label={hasSavedDraft ? `${meta.name}: Entwurf fortsetzen` : `${meta.name} bearbeiten`}
+          onClick={() => {
+            edit.reset();
+            setWiki(hasWikiDraft && !hasAdfDraft);
+            setDraft({ value: initialValue(kind, current) });
+          }}
+          className={cn(
+            "group relative -mx-1.5 flex w-[calc(100%+0.75rem)] rounded-md px-1.5 py-0.5 text-left outline-none transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring",
+            className,
+          )}
+        >
+          <span className="min-w-0 flex-1">{children}</span>
+          <AnimatePresence initial={false}>
+            {hasSavedDraft && <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15, ease: EASE_OUT }} className="ml-2 shrink-0 self-start"><Badge variant="secondary">Entwurf</Badge></motion.span>}
+          </AnimatePresence>
+          <PencilIcon
+            aria-label={`${meta.name} bearbeiten`}
+            className="mt-0.5 size-3.5 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
+          />
+        </button>
+        <ComponentLeadHints state={componentLeads} />
+      </>
     );
   }
 
@@ -262,6 +268,7 @@ export function EditableField({
         issueKey={issue.key}
         onChange={(value) => setDraft({ value })}
       />
+      <ComponentLeadHints state={componentLeads} />
       {[...errors.messages, ...Object.values(errors.fields)].map((message) => (
         <p key={message} role="alert" className="text-xs text-destructive">
           {message}

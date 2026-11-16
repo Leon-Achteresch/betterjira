@@ -1,0 +1,9 @@
+{
+  "components": [
+    {"id":"1","name":"Backend","project":"DEMO","projectId":101,"lead":{"accountId":"lead-a","displayName":"Alex Leitung","active":true,"avatarUrls":{"48x48":"https://jira.test/alex.png"}}},
+    {"id":"2","name":"Frontend","project":"DEMO","projectId":101,"lead":null,"assignee":{"accountId":"not-lead","displayName":"Standardbearbeiter"},"assigneeType":"PROJECT_DEFAULT"},
+    {"id":"3","name":"Archiv","project":"DEMO","projectId":101,"lead":{"accountId":"hidden"}},
+    {"id":"4","name":"Altbereich","project":"DEMO","projectId":101,"lead":{"displayName":"Robin Inaktiv","active":false}},
+    {"id":"5","name":"Anderes Projekt","project":"OTHER","projectId":202,"lead":{"displayName":"Fremde Leitung"}}
+  ]
+}

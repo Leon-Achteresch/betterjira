@@ -32,6 +32,7 @@ import { useJiraQueryScope } from "./use-jira-query-scope";
 import { freshTemplateTarget } from "@/lib/jira/create-metadata-query";
 import { applyTemplateToTarget, templateValueText } from "@/lib/jira/template-application";
 import { jiraQueryScopeMatches } from "@/lib/jira/query-scope";
+import { useComponentLeads } from "./use-component-leads";
 
 export type CreateIssueStatus = "no-project" | "loading" | "load-error" | "no-permission" | "no-types" | "blocked" | "parent-invalid" | "ready";
 
@@ -95,6 +96,8 @@ export function useCreateIssueForm(parentKey?: string) {
   const templateReport = savedDraft.templateReports?.[scope];
   const context = JSON.stringify([storage.id, projectId, issueType?.id, parentKey]);
   const latestContext = useLatestRef(context);
+  const componentInput = plan.inputs.find((input) => input.field.fieldId === "components");
+  const componentLeads = useComponentLeads({ project: project ? { key: project.key, id: project.id } : undefined, selection: componentInput ? inputValue(editableDraft, componentInput) : undefined, context });
   const missing = new Set(attempted ? missingFields(draft, plan) : []);
   const errors = createErrors(create.error, fieldList, plan);
   const loadError = (projects.data ? null : projects.error) ?? parent.error ?? permission.error ?? types.error ?? fields.error;
@@ -284,6 +287,7 @@ export function useCreateIssueForm(parentKey?: string) {
     errors,
     missing,
     valueOf: (input: CreateInput) => inputValue(editableDraft, input),
+    componentLeads,
     selectProject: (id: string) => {
       updateDraft((current) => ({ ...current, projectId: id, issueTypeId: undefined }));
       changeSelection();
