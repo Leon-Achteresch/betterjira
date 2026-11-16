@@ -7,15 +7,17 @@ import {
   isSubmittedFieldDraft,
   removeFieldDraft,
   replaceFieldDraft,
+  rebaseNewerFieldDraft,
   type FieldDraft,
 } from "@/lib/field-draft";
+import type { DescriptionBasis } from "@/lib/description-comparison";
 
 type FieldDraftState = {
   drafts: FieldDrafts;
   saving: readonly string[];
-  write: (id: string, text: string) => void;
+  write: (id: string, text: string, basis?: DescriptionBasis) => void;
   discard: (id: string) => void;
-  complete: (id: string, submitted: FieldDraft) => boolean;
+  complete: (id: string, submitted: FieldDraft, savedBasis?: DescriptionBasis) => boolean;
   beginSave: (id: string) => boolean;
   endSave: (id: string) => void;
 };
@@ -27,10 +29,13 @@ export const useFieldDraftStore = create<FieldDraftState>()(
     (set, get) => ({
       drafts: {},
       saving: [],
-      write: (id, text) => set(({ drafts }) => ({ drafts: replaceFieldDraft(drafts, id, text, crypto.randomUUID()) })),
+      write: (id, text, basis) => set(({ drafts }) => ({ drafts: replaceFieldDraft(drafts, id, text, crypto.randomUUID(), basis) })),
       discard: (id) => set(({ drafts }) => ({ drafts: removeFieldDraft(drafts, id) })),
-      complete: (id, submitted) => {
-        if (!isSubmittedFieldDraft(get().drafts[id], submitted)) return false;
+      complete: (id, submitted, savedBasis) => {
+        if (!isSubmittedFieldDraft(get().drafts[id], submitted)) {
+          set(({ drafts }) => ({ drafts: rebaseNewerFieldDraft(drafts, id, submitted, savedBasis) }));
+          return false;
+        }
         set(({ drafts }) => ({ drafts: clearSubmittedFieldDraft(drafts, id, submitted) }));
         return true;
       },

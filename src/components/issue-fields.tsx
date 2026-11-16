@@ -302,13 +302,14 @@ function WikiEditor({
     );
   }
   if (wiki.data === undefined) return <Spinner />;
-  return <StringFieldForm issueKey={issueKey} id={id} initial={wiki.data} mode="wiki" className={className} onDone={onDone} onSwitch={onSwitch} />;
+  return <StringFieldForm issueKey={issueKey} id={id} initial={wiki.data.text} initialRaw={wiki.data.raw} mode="wiki" className={className} onDone={onDone} onSwitch={onSwitch} />;
 }
 
 function StringFieldForm({
   issueKey,
   id,
   initial,
+  initialRaw,
   className,
   onDone,
   mode,
@@ -319,6 +320,7 @@ function StringFieldForm({
   issueKey: string;
   id: string;
   initial: string;
+  initialRaw?: unknown;
   className?: string;
   onDone: () => void;
   mode: "text" | "wiki" | "adf";
@@ -326,7 +328,7 @@ function StringFieldForm({
   issue?: JiraIssueDetail;
   onSwitch?: () => void;
 }) {
-  const editor = useFieldDraft({ issueKey, field: id, initial, mode, onClose: onDone });
+  const editor = useFieldDraft({ issueKey, field: id, initial, initialRaw: mode === "wiki" ? initialRaw : issue?.fields[id], mode, onClose: onDone });
   const reduce = useReducedMotion();
   const rendered = useIssueRendered(mode === "adf" && id === "description" ? issue : undefined);
   const doc = useMemo(() => (mode === "adf" ? (parseAdfDraft(editor.text) ?? parseAdfDraft(initial)) : undefined), [mode, editor.text, initial]);

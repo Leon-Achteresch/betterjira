@@ -1,5 +1,5 @@
 import { Effect, Schema } from "effect";
-import { jira, jiraImage, JiraApiError, jiraRedirectLocation, jiraSend } from "./client";
+import { jira, jiraImage, JiraApiError, jiraRedirectLocation, jiraSend, type JiraRequestScope } from "./client";
 import { worklogEstimateQuery } from "./worklog";
 import { mediaIdFromLocation } from "./adf-media";
 
@@ -69,14 +69,17 @@ export const attachmentImage = (id: string, variant: "thumbnail" | "content") =>
   jiraImage(`/attachment/${variant}/${id}?redirect=false`);
 export const editIssueWiki = (key: string, fields: Record<string, string>) =>
   jiraSend(issuePath(key), json("PUT", { fields }), "api/2");
-export const wikiField = (key: string, field: string) =>
+export const wikiField = (key: string, field: string, scope?: JiraRequestScope) =>
   jira(
     `${issuePath(key)}?fields=${encodeURIComponent(field)}`,
     WikiFields,
-    undefined,
+    { scope, cache: "no-store" },
     "api/2",
   ).pipe(
-    Effect.map(({ fields }) =>
-      typeof fields[field] === "string" ? fields[field] : "",
-    ),
+    Effect.flatMap(({ fields }) => {
+      const raw = fields[field];
+      return raw === null || typeof raw === "string"
+        ? Effect.succeed({ text: raw ?? "", raw })
+        : Effect.fail(new JiraApiError({ status: 502, body: "Das Wiki-Feld fehlt oder lässt sich nicht originalgetreu lesen." }));
+    }),
   );

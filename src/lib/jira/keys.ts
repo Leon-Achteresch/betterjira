@@ -8,6 +8,8 @@ export const jiraKeys = {
   attachment: (variant: string, id: string) => ["jira", "attachment", variant, id] as const,
   attachmentMediaId: (id: string) => ["jira", "attachment", "media-id", id] as const,
   wiki: (key: string, field: string) => ["jira", "wiki", key, field] as const,
+  wikiScoped: (key: string, field: string, scope: JiraQueryScope | undefined) => ["jira", "wiki", key, field, scope?.cloudId ?? "", scope?.accountId ?? ""] as const,
+  descriptionSave: (key: string, scope: JiraQueryScope | undefined) => ["jira", "description-save", key, scope?.cloudId ?? "", scope?.accountId ?? ""] as const,
   site: ["jira", "site"] as const,
   myself: ["jira", "myself"] as const,
   projects: ["jira", "projects"] as const,

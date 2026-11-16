@@ -1,0 +1,21 @@
+{
+  "base": {
+    "type": "doc", "version": 1,
+    "content": [
+      { "type": "paragraph", "content": [
+        { "type": "text", "text": "Ursprüngliche Beschreibung", "marks": [{ "type": "strong" }] },
+        { "type": "mention", "attrs": { "id": "account-a", "text": "@Anna", "localId": "mention-1" } }
+      ] },
+      { "type": "mediaSingle", "attrs": { "layout": "center" }, "content": [
+        { "type": "media", "attrs": { "id": "media-1", "type": "file", "collection": "attachments", "width": 640, "height": 480 } }
+      ] },
+      { "type": "table", "attrs": { "localId": "table-1" }, "content": [
+        { "type": "tableRow", "content": [{ "type": "tableCell", "attrs": { "colspan": 1 }, "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "A" }] }] }] }
+      ] }
+    ]
+  },
+  "local": { "type": "doc", "version": 1, "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "Lokale Ergänzung" }] }] },
+  "remote": { "type": "doc", "version": 1, "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "Ergänzung von Client B" }] }] },
+  "remote2": { "type": "doc", "version": 1, "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "Weitere Änderung von Client B" }] }] },
+  "wiki": { "base": "h2. Ausgangstext\n||Spalte A||Spalte B||\n|1|2|\n!bild.png!", "local": "h2. Lokaler Entwurf\n{code} a  b\n  c {code}", "remote": "h2. Fremde Ergänzung\n!anderes.png!" }
+}
