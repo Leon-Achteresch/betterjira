@@ -23,6 +23,7 @@ import { useCommentReplies } from "@/hooks/use-comment-replies";
 import { useIssueComments } from "@/hooks/use-issue-comments";
 import { EASE_OUT } from "@/lib/ease";
 import { commentSearchSummary } from "@/lib/jira/comment-search";
+import { commentEditAction } from "@/lib/jira/comment-edit";
 import { renderedComment, type RenderedSource } from "@/lib/jira/rendered-issue";
 import { IS_MAC } from "@/lib/platform";
 import { cn } from "@/lib/utils";
@@ -277,15 +278,19 @@ export function IssueComments({
                     viewFor={(comment) => {
                       const allowed = actions.allowedFor(comment);
                       const confirmed = pages.firstPageLoaded && !pages.embeddedOnly.has(comment.id);
+                      const edit = commentEditAction(comment, {
+                        confirmed,
+                        canEdit: allowed.canEdit,
+                        label: edits.editLabel(comment),
+                        disabledReason: edits.blockReason(comment),
+                        onEdit: edits.start,
+                      });
                       return {
+                        edit,
                         menu: confirmed ? (
                           <CommentActionsMenu
                             link={actions.linkFor(comment)}
-                            edit={
-                              allowed.canEdit
-                                ? { label: edits.editLabel(comment), disabledReason: edits.blockReason(comment), onSelect: () => edits.start(comment) }
-                                : undefined
-                            }
+                            edit={edit}
                             onDelete={allowed.canDelete ? () => deletion.request(thread, comment) : undefined}
                           />
                         ) : null,

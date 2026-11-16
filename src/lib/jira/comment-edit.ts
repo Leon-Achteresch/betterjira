@@ -1,4 +1,17 @@
 import { adfToEditor, editorToAdf, hasSendableContent, isAdfDoc, isBlankAdf, isEditableAdf, sameAdf, type AdfNode } from "./adf";
+import type { IssueComment } from "./comment-thread";
+
+export const commentEditAction = (comment: IssueComment, options: {
+  confirmed: boolean;
+  canEdit: boolean;
+  label: string;
+  disabledReason?: string;
+  onEdit: (comment: IssueComment) => void;
+}) => options.confirmed && options.canEdit ? {
+  label: options.label,
+  disabledReason: options.disabledReason,
+  onSelect: () => options.onEdit(comment),
+} : undefined;
 
 export const NOT_EDITABLE_HINT = "Enthält Inhalte, die sich nur in Jira bearbeiten lassen";
 

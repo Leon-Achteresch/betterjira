@@ -10,9 +10,11 @@ import { Button } from "@/components/ui/button";
 import { EASE_OUT } from "@/lib/ease";
 import type { CommentThread, IssueComment } from "@/lib/jira/comment-thread";
 import type { RenderedDoc } from "@/lib/jira/rendered-issue";
+import type { CommentEditAction } from "@/components/comment-actions-menu";
 
 export type CommentEntryView = {
   menu: ReactNode;
+  edit?: CommentEditAction;
   editedNote?: string;
   rendered?: RenderedDoc;
   editor: ReactNode;
@@ -84,12 +86,39 @@ function CommentEntry({
             className="flex flex-col gap-2"
           >
             <AdfContent doc={comment.body} rendered={view.rendered} className="pl-8" />
-            {onReply && replyLabel && (
-              <Button type="button" variant="ghost" size="xs" className="ml-6 self-start text-muted-foreground" onClick={() => onReply(comment)}>
-                <ReplyIcon />
-                {replyLabel}
-              </Button>
-            )}
+            <AnimatePresence initial={false}>
+              {(view.edit || (onReply && replyLabel)) && (
+                <motion.div
+                  key="actions"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0, transition: { duration: 0.1, ease: EASE_OUT } }}
+                  transition={{ duration: 0.15, ease: EASE_OUT }}
+                  className="ml-6 flex flex-wrap items-center gap-1 self-start"
+                >
+                  <AnimatePresence initial={false}>
+                    {view.edit && (
+                      <motion.span key="edit" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15, ease: EASE_OUT }}>
+                        <Tooltip content={view.edit.disabledReason}>
+                          <span tabIndex={view.edit.disabledReason ? 0 : undefined} className="inline-flex rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                            <Button type="button" variant="ghost" size="xs" className="min-h-8 rounded-xl text-muted-foreground" disabled={!!view.edit.disabledReason} onClick={view.edit.onSelect}>
+                              <PencilLineIcon />
+                              {view.edit.label}
+                            </Button>
+                          </span>
+                        </Tooltip>
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
+                  {onReply && replyLabel && (
+                    <Button type="button" variant="ghost" size="xs" className="min-h-8 rounded-xl text-muted-foreground" onClick={() => onReply(comment)}>
+                      <ReplyIcon />
+                      {replyLabel}
+                    </Button>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </motion.div>
         )}
       </AnimatePresence>
