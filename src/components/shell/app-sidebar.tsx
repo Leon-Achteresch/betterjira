@@ -225,7 +225,7 @@ export function AppSidebar() {
   const unread = useOwnedUnreadCount();
 
   return (
-    <Sidebar className="top-(--app-header-height) h-[calc(100svh-var(--app-header-height))] border-r-sidebar-border/60">
+    <Sidebar className="top-(--app-header-height) h-[calc(100svh-var(--app-header-height))] group-data-[side=left]:border-r-0">
       <SidebarContent className="gap-3 px-2 pt-3">
         <PrimaryNav counts={{ notifications: unread }} />
         {site.data && (

@@ -128,7 +128,7 @@ function Shell() {
   const sidebarOpen = useInterfaceState((state) => state.sidebarOpen);
   const setSidebarOpen = useInterfaceState((state) => state.setSidebarOpen);
   return (
-    <SidebarProvider open={sidebarOpen} onOpenChange={setSidebarOpen} className="h-dvh min-h-0 flex-col">
+    <SidebarProvider open={sidebarOpen} onOpenChange={setSidebarOpen} className="h-dvh min-h-0 flex-col bg-(--glass-chrome)">
       <SkipLink href="#app-scroll" onClick={main.skipToContent}>
         Zum Inhalt
       </SkipLink>

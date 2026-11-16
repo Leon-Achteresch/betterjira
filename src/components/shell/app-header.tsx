@@ -25,8 +25,7 @@ export function AppHeader() {
       data-tauri-drag-region="deep"
       className={cn(
         "relative z-20 flex h-[var(--app-header-height)] shrink-0 select-none items-center",
-        "glass-chrome border-b border-sidebar-border/50",
-        IS_MAC && "pl-[72px]",
+                IS_MAC && "pl-[72px]",
         USE_CUSTOM_WINDOW_CONTROLS && "pr-[110px] sm:pr-[140px]",
       )}
     >
