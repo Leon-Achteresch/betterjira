@@ -11,6 +11,7 @@ import { IssueTable } from "@/components/issue-table";
 import { IssuePreviewTooltip } from "@/components/issues/issue-preview";
 import { BoardSkeleton } from "@/components/issues/board-skeleton";
 import { BoardPlanning } from "@/components/issues/board-planning";
+import { SprintCompletionHint } from "@/components/issues/sprint-completion-hint";
 import { useBoardPlanning } from "@/hooks/jira/use-board-planning";
 import { LoadFailed, RefreshFailed } from "@/components/issues/load-recovery";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -636,6 +637,7 @@ function Board({
         )}
       </AnimatePresence>
       {board.type === "scrum" && <BoardPlanning plan={planning} />}
+      {!backlog && <SprintCompletionHint completion={sprints.sprintCompletion} />}
       {backlog ? (
         backlogJql.data ? (
           <IssueTable jql={backlogJql.data} />

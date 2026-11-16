@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { boardQuery, boardConfigQuery } from "@/lib/jira/board-query";
 import { boardGroups, type BoardIdentity } from "@/lib/jira/board";
+import { boardSprintCompletion } from "@/lib/jira/board-sprint-completion";
 import { useLoadMoreOnIntersection } from "@/hooks/use-load-more-on-intersection";
 import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Effect } from "effect";
@@ -52,5 +53,5 @@ export const useJiraBoard = (board: BoardIdentity, sprintId?: number, enabled = 
   const data = useMemo(() => query.data ? boardGroups(query.data) : undefined, [query.data]);
   const loadMore = () => { if (!query.isFetching) void query.fetchNextPage({ cancelRefetch: false }); };
   const sentinelRef = useLoadMoreOnIntersection(enabled && query.hasNextPage && !query.isFetching && !query.error, loadMore);
-  return { ...query, data, sentinelRef, loadMore };
+  return { ...query, data, sprintCompletion: boardSprintCompletion(query.data?.pages[0]?.metadata), sentinelRef, loadMore };
 };
