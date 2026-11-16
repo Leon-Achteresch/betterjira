@@ -4,12 +4,13 @@ import { toast } from "sonner";
 import { useJiraAddWorklog } from "@/hooks/jira/use-issue-mutations";
 import { normalizeDuration, normalizeRemainingEstimate, validateWorklog } from "@/lib/jira/worklog";
 import type { JiraIssueDetail } from "@/lib/jira/queries";
+import { issueTimeSummary } from "@/lib/jira/issue-time";
 
 const localNow = () => format(new Date(), "yyyy-MM-dd'T'HH:mm");
 
 export function useIssueWorklog(
   issueKey: string,
-  worklog: JiraIssueDetail["fields"]["worklog"],
+  fields: JiraIssueDetail["fields"],
 ) {
   const add = useJiraAddWorklog(issueKey);
   const [timeSpent, setTimeSpent] = useState("");
@@ -53,6 +54,7 @@ export function useIssueWorklog(
   };
 
   return {
+    summary: issueTimeSummary(fields),
     timeSpent,
     setTimeSpent,
     started,
@@ -68,7 +70,7 @@ export function useIssueWorklog(
       add.error?.message,
     canSubmit: !!timeSpent.trim() && !!started && !validation && !add.isPending,
     startNow: () => setStarted(localNow()),
-    entries: [...(worklog?.worklogs ?? [])].sort(
+    entries: [...(fields.worklog?.worklogs ?? [])].sort(
       (a, b) => Date.parse(b.started) - Date.parse(a.started),
     ),
   };

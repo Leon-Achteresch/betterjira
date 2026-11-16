@@ -9,7 +9,8 @@ import { commentPageKeys, embeddedCommentsChanged, pagesOutdatedBy } from "@/lib
 import { RawComment } from "@/lib/jira/comment-thread";
 import { JiraStatus } from "@/lib/jira/status";
 import { JiraUser } from "@/lib/jira/user";
-import { withJiraQueryScope, type JiraQueryScope } from "@/lib/jira/query-scope";
+import { jiraRequestScope, withJiraQueryScope, type JiraQueryScope } from "@/lib/jira/query-scope";
+import { ISSUE_TIME_FIELDS } from "@/lib/jira/issue-time";
 
 export { jiraKeys } from "@/lib/jira/keys";
 import { jiraKeys } from "@/lib/jira/keys";
@@ -240,13 +241,7 @@ const IssueDetail = Schema.Struct({
           }),
         ),
       ),
-      timetracking: Schema.optional(
-        Schema.Struct({
-          originalEstimate: Schema.optional(Schema.String),
-          remainingEstimate: Schema.optional(Schema.String),
-          timeSpent: Schema.optional(Schema.String),
-        }),
-      ),
+      ...ISSUE_TIME_FIELDS,
       worklog: Schema.optional(
         Schema.Struct({
           total: Schema.Number,
@@ -275,7 +270,7 @@ export const issueQuery = (key: string, scope: JiraQueryScope | undefined, clien
   queryFn: async ({ signal }: { signal: AbortSignal }) => {
     const startedAt = Date.now();
     const issue = await Effect.runPromise(
-      withJiraQueryScope(client, scope, jira(`/issue/${encodeURIComponent(key)}?fields=*all&expand=names,editmeta`, IssueDetail)),
+      withJiraQueryScope(client, scope, jira(`/issue/${encodeURIComponent(key)}?fields=*all&expand=names,editmeta`, IssueDetail, { scope: scope && jiraRequestScope(client, scope) })),
       { signal },
     );
     const previous = client.getQueryData<JiraIssueDetail>(jiraKeys.issueDetail(key, scope));

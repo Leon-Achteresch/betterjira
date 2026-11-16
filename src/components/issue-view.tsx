@@ -205,7 +205,7 @@ export function IssueView({
         <IssueActions
           actions={actions}
           attachmentCount={attachmentCount}
-          timeSpent={fields.timetracking?.timeSpent}
+          timeSpent={fields.timetracking?.timeSpent ?? undefined}
           refreshing={view.refreshing}
           onRefresh={view.refresh}
         />

@@ -8,37 +8,23 @@ import { useIssueWorklog } from "@/hooks/use-issue-worklog";
 import { EASE_OUT } from "@/lib/ease";
 import { WORKLOG_PRESETS } from "@/lib/jira/worklog";
 import type { JiraIssueDetail } from "@/lib/jira/queries";
+import { IssueTimeSummaryPanel } from "@/components/issues/issue-time-summary";
 
 type Fields = JiraIssueDetail["fields"];
 
 export function IssueWorklog({
   issueKey,
-  timetracking,
-  worklog,
+  fields,
 }: {
   issueKey: string;
-  timetracking: Fields["timetracking"];
-  worklog: Fields["worklog"];
+  fields: Fields;
 }) {
-  const editor = useIssueWorklog(issueKey, worklog);
+  const editor = useIssueWorklog(issueKey, fields);
   const reduce = useReducedMotion();
 
   return (
     <div className="flex flex-col gap-4">
-      <dl className="grid grid-cols-3 gap-3 text-sm">
-        {(
-          [
-            ["Geschätzt", timetracking?.originalEstimate],
-            ["Erfasst", timetracking?.timeSpent],
-            ["Verbleibend", timetracking?.remainingEstimate],
-          ] as const
-        ).map(([label, value]) => (
-          <div key={label} className="rounded-lg bg-muted/50 px-3 py-2">
-            <dt className="text-xs text-muted-foreground">{label}</dt>
-            <dd className="font-medium tabular-nums">{value ?? "–"}</dd>
-          </div>
-        ))}
-      </dl>
+      <IssueTimeSummaryPanel summary={editor.summary} />
 
       <form onSubmit={editor.submit} className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center gap-1.5">
@@ -153,9 +139,9 @@ export function IssueWorklog({
           ))}
         </ol>
       )}
-      {worklog && worklog.total > worklog.worklogs.length && (
+      {fields.worklog && fields.worklog.total > fields.worklog.worklogs.length && (
         <p className="text-xs text-muted-foreground">
-          {worklog.worklogs.length} von {worklog.total} Einträgen angezeigt.
+          {fields.worklog.worklogs.length} von {fields.worklog.total} Einträgen angezeigt.
         </p>
       )}
     </div>
