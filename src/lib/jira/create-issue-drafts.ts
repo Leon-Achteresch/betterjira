@@ -1,9 +1,19 @@
 import { Schema } from "effect";
-import { isAdfDoc } from "./adf";
+import { isAdfDoc, isEditableAdf } from "./adf";
 import type { CreateDraft, CreateInput, CreatePlan } from "./create-issue-form";
-import { isEmpty, optionsOf } from "./field-values";
+import { isEmpty as emptyFieldValue, optionsOf } from "./field-values";
 
 export const CREATE_DRAFT_STORAGE_KEY = "betterjira-create-drafts";
+
+export const TemplateApplicationReport = Schema.Struct({
+  templateId: Schema.String,
+  templateName: Schema.String,
+  sourceProjectId: Schema.String,
+  sourceIssueTypeId: Schema.String,
+  appliedFields: Schema.optional(Schema.Array(Schema.String)),
+  skipped: Schema.Array(Schema.Struct({ fieldId: Schema.String, label: Schema.String, value: Schema.Unknown, reason: Schema.String })),
+});
+export type TemplateApplicationReport = typeof TemplateApplicationReport.Type;
 
 export const CreationDraft = Schema.Struct({
   projectId: Schema.optional(Schema.String),
@@ -11,6 +21,7 @@ export const CreationDraft = Schema.Struct({
   summary: Schema.String,
   description: Schema.Unknown,
   values: Schema.Record(Schema.String, Schema.Record(Schema.String, Schema.Unknown)),
+  templateReports: Schema.optional(Schema.Record(Schema.String, TemplateApplicationReport)),
 });
 
 export type CreationDraft = typeof CreationDraft.Type;
@@ -23,6 +34,9 @@ export const IssueTemplate = Schema.Struct({
   summary: Schema.String,
   description: Schema.Unknown,
   values: Schema.Record(Schema.String, Schema.Unknown),
+  projectName: Schema.optional(Schema.String),
+  issueTypeName: Schema.optional(Schema.String),
+  fieldNames: Schema.optional(Schema.Record(Schema.String, Schema.String)),
 });
 
 export type IssueTemplate = typeof IssueTemplate.Type;
@@ -42,6 +56,12 @@ const Persisted = Schema.Struct({ workspaces: Schema.Record(Schema.String, Schem
 const OptionReference = Schema.Struct({ id: Schema.String, child: Schema.optional(Schema.Struct({ id: Schema.String })) });
 const UserReference = Schema.Struct({ accountId: Schema.String });
 
+export const isEmptyCreationValue = (value: unknown) => {
+  try { return emptyFieldValue(value); } catch { return false; }
+};
+
+const isEmpty = isEmptyCreationValue;
+
 export function readCreationWorkspaces(value: unknown): Record<string, CreationWorkspace> {
   if (!Schema.is(Persisted)(value)) return {};
   return Object.fromEntries(Object.entries(value.workspaces).filter((entry): entry is [string, CreationWorkspace] =>
@@ -53,12 +73,13 @@ export const creationFieldScope = (projectId: string | undefined, issueTypeId: s
   JSON.stringify([projectId ?? "", issueTypeId ?? ""]);
 
 export const hasCreationContent = (draft: CreationDraft) =>
-  !!draft.summary.trim() || !isEmpty(draft.description) || Object.values(draft.values).some((fields) => Object.values(fields).some((value) => !isEmpty(value)));
+  !!draft.summary.trim() || !isEmpty(draft.description) || Object.values(draft.values).some((fields) => Object.values(fields).some((value) => !isEmpty(value)))
+  || Object.values(draft.templateReports ?? {}).some((report) => report.skipped.length > 0);
 
 function validInput(input: CreateInput, value: unknown, editing: boolean): boolean {
   const { kind, field } = input;
   if (isEmpty(value)) return true;
-  if (kind === "richtext") return isAdfDoc(value);
+  if (kind === "richtext") return isAdfDoc(value) && isEditableAdf(value);
   if (kind === "text" || kind === "list" || kind === "date") return typeof value === "string";
   if (kind === "datetime") return typeof value === "string" && (editing || Number.isFinite(new Date(value).getTime()));
   if (kind === "number") return (typeof value === "string" || typeof value === "number") && (editing || Number.isFinite(Number(value)));
@@ -80,7 +101,7 @@ export function validatedCreationDraft(draft: CreateDraft, plan: CreatePlan, edi
     if (input && validInput(input, value, editing)) values[id] = value;
     else if (!isEmpty(value)) removed.push(input?.field.name ?? id);
   }
-  const description = isAdfDoc(draft.description) ? draft.description : null;
+  const description = isAdfDoc(draft.description) && isEditableAdf(draft.description) ? draft.description : null;
   if (!isEmpty(draft.description) && !description) removed.push("Beschreibung");
   return { draft: { summary: draft.summary, description, values }, removed };
 }

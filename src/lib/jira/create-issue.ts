@@ -63,36 +63,39 @@ export type CreatedIssue = typeof CreatedIssue.Type;
 
 export type CreateIssuePayload = { fields: Record<string, unknown> };
 
+export class CreateMetadataError extends Data.TaggedError("CreateMetadataError")<{ message: string }> {}
+
 const paged = <T>(load: (startAt: number) => Effect.Effect<{ items: readonly T[]; total?: number }, unknown>) =>
   Effect.gen(function* () {
     const all: T[] = [];
     for (let page = 0; page < MAX_PAGES; page++) {
       const { items, total } = yield* load(all.length);
       all.push(...items);
-      if (items.length === 0 || all.length >= (total ?? all.length)) break;
+      if (total !== undefined ? all.length >= total : items.length < PAGE_SIZE) return all;
+      if (items.length === 0) return yield* new CreateMetadataError({ message: "Jira liefert unvollständige Erstellungsmetadaten. Bitte erneut laden." });
     }
-    return all;
+    return yield* new CreateMetadataError({ message: "Die Erstellungsmetadaten überschreiten das Seitenlimit. Die Vorlage wurde nicht angewendet." });
   });
 
 const metaPath = (projectId: string) => `/issue/createmeta/${encodeURIComponent(projectId)}/issuetypes`;
 const pageQuery = (startAt: number) => `startAt=${startAt}&maxResults=${PAGE_SIZE}`;
 
-export const createIssueTypes = (projectId: string) =>
+export const createIssueTypes = (projectId: string, scope?: JiraRequestScope) =>
   paged((startAt) =>
-    jira(`${metaPath(projectId)}?${pageQuery(startAt)}`, IssueTypePage).pipe(
+    jira(`${metaPath(projectId)}?${pageQuery(startAt)}`, IssueTypePage, { scope, cache: "no-store" }).pipe(
       Effect.map((page) => ({ items: page.issueTypes ?? page.createMetaIssueType ?? [], total: page.total })),
     ),
   );
 
-export const createFields = (projectId: string, issueTypeId: string) =>
+export const createFields = (projectId: string, issueTypeId: string, scope?: JiraRequestScope) =>
   paged((startAt) =>
-    jira(`${metaPath(projectId)}/${encodeURIComponent(issueTypeId)}?${pageQuery(startAt)}`, FieldPage).pipe(
+    jira(`${metaPath(projectId)}/${encodeURIComponent(issueTypeId)}?${pageQuery(startAt)}`, FieldPage, { scope, cache: "no-store" }).pipe(
       Effect.map((page) => ({ items: page.fields ?? page.results ?? [], total: page.total })),
     ),
   );
 
-export const canCreateIssues = (projectId: string) =>
-  jira(`/mypermissions?${new URLSearchParams({ projectId, permissions: "CREATE_ISSUES" })}`, Permissions).pipe(
+export const canCreateIssues = (projectId: string, scope?: JiraRequestScope) =>
+  jira(`/mypermissions?${new URLSearchParams({ projectId, permissions: "CREATE_ISSUES" })}`, Permissions, { scope, cache: "no-store" }).pipe(
     Effect.map(({ permissions }) => permissions.CREATE_ISSUES?.havePermission === true),
   );
 

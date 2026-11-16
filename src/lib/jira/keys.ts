@@ -44,6 +44,9 @@ export const jiraKeys = {
   createIssueTypes: (projectId: string) => ["jira", "create-meta", projectId] as const,
   createFields: (projectId: string, issueTypeId: string) => ["jira", "create-meta", projectId, issueTypeId] as const,
   createPermission: (projectId: string) => ["jira", "create-permission", projectId] as const,
+  createPermissionScoped: (projectId: string, scope: JiraQueryScope | undefined) => ["jira", "create-permission", projectId, scope?.cloudId ?? "", scope?.accountId ?? ""] as const,
+  createIssueTypesScoped: (projectId: string, scope: JiraQueryScope | undefined) => ["jira", "create-meta", projectId, "types", scope?.cloudId ?? "", scope?.accountId ?? ""] as const,
+  createFieldsScoped: (projectId: string, typeId: string, scope: JiraQueryScope | undefined) => ["jira", "create-meta", projectId, typeId, "fields", scope?.cloudId ?? "", scope?.accountId ?? ""] as const,
   allIssueCounts: ["jira", "issues", "count"] as const,
   boardReconcile: (id: number, sprint: number | undefined, keys: readonly string[], token?: string) =>
     ["jira", "board-reconcile", id, sprint ?? "open", [...keys].sort(), token ?? "first"] as const,

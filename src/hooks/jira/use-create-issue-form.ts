@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
-import { useIsMutating } from "@tanstack/react-query";
+import { useIsMutating, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { toast } from "sonner";
@@ -25,9 +25,13 @@ import {
   validatedCreationDraft,
   type CreationDraft,
   type IssueTemplate,
+  isEmptyCreationValue as isEmpty,
 } from "@/lib/jira/create-issue-drafts";
-import { isEmpty } from "@/lib/jira/field-values";
 import { useJiraProjects, useJiraSite } from "@/lib/jira/queries";
+import { useJiraQueryScope } from "./use-jira-query-scope";
+import { freshTemplateTarget } from "@/lib/jira/create-metadata-query";
+import { applyTemplateToTarget, templateValueText } from "@/lib/jira/template-application";
+import { jiraQueryScopeMatches } from "@/lib/jira/query-scope";
 
 export type CreateIssueStatus = "no-project" | "loading" | "load-error" | "no-permission" | "no-types" | "blocked" | "parent-invalid" | "ready";
 
@@ -38,6 +42,11 @@ export function useCreateIssueForm(parentKey?: string) {
   const site = useJiraSite();
   const projects = useJiraProjects();
   const create = useCreateIssue();
+  const client = useQueryClient();
+  const { scope: accountScope } = useJiraQueryScope();
+  const applying = useRef(false);
+  const [templatesPending, setTemplatesPending] = useState(false);
+  const [templateFailure, setTemplateFailure] = useState<{ context: string; message: string }>();
   const submitting = useRef(false);
   const mounted = useRef(true);
   const pending = useIsMutating({ mutationKey: ["jira", "create-issue"] }) > 0;
@@ -66,7 +75,9 @@ export function useCreateIssueForm(parentKey?: string) {
   const permission = useCreatePermission(projectId);
   const types = useCreateIssueTypes(projectId, permission.data === true);
   const typeList = (types.data ?? []).filter((type) => !parentKey || type.subtask);
-  const issueType = typeList.find((type) => type.id === chosenTypeId && (!!parentKey === !!type.subtask)) ?? (parentKey ? typeList[0] : defaultIssueType(typeList));
+  const issueType = chosenTypeId
+    ? typeList.find((type) => type.id === chosenTypeId && (!!parentKey === !!type.subtask))
+    : parentKey ? typeList[0] : defaultIssueType(typeList);
   const fields = useCreateFields(projectId, issueType?.id);
   const fieldList = fields.data ?? [];
   const plan = planFields(fieldList, parentKey);
@@ -74,8 +85,16 @@ export function useCreateIssueForm(parentKey?: string) {
   const validation = validatedCreationDraft({ summary, description, values: values[scope] ?? {} }, plan);
   const editableDraft = validatedCreationDraft({ summary, description, values: values[scope] ?? {} }, plan, true).draft;
   const draft = validation.draft;
-  const templates = allTemplates.filter((template) => template.projectId === projectId && template.issueTypeId === issueType?.id);
-  const templateNameExists = templates.some(({ name }) => name.toLocaleLowerCase() === templateName.trim().toLocaleLowerCase());
+  const localTemplates = allTemplates.filter((template) => template.projectId === projectId && template.issueTypeId === issueType?.id);
+  const templates = allTemplates.map((template) => ({
+    ...template,
+    sourceLabel: `${template.projectName ?? projectList.find((entry) => entry.id === template.projectId)?.name ?? `Projekt ${template.projectId}`} · ${template.issueTypeName ?? `Typ ${template.issueTypeId}`}`,
+    sameTarget: template.projectId === projectId && template.issueTypeId === issueType?.id,
+  })).sort((a, b) => Number(b.sameTarget) - Number(a.sameTarget) || a.name.localeCompare(b.name, "de"));
+  const templateNameExists = localTemplates.some(({ name }) => name.toLocaleLowerCase() === templateName.trim().toLocaleLowerCase());
+  const templateReport = savedDraft.templateReports?.[scope];
+  const context = JSON.stringify([storage.id, projectId, issueType?.id, parentKey]);
+  const latestContext = useLatestRef(context);
   const missing = new Set(attempted ? missingFields(draft, plan) : []);
   const errors = createErrors(create.error, fieldList, plan);
   const loadError = (projects.data ? null : projects.error) ?? parent.error ?? permission.error ?? types.error ?? fields.error;
@@ -103,11 +122,12 @@ export function useCreateIssueForm(parentKey?: string) {
   const changeSelection = () => {
     create.reset();
     setAttempted(false);
+    setTemplateFailure(undefined);
   };
 
   const submit = (event?: FormEvent) => {
     event?.preventDefault();
-    if (submitting.current || pending || status !== "ready" || !projectId || !issueType) return;
+    if (submitting.current || pending || applying.current || status !== "ready" || !projectId || !issueType) return;
     setAttempted(true);
     const firstMissing = missingFields(draft, plan)[0];
     if (firstMissing) {
@@ -157,33 +177,54 @@ export function useCreateIssueForm(parentKey?: string) {
   const saveTemplate = () => {
     const account = storage.id;
     const name = templateName.trim();
-    if (!account || !name || !projectId || !issueType || status !== "ready" || templateNameExists || !hasCreationContent(savedDraft)) return;
-    const template: IssueTemplate = { ...draft, id: crypto.randomUUID(), name, projectId, issueTypeId: issueType.id };
+    if (!account || latestAccount.current !== account || applying.current || !name || !projectId || !issueType || status !== "ready" || templateNameExists || !hasCreationContent(savedDraft)) return;
+    const template: IssueTemplate = { ...draft, id: crypto.randomUUID(), name, projectId, issueTypeId: issueType.id,
+      projectName: project?.name, issueTypeName: issueType.name, fieldNames: Object.fromEntries(fieldList.map((field) => [field.fieldId, field.name])),
+    };
     storage.update(account, (workspace) => ({ ...workspace, templates: [...workspace.templates, template] }));
     setTemplateName("");
     toast.success("Vorlage gespeichert");
   };
 
-  const applyTemplate = (template: IssueTemplate) => {
+  const applyTemplate = async (selection: IssueTemplate) => {
     const account = storage.id;
-    if (!account || status !== "ready" || template.projectId !== projectId || template.issueTypeId !== issueType?.id) return;
+    const template = allTemplates.find((entry) => entry.id === selection.id);
+    if (!account || latestAccount.current !== account || latestContext.current !== context || pending || applying.current || status !== "ready" || !projectId || !issueType || !template) return;
     const before = savedDraft;
-    const checked = validatedCreationDraft(template, plan);
-    const replacement = { ...savedDraft, summary: checked.draft.summary, description: checked.draft.description, values: { ...values, [scope]: checked.draft.values } };
-    updateDraft(() => replacement);
-    changeSelection();
-    setTemplatesOpen(false);
-    toast.success(checked.removed.length ? "Vorlage angewendet; veraltete Felder bitte neu ausfüllen" : "Vorlage angewendet", {
-      action: { label: "Rückgängig", onClick: () => storage.update(account, (workspace) => ({
-        ...workspace,
-        draft: workspace.draft === replacement ? before : workspace.draft,
-      })) },
-    });
+    applying.current = true;
+    setTemplatesPending(true);
+    setTemplateFailure(undefined);
+    try {
+      const target = await freshTemplateTarget(client, accountScope, { projectId, issueTypeId: issueType.id, parentKey });
+      if (!mounted.current || latestContext.current !== context || !jiraQueryScopeMatches(client, accountScope)) return;
+      let replacement: CreationDraft | undefined;
+      storage.update(account, (workspace) => {
+        if (workspace.draft !== before || !workspace.templates.includes(template)) return workspace;
+        replacement = applyTemplateToTarget(workspace.draft, template, target);
+        return { ...workspace, draft: replacement };
+      });
+      if (!replacement) {
+        setTemplateFailure({ context, message: "Entwurf oder Vorlage hat sich geändert. Wähle die Vorlage erneut; deine Eingaben bleiben erhalten." });
+        return;
+      }
+      changeSelection();
+      setTemplatesOpen(false);
+      toast.success(replacement.templateReports?.[scope]?.appliedFields?.length ? "Vorlage im Zielprojekt angewendet" : "Vorlage geprüft; keine passenden Werte übernommen", {
+        action: { label: "Rückgängig", onClick: () => storage.update(account, (workspace) => ({
+          ...workspace, draft: workspace.draft === replacement ? before : workspace.draft,
+        })) },
+      });
+    } catch (error) {
+      if (mounted.current && latestContext.current === context) setTemplateFailure({ context, message: error instanceof Error && error.message ? error.message : "Zielangaben konnten nicht frisch geprüft werden. Die Vorlage wurde nicht angewendet." });
+    } finally {
+      applying.current = false;
+      if (mounted.current) setTemplatesPending(false);
+    }
   };
 
   const removeTemplate = (template: IssueTemplate) => {
     const account = storage.id;
-    if (!account) return;
+    if (!account || latestAccount.current !== account) return;
     storage.update(account, (workspace) => ({ ...workspace, templates: workspace.templates.filter(({ id }) => id !== template.id) }));
     toast.success("Vorlage gelöscht", {
       action: { label: "Rückgängig", onClick: () => storage.update(account, (workspace) => ({
@@ -204,6 +245,13 @@ export function useCreateIssueForm(parentKey?: string) {
     createAnother,
     setCreateAnother,
     templates,
+    templateGroups: [
+      { id: "target", label: "Für dieses Projekt und diesen Typ", templates: templates.filter((template) => template.sameTarget) },
+      { id: "other", label: "Weitere Vorlagen dieses Kontos", templates: templates.filter((template) => !template.sameTarget) },
+    ].filter((group) => group.templates.length > 0),
+    templatesPending,
+    templateError: templateFailure?.context === context ? templateFailure.message : undefined,
+    templateReport: templateReport && { ...templateReport, targetLabel: `${project?.name ?? projectId} · ${issueType?.name ?? ""}`, skipped: templateReport.skipped.map((entry) => ({ ...entry, displayValue: templateValueText(entry.value) })) },
     templatesOpen,
     setTemplatesOpen,
     templateName,
@@ -225,6 +273,7 @@ export function useCreateIssueForm(parentKey?: string) {
     project,
     issueTypes: typeList,
     issueType,
+    missingIssueType: !!chosenTypeId && !issueType && typeList.length > 0,
     plan,
     summary,
     description: draft.description,

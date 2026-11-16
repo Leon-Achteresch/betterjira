@@ -1,0 +1,23 @@
+{
+  "template": {
+    "id": "template-source", "name": "Fehlerbericht", "projectId": "source", "issueTypeId": "source-type", "projectName": "Quelle", "issueTypeName": "Bug",
+    "summary": "Aus der Vorlage",
+    "description": { "type": "doc", "version": 1, "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "Details" }] }] },
+    "values": {
+      "project": { "id": "source" }, "issuetype": { "id": "source-type" }, "status": { "id": "done" },
+      "priority": { "id": "high", "name": "Hoch" }, "customer": "ACME", "points": "NaN", "due": "2026-02-30",
+      "assignee": { "accountId": "source-user" }, "choice": { "id": "parent", "child": { "id": "old-child" } }, "old_field": { "arbitrary": ["unverändert", 42] }
+    },
+    "fieldNames": { "old_field": "Altes Quellfeld" }
+  },
+  "fields": [
+    { "fieldId": "summary", "name": "Titel", "required": true, "schema": { "type": "string", "system": "summary" } },
+    { "fieldId": "description", "name": "Beschreibung", "required": false, "schema": { "type": "string", "system": "description" }, "operations": ["set"] },
+    { "fieldId": "priority", "name": "Priorität", "required": true, "schema": { "type": "priority" }, "allowedValues": [{ "id": "high", "name": "Dringend" }, { "id": "low", "name": "Niedrig" }, { "id": "disabled", "disabled": true }] },
+    { "fieldId": "customer", "name": "Kunde", "required": true, "schema": { "type": "string" } },
+    { "fieldId": "points", "name": "Punkte", "required": true, "schema": { "type": "number" } },
+    { "fieldId": "due", "name": "Fälligkeit", "required": true, "schema": { "type": "date" } },
+    { "fieldId": "assignee", "name": "Bearbeiter", "required": true, "schema": { "type": "user" } },
+    { "fieldId": "choice", "name": "Kategorie", "required": true, "schema": { "type": "option-with-child" }, "allowedValues": [{ "id": "parent", "children": [{ "id": "valid-child" }] }] }
+  ]
+}

@@ -4,6 +4,7 @@ import { AlertCircleIcon, ExternalLinkIcon, InfoIcon, LockIcon, RotateCwIcon } f
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { AdfEditor } from "@/components/adf-editor";
 import { TemplateMenu } from "@/components/create-issue/template-menu";
+import { TemplateApplicationNotice } from "@/components/create-issue/template-application-notice";
 import { Checkbox } from "@/components/motion/checkbox";
 import { JiraFieldInput } from "@/components/jira-field-input";
 import { ProjectAvatar } from "@/components/shell/project-avatar";
@@ -88,7 +89,7 @@ export function CreateIssueForm({ form }: { form: CreateIssueFormModel }) {
   const leave = { opacity: 0, transition: { duration: 0.12, ease: EASE_OUT } };
   const fieldError = (id: string, label: string) => form.errors.fields[id] ?? (form.missing.has(id) ? `${label} fehlt` : undefined);
   const notice = form.status in NOTICES ? NOTICES[form.status as keyof typeof NOTICES] : undefined;
-  const canSubmit = form.status === "ready" && !form.pending;
+  const canSubmit = form.status === "ready" && !form.pending && !form.templatesPending;
 
   return (
     <form onSubmit={form.submit} onKeyDown={form.onKeyDown} aria-busy={form.pending} className="flex flex-col gap-6" noValidate>
@@ -143,6 +144,10 @@ export function CreateIssueForm({ form }: { form: CreateIssueFormModel }) {
           {form.hasDraft && <Button type="button" variant="ghost" onClick={form.discardDraft}>Entwurf verwerfen</Button>}
           <TemplateMenu form={form} />
         </div>
+        <TemplateApplicationNotice report={form.templateReport} />
+        <AnimatePresence initial={false}>
+          {form.templateError && !form.templatesOpen && <motion.p key="template-error" role="alert" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15, ease: EASE_OUT }} className="text-xs text-destructive">{form.templateError}</motion.p>}
+        </AnimatePresence>
         <AnimatePresence initial={false}>
           {form.staleFields.length > 0 && (
             <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15, ease: EASE_OUT }} role="status" className="text-xs text-muted-foreground">
@@ -234,7 +239,9 @@ export function CreateIssueForm({ form }: { form: CreateIssueFormModel }) {
                 <notice.icon />
                 <AlertTitle>{notice.title}</AlertTitle>
                 <AlertDescription>
-                  <p>{form.parentKey && form.status === "no-types" ? "Für dieses Projekt sind keine Unteraufgabentypen verfügbar." : notice.text}</p>
+                  <p>{form.status === "no-types" && form.missingIssueType
+                    ? "Der zuvor gewählte Vorgangstyp ist hier nicht mehr verfügbar. Wähle den Zieltyp ausdrücklich erneut."
+                    : form.parentKey && form.status === "no-types" ? "Für dieses Projekt sind keine Unteraufgabentypen verfügbar." : notice.text}</p>
                   {form.status === "blocked" && (
                     <ul className="mt-1 list-disc pl-5">
                       {form.plan.blocked.map((field) => (

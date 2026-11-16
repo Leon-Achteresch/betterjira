@@ -83,6 +83,24 @@ describe("Create-Metadaten", () => {
     });
     expect(await Effect.runPromise(canCreateIssues("10000"))).toBe(false);
   });
+
+  it("verwirft eine leere Zwischenseite statt unvollständige Metadaten als vollständig auszugeben", async () => {
+    responses.set(`${META}?startAt=0&maxResults=100`, { total: 1, issueTypes: [] });
+    await expect(Effect.runPromise(createIssueTypes("10000"))).rejects.toMatchObject({ _tag: "CreateMetadataError" });
+  });
+
+  it("meldet das Seitenlimit statt einen abgeschnittenen Feld-/Typbestand anzuwenden", async () => {
+    for (let startAt = 0; startAt < 20; startAt++) responses.set(`${META}?startAt=${startAt}&maxResults=100`, { total: 21, issueTypes: [{ id: String(startAt), name: "Typ" }] });
+    await expect(Effect.runPromise(createIssueTypes("10000"))).rejects.toMatchObject({ _tag: "CreateMetadataError" });
+    expect(requests).toHaveLength(20);
+  });
+
+  it("bindet Metadatenreads an den Requestscope und umgeht den HTTP-Cache", async () => {
+    responses.set(`${META}?startAt=0&maxResults=100`, { total: 1, issueTypes: [{ id: "7", name: "Bug" }] });
+    const scope = { cloudId: "site", isCurrent: () => true };
+    await Effect.runPromise(createIssueTypes("10000", scope));
+    expect(requests[0].init).toMatchObject({ scope, cache: "no-store" });
+  });
 });
 
 describe("createIssue", () => {
