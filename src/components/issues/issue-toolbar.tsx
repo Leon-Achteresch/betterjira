@@ -22,6 +22,7 @@ import { ColumnPicker } from "@/components/issues/column-picker";
 import { FacetMenu, FacetOptionIcon } from "@/components/issues/facet-menu";
 import { NameDialog } from "@/components/issues/name-dialog";
 import { ViewImportContent } from "@/components/issues/view-import-content";
+import { LabelComparisonContent } from "@/components/issues/label-comparison-content";
 import { Tooltip } from "@/components/motion/tooltip";
 import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
@@ -100,7 +101,7 @@ function ViewMenu({
   const [saving, setSaving] = useState(false);
   return (
     <>
-      <Popover open={table.transfer.open} onOpenChange={table.transfer.setOpen}>
+      <Popover open={table.transfer.open || table.labelComparison.open} onOpenChange={(open) => { if (!open) { table.transfer.setOpen(false); table.labelComparison.setOpen(false); } }}>
       <DropdownMenu>
         <Tooltip content="Ansicht und Export">
         <PopoverAnchor asChild>
@@ -111,7 +112,7 @@ function ViewMenu({
         </DropdownMenuTrigger>
         </PopoverAnchor>
         </Tooltip>
-        <DropdownMenuContent align="end" className="min-w-60 [&_[role=menuitem]]:min-h-8 [&_[role=menuitem]]:rounded-xl" onCloseAutoFocus={(event) => { if (table.transfer.open) event.preventDefault(); }}>
+        <DropdownMenuContent align="end" className="min-w-60 [&_[role=menuitem]]:min-h-8 [&_[role=menuitem]]:rounded-xl" onCloseAutoFocus={(event) => { if (table.transfer.open || table.labelComparison.open) event.preventDefault(); }}>
           <DropdownMenuSub>
             <DropdownMenuSubTrigger>
               <GroupIcon />
@@ -139,6 +140,7 @@ function ViewMenu({
             Kompakte Zeilen
           </DropdownMenuCheckboxItem>
           <DropdownMenuSeparator />
+          <DropdownMenuItem disabled={table.labelComparison.disabled} onSelect={() => table.labelComparison.setOpen(true)}>Labelvarianten vergleichen…</DropdownMenuItem>
           <DropdownMenuSub>
             <DropdownMenuSubTrigger>
               <ClipboardCopyIcon />
@@ -215,8 +217,8 @@ function ViewMenu({
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-      <PopoverContent align="end" aria-label="Ansicht importieren" className="w-[min(26rem,calc(100vw-2rem))]">
-        <ViewImportContent transfer={table.transfer} />
+      <PopoverContent align="end" aria-label={table.labelComparison.open ? "Labelvarianten vergleichen" : "Ansicht importieren"} className="max-h-[min(42rem,85vh)] w-[min(26rem,calc(100vw-2rem))] overflow-y-auto rounded-2xl">
+        {table.labelComparison.open ? <LabelComparisonContent state={table.labelComparison} /> : <ViewImportContent transfer={table.transfer} />}
       </PopoverContent>
       </Popover>
       <NameDialog
