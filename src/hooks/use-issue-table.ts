@@ -11,8 +11,9 @@ import { useIssueSearch } from "@/hooks/jira/use-issue-search";
 import { useIssueSelection } from "@/hooks/use-issue-selection";
 import { useIssueViewTransfer } from "@/hooks/use-issue-view-transfer";
 import { type SavedIssueView, useIssueViews } from "@/hooks/use-issue-views";
-import { copyToClipboard } from "@/lib/clipboard";
-import { fieldText } from "@/lib/jira/field-text";
+import { useIssueTableCopy } from "@/hooks/use-issue-table-copy";
+import { useSearchLoad } from "@/hooks/jira/use-search-load";
+import { uniqueSearchIssues } from "@/lib/jira/search-loading";
 import {
   DEFAULT_VIEW,
   FACETS,
@@ -29,15 +30,14 @@ import {
   toggleValue,
 } from "@/lib/jira/issue-view";
 import { type SortDirection, composeJql, cycleSort, textClause, valuesClause } from "@/lib/jira/jql";
-import { toMarkdown, toTsv } from "@/lib/table-export";
 import { groupIssues, issueGridEntries, IssueGrouping } from "@/lib/jira/issue-grouping";
 
 const FACET_KEYS = Object.keys(FACETS) as Facet[];
 const NO_SAVED_VIEWS: SavedIssueView[] = [];
 
-export type ExportFormat = "tsv" | "markdown" | "keys" | "jql";
+export type { ExportFormat } from "@/hooks/use-issue-table-copy";
 
-export type IssueTableText = { value: string; onChange: (text: string) => void; placeholder: string };
+export type IssueTableText = { value: string; onChange: (text: string) => void; placeholder: string; pending?: boolean };
 
 export function useIssueTable(scope: string, baseJql: string, externalText?: IssueTableText) {
   const account = useJiraAccountScope();
@@ -81,14 +81,16 @@ export function useIssueTable(scope: string, baseJql: string, externalText?: Iss
   const count = useIssueCount(jql);
   const facetSource = useIssueSearch(composeJql(baseJql, []), FACET_KEYS, 100);
 
-  const issues = search.data?.pages.flatMap((page) => page.issues) ?? [];
+  const issues = uniqueSearchIssues(search.data?.pages ?? []);
   const groups = groupIssues(issues, groupBy);
   const entries = issueGridEntries(issues, groups, groupBy, view.collapsedGroups ?? []);
-  const isPlaceholder = search.isPlaceholderData;
+  const isPlaceholder = search.isPlaceholderData || !!externalText?.pending || (!externalText && text.trim() !== debouncedText) || !search.scope;
+  const loadContext = JSON.stringify([preferenceKey, scope, jql, fields, text, view.quick, view.facets, view.sort]);
+  const searchLoad = useSearchLoad(search, loadContext, !isPlaceholder && !!search.data);
   const selectionContext = JSON.stringify([preferenceKey, scope, jql]);
   const selection = useIssueSelection(selectionContext, issues);
   const bulk = useBulkEdit(selection.selected.map(({ key }) => key), isPlaceholder, selectionContext);
-  const canLoadMore = search.hasNextPage && !isPlaceholder && !search.isFetching;
+  const canLoadMore = search.hasNextPage && !isPlaceholder && !search.isFetching && !searchLoad.pending;
   const facetIssues = facetSource.data?.pages[0]?.issues ?? [];
 
   const columns = view.columns.map((id) => {
@@ -111,19 +113,7 @@ export function useIssueTable(scope: string, baseJql: string, externalText?: Iss
     options: collectFacetOptions(facet, facetIssues, view.facets[facet]),
   }));
 
-  const cellText = (issue: (typeof issues)[number], column: string) =>
-    column === KEY_COLUMN ? issue.key : fieldText(issue.fields[column]);
-
-  const exportAs = async (format: ExportFormat, selectedOnly = false) => {
-    const exported = selectedOnly ? selection.selected : issues;
-    if (format === "jql") return copyToClipboard(jql, "JQL kopiert");
-    if (isPlaceholder) return;
-    if (format === "keys") return copyToClipboard(exported.map((issue) => issue.key).join(", "), `${exported.length} Schlüssel kopiert`);
-    const header = columns.map((column) => column.label);
-    const rows = exported.map((issue) => view.columns.map((column) => cellText(issue, column)));
-    const content = format === "tsv" ? toTsv(header, rows) : toMarkdown(header, rows);
-    return copyToClipboard(content, `${exported.length} Zeilen kopiert`);
-  };
+  const exportAs = useIssueTableCopy({ context: loadContext, scope: search.scope, ready: !isPlaceholder && !!search.data, jql, issues, selected: selection.selected, columns: columns.map((column, index) => ({ id: view.columns[index], label: column.label })) });
 
   const filterCount = quick.length + facetCount(view.facets);
 
@@ -131,6 +121,7 @@ export function useIssueTable(scope: string, baseJql: string, externalText?: Iss
     scope,
     transfer,
     bulk,
+    searchLoad,
     selection: {
       ...selection,
       toggle: (key: string) => {
@@ -170,9 +161,9 @@ export function useIssueTable(scope: string, baseJql: string, externalText?: Iss
     canLoadMore,
     isLoadingMore: search.isFetchingNextPage,
     loadMore: () => {
-      if (canLoadMore) void search.fetchNextPage();
+      if (canLoadMore && !searchLoad.isBusy()) void search.fetchNextPage({ cancelRefetch: false });
     },
-    refresh: () => void Promise.all([search.refetch(), count.refetch()]),
+    refresh: () => { if (!searchLoad.isBusy()) void Promise.all([search.refetch(), count.refetch()]); },
     setText,
     toggleSort: (column: string, additive: boolean) => {
       const field = sortClauseOf(column, fieldById.get(column));

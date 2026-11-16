@@ -1,5 +1,5 @@
 import { Effect, Schema } from "effect";
-import { jira, jiraSend } from "./client";
+import { jira, jiraSend, type JiraRequestScope } from "./client";
 
 const SearchPage = Schema.Struct({
   issues: Schema.Array(
@@ -18,17 +18,17 @@ export type SearchIssue = SearchPage["issues"][number];
 
 export const PAGE_SIZE = 50;
 
-export const searchIssues = (jql: string, fields: readonly string[], pageToken?: string, maxResults = PAGE_SIZE, reconcileIssueIds: readonly string[] = []) => {
+export const searchIssues = (jql: string, fields: readonly string[], pageToken?: string, maxResults = PAGE_SIZE, reconcileIssueIds: readonly string[] = [], scope?: JiraRequestScope) => {
   const params = new URLSearchParams({ jql, fields: fields.join(","), maxResults: String(maxResults) });
   if (pageToken) params.set("nextPageToken", pageToken);
   if (reconcileIssueIds.length) params.set("reconcileIssues", reconcileIssueIds.join(","));
-  return jira(`/search/jql?${params}`, SearchPage);
+  return scope ? jira(`/search/jql?${params}`, SearchPage, { scope }) : jira(`/search/jql?${params}`, SearchPage);
 };
 
 const IssueCount = Schema.Struct({ count: Schema.Number });
 
-export const countIssues = (jql: string) =>
-  jira("/search/approximate-count", IssueCount, { method: "POST", body: JSON.stringify({ jql }) });
+export const countIssues = (jql: string, scope?: JiraRequestScope) =>
+  jira("/search/approximate-count", IssueCount, { method: "POST", body: JSON.stringify({ jql }), ...(scope ? { scope } : {}) });
 
 const JiraFields = Schema.Array(
   Schema.Struct({

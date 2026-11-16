@@ -69,3 +69,16 @@ it("behandelt Datums-Rollback ausschliesslich als lokalen Cacheausgleich und erh
   expect(client.getQueryData<typeof data>(key)?.pages[0].issues[0].fields.duedate).toBe("2026-04-01");
   client.clear();
 });
+
+it("patcht bei Scoped-Suchen kein anderes Konto", () => {
+  const client = new QueryClient();
+  const scope = { cloudId: "site", accountId: "me" };
+  client.setQueryData(jiraKeys.site, { cloudId: "site" }); client.setQueryData(jiraKeys.myself, { accountId: "me" });
+  const own = jiraKeys.searchScoped("project = DEMO", ["labels"], 50, scope);
+  const other = jiraKeys.searchScoped("project = DEMO", ["labels"], 50, { ...scope, accountId: "other" });
+  const data = { pages: [{ issues: [{ id: "1", key: "DEMO-1", fields: { labels: [] } }] }], pageParams: [undefined] };
+  client.setQueryData(own, data); client.setQueryData(other, data);
+  patchBulkSearches(client, ["DEMO-1"], { kind: "add-labels", labels: ["new"] }, undefined);
+  expect(client.getQueryData<typeof data>(own)?.pages[0].issues[0].fields.labels).toEqual(["new"]);
+  expect(client.getQueryData(other)).toBe(data); client.clear();
+});

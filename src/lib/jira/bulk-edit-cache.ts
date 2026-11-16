@@ -6,6 +6,7 @@ import type {
 import type { BulkAction } from "./bulk-edit";
 import { jiraKeys } from "./keys";
 import type { SearchIssue, SearchPage } from "./search";
+import { jiraQueryScopeMatches } from "./query-scope";
 
 type Patch = {
   queryKey: QueryKey;
@@ -52,6 +53,9 @@ export function patchBulkSearches(
     InfiniteData<SearchPage>
   >({ queryKey: jiraKeys.allIssues })) {
     if (queryKey[2] !== "search" || !data?.pages) continue;
+    const cloudId = queryKey[6];
+    const accountId = queryKey[7];
+    if (typeof cloudId === "string" && typeof accountId === "string" && !jiraQueryScopeMatches(client, { cloudId, accountId })) continue;
     const before = new Map<string, { field: string; value: unknown }>();
     const stored = client.setQueryData<InfiniteData<SearchPage>>(queryKey, {
       ...data,

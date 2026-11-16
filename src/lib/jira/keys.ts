@@ -20,7 +20,10 @@ export const jiraKeys = {
   avatar: (url: string) => ["jira", "avatar", url] as const,
   issues: (jql: string) => ["jira", "issues", jql] as const,
   search: (jql: string, fields: readonly string[], pageSize: number) => ["jira", "issues", "search", jql, fields, pageSize] as const,
+  searchScoped: (jql: string, fields: readonly string[], pageSize: number, scope: JiraQueryScope | undefined) => [...jiraKeys.search(jql, fields, pageSize), scope?.cloudId ?? "", scope?.accountId ?? ""] as const,
+  searchLoad: (key: readonly unknown[]) => ["jira", "search-load", ...key] as const,
   issueCount: (jql: string) => ["jira", "issues", "count", jql] as const,
+  issueCountScoped: (jql: string, scope: JiraQueryScope | undefined) => [...jiraKeys.issueCount(jql), scope?.cloudId ?? "", scope?.accountId ?? ""] as const,
   fieldCatalog: ["jira", "field-catalog"] as const,
   filter: (id: string) => ["jira", "filter", id] as const,
   filterFavourite: ["jira", "filter-favourite"] as const,
@@ -54,6 +57,6 @@ export const jiraKeys = {
   allIssueCounts: ["jira", "issues", "count"] as const,
   boardReconcile: (id: number, sprint: number | undefined, keys: readonly string[], token?: string) =>
     ["jira", "board-reconcile", id, sprint ?? "open", [...keys].sort(), token ?? "first"] as const,
-  searchReconcile: (jql: string, fields: readonly string[], keys: readonly string[], token?: string) =>
-    ["jira", "search-reconcile", jql, fields, [...keys].sort(), token ?? "first"] as const,
+  searchReconcile: (jql: string, fields: readonly string[], keys: readonly string[], token?: string, scope?: JiraQueryScope) =>
+    ["jira", "search-reconcile", jql, fields, [...keys].sort(), token ?? "first", ...(scope ? [scope.cloudId, scope.accountId] : [])] as const,
 };

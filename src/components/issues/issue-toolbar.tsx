@@ -145,6 +145,11 @@ function ViewMenu({
               Kopieren als
             </DropdownMenuSubTrigger>
             <DropdownMenuSubContent className="min-w-52">
+              <DropdownMenuLabel>Nur geladene Treffer kopieren</DropdownMenuLabel>
+              <DropdownMenuItem disabled={table.searchLoad.pending ? false : !table.searchLoad.canStart} onSelect={table.searchLoad.pending ? table.searchLoad.stop : table.searchLoad.start}>
+                {table.searchLoad.pending ? "Nachladen abbrechen" : "Übrige Treffer begrenzt laden…"}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
               <DropdownMenuItem disabled={table.isPlaceholder} onSelect={() => void table.exportAs("tsv")}>
                 <TableIcon />
                 Tabelle (Excel, Numbers)
@@ -382,7 +387,7 @@ export function IssueToolbar({
             size="icon-sm"
             aria-label="Aktualisieren"
             onClick={table.refresh}
-            disabled={table.isFetching}
+            disabled={table.isFetching || table.searchLoad.pending}
           >
             <RefreshCwIcon className={cn(table.isFetching && !reduce && "animate-spin")} />
           </Button>
