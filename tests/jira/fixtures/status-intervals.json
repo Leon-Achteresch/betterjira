@@ -1,0 +1,13 @@
+{
+  "created": "2026-11-01T00:00:00Z",
+  "asOf": "2026-11-07T00:00:00Z",
+  "current": { "id": "7", "name": "Warten auf Partner" },
+  "changes": [
+    { "id": "1", "created": "2026-11-02T00:00:00Z", "items": [{ "fieldId": "status", "field": "status", "from": "3", "fromString": "In Arbeit", "to": "7", "toString": "Warten" }] },
+    { "id": "2", "created": "2026-11-03T00:00:00Z", "items": [{ "fieldId": "status", "from": "7", "fromString": "Warten", "to": "3", "toString": "In Arbeit" }] },
+    { "id": "3", "created": "2026-11-04T00:00:00Z", "items": [{ "fieldId": "status", "from": "3", "fromString": "In Arbeit", "to": "7", "toString": "Warten" }] },
+    { "id": "4", "created": "2026-11-04T12:00:00Z", "items": [{ "fieldId": "status", "from": "7", "fromString": "Warten", "to": "7", "toString": "Warten auf Partner" }] },
+    { "id": "5", "created": "2026-11-05T00:00:00Z", "items": [{ "fieldId": "status", "from": "7", "fromString": "Warten auf Partner", "to": "3", "toString": "In Arbeit" }] },
+    { "id": "6", "created": "2026-11-06T00:00:00Z", "items": [{ "fieldId": "status", "from": "3", "fromString": "In Arbeit", "to": "7", "toString": "Warten auf Partner" }] }
+  ]
+}

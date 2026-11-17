@@ -47,4 +47,12 @@ API-Vertrag: https://developer.atlassian.com/cloud/jira/platform/rest/v2/api-gro
 
 ## Prüfung und Abbildungen
 
+### N22: lokaler Leseschnitt vom 17.11.2026
+
+Die frühere Zurückstellung von N22 ist für diesen begrenzten Schnitt überholt. Im vorhandenen Ticketverlauf kann ein Status ausdrücklich ausgewählt werden. Die Anzeige summiert ausschließlich bestätigte abgeschlossene Aufenthalte aus den geladenen Statuswechseln und trennt laufende Aufenthalte sowie unbekannte Grenzen. Status-IDs bleiben maßgeblich; Namen verschiedener IDs werden nicht zusammengeführt, Umbenennungen derselben ID bleiben sichtbar. Namen allein bestätigen keine Dauer.
+
+Die vorhandene manuelle Pagination und Grenze von 200 Änderungen gelten weiter. Teilhistorie, unlesbare Daten, widersprüchliche Übergänge und Abruffehler bleiben sichtbar. Erstellung ist nur bei vollständig und konsistent rekonstruierbaren gelieferten Daten ein Beginn. Gleichzeitige Übergänge ohne sichere Reihenfolge werden konservativ ausgeschlossen. Der Berechnungsstand folgt dem letzten erfolgreichen Historyabruf, ohne Timer oder zusätzlichen Hintergrundabruf. Zeiten werden mit lokalem UTC-Offset angezeigt. Kalenderdauer ersetzt keine Arbeitszeit-, SLA-, Sprint- oder gespeicherte Berichtsmetrik.
+
+Ticketdetails und Changelog sind getrennte Snapshots, kein atomarer historischer Export. Verborgene oder von Jira nicht gelieferte Historie lässt sich lokal nicht beweisen. Native Tauri-/Live-Jira-Abnahme, fachliche Nutzungsvalidierung und eine größere serielle UI-Verfeinerung bleiben getrennt offen; der lokale Schnitt schließt weder das Portfolio noch alle ursprünglichen Berichtsbedürfnisse ab.
+
 Screenshots unter `docs/screenshots/` zeigen echte gerenderte Komponenten mit synthetischen Testdaten. Sie sind kein Nachweis einer Live-Instanz oder erfolgreich ausgeführter Fachoperationen. Konkrete ausgeführte Tests stehen im PR; unerreichbare/native Grenzen werden dort separat benannt. Historische Ideen und Reserven bleiben im Forschungsarchiv erhalten; daraus werden keine automatischen Folgeaufträge.

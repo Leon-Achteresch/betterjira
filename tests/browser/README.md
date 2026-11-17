@@ -20,6 +20,8 @@ Die Simulation prüft Request-Payloads, Fehler, Rollback und Konto-/Instanzgrenz
 
 `description-adoption.e2e.ts` verwendet zusätzlich `field-draft-fixture.html`: den echten `useFieldDraft` mit React Strict Mode, QueryClient, Zustand, Sonner und synthetischem Tauri-Transport. Erhaltene Callback-Referenzen prüfen Doppelübernahme, revisionsgebundenes Undo, Konto-/Instanz-/Ticket-/Editorwechsel und späte Write-Ergebnisse. Die Fixture gehört ausschließlich zum Browser-QA-Build. `description-conflict.e2e.ts` prüft dazu den echten Editor samt Vergleich, Medien-ID-Zuordnung und Eingabefokus nach Übernahme.
 
+N22: `fixture.html?scenario=status-intervals&route=/issue/DEMO-1` zeigt sechs Statusereignisse und 40 andere Änderungen. Im Verlauf zuerst den gewünschten Status wählen; ID 7 hat zwei abgeschlossene Aufenthalte von je einem Kalendertag und einen separat laufenden Aufenthalt ab 06.11.2026. `historyPrefix=240` prüft die bestehende Obergrenze von 200 geladenen Änderungen. `status-intervals.e2e.ts` bedient den echten Ticketpfad; `history-hook-fixture.html` prüft zusätzlich denselben History-/Intervallhook mit QueryClient, React Strict Mode und verzögerten synthetischen Antworten bei Konto-/Site-/Ticketwechsel und Unmount. Keine dieser Prüfungen kontaktiert Jira.
+
 ### Prüfstand vom 13.11.2026
 
 | Prüfung | Ergebnis |

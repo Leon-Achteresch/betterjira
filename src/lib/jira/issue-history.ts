@@ -1,6 +1,7 @@
 import { Data, Effect, Option, Schema } from "effect";
-import { jira, JiraApiError, JiraAuthError } from "./client";
+import { jira, JiraApiError, JiraAuthError, type JiraRequestScope } from "./client";
 import { jiraKeys } from "./queries";
+import { historyTimestamp, type StatusTransition } from "./status-intervals";
 
 export const HISTORY_PAGE_SIZE = 20;
 export const HISTORY_LIMIT = 200;
@@ -46,13 +47,15 @@ export type HistoryEntry = {
   created?: string;
   author?: HistoryAuthor;
   changes: HistoryChange[];
+  statusTransitions?: StatusTransition[];
+  unreadable?: boolean;
 };
 
-export type HistoryPage = { startAt: number; total: number; entries: HistoryEntry[] };
+export type HistoryPage = { startAt: number; total: number; entries: HistoryEntry[]; received?: number };
 
 export type HistoryPageParam = { startAt: number; maxResults: number } | null;
 
-export type IssueHistory = { entries: HistoryEntry[]; total: number; covered: number };
+export type IssueHistory = { entries: HistoryEntry[]; total: number; covered: number; coverage?: { complete: boolean; contiguous: boolean } };
 
 const FIELD_LABELS: Record<string, string> = {
   status: "Status",
@@ -145,13 +148,24 @@ export const toHistoryEntry = (raw: unknown): HistoryEntry | undefined => {
   const changelog = Option.getOrUndefined(decodeChangelog(raw));
   const id = readableText(changelog?.id);
   if (!changelog || !id) return undefined;
-  const created = changelog.created && Number.isFinite(Date.parse(changelog.created)) ? changelog.created : undefined;
+  const created = changelog.created && historyTimestamp(changelog.created) !== undefined ? changelog.created : undefined;
   const author = authorOf(changelog.author);
+  const items = (changelog.items ?? []).map((item) => Option.getOrUndefined(decodeItem(item)));
+  const statusTransitions = items.flatMap((item) => {
+    if (!item || (item.fieldId ? item.fieldId !== "status" : item.field?.toLowerCase() !== "status")) return [];
+    const identity = (id: unknown, name: unknown) => ({
+      ...(typeof id === "string" && id.trim() ? { id: id.trim() } : Number.isSafeInteger(id) ? { id: String(id) } : {}),
+      ...(readableText(name) ? { name: readableText(name) } : {}),
+    });
+    return [{ from: identity(item.from, item.fromString), to: identity(item.to, item.toString) }];
+  });
   return {
     id,
     ...(created && { created }),
     ...(author && { author }),
     changes: (changelog.items ?? []).flatMap(changeOf),
+    ...(statusTransitions.length && { statusTransitions }),
+    ...((!changelog.items || items.some((item) => !item || (!item.field && !item.fieldId))) && { unreadable: true }),
   };
 };
 
@@ -164,12 +178,25 @@ export const mergeHistoryPages = (pages: readonly HistoryPage[]): IssueHistory =
   const byId = new Map<string, HistoryEntry>();
   for (const page of pages) for (const entry of page.entries) if (!byId.has(entry.id)) byId.set(entry.id, entry);
   const latest = pages[0];
-  const oldest = pages.at(-1);
   const total = latest?.total ?? 0;
+  const ordered = [...pages].sort((a, b) => a.startAt - b.startAt);
+  const oldest = ordered[0];
+  let cursor = ordered[0]?.startAt ?? 0;
+  let contiguous = pages.length > 0;
+  for (const page of ordered) {
+    if (page.total !== total || page.startAt > cursor || page.entries.length !== (page.received ?? page.entries.length) || page.entries.some((entry) => entry.unreadable)) contiguous = false;
+    for (const entry of page.entries) {
+      const chosen = byId.get(entry.id);
+      if (chosen && JSON.stringify([chosen.created, chosen.statusTransitions]) !== JSON.stringify([entry.created, entry.statusTransitions])) contiguous = false;
+    }
+    cursor = Math.max(cursor, page.startAt + (page.received ?? page.entries.length));
+  }
+  if (cursor !== total || byId.size !== cursor - (ordered[0]?.startAt ?? 0)) contiguous = false;
   return {
     entries: [...byId.values()].sort(newestFirst),
     total,
     covered: oldest ? Math.min(total, Math.max(0, total - oldest.startAt)) : 0,
+    ...(pages.some((page) => page.received !== undefined) && { coverage: { contiguous, complete: contiguous && ordered[0]?.startAt === 0 } }),
   };
 };
 
@@ -194,6 +221,7 @@ const toPage = (page: typeof ChangelogPage.Type): HistoryPage => ({
   startAt: page.startAt,
   total: page.total,
   entries: page.values.flatMap((value) => toHistoryEntry(value) ?? []),
+  received: page.values.length,
 });
 
 export class HistoryPagingError extends Data.TaggedError("HistoryPagingError")<{}> {
@@ -205,6 +233,7 @@ const readWindow = (
   param: NonNullable<HistoryPageParam>,
   total: number,
   seed?: typeof ChangelogPage.Type,
+  scope?: JiraRequestScope,
 ) =>
   Effect.gen(function* () {
     const end = Math.min(total, param.startAt + Math.min(HISTORY_PAGE_SIZE, param.maxResults));
@@ -212,9 +241,9 @@ const readWindow = (
     let cursor = param.startAt;
     let next = seed;
     while (cursor < end) {
-      const page = next ?? (yield* jira(changelogPath(key, { startAt: cursor, maxResults: end - cursor }), ChangelogPage));
+      const page = next ?? (yield* jira(changelogPath(key, { startAt: cursor, maxResults: end - cursor }), ChangelogPage, { scope }));
       next = undefined;
-      if (page.startAt !== cursor || page.values.length === 0) return yield* Effect.fail(new HistoryPagingError());
+      if (page.total !== total || page.startAt !== cursor || page.values.length === 0) return yield* Effect.fail(new HistoryPagingError());
       const chunk = page.values.slice(0, end - cursor);
       values.push(...chunk);
       cursor += chunk.length;
@@ -222,14 +251,14 @@ const readWindow = (
     return toPage({ startAt: param.startAt, total, values });
   });
 
-export const fetchIssueHistory = (key: string, param: HistoryPageParam) =>
+export const fetchIssueHistory = (key: string, param: HistoryPageParam, scope?: JiraRequestScope) =>
   Effect.gen(function* () {
-    const first = yield* jira(changelogPath(key, param ?? { startAt: 0, maxResults: HISTORY_PAGE_SIZE }), ChangelogPage);
+    const first = yield* jira(changelogPath(key, param ?? { startAt: 0, maxResults: HISTORY_PAGE_SIZE }), ChangelogPage, { scope });
     if (!Number.isSafeInteger(first.total) || first.total < 0 || !Number.isSafeInteger(first.startAt) || first.startAt < 0)
       return yield* Effect.fail(new HistoryPagingError());
-    if (param) return yield* readWindow(key, param, first.total, first);
+    if (param) return yield* readWindow(key, param, first.total, first, scope);
     if (first.total <= HISTORY_PAGE_SIZE)
-      return yield* readWindow(key, { startAt: 0, maxResults: HISTORY_PAGE_SIZE }, first.total, first);
+      return yield* readWindow(key, { startAt: 0, maxResults: HISTORY_PAGE_SIZE }, first.total, first, scope);
     const latest = latestPageParam(first.total);
     if (first.startAt <= latest.startAt && first.startAt + first.values.length >= first.total)
       return toPage({
@@ -237,7 +266,7 @@ export const fetchIssueHistory = (key: string, param: HistoryPageParam) =>
         total: first.total,
         values: first.values.slice(latest.startAt - first.startAt, first.total - first.startAt),
       });
-    return yield* readWindow(key, latest, first.total);
+    return yield* readWindow(key, latest, first.total, undefined, scope);
   });
 
 const ApiErrorBody = Schema.Struct({ errorMessages: Schema.optional(Schema.Array(Schema.String)) });

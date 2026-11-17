@@ -240,11 +240,11 @@ export function IssueStatusMenu({ issueKey, status, className }: { issueKey: str
           disabled={flow.pending}
           aria-label={`Status ändern: ${status.name}`}
           className={cn(
-            "group inline-flex min-h-8 items-center gap-1 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60",
+            "group inline-flex min-h-8 max-w-full items-center gap-1 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60",
             className,
           )}
         >
-          <JiraStatusBadge status={status} />
+          <JiraStatusBadge status={status} className="shrink" />
           {flow.pending ? (
             <Spinner className="size-3.5" />
           ) : (

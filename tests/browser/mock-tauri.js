@@ -1141,6 +1141,22 @@ history["DEMO-1"].push(
     ],
   },
 );
+if (scenario === "status-intervals") {
+  const prefix = Number(new URLSearchParams(location.search).get("historyPrefix") ?? 40);
+  history["DEMO-1"] = [
+    ...Array.from({ length: prefix }, (_, index) => ({ id: `meta-${index}`, created: new Date(Date.UTC(2026, 10, 1, 0, index + 1)).toISOString(), items: [historyItem("priority", "Mittel", "Hoch")] })),
+    ...[
+      ["2026-11-02T00:00:00Z", "3", "7", "In Arbeit", "Warten"],
+      ["2026-11-03T00:00:00Z", "7", "3", "Warten", "In Arbeit"],
+      ["2026-11-04T00:00:00Z", "3", "7", "In Arbeit", "Warten"],
+      ["2026-11-04T12:00:00Z", "7", "7", "Warten", "Warten auf Partner"],
+      ["2026-11-05T00:00:00Z", "7", "3", "Warten auf Partner", "In Arbeit"],
+      ["2026-11-06T00:00:00Z", "3", "7", "In Arbeit", "Warten auf Partner"],
+    ].map(([created, from, to, fromString, toString], index) => ({ id: `status-${index}`, created, items: [historyItem("status", fromString, toString, { fieldId: "status", from, to })] })),
+  ];
+  issues[0].fields.created = "2026-11-01T00:00:00Z";
+  issues[0].fields.status = { ...issues[0].fields.status, id: "7", name: "Warten auf Rückmeldung der externen Partnerorganisation zur abschließenden technischen Prüfung" };
+}
 window.__qaHistory = { reads: [], history };
 const respondHistory = async (key, url) => {
   const startAt = Number(url.searchParams.get("startAt") ?? 0);

@@ -63,9 +63,9 @@ function Section({ title, aside, children }: { title: string; aside?: ReactNode;
 
 function Property({ label, children, wide }: { label: string; children: ReactNode; wide?: boolean }) {
   return (
-    <div className={cn("flex min-w-32 flex-col gap-1", wide && "hidden @5xl:flex")}>
+    <div className={cn("flex min-w-32 max-w-full flex-col gap-1", wide && "hidden @5xl:flex")}>
       <dt className="text-xs text-muted-foreground">{label}</dt>
-      <dd className="text-sm">{children}</dd>
+      <dd className="min-w-0 text-sm">{children}</dd>
     </div>
   );
 }
@@ -97,10 +97,10 @@ function Vitals({ issue }: { issue: JiraIssueDetail }) {
 }
 
 const LAYOUT = {
-  article: "mx-auto grid w-full max-w-4xl gap-y-8 @5xl:max-w-none @5xl:grid-cols-[minmax(0,1fr)_17rem] @5xl:gap-x-12",
+  article: "mx-auto grid w-full max-w-4xl grid-cols-[minmax(0,1fr)] gap-y-8 @5xl:max-w-none @5xl:grid-cols-[minmax(0,1fr)_17rem] @5xl:gap-x-12",
   bar: "@5xl:col-span-2 @5xl:row-start-1",
   header: "min-w-0 @5xl:col-start-1 @5xl:row-start-2",
-  aside: "@5xl:sticky @5xl:top-16 @5xl:col-start-2 @5xl:row-span-2 @5xl:row-start-2 @5xl:self-start",
+  aside: "min-w-0 @5xl:sticky @5xl:top-16 @5xl:col-start-2 @5xl:row-span-2 @5xl:row-start-2 @5xl:self-start",
   body: "flex min-w-0 flex-col gap-10 @5xl:col-start-1 @5xl:row-start-3",
 };
 
@@ -149,7 +149,7 @@ export function IssueView({
   const helpdesk = useJiraHelpdesk(view.issue);
   useIssueReadingPosition(issueKey, !!view.issue, !!focusComment);
   const actions = useIssueActions(view.issue, site.data?.siteUrl, initialTab);
-  const history = useIssueHistory(issueKey);
+  const history = useIssueHistory(issueKey, view.issue?.key === issueKey ? { created: view.issue.fields.created, status: view.issue.fields.status } : undefined);
   const links = useIssueLinks(issueKey);
   const remoteLinks = useRemoteLinks(issueKey);
   const commentPages = useIssueCommentPages(

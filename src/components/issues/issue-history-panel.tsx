@@ -21,11 +21,14 @@ import {
   type IssueHistory,
 } from "@/lib/jira/issue-history";
 import { cn } from "@/lib/utils";
+import { StatusIntervalsPanel } from "./status-intervals-panel";
+import type { StatusIntervalsState } from "@/hooks/use-status-intervals";
 
 type IssueHistoryPanelProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   history?: IssueHistory;
+  statusIntervals?: StatusIntervalsState;
   limit: number;
   hasMore: boolean;
   loadingMore: boolean;
@@ -268,6 +271,7 @@ function HistoryBody({ onSettled, ...props }: Omit<IssueHistoryPanelProps, "open
       <AnimatePresence initial={false} mode="wait" onExitComplete={onSettled}>
         {history ? (
           <motion.div key="content" {...fade}>
+            {props.statusIntervals && <div className="mb-5"><StatusIntervalsPanel state={props.statusIntervals} /></div>}
             <HistoryContent {...props} history={history} onSettled={onSettled} />
           </motion.div>
         ) : error ? (
