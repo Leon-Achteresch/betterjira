@@ -8,6 +8,8 @@ import { MentionEditor } from "@/components/mention-editor";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import { DescriptionComparisonPanel } from "@/components/description-comparison-panel";
+import { descriptionSource } from "@/lib/description-comparison";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useJiraEditIssue, useJiraWikiField } from "@/hooks/jira/use-issue-mutations";
@@ -388,6 +390,15 @@ function StringFieldForm({
           />
         )}
       </fieldset>
+      {editor.comparison && (
+        <DescriptionComparisonPanel
+          status={editor.comparison.status}
+          remote={descriptionSource(editor.comparison.remote)}
+          basis={descriptionSource(editor.comparison.submitted.basis)}
+          pending={editor.pending || uploading}
+          onConfirm={() => void editor.confirmCompared()}
+        />
+      )}
       {editor.errors.map((message) => (
         <p key={message} role="alert" className="text-xs text-destructive">
           {message}
@@ -431,7 +442,7 @@ function StringFieldForm({
           {mode === "wiki" ? "Jira-Wiki-Syntax" : "Bilder per Einfügen oder Ziehen"} · {IS_MAC ? "⌘" : "Strg"} + Enter speichert
         </span>
       )}
-      {editor.notice && <p role="status" className="text-xs text-muted-foreground">{editor.notice}</p>}
+      {editor.notice && !editor.comparison && <p role="status" className="text-xs text-muted-foreground">{editor.notice}</p>}
     </motion.form>
   );
 }

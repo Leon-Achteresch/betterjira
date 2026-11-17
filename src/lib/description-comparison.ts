@@ -28,3 +28,8 @@ const canonicalJson = (value: Schema.Json): string => {
 
 export const sameDescription = (left: DescriptionBasis, right: DescriptionBasis) =>
   left.format === right.format && canonicalJson(left.value) === canonicalJson(right.value);
+
+export const descriptionSource = (basis: DescriptionBasis | undefined) => {
+  if (!basis || basis.value === null) return undefined;
+  return typeof basis.value === "string" ? basis.value : JSON.stringify(basis.value, null, 2);
+};
