@@ -1429,11 +1429,12 @@ const respond = async (request) => {
   if (path.startsWith("/search/jql")) {
     const qa = window.__qa;
     qa.searches.push(url.searchParams.get("jql"));
-    const rule = window.__qaSearchRule?.(url.searchParams.get("jql") ?? "", url.searchParams.get("nextPageToken")) ?? {};
+    const rule = window.__qaSearchRule?.(url.searchParams.get("jql") ?? "", url.searchParams.get("nextPageToken"), url.searchParams, request.method) ?? {};
     await rule.waitFor;
     const delayMs = rule.delayMs ?? qa.searchDelayMs;
     if (delayMs) await new Promise((resolve) => setTimeout(resolve, delayMs));
     if (rule.status) return { status: rule.status, headers: rule.headers, body: { errorMessages: [`Test: Jira antwortet mit ${rule.status}`] } };
+    if (rule.page) return { body: rule.page };
     if (rule.issues) return { body: { issues: rule.issues, isLast: !rule.nextPageToken, nextPageToken: rule.nextPageToken } };
     if (qa.failSearch) return { status: 400, body: { errorMessages: ["Test: Abfrage nicht möglich"] } };
     const found = rule.issues ?? (rule.keys ? issues.filter((issue) => rule.keys.includes(issue.key)) : issues);
