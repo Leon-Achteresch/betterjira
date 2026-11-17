@@ -47,7 +47,7 @@ export const same = (actual: unknown, expected: unknown, detail: string) => {
   check(sorted(actual) === sorted(expected), `${detail}: ${sorted(actual)}`);
 };
 
-export const fixtureDriver = (scenario: "c1" | "n01" | "n02" | "n03") => {
+export const fixtureDriver = (scenario: "c1" | "n01" | "n02" | "n03" | "n04") => {
   const origin = window.__C1_JIRA_ORIGIN__;
   const canary = window.__C1_CANARY_ORIGIN__;
   const control = async (path: string, method = "GET") => {
