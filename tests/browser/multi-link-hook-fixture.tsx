@@ -45,6 +45,8 @@ function State({ issueKey }: { issueKey: string }) {
         choiceId: state.choiceId,
         choices: state.choices,
         ready: state.canPreview,
+        canConfirm: state.canConfirm,
+        metadataError: state.metadataError,
         preview: state.preview,
         results: state.results,
         pending: state.pending,

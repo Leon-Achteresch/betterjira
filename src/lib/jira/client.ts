@@ -22,7 +22,7 @@ export class NotAuthenticated extends Data.TaggedError("NotAuthenticated")<{}> {
 export class JiraRequestScopeChanged extends Data.TaggedError("JiraRequestScopeChanged")<{}> {
   override get message() { return "Das Jira-Konto hat sich geändert. Bitte die Aktion im aktuellen Konto erneut ausführen."; }
 }
-export type JiraRequestScope = { cloudId: string; isCurrent: () => boolean; onDispatch?: () => void };
+export type JiraRequestScope = { cloudId: string; siteUrl?: string; isCurrent: () => boolean; onDispatch?: () => void };
 export class JiraApiError extends Data.TaggedError("JiraApiError")<{ status: number; body: string; retryAfterMs?: number; retryAt?: number; handledRetries?: boolean }> {
   override get message() {
     if (this.status === 429) return rateLimitMessage(this.retryAt, Date.now());
@@ -217,7 +217,11 @@ export const currentSite = validSession().pipe(
 const authedAttempt = (path: string, init?: RequestInit & ClientOptions, scope?: JiraRequestScope, retry = true) =>
   Effect.gen(function* () {
     const call = (session: Session) => Effect.gen(function* () {
-      if (scope && (session.cloudId !== scope.cloudId || !scope.isCurrent())) return yield* new JiraRequestScopeChanged();
+      if (scope && (
+        session.cloudId !== scope.cloudId ||
+        (scope.siteUrl !== undefined && session.siteUrl !== scope.siteUrl) ||
+        !scope.isCurrent()
+      )) return yield* new JiraRequestScopeChanged();
       yield* Effect.sync(() => scope?.onDispatch?.());
       return yield* send(`https://api.atlassian.com/ex/jira/${session.cloudId}/rest/${path}`, {
         ...init,

@@ -57,6 +57,7 @@ const empty = (context: string): Draft => ({
 });
 type Job = {
   scope: JiraQueryScope;
+  host: string;
   preview: MultiLinkPreview;
   token: symbol;
   ledgerKey: ReturnType<typeof jiraKeys.multiLinkLedger>;
@@ -88,8 +89,8 @@ export function useMultiTicketLinks(source: string) {
   const instance = useId();
   const lifetime = useContextSession(instance);
   const types = useQuery({
-    queryKey: issueLinkActionKeys.types(JSON.stringify(scope)),
-    enabled: !!scope && current.open,
+    queryKey: issueLinkActionKeys.types(JSON.stringify([scope, host])),
+    enabled: !!scope && !!host && current.open,
     retry: false,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
@@ -98,7 +99,9 @@ export function useMultiTicketLinks(source: string) {
         withJiraQueryScope(
           client,
           scope,
-          fetchLinkTypes(scope ? jiraRequestScope(client, scope) : undefined),
+          fetchLinkTypes(
+            scope ? { ...jiraRequestScope(client, scope), siteUrl: host } : undefined,
+          ),
         ),
         { signal },
       ),
@@ -160,7 +163,7 @@ export function useMultiTicketLinks(source: string) {
                 source,
                 current.input,
                 choice,
-                { ...jiraRequestScope(client, scope), isCurrent },
+                { ...jiraRequestScope(client, scope), siteUrl: host, isCurrent },
                 ledger(),
               ),
             )
@@ -179,7 +182,11 @@ export function useMultiTicketLinks(source: string) {
       Effect.runPromise(
         applyMultiTicketLinks(
           job.preview,
-          { ...jiraRequestScope(client, job.scope), isCurrent: job.isCurrent },
+          {
+            ...jiraRequestScope(client, job.scope),
+            siteUrl: job.host,
+            isCurrent: job.isCurrent,
+          },
           () => client.getQueryData<MultiLinkLedger>(job.ledgerKey) ?? {},
           (result) => {
             if (
@@ -203,13 +210,15 @@ export function useMultiTicketLinks(source: string) {
         ),
       ),
     onSettled: (_data, _error, job) => {
+      const refetchType =
+        jiraQueryScopeMatches(client, job.scope) &&
+        client.getQueryData<typeof site.data>(jiraKeys.site)?.siteUrl === job.host
+          ? "active"
+          : "none";
       for (const key of [
         job.preview.source.key,
         ...job.preview.rows.map((row) => row.key),
       ]) {
-        const refetchType = jiraQueryScopeMatches(client, job.scope)
-          ? "active"
-          : "none";
         void client.invalidateQueries({
           queryKey: issueLinkKeys.issue(
             job.scope.cloudId,
@@ -278,7 +287,9 @@ export function useMultiTicketLinks(source: string) {
                 : null,
               error: result.isSuccess
                 ? null
-                : "Vorschau konnte nicht frisch geprüft werden. Keine Abgabe erfolgt; Quelle, Typ und Berechtigungen prüfen.",
+                : result.error instanceof InvalidMultiLink
+                  ? result.error.message
+                  : "Vorschau konnte nicht frisch geprüft werden. Keine Abgabe erfolgt; Quelle, Typ und Berechtigungen prüfen.",
             },
       );
     } finally {
@@ -312,6 +323,7 @@ export function useMultiTicketLinks(source: string) {
     try {
       await mutation.mutateAsync({
         scope,
+        host,
         preview: validPreview,
         token: current.token,
         ledgerKey,

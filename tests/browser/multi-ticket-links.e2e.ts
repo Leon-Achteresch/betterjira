@@ -146,6 +146,10 @@ test("Teilergebnisse und unklarer Ausgang bleiben ehrlich; nur abgelehntes Ziel 
   await expect(popup(page).getByRole("status")).toContainText(
     "1 Bestätigt · 1 Abgelehnt · 1 Unklar",
   );
+  const results = popup(page).getByLabel("Geprüfte Zielmenge").getByRole("listitem");
+  await expect(results.filter({ hasText: "DEMO-2" })).toContainText("Bestätigt");
+  await expect(results.filter({ hasText: "DEMO-3" })).toContainText("Von Jira abgelehnt (HTTP 403).");
+  await expect(results.filter({ hasText: "DEMO-5" })).toContainText("Ausgang unklar.");
   expect(await writes(page)).toHaveLength(3);
   await page.evaluate(() =>
     Reflect.set(window, "__qaMultiLinkWriteRule", undefined),
@@ -304,6 +308,18 @@ test("Veränderte Metadaten halten alle Abgaben zurück; Typen lassen sich bewus
   await expect(popup(page).getByRole("status")).toContainText(
     "1 Nicht begonnen",
   );
+  await expect(popup(page).getByLabel("Geprüfte Zielmenge")).toContainText(
+    "Beziehung oder Richtung hat sich geändert.",
+  );
+  await popup(page)
+    .getByRole("button", { name: "Vorschau prüfen", exact: true })
+    .click();
+  await expect(popup(page).getByRole("alert")).toContainText(
+    "Beziehung oder Richtung ist nicht mehr verfügbar.",
+  );
+  await expect(popup(page).getByRole("button", {
+    name: "Geprüfte Verknüpfungen bestätigen",
+  })).toHaveCount(0);
   expect(await writes(page)).toEqual([]);
   await popup(page)
     .getByRole("button", { name: "Typen neu laden", exact: true })
@@ -376,6 +392,63 @@ const hookPreview = async (page: Page) => {
     )
     .toBe(true);
 };
+
+test("Abweichender Host der Jira-Sitzung sperrt die Typen trotz gleicher Cloud und gleichem Konto", async ({
+  page,
+}, info) => {
+  test.skip(info.project.name !== "desktop", "Profilunabhängiger Transportvertrag");
+  await page.goto("/tests/browser/multi-link-hook-fixture.html?scenario=multi-links");
+  await page.evaluate(() => {
+    const qa = Reflect.get(window, "__multiLinkQa") as MultiLinkQa;
+    qa.scope("qa-cloud", "qa-user", "https://other.example.atlassian.net");
+  });
+  await expect(page.getByTestId("state")).toContainText("other.example.atlassian.net");
+  await page.evaluate(() => {
+    const qa = Reflect.get(window, "__multiLinkQa") as MultiLinkQa;
+    qa.state!.setOpen(true);
+  });
+  await expect(page.getByTestId("state")).toContainText("Jira-Beziehungstypen konnten nicht geladen werden.");
+  expect(await page.evaluate(() =>
+    Reflect.get(window, "__qa").reads.some((row: { path: string }) => row.path === "/issueLinkType"),
+  )).toBe(false);
+  expect(await writes(page)).toEqual([]);
+});
+
+test("Direkte Bestätigung bleibt vor, während und nach dem freigegebenen Lauf gesperrt", async ({
+  page,
+}, info) => {
+  test.skip(info.project.name !== "desktop", "Profilunabhängiger Hookvertrag");
+  await openHook(page);
+  await page.evaluate(() => {
+    const qa = Reflect.get(window, "__multiLinkQa") as MultiLinkQa;
+    Reflect.set(window, "__qaIssueLinksRule", () => ({ delayMs: 300 }));
+    qa.state!.confirm();
+    qa.state!.requestPreview();
+    qa.state!.confirm();
+  });
+  await expect(page.getByTestId("state")).toContainText('"pending":true');
+  await page.evaluate(() => (Reflect.get(window, "__multiLinkQa") as MultiLinkQa).state!.confirm());
+  await expect(page.getByTestId("state")).toContainText('"canConfirm":true');
+  expect(await writes(page)).toEqual([]);
+  await page.evaluate(() => {
+    const qa = Reflect.get(window, "__multiLinkQa") as MultiLinkQa;
+    qa.old = qa.state;
+    qa.state!.confirm();
+    qa.old!.confirm();
+  });
+  await expect(page.getByTestId("state")).toContainText('"pending":true');
+  await page.evaluate(() => (Reflect.get(window, "__multiLinkQa") as MultiLinkQa).state!.confirm());
+  await expect(page.getByTestId("state")).toContainText('"pending":false');
+  await expect(page.getByTestId("state")).toContainText('"canConfirm":false');
+  const reads = await page.evaluate(() => Reflect.get(window, "__qa").reads.length);
+  await page.evaluate(() => {
+    const qa = Reflect.get(window, "__multiLinkQa") as MultiLinkQa;
+    qa.state!.confirm();
+    qa.old!.confirm();
+  });
+  expect(await page.evaluate(() => Reflect.get(window, "__qa").reads.length)).toBe(reads);
+  expect(await writes(page)).toHaveLength(4);
+});
 
 for (const boundary of [
   "account",

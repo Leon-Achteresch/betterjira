@@ -219,21 +219,28 @@ export const applyMultiTicketLinks = (
           });
         const types = yield* fetchLinkTypes(scope);
         const choice = checkedChoice(types, preview.choice);
+        if (!choice)
+          return yield* new InvalidMultiLink({
+            message: "Beziehung oder Richtung hat sich geändert. Typen neu laden und Vorschau erneut prüfen.",
+          });
         const source = yield* readIssue(preview.source.key, scope, true);
         const allowed = yield* fetchLinkPermission(preview.source.key, scope);
         if (
-          !choice ||
           !source.fields.issuelinks ||
           source.id !== preview.source.id ||
           source.key !== preview.source.key ||
           !allowed
         )
           return yield* new InvalidMultiLink({
-            message: "Quelle, Beziehung oder Berechtigung geändert.",
+            message: "Quelle, bestehende Beziehungen oder Verknüpfungsberechtigung konnte nicht erneut bestätigt werden.",
           });
         return source;
       }),
     );
+    const failedCheck = fresh._tag === "Failure" ? Cause.squash(fresh.cause) : null;
+    const preflightError = failedCheck instanceof InvalidMultiLink
+      ? failedCheck.message
+      : "Erneute Prüfung fehlgeschlagen. Keine Abgabe gestartet.";
     return yield* Effect.forEach(
       preview.rows,
       (row) =>
@@ -259,8 +266,9 @@ export const applyMultiTicketLinks = (
           )
             outcome = result(
               "not-started",
-              reason ??
-                "Gestoppt oder erneute Prüfung fehlgeschlagen. Keine Abgabe gestartet.",
+              reason ?? (!scope.isCurrent()
+                ? "Gestoppt oder Kontext gewechselt. Keine Abgabe gestartet."
+                : preflightError),
             );
           else
             outcome = yield* Effect.gen(function* () {

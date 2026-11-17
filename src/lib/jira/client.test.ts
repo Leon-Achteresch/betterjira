@@ -20,6 +20,23 @@ beforeEach(async () => {
 afterEach(() => vi.useRealTimers());
 
 describe("Jira transport request budgets", () => {
+  it("holds an explicitly bound host even when the authenticated cloud ID matches", async () => {
+    const { jiraSend } = await import("./client");
+    const onDispatch = vi.fn();
+    const scope = {
+      cloudId: session.cloudId,
+      siteUrl: "https://other.test",
+      isCurrent: () => true,
+      onDispatch,
+    };
+    http.mockResolvedValue(new Response(null, { status: 201 }));
+    await expect(
+      Effect.runPromise(jiraSend("/issueLink", { method: "POST", retry: false, scope })),
+    ).rejects.toMatchObject({ _tag: "JiraRequestScopeChanged" });
+    expect(http).not.toHaveBeenCalled();
+    expect(onDispatch).not.toHaveBeenCalled();
+  });
+
   it("does not replay an explicitly non-retrying unauthorized write and reports dispatch only at the transport boundary", async () => {
     const { jiraSend } = await import("./client");
     const onDispatch = vi.fn();
