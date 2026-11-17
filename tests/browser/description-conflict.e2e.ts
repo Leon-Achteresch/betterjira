@@ -1,13 +1,15 @@
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
+import descriptionWithMedia from "../jira/fixtures/description-adf-media.json" with { type: "json" };
 
 type Write = { path: string; method: string; input: { fields?: { description?: unknown } } };
 type QaIssue = { key: string; fields: { description: unknown } };
-type QaWindow = { __qa: { writes: Write[]; issues: QaIssue[]; wiki: Record<string, string | null>; failNextWrite: boolean; failDescriptionRead: boolean } };
+type QaWindow = { __qa: { writes: Write[]; reads: string[]; issues: QaIssue[]; wiki: Record<string, string | null>; failNextWrite: boolean; failDescriptionRead: boolean } };
 
 const ISSUE = "/tests/browser/fixture.html?route=/issue/DEMO-1";
 const remote = (text: string) => ({ type: "doc", version: 1, content: [{ type: "paragraph", content: [{ type: "text", text }] }] });
-const changeRemote = (page: Page, text: string) =>
-  page.evaluate((doc) => { (window as unknown as QaWindow).__qa.issues.find((issue) => issue.key === "DEMO-1")!.fields.description = doc; }, remote(text));
+const setRemoteDescription = (page: Page, doc: unknown) =>
+  page.evaluate((value) => { (window as unknown as QaWindow).__qa.issues.find((issue) => issue.key === "DEMO-1")!.fields.description = value; }, doc);
+const changeRemote = (page: Page, text: string) => setRemoteDescription(page, remote(text));
 const descriptionWrites = (page: Page) =>
   page.evaluate(() => (window as unknown as QaWindow).__qa.writes.filter((write) => write.method === "PUT" && write.path === "/issue/DEMO-1" && write.input.fields?.description !== undefined));
 const panel = (page: Page) => page.getByRole("group", { name: "Beschreibung wurde in Jira geändert" });
@@ -16,6 +18,12 @@ const shot = async (page: Page, testInfo: TestInfo, name: string) => {
   if (dir) await page.locator("form").filter({ has: panel(page) }).screenshot({ path: `${dir}/${testInfo.project.name}-${name}.png` });
 };
 const confirm = (page: Page) => panel(page).getByRole("button", { name: "Entwurf trotzdem speichern" });
+const openDescription = async (page: Page) => {
+  await page.getByRole("button", { name: "Beschreibung bearbeiten" }).press("Enter");
+  const editor = page.getByRole("textbox", { name: "Beschreibung" });
+  await expect(editor).toBeFocused();
+  return editor;
+};
 
 test("Konflikt zeigt Jira-Fassung, Cmd/Ctrl+Enter bestaetigt nie und R zu R2 verlangt erneute Pruefung", async ({ page }, testInfo) => {
   await page.goto(ISSUE);
@@ -126,9 +134,7 @@ test("GET- und Writefehler bei Vergleich behalten den editierbaren Entwurf", asy
 
 const startConflict = async (page: Page, url = ISSUE) => {
   await page.goto(url);
-  await page.getByRole("button", { name: "Beschreibung bearbeiten" }).click();
-  const editor = page.getByRole("textbox", { name: "Beschreibung" });
-  await expect(editor).toBeFocused();
+  const editor = await openDescription(page);
   await page.keyboard.press("ControlOrMeta+End");
   await page.keyboard.type(" Lokaler Zusatz");
   await changeRemote(page, "Fremde Änderung R");
@@ -244,4 +250,129 @@ test("390 px: Vergleich ohne Seitenueberlauf und per Tastatur pruef- und bestaet
   await page.keyboard.press("Enter");
   await expect(editor).toHaveCount(0);
   expect(await descriptionWrites(page)).toHaveLength(1);
+});
+
+const MEDIA_ISSUE = "/tests/browser/fixture.html?scenario=adf-images&route=/issue/DEMO-1";
+const alteredExtension = {
+  ...descriptionWithMedia,
+  content: descriptionWithMedia.content.map((node) => node.type === "extension"
+    ? { ...node, attrs: { ...node.attrs, revision: "R2" } }
+    : node),
+};
+const draftKey = JSON.stringify(["qa-cloud", "qa-user", "DEMO-1", "description#adf"]);
+const persistedDraft = (page: Page) => page.evaluate((key) => {
+  const raw = localStorage.getItem("betterjira-field-drafts");
+  return raw && JSON.parse(raw).state.drafts[key];
+}, draftKey);
+
+test("ADF-Vorschau kennzeichnet unbekannte Knoten und Medien und erhält die Rohquelle bei erneuter Prüfung", async ({ page }, info) => {
+  if (info.project.name === "narrow-dark-reduced") await page.setViewportSize({ width: 390, height: 844 });
+  const externalRequests: string[] = [];
+  await page.route("**/*", (route) => {
+    const url = new URL(route.request().url());
+    if (["http:", "https:"].includes(url.protocol) && url.hostname !== "127.0.0.1") {
+      externalRequests.push(url.href);
+      return route.abort();
+    }
+    return route.continue();
+  });
+  await page.goto(MEDIA_ISSUE);
+  const original = await page.evaluate(() =>
+    (window as unknown as QaWindow).__qa.issues.find((issue) => issue.key === "DEMO-1")!.fields.description,
+  );
+  const editor = await openDescription(page);
+  await page.keyboard.type(" Lokal");
+  await setRemoteDescription(page, descriptionWithMedia);
+  await editor.press("ControlOrMeta+Enter");
+  const comparison = panel(page);
+  const heading = comparison.getByRole("heading", { name: "Beschreibung wurde in Jira geändert" });
+  const current = comparison.getByRole("region", { name: "Aktuell in Jira" });
+  await expect(heading).toBeFocused();
+  await expect(current).toContainText("Lesbarer Text innerhalb der Erweiterung");
+  await expect(current).toContainText("Text im verschachtelten Hinweis");
+  await expect(current).toContainText("danach lesbar.");
+  await expect(current.getByText("Nur in der Quelle darstellbar", { exact: true })).toHaveCount(3);
+  await expect(current.locator("[data-attachment-id='46883']")).toHaveCount(1);
+  await expect(current.locator("[data-attachment-id='46886']")).toBeVisible();
+  for (const name of ["Einzelmedium.bin", "Ablauf Übergabe.png", "Externes Gruppenbild", "Externes Einzelbild"]) {
+    await expect(current.locator("[data-adf-media='missing']").filter({ hasText: name })).toBeVisible();
+  }
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(info.project.name === "narrow-dark-reduced" ? 390 : 1440);
+  await shot(page, info, "adf-media-preview");
+
+  await page.keyboard.press("Tab");
+  await expect(comparison.getByRole("tab", { name: "Vorschau" })).toBeFocused();
+  await page.keyboard.press("ArrowRight");
+  await expect(comparison.getByRole("tab", { name: "Quelle" })).toBeFocused();
+  const source = comparison.getByLabel("Aktuell in Jira");
+  const checkbox = comparison.getByRole("checkbox");
+  const tabTo = async (target: typeof source) => {
+    for (let step = 0; step < 8 && !(await target.evaluate((node) => node === document.activeElement)); step++) {
+      await page.keyboard.press("Tab");
+    }
+    await expect(target).toBeFocused();
+  };
+  await tabTo(source);
+  expect(JSON.parse(await source.innerText())).toEqual(descriptionWithMedia);
+  expect(JSON.parse(await comparison.getByLabel("Stand bei Bearbeitungsbeginn").innerText())).toEqual(original);
+  await tabTo(checkbox);
+  await page.keyboard.press("Space");
+  await page.keyboard.press("Tab");
+  await expect(confirm(page)).toBeFocused();
+  await setRemoteDescription(page, alteredExtension);
+  await page.keyboard.press("Enter");
+  await expect(heading).toBeFocused();
+  await expect(checkbox).not.toBeChecked();
+  await expect(confirm(page)).toBeDisabled();
+  await comparison.getByRole("tab", { name: "Quelle" }).click();
+  expect(JSON.parse(await source.innerText())).toEqual(alteredExtension);
+  expect(await descriptionWrites(page)).toHaveLength(0);
+  expect(externalRequests).toEqual([]);
+  expect(await page.evaluate(() => (window as unknown as QaWindow).__qa.reads.filter(
+    (path) => path === "/group.png" || path === "/single.png",
+  ))).toEqual([]);
+});
+
+test("Übernahme und Abbruch behalten ADF und Medien exakt; der bestätigte Write enthält nur die explizite Textänderung", async ({ page }, info) => {
+  if (info.project.name === "narrow-dark-reduced") await page.setViewportSize({ width: 390, height: 844 });
+  const editor = await startConflict(page, MEDIA_ISSUE);
+  await setRemoteDescription(page, descriptionWithMedia);
+  await editor.press("ControlOrMeta+Enter");
+  await expect(panel(page).getByRole("region", { name: "Aktuell in Jira" })).toContainText("Jira-Schluss");
+  const adopt = panel(page).getByRole("button", { name: "In Entwurf übernehmen" });
+  await adopt.focus();
+  await page.keyboard.press("Enter");
+  await expect(panel(page)).toHaveCount(0);
+  await expect(editor).toBeFocused();
+  const adopted = await persistedDraft(page);
+  expect(JSON.parse(adopted.text)).toEqual(descriptionWithMedia);
+  expect(adopted.basis.value).toEqual(descriptionWithMedia);
+  expect(await descriptionWrites(page)).toHaveLength(0);
+
+  await page.keyboard.press("Escape");
+  await expect(editor).toHaveCount(0);
+  expect(await persistedDraft(page)).toEqual(adopted);
+  expect(await descriptionWrites(page)).toHaveLength(0);
+  const reopen = page.getByRole("button", { name: "Beschreibung: Entwurf fortsetzen" });
+  await reopen.focus();
+  await page.keyboard.press("Enter");
+  await expect(editor).toBeFocused();
+  await expect(editor).toContainText("Jira-Schluss");
+  await page.keyboard.type(" ergänzt");
+  const expected = { ...descriptionWithMedia, content: [...descriptionWithMedia.content.slice(0, -1), ...remote("Jira-Schluss ergänzt").content] };
+
+  await setRemoteDescription(page, alteredExtension);
+  await editor.press("ControlOrMeta+Enter");
+  await expect(panel(page).getByRole("heading", { name: "Beschreibung wurde in Jira geändert" })).toBeFocused();
+  await panel(page).getByRole("tab", { name: "Quelle" }).click();
+  expect(JSON.parse(await panel(page).getByLabel("Stand bei Bearbeitungsbeginn").innerText())).toEqual(descriptionWithMedia);
+  expect(JSON.parse(await panel(page).getByLabel("Aktuell in Jira").innerText())).toEqual(alteredExtension);
+  expect(await descriptionWrites(page)).toHaveLength(0);
+  await panel(page).getByRole("checkbox").focus();
+  await page.keyboard.press("Space");
+  await page.keyboard.press("Tab");
+  await expect(confirm(page)).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(editor).toHaveCount(0);
+  expect((await descriptionWrites(page)).map((write) => write.input)).toEqual([{ fields: { description: expected } }]);
 });

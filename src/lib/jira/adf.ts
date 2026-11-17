@@ -16,6 +16,8 @@ export type AdfNode = {
 };
 
 const EDITABLE_NODES = new Set(["paragraph", "heading", "bulletList", "orderedList", "listItem", "codeBlock", "blockquote", "hardBreak", "rule"]);
+const NATIVE_NODE_ATTR: Partial<Record<string, string>> = { heading: "level", codeBlock: "language", orderedList: "order" };
+const PreservedNodeAttrs = Schema.Record(Schema.String, Schema.Json);
 const MENTION_ATTRS = new Set(["id", "text", "localId", "accessLevel", "userType"]);
 const MENTION_EXTRA_ATTRS = ["localId", "accessLevel", "userType"] as const;
 
@@ -74,6 +76,9 @@ const attrsFromEditor = (node: JSONContent) => {
   return undefined;
 };
 
+const preservedNodeAttrs = (node: AdfNode) =>
+  Object.fromEntries(Object.entries(node.attrs ?? {}).filter(([name]) => name !== NATIVE_NODE_ATTR[node.type]));
+
 export const adfNodeToEditor = (node: AdfNode): JSONContent => {
   if (node.type === "text") return { type: "text", text: node.text, ...(node.marks?.length && { marks: marksToEditor(node.marks) }) };
   if (isNativeMention(node)) return { type: "mention", attrs: mentionAttrsToEditor(node.attrs ?? {}) };
@@ -81,9 +86,12 @@ export const adfNodeToEditor = (node: AdfNode): JSONContent => {
     return { type: INLINE_NODES.has(node.type) ? "adfInline" : "adfBlock", attrs: { json: JSON.stringify(node) } };
   }
   const attrs = attrsToEditor(node);
+  const preserved = preservedNodeAttrs(node);
   return {
     type: node.type === "rule" ? "horizontalRule" : node.type,
-    ...(attrs && { attrs }),
+    ...((attrs || Object.keys(preserved).length > 0) && {
+      attrs: { ...attrs, ...(Object.keys(preserved).length > 0 && { adfNodeAttrs: preserved }) },
+    }),
     ...(node.content && { content: node.content.map(adfNodeToEditor) }),
   };
 };
@@ -95,7 +103,10 @@ const nodeFromEditor = (node: JSONContent): AdfNode => {
     const marks = marksFromEditor(node.marks);
     return { type: "text", text: node.text ?? "", ...(marks.length > 0 && { marks }) };
   }
-  const attrs = attrsFromEditor(node);
+  const preserved: unknown = node.attrs?.adfNodeAttrs;
+  const attrs = Schema.is(PreservedNodeAttrs)(preserved)
+    ? { ...preserved, ...attrsFromEditor(node) }
+    : attrsFromEditor(node);
   return {
     type: node.type === "horizontalRule" ? "rule" : node.type!,
     ...(attrs && { attrs }),
@@ -157,7 +168,17 @@ export const AdfMention = Mention.extend({
   renderHTML: ({ options, node }) => ["span", mergeAttributes({ "data-type": "mention" }, options.HTMLAttributes), mentionLabel(node.attrs)],
 });
 
-export const AdfStarterKit = StarterKit.configure({ trailingNode: false, link: { openOnClick: false, autolink: true } });
+export const AdfStarterKit = StarterKit.extend({
+  addGlobalAttributes() {
+    return [
+      ...(this.parent?.() ?? []),
+      {
+        types: [...EDITABLE_NODES].map((type) => type === "rule" ? "horizontalRule" : type),
+        attributes: { adfNodeAttrs: { default: null, rendered: false, keepOnSplit: false } },
+      },
+    ];
+  },
+}).configure({ trailingNode: false, link: { openOnClick: false, autolink: true } });
 
 export const withTrailingParagraph = (tr: Transaction) => {
   const paragraph = tr.doc.type.schema.nodes.paragraph;

@@ -21,7 +21,7 @@ const focusOnMount = (node: HTMLElement | null) => node?.focus();
 export function DescriptionPreview({ doc, mediaSource }: { doc: unknown; mediaSource: EditorMediaSource | undefined }) {
   const media = useKnownAdfMedia(doc, mediaSource);
   if (!isAdfDoc(doc) || isBlankAdf(doc)) return <p className="text-sm text-muted-foreground">{EMPTY}</p>;
-  return <AdfContent doc={doc} media={media} />;
+  return <AdfContent doc={doc} media={media} showUnsupported />;
 }
 
 function SourceColumn({ side, view }: { side: Side; view: View }) {
