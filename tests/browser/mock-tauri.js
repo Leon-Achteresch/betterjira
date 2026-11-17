@@ -1385,7 +1385,8 @@ const respond = async (request) => {
     if (delay) await new Promise((resolve) => setTimeout(resolve, delay));
     const meta = createMeta[projectId] ?? { types: [], fields: {} };
     if (!typeId) return { body: { startAt: 0, maxResults: 100, total: meta.types.length, issueTypes: meta.types } };
-    const fields = meta.fields[typeId] ?? [];
+    const defaults = meta.fields[typeId] ?? [];
+    const fields = window.__qaCreateFieldsRule?.(projectId, typeId, defaults) ?? defaults;
     return { body: { startAt: 0, maxResults: 100, total: fields.length, fields } };
   }
 
