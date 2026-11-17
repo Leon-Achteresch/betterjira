@@ -8,9 +8,6 @@ use tauri::utils::{
 };
 use tauri::{Assets, Manager, WebviewUrl, WebviewWindowBuilder, Wry};
 
-const WINDOW: &str = "c1-ipc-fixture";
-const IDENTIFIER: &str = "com.leon.betterjira.c1-ipc-fixture";
-
 struct FixtureAssets(PathBuf);
 
 impl Assets<Wry> for FixtureAssets {
@@ -38,15 +35,29 @@ impl Assets<Wry> for FixtureAssets {
 #[tauri::command]
 fn fixture_finish(app: tauri::AppHandle, error: Option<String>) {
     if let Some(error) = error {
-        eprintln!("C1 IPC fixture failed: {error}");
+        eprintln!("{} failed: {error}", app.config().identifier);
         app.exit(1);
     } else {
-        println!("C1 IPC fixture passed");
+        println!("{} passed", app.config().identifier);
         app.exit(0);
     }
 }
 
 pub fn run() -> Result<(), Box<dyn std::error::Error>> {
+    let (name, window, entry) = match env::var("C1_IPC_SCENARIO")?.as_str() {
+        "c1" => (
+            "betterjira C1 IPC Fixture",
+            "c1-ipc-fixture",
+            "tests/native/c1-tauri/fixture.html",
+        ),
+        "n01" => (
+            "betterjira N01 IPC Fixture",
+            "n01-ipc-fixture",
+            "tests/native/n01-tauri/fixture.html",
+        ),
+        _ => return Err("Unknown IPC fixture scenario".into()),
+    };
+    let identifier = format!("com.leon.betterjira.{window}");
     let work = PathBuf::from(env::var("C1_IPC_TEST_ROOT")?).canonicalize()?;
     let home = work.join("home");
     let temporary = work.join("tmp");
@@ -72,8 +83,8 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     let trap = format!("http://127.0.0.1:{canary}");
     let mut context = tauri::generate_context!("tauri.conf.json", test = true);
     let config = context.config_mut();
-    config.identifier = IDENTIFIER.into();
-    config.product_name = Some("betterjira C1 IPC Fixture".into());
+    config.identifier = identifier;
+    config.product_name = Some(name.into());
     config.build.dev_url = None;
     config.app.windows.clear();
     config.plugins.0.clear();
@@ -109,22 +120,22 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
                     "expiresAt": 4_102_444_800_000_i64,
                     "cloudId": "mock-cloud",
                     "siteUrl": "https://mock-jira.atlassian.net",
-                    "siteName": "C1 IPC Fixture",
+                    "siteName": name,
                 }).to_string()
             )?;
             app.add_capability(
-                CapabilityBuilder::new("c1-fixture")
-                    .window(WINDOW)
+                CapabilityBuilder::new(window)
+                    .window(window)
                     .permission("core:default")
                     .permission_scoped("http:default", vec![json!({ "url": format!("{origin}/*") })], vec![]),
             )?;
             println!("Tauri fixture ready with private data {data:?}, incognito WebView and HTTP scope {origin}");
             WebviewWindowBuilder::new(
                 app,
-                WINDOW,
-                WebviewUrl::App("tests/native/c1-tauri/fixture.html".into()),
+                window,
+                WebviewUrl::App(entry.into()),
             )
-            .title("betterjira C1 IPC Fixture")
+            .title(name)
             .inner_size(1280.0, 900.0)
             .focused(false)
             .incognito(true)

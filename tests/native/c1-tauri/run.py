@@ -35,7 +35,7 @@ def curl(url, sandbox=(), env=None, authenticated=False):
                           capture_output=True, text=True, env=env)
 
 
-def run_host(root, executable, port, guard):
+def run_host(root, executable, port, guard, scenario):
     with http.server.ThreadingHTTPServer(("127.0.0.1", 0), Canary) as canary:
         canary.hits = []
         threading.Thread(target=canary.serve_forever, daemon=True).start()
@@ -51,11 +51,12 @@ def run_host(root, executable, port, guard):
             sandbox = ["/usr/bin/sandbox-exec", "-p", profile]
             env = {"PATH": "/usr/bin:/bin", "HOME": str(root / "home"), "CFFIXED_USER_HOME": str(root / "home"),
                    "TMPDIR": str(root / "tmp"), "C1_IPC_TEST_ROOT": str(root), "C1_IPC_JIRA_PORT": str(port),
-                   "C1_IPC_CANARY_PORT": str(canary.server_port), "TOKIO_WORKER_THREADS": "2"}
+                   "C1_IPC_CANARY_PORT": str(canary.server_port), "C1_IPC_SCENARIO": scenario,
+                   "TOKIO_WORKER_THREADS": "2"}
             fixture = f"http://127.0.0.1:{port}"
             trap = f"http://127.0.0.1:{canary.server_port}"
             require(curl(trap + "/control").returncode == 0, "Canary is not reachable outside the sandbox")
-            allowed = curl(fixture + "/__c1/probe", sandbox, env)
+            allowed = curl(f"{fixture}/__{scenario}/probe", sandbox, env)
             require(allowed.returncode == 0 and json.loads(allowed.stdout) == {"fixture": True},
                     f"Fixture is unreachable in Seatbelt: {allowed.stderr}")
             denied = curl(trap + "/seatbelt", sandbox, env)
@@ -68,48 +69,58 @@ def run_host(root, executable, port, guard):
                   "and out-of-scope file denied. Real home and Keychain paths restricted.", flush=True)
             result = subprocess.run([*sandbox, str(executable)], cwd=root, env=env, timeout=90)
             require(canary.hits == ["/control"], f"Blocked canary received unexpected traffic: {canary.hits}")
-            result.check_returncode()
-            state = curl(fixture + "/__c1/state", authenticated=True)
+            state = curl(f"{fixture}/__{scenario}/state", authenticated=True)
             state.check_returncode()
             ledger = json.loads(state.stdout)
-            require(len(ledger["writes"]) == 1 and len(ledger["reads"]) == 5 and ledger["unexpected"] == 0,
-                    f"Unexpected final fixture ledger: {ledger}")
+            print("Native fixture ledger:", json.dumps(ledger, ensure_ascii=False), flush=True)
+            result.check_returncode()
+            require(ledger["unexpected"] == 0 and not ledger["held"], f"Unexpected final fixture ledger: {ledger}")
+            if scenario == "c1":
+                require(len(ledger["writes"]) == 1 and len(ledger["reads"]) == 5,
+                        f"Unexpected C1 fixture ledger: {ledger}")
+            else:
+                require(sorted((entry["target"], entry["status"]) for entry in ledger["writes"]) ==
+                        [("DEMO-2", 201), ("DEMO-3", 403), ("DEMO-5", 503)] and
+                        ledger["released"] == ["DEMO-6", "DEMO-7"], f"Unexpected N01 fixture ledger: {ledger}")
             require(not list((root / "data").rglob("61746c61737369616e2d73657373696f6e")),
                     "Private session file still exists after logout")
-            print("Native fixture ledger:", json.dumps(ledger, ensure_ascii=False))
-            print("Network canary: one external positive control, zero hits from the isolated host or WebView")
+            print("Network canary: one unsandboxed loopback control, zero hits from the isolated host or WebView")
         finally:
             canary.shutdown()
 
 
 def main():
     require(sys.platform == "darwin", "This fixture requires macOS")
-    require(len(sys.argv) == 3, "Usage: python3 tests/native/c1-tauri/run.py <fixture executable> <fixture build>")
+    require(len(sys.argv) in (3, 4), "Usage: python3 tests/native/c1-tauri/run.py <fixture executable> <fixture build> [c1|n01]")
+    scenario = sys.argv[3] if len(sys.argv) == 4 else "c1"
+    require(scenario in ("c1", "n01"), "Unknown IPC fixture scenario")
+    fixture_dir = HERE.parent / f"{scenario}-tauri"
     binary = Path(sys.argv[1]).resolve(strict=True)
     build = Path(sys.argv[2]).resolve(strict=True)
     require(binary.name == "c1_ipc_fixture", "Expected the feature-gated C1 example executable")
-    require((build / "tests/native/c1-tauri/fixture.html").is_file(), "Expected the C1 fixture build")
-    with tempfile.TemporaryDirectory(prefix="betterjira-c1-tauri-", dir="/tmp") as directory:
+    require((build / fixture_dir.relative_to(REPO) / "fixture.html").is_file(), "Expected the selected scenario build")
+    name = f"betterjira {scenario.upper()} IPC Fixture"
+    with tempfile.TemporaryDirectory(prefix=f"betterjira-{scenario}-tauri-", dir="/tmp") as directory:
         root = Path(directory).resolve()
-        for name in ("home", "tmp", "data"):
-            (root / name).mkdir(mode=0o700)
+        for folder in ("home", "tmp", "data"):
+            (root / folder).mkdir(mode=0o700)
         guard = root / "denied-read-canary"
         guard.write_text("private canary")
         shutil.copytree(build, root / "dist")
-        bundle = root / "BetterJiraC1Fixture.app" / "Contents"
-        executable = bundle / "MacOS" / "BetterJiraC1Fixture"
+        bundle = root / f"BetterJira{scenario.upper()}Fixture.app" / "Contents"
+        executable = bundle / "MacOS" / bundle.parent.stem
         executable.parent.mkdir(parents=True)
         shutil.copy2(binary, executable)
         with (bundle / "Info.plist").open("wb") as info:
-            plistlib.dump({"CFBundleIdentifier": "com.leon.betterjira.c1-ipc-fixture",
-                           "CFBundleName": "betterjira C1 IPC Fixture", "CFBundlePackageType": "APPL",
+            plistlib.dump({"CFBundleIdentifier": f"com.leon.betterjira.{scenario}-ipc-fixture",
+                           "CFBundleName": name, "CFBundlePackageType": "APPL",
                            "CFBundleExecutable": executable.name, "LSUIElement": True}, info)
-        server = subprocess.Popen(["bun", str(HERE / "server.ts")], stdout=subprocess.PIPE, text=True, cwd=REPO)
+        server = subprocess.Popen(["bun", str(fixture_dir / "server.ts")], stdout=subprocess.PIPE, text=True, cwd=REPO)
         try:
             require(bool(select.select([server.stdout], [], [], 10)[0]), "Jira fixture did not start")
             port = int(server.stdout.readline())
             require(0 < port < 65536 and server.poll() is None, "Jira fixture did not bind a private port")
-            run_host(root, executable, port, guard)
+            run_host(root, executable, port, guard, scenario)
         finally:
             if server.poll() is None:
                 server.terminate()
