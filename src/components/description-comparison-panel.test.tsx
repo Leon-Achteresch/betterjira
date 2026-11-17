@@ -78,7 +78,7 @@ describe("lesbare ADF-Vorschau neben unveraenderter Quelle", () => {
     const doc = { type: "doc", version: 1, content: [
       { type: "paragraph", content: [{ type: "text", text: "Hallo " }, { type: "mention", attrs: { id: "u1", text: "@Ada" } }] },
       { type: "table", content: [{ type: "tableRow", content: [{ type: "tableCell", content: [{ type: "paragraph", content: [{ type: "text", text: "Zelle R" }] }] }] }] },
-      { type: "paragraph", content: [{ type: "mediaInline", attrs: { id: "media-known", type: "file", collection: "" } }, { type: "mediaInline", attrs: { id: "media-neu", type: "file", collection: "", alt: "Neu.png" } }] },
+      { type: "paragraph", content: [{ type: "mediaInline", attrs: { id: "media-known", type: "file", collection: "" } }, { type: "mediaInline", attrs: { id: "media-neu", type: "file", collection: "", alt: "Angebot.pdf" } }] },
     ] };
     const markup = renderToStaticMarkup(
       <QueryClientProvider client={client}>
@@ -89,9 +89,9 @@ describe("lesbare ADF-Vorschau neben unveraenderter Quelle", () => {
     );
     expect(markup).toContain("@Ada");
     expect(markup).toMatch(/<td[^>]*>.*Zelle R/);
-    expect(markup).toContain('data-attachment-id="501"');
+    expect(markup.match(/data-attachment-id="501"/g)).toHaveLength(1);
     expect(markup).toContain("Anhang nicht verfügbar");
-    expect(markup).toContain("Neu.png");
+    expect(markup).toContain("Angebot.pdf");
   });
 
   it("zeigt leere Fassung als leer statt als fremdes HTML", () => {

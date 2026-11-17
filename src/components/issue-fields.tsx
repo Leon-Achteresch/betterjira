@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { flushSync } from "react-dom";
 import { PencilIcon } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { AdfContent, ExternalLink, safeUrl } from "@/components/adf-content";
@@ -410,7 +411,7 @@ function StringFieldForm({
           pending={editor.pending || uploading}
           onConfirm={() => void editor.confirmCompared()}
           onAdopt={adoptRemote && (() => {
-            adoptRemote();
+            flushSync(adoptRemote);
             (mode === "adf" ? richEditor.current : wikiEditor.current)?.focus();
           })}
         />

@@ -10,7 +10,7 @@ export function useKnownAdfMedia(doc: unknown, source: EditorMediaSource | undef
   const editor = useEditorMedia(source);
   const pending = saved?.pending ?? false;
   return useMemo(
-    () => (issueMedia ? { pending, matches: matchKnownMedia(doc, editor.known, editor.attachments), open: issueMedia.open } : undefined),
+    () => (issueMedia ? { pending, matches: matchKnownMedia(doc, editor.known, []), open: issueMedia.open } : undefined),
     [doc, issueMedia, pending, editor],
   );
 }

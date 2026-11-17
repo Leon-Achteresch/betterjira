@@ -8,13 +8,13 @@ const mock = vi.hoisted(() => {
   const data = new Map<string, string>();
   const localStorage = { getItem: (key: string) => data.get(key) ?? null, setItem: (key: string, value: string) => data.set(key, value), removeItem: (key: string) => data.delete(key) };
   vi.stubGlobal("window", { localStorage });
-  return { jira: vi.fn(), jiraSend: vi.fn(), close: vi.fn() };
+  return { jira: vi.fn(), jiraSend: vi.fn(), close: vi.fn(), ready: true };
 });
 vi.mock("@/lib/jira/client", async (original) => ({ ...await original<typeof import("@/lib/jira/client")>(), currentSite: Effect.succeed({ cloudId: "site-a" }), jira: mock.jira, jiraSend: mock.jiraSend }));
 vi.mock("@/lib/jira/queries", async (original) => ({
   ...await original<typeof import("@/lib/jira/queries")>(),
-  useJiraSite: () => ({ data: { cloudId: "site-a" } }),
-  useJiraMyself: () => ({ data: { accountId: "account-a" } }),
+  useJiraSite: () => ({ data: mock.ready ? { cloudId: "site-a" } : undefined }),
+  useJiraMyself: () => ({ data: mock.ready ? { accountId: "account-a" } : undefined }),
 }));
 vi.mock("@/lib/jira/mutation-cache", () => ({ invalidateIssueChange: vi.fn() }));
 
@@ -47,6 +47,7 @@ beforeEach(() => {
   client.setQueryData(jiraKeys.myself, { accountId: "account-a" });
   store.setState({ drafts: {}, saving: [] });
   remote = fixture.base;
+  mock.ready = true;
   mock.close.mockReset();
   mock.jira.mockReset().mockImplementation((_path: string, schema: Schema.Decoder<unknown>) => Schema.decodeUnknownEffect(schema)({ fields: { description: remote } }));
   mock.jiraSend.mockReset().mockReturnValue(Effect.void);
@@ -54,6 +55,18 @@ beforeEach(() => {
 afterEach(() => client.clear());
 
 describe("C1 im bestehenden Feldeditorfluss", () => {
+  it("erlaubt Schließen vor verfügbarem Konto, aber keine Entwurfs- oder Schreibaktion", async () => {
+    mock.ready = false;
+    const editor = mount();
+    expect(editor.ready).toBe(false);
+    editor.setText(JSON.stringify(fixture.local));
+    await editor.submit();
+    editor.close();
+    expect(mock.close).toHaveBeenCalledOnce();
+    expect(store.getState().drafts).toEqual({});
+    expect(mock.jiraSend).not.toHaveBeenCalled();
+  });
+
   it("erfasst die rohe Basis beim Edit und speichert über frischen Read statt direkter Feldmutation", async () => {
     const editor = mount();
     editor.setText(JSON.stringify(fixture.local));

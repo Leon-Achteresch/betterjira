@@ -29,6 +29,7 @@ export default mergeConfig(base({ command: "build", mode: "production" }), {
       input: {
         app: join(import.meta.dirname, "index.html"),
         motion: join(import.meta.dirname, "tests/browser/motion-fixture.html"),
+        fieldDraft: join(import.meta.dirname, "tests/browser/field-draft-fixture.html"),
       },
     },
   },

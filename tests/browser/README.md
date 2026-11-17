@@ -18,6 +18,8 @@ Für einen zweiten Snapshot sowohl `BROWSER_QA_DIRECTORY` als auch `BROWSER_QA_P
 
 Die Simulation prüft Request-Payloads, Fehler, Rollback und Konto-/Instanzgrenzen. Sie ersetzt keine Live-Jira-Abnahme, OAuth-Freigabe oder native Betriebssystemprüfung. Für Sprint-Schreibaktionen sind die in der Projekt-README dokumentierten zusätzlichen OAuth-Scopes erforderlich.
 
+`description-adoption.e2e.ts` verwendet zusätzlich `field-draft-fixture.html`: den echten `useFieldDraft` mit React Strict Mode, QueryClient, Zustand, Sonner und synthetischem Tauri-Transport. Erhaltene Callback-Referenzen prüfen Doppelübernahme, revisionsgebundenes Undo, Konto-/Instanz-/Ticket-/Editorwechsel und späte Write-Ergebnisse. Die Fixture gehört ausschließlich zum Browser-QA-Build. `description-conflict.e2e.ts` prüft dazu den echten Editor samt Vergleich, Medien-ID-Zuordnung und Eingabefokus nach Übernahme.
+
 ### Prüfstand vom 13.11.2026
 
 | Prüfung | Ergebnis |

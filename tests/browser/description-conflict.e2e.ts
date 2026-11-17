@@ -168,7 +168,8 @@ test("Uebernahme der Jira-Fassung ist lokal, rueckgaengig und speichert basisget
   expect(await descriptionWrites(page)).toHaveLength(0);
 
   await panel(page).getByRole("button", { name: "In Entwurf übernehmen" }).click();
-  await editor.press("ControlOrMeta+End");
+  await expect(editor).toBeFocused();
+  await expect(editor).toContainText("Fremde Änderung R");
   await page.keyboard.type(" Ergänzt");
   await page.keyboard.press("ControlOrMeta+Enter");
   await expect(editor).toHaveCount(0);
@@ -202,6 +203,7 @@ test("Vorschau zeigt Medien, Mentions und Tabellen der Remotefassung ueber bekan
       { type: "paragraph", content: [{ type: "text", text: "Remote mit " }, { type: "mention", attrs: { id: "u1", text: "@Ada Remote" } }] },
       { type: "mediaSingle", attrs: { layout: "center", width: 480, widthType: "pixel" }, content: [{ type: "media", attrs: { id: "uuid-a", type: "file", collection: "", width: 1200, height: 600 } }] },
       { type: "mediaSingle", attrs: { layout: "center" }, content: [{ type: "media", attrs: { id: "uuid-neu", type: "file", collection: "", alt: "Neu hochgeladen.png" } }] },
+      { type: "mediaSingle", attrs: { layout: "center" }, content: [{ type: "media", attrs: { id: "uuid-andere-datei", type: "file", collection: "", alt: "Ablauf Übergabe.png" } }] },
       { type: "table", content: [{ type: "tableRow", content: [{ type: "tableHeader", content: [{ type: "paragraph", content: [{ type: "text", text: "Spalte" }] }] }] }, { type: "tableRow", content: [{ type: "tableCell", content: [{ type: "paragraph", content: [{ type: "text", text: "Remote-Zelle" }] }] }] }] },
     ] };
   });
@@ -209,8 +211,10 @@ test("Vorschau zeigt Medien, Mentions und Tabellen der Remotefassung ueber bekan
   const current = panel(page).getByRole("region", { name: "Aktuell in Jira" });
   await expect(current).toContainText("@Ada Remote");
   await expect(current.getByRole("cell", { name: "Remote-Zelle" })).toBeVisible();
+  await expect(current.locator("[data-attachment-id=\"46883\"]")).toHaveCount(1);
   await expect(current.locator("[data-attachment-id=\"46883\"]")).toBeVisible();
   await expect(current.locator("[data-adf-media=\"missing\"]").filter({ hasText: "Neu hochgeladen.png" })).toBeVisible();
+  await expect(current.locator("[data-adf-media=\"missing\"]").filter({ hasText: "Ablauf Übergabe.png" })).toBeVisible();
   await panel(page).getByRole("tab", { name: "Quelle" }).click();
   await expect(panel(page).getByLabel("Aktuell in Jira")).toContainText("\"uuid-neu\"");
   expect(await descriptionWrites(page)).toHaveLength(0);
