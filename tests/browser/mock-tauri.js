@@ -1544,6 +1544,9 @@ const respond = async (request) => {
     if (rule.status) return { status: rule.status, body: { errorMessages: [`Test: Jira antwortet mit ${rule.status}`] } };
     return { body: { id: issue.id, key: issue.key, fields: { summary: issue.fields.summary, issuelinks: rule.issuelinks ?? currentIssueLinks(issue.key) } } };
   }
+  const descriptionReadGate = window.__qaDescriptionReadGate;
+  if (issue && descriptionReadGate && url.searchParams.get("fields") === "description")
+    await descriptionReadGate(issue.key);
   if (issue && url.searchParams.get("fields") === "description" && window.__qa.failDescriptionRead)
     return { status: 403, body: { errorMessages: ["Test: Beschreibung nicht lesbar"] } };
   if (issue && url.pathname.includes("/api/2/") && url.searchParams.get("fields") === "description")
