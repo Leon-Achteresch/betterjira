@@ -70,6 +70,11 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
             "n04-ipc-fixture",
             "tests/native/n04-tauri/fixture.html",
         ),
+        "n05" => (
+            "betterjira N05 IPC Fixture",
+            "n05-ipc-fixture",
+            "tests/native/n05-tauri/fixture.html",
+        ),
         _ => return Err("Unknown IPC fixture scenario".into()),
     };
     let identifier = format!("com.leon.betterjira.{window}");
