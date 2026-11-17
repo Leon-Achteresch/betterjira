@@ -101,7 +101,7 @@ export const canCreateIssues = (projectId: string, scope?: JiraRequestScope) =>
 
 export class CreateIssueResponseError extends Data.TaggedError("CreateIssueResponseError")<{}> {}
 
-export const createIssue = (payload: CreateIssuePayload, requestScope?: JiraRequestScope) =>
-  jira("/issue", CreatedIssue, { method: "POST", body: JSON.stringify(payload), scope: requestScope }).pipe(
+export const createIssue = (payload: CreateIssuePayload, requestScope?: JiraRequestScope, options?: { retry: false }) =>
+  jira("/issue", CreatedIssue, { method: "POST", body: JSON.stringify(payload), scope: requestScope, ...options }).pipe(
     Effect.catchTag("SchemaError", () => Effect.fail(new CreateIssueResponseError())),
   );

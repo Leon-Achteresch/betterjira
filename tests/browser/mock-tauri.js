@@ -103,7 +103,7 @@ const issues = Array.from({ length: scenario === "busy" ? 35 : scenario === "wor
     assignee: author,
     reporter: index === 0 && !DEV_COMMENT_SCENARIOS.has(scenario) ? former : author,
     priority: { name: "Mittel" },
-    issuetype: { name: "Aufgabe" },
+    issuetype: { name: "Aufgabe", subtask: false },
     created: "2026-11-01T09:00:00Z",
     updated: "2026-11-04T10:00:00Z",
     description: paragraph(
@@ -1230,6 +1230,7 @@ const respond = async (request) => {
     }
     if (path === "/issue" && request.method === "POST") {
       const target = createProjects.find((entry) => entry.id === input.fields.project.id) ?? project;
+      const parent = input.fields.parent && issues.find((entry) => entry.key === input.fields.parent.key || entry.id === input.fields.parent.id);
       const key = `${target.key}-${issues.length + 1}`;
       const id = String(10000 + issues.length + 1);
       issues.push({
@@ -1240,7 +1241,7 @@ const respond = async (request) => {
           ...issues[0].fields,
           summary: input.fields.summary,
           issuetype: createMeta[target.id]?.types.find((type) => type.id === input.fields.issuetype.id) ?? issues[0].fields.issuetype,
-          parent: input.fields.parent ? { key: input.fields.parent.key, fields: { summary: issues.find((entry) => entry.key === input.fields.parent.key)?.fields.summary ?? "" } } : undefined,
+          parent: parent && { key: parent.key, fields: { summary: parent.fields.summary } },
           subtasks: [],
           project: target,
           description: input.fields.description ?? null,
@@ -1248,10 +1249,7 @@ const respond = async (request) => {
           worklog: { total: 0, worklogs: [] },
         },
       });
-      if (input.fields.parent) {
-        const parent = issues.find((entry) => entry.key === input.fields.parent.key);
-        if (parent) parent.fields.subtasks = [...(parent.fields.subtasks ?? []), { id, key, fields: { summary: input.fields.summary, status: issues.at(-1).fields.status } }];
-      }
+      if (parent) parent.fields.subtasks = [...(parent.fields.subtasks ?? []), { id, key, fields: { summary: input.fields.summary, status: issues.at(-1).fields.status } }];
       return { status: 201, body: { id, key, self: `https://example.atlassian.net/rest/api/3/issue/${id}` } };
     }
     const favourite = qaFilters.find((filter) => path === `/filter/${filter.id}/favourite`);
@@ -1768,8 +1766,9 @@ window.__TAURI_INTERNALS__ = {
     throw new Error(`Nicht simuliertes Tauri-Kommando: ${command}`);
   },
 };
-if (scenario === "table-field-apply") {
+if (scenario === "table-field-apply" || scenario === "subtask-rows") {
   const bridge = window.__TAURI_INTERNALS__;
   const invoke = bridge.invoke;
-  Object.defineProperty(window, "__qaTableFieldApply", { value: () => window.__TAURI_INTERNALS__ === bridge && bridge.invoke === invoke });
+  const flag = scenario === "subtask-rows" ? "__qaSubtaskRows" : "__qaTableFieldApply";
+  Object.defineProperty(window, flag, { value: () => window.__TAURI_INTERNALS__ === bridge && bridge.invoke === invoke });
 }

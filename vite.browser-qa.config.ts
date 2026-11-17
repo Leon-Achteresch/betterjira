@@ -11,6 +11,9 @@ export default mergeConfig(base({ command: "build", mode: "production" }), {
     alias: [{
       find: "@/lib/jira/table-field-apply-capability",
       replacement: join(import.meta.dirname, "tests/browser/table-field-apply-capability.ts"),
+    }, {
+      find: "@/lib/jira/subtask-rows-capability",
+      replacement: join(import.meta.dirname, "tests/browser/subtask-rows-capability.ts"),
     }],
   },
   plugins: [{

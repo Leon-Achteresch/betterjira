@@ -1,8 +1,9 @@
 import { Schema } from "effect";
-import { jira } from "./client";
+import { jira, type JiraRequestScope } from "./client";
 import { jiraKeys } from "./keys";
 
 const CreationParent = Schema.Struct({
+  id: Schema.optional(Schema.String),
   key: Schema.String,
   fields: Schema.Struct({
     summary: Schema.String,
@@ -12,7 +13,8 @@ const CreationParent = Schema.Struct({
 });
 
 export const creationParentKey = (scope: string, key: string) => [...jiraKeys.issue(key), "creation-parent", scope] as const;
-export const fetchCreationParent = (key: string) => jira(`/issue/${encodeURIComponent(key)}?fields=summary,project,issuetype`, CreationParent);
+export const fetchCreationParent = (key: string, scope?: JiraRequestScope) =>
+  jira(`/issue/${encodeURIComponent(key)}?fields=summary,project,issuetype`, CreationParent, scope ? { scope, cache: "no-store" } : undefined);
 
 export const createRouteSearch = (raw: Record<string, unknown>): { parent?: string } => {
   const parent = typeof raw.parent === "string" ? raw.parent.trim().toUpperCase() : "";

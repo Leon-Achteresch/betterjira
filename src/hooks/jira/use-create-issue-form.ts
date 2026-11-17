@@ -32,6 +32,7 @@ import { useJiraQueryScope } from "./use-jira-query-scope";
 import { freshTemplateTarget } from "@/lib/jira/create-metadata-query";
 import { applyTemplateToTarget, templateValueText } from "@/lib/jira/template-application";
 import { jiraQueryScopeMatches } from "@/lib/jira/query-scope";
+import type { SubtaskRowsTarget } from "@/lib/jira/subtask-rows";
 import { useComponentLeads } from "./use-component-leads";
 import { useCreationHints } from "./use-creation-hints";
 import { useJiraAccountScope } from "./use-jira-account-scope";
@@ -242,8 +243,21 @@ export function useCreateIssueForm(parentKey?: string) {
     });
   };
 
+  const subtaskRowsTarget: SubtaskRowsTarget | undefined = accountScope && site.data && parentKey
+    && parent.data?.key === parentKey && parent.data.id && !parent.data.fields.issuetype.subtask
+    && project?.id === parent.data.fields.project.id && issueType?.subtask === true
+    ? {
+      scope: accountScope,
+      siteUrl: site.data.siteUrl,
+      parent: { id: parent.data.id, key: parentKey, summary: parent.data.fields.summary },
+      project: parent.data.fields.project,
+      type: { id: issueType.id, name: issueType.name },
+    }
+    : undefined;
+
   return {
     status,
+    subtaskRowsTarget,
     parentKey,
     parent: parent.data,
     draftReady: !!storage.id,
