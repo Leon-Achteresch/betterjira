@@ -177,8 +177,9 @@ export function useBulkEdit(selection: readonly TableFieldTarget[], disabled: bo
   const tablePreview: TableFieldPreviewContext | null =
     open && operation === "table-field-preview" && !disabled && scope && site.isSuccess && site.data && myself.isSuccess && selection.length
       ? {
-          context: JSON.stringify([scope, selectionContext, TABLE_PREVIEW_FIELD, selection.map(({ key, id }) => [key, id]).sort()]),
+          context: JSON.stringify([scope, site.data.siteUrl, selectionContext, TABLE_PREVIEW_FIELD, selection.map(({ key, id }) => [key, id]).sort()]),
           scope,
+          siteUrl: site.data.siteUrl,
           targets: selection,
           accountLabel: `${myself.data.displayName} · ${site.data.siteName}`,
         }

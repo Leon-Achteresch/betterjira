@@ -12,6 +12,7 @@ export const jiraKeys = {
   bulkEdit: (scope: string, keys: readonly string[]) => ["jira", "bulk-edit", scope, [...keys].sort()] as const,
   tableFieldPreview: (context: string, instance: string, revision: number | undefined) =>
     ["jira", "table-field-preview", context, instance, revision] as const,
+  tableFieldApply: (scope: JiraQueryScope) => ["jira", "table-field-apply", scope.cloudId, scope.accountId] as const,
   dueDateShiftPreview: (context: string, days: number | null) => ["jira", "due-date-shift", "preview", context, days] as const,
   dueDateShiftWrite: (scope: JiraQueryScope | undefined) => ["jira", "due-date-shift", "write", scope?.cloudId ?? "", scope?.accountId ?? ""] as const,
   attachment: (variant: string, id: string) => ["jira", "attachment", variant, id] as const,

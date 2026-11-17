@@ -1,11 +1,13 @@
 import { useId } from "react";
 import { Fade } from "@/components/motion/fade";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { useTableFieldPreview, type TableFieldPreviewContext } from "@/hooks/jira/use-table-field-preview";
 import { TABLE_FIELD_LIMITS, type TableFieldRow } from "@/lib/jira/table-field-preview";
+import type { TableFieldApplyResult } from "@/lib/jira/table-field-apply";
 import { cn } from "@/lib/utils";
 
 const STATUS_LABELS: Record<TableFieldRow["status"], string> = {
@@ -28,6 +30,10 @@ const STATUS_LABELS: Record<TableFieldRow["status"], string> = {
   "read-error": "Fälligkeit, Rechte oder Bearbeitungsdaten konnten nicht geprüft werden",
 };
 const focusSummary = (summary: HTMLParagraphElement | null) => summary?.focus();
+const APPLY_LABELS: Record<TableFieldApplyResult["status"], string> = {
+  applied: "Bestätigt", blocked: "Gesperrt", uncertain: "Unklar", unchanged: "Unverändert",
+};
+const beforeLabel = (value: string | null | undefined) => value === null ? "Ohne Fälligkeit" : value ?? "–";
 
 function PreviewRow({ row }: { row: TableFieldRow }) {
   const checked = row.status === "change" || row.status === "unchanged";
@@ -40,7 +46,7 @@ function PreviewRow({ row }: { row: TableFieldRow }) {
       <dl className="mt-2 grid grid-cols-2 gap-2 text-xs tabular-nums">
         <div className="min-w-0">
           <dt className="text-muted-foreground">Aktuell</dt>
-          <dd>{row.before === null ? "Ohne Fälligkeit" : row.before ?? "–"}</dd>
+          <dd>{beforeLabel(row.before)}</dd>
         </div>
         <div className="min-w-0">
           <dt className="text-muted-foreground">Tabellenwert</dt>
@@ -55,7 +61,7 @@ function PreviewRow({ row }: { row: TableFieldRow }) {
 export function TableFieldPreviewPanel({ context }: { context: TableFieldPreviewContext }) {
   const state = useTableFieldPreview(context);
   const id = useId();
-  const { preview } = state;
+  const { preview, apply } = state;
   const changed = preview?.rows.filter((row) => row.status === "change").length ?? 0;
   const unchanged = preview?.rows.filter((row) => row.status === "unchanged").length ?? 0;
   return (
@@ -66,7 +72,7 @@ export function TableFieldPreviewPanel({ context }: { context: TableFieldPreview
           <Label htmlFor={id}>Tabellenwerte (TSV)</Label>
           <Textarea id={id} aria-describedby={`${id}-help`} aria-invalid={!!state.inputError}
             className="max-h-28 min-h-20 resize-y rounded-xl font-mono text-xs tabular-nums"
-            placeholder={"DEMO-1\t2026-12-18"} value={state.input} onChange={(event) => state.setInput(event.target.value)} />
+            placeholder={"DEMO-1\t2026-12-18"} value={state.input} disabled={apply.busy} onChange={(event) => state.setInput(event.target.value)} />
           <p id={`${id}-help`} className="text-xs leading-relaxed text-muted-foreground">
             Ticketschlüssel und Fälligkeit (JJJJ-MM-TT) aus zwei Spalten ohne Kopfzeile einfügen. Bis zu {TABLE_FIELD_LIMITS.rows} Zeilen.
           </p>
@@ -75,7 +81,7 @@ export function TableFieldPreviewPanel({ context }: { context: TableFieldPreview
         {state.inputError && <Fade><p role="alert" className="text-xs text-destructive">{state.inputError}</p></Fade>}
         {state.readError && <Fade><p role="alert" className="text-xs text-destructive">Der Jira-Kontext konnte nicht bestätigt werden. Vorschau erneut prüfen.</p></Fade>}
         {state.pending && <Fade><Skeleton role="status" aria-label="Tabellenwerte werden geprüft" className="h-16 rounded-xl" /></Fade>}
-        {preview && (
+        {preview && !apply.results && (
           <Fade>
             <p ref={focusSummary} role="status" tabIndex={-1} className="rounded-sm text-xs font-medium tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-ring">
               {changed} mit Änderung · {unchanged} unverändert · {preview.rows.length - changed - unchanged} mit Klärungsbedarf
@@ -84,6 +90,39 @@ export function TableFieldPreviewPanel({ context }: { context: TableFieldPreview
             <ol aria-label="Prüfung je Tabellenzeile" className="mt-2 space-y-2">
               {preview.rows.map((row) => <PreviewRow key={row.line} row={row} />)}
             </ol>
+          </Fade>
+        )}
+        {apply.available && (
+          <Fade>
+            <div className="flex flex-col gap-2 rounded-xl border border-border/60 p-3">
+              <p className="text-xs text-muted-foreground">Prüfung und Schreiben erfolgen getrennt je Ticket. Änderungen dazwischen und Teilergebnisse sind möglich.</p>
+              <div className="flex min-h-8 items-center gap-2">
+                <Checkbox id={`${id}-confirm`} checked={apply.confirmed} onCheckedChange={(checked) => apply.review(checked === true)} />
+                <Label htmlFor={`${id}-confirm`}>Ich habe die Änderungen geprüft</Label>
+              </div>
+              <Button type="button" disabled={!apply.confirmed} onClick={apply.confirm}>Fälligkeiten anwenden</Button>
+            </div>
+          </Fade>
+        )}
+        {apply.running && (
+          <Fade>
+            <p role="status" className="text-xs text-muted-foreground">Fälligkeiten werden einzeln geprüft und geschrieben.</p>
+            <Button type="button" variant="outline" size="sm" className="mt-2" onClick={apply.stop}>Weitere Änderungen stoppen</Button>
+          </Fade>
+        )}
+        {apply.error && <Fade><p role="alert" className="text-xs text-destructive">Serverstand prüfen. Die Ausführung wird nicht automatisch wiederholt.</p></Fade>}
+        {apply.results && (
+          <Fade>
+            <p ref={focusSummary} tabIndex={-1} className="text-xs font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring">Ergebnis je Tabellenzeile</p>
+            <ul aria-label="Ergebnisse der Fälligkeitsänderung" className="mt-2 space-y-2">
+              {apply.results.map(({ row, status, message }) => (
+                <li key={row.line} className="rounded-xl border border-border/60 bg-muted/40 p-2.5 text-xs">
+                  <p className="break-words font-medium">{row.key || `Zeile ${row.line}`} · {APPLY_LABELS[status]}</p>
+                  <p className="mt-1 break-words tabular-nums text-muted-foreground">Geplant: {beforeLabel(row.before)} → {row.value || "–"}</p>
+                  <p className="mt-1 text-muted-foreground">{message}</p>
+                </li>
+              ))}
+            </ul>
           </Fade>
         )}
       </div>

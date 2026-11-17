@@ -1,8 +1,8 @@
 import { Data, Effect } from "effect";
-import { JiraApiError, JiraRequestScopeChanged, NotAuthenticated, type JiraRequestScope } from "./client";
+import { JiraApiError, type JiraRequestScope } from "./client";
 import { bulkEditIssue, bulkIssueEditMetadata } from "./bulk-edit";
 import { shiftCalendarDate } from "../calendar-date-shift";
-import { maySetDueDate, readDueDateIssue, readDueDatePermissions, supportsDueDate } from "./due-date-fields";
+import { dueDateWriteStatus, maySetDueDate, readDueDateIssue, readDueDatePermissions, supportsDueDate } from "./due-date-fields";
 
 export type DueDateShiftRow = { key: string; id?: string; projectId?: string; typeId?: string; before?: string | null; after: string | null; reason?: string };
 export type DueDateShiftPreview = { days: number; rows: readonly DueDateShiftRow[] };
@@ -38,9 +38,10 @@ export const previewDueDateShift = (keys: readonly string[], days: number, scope
 });
 
 const writeFailure = (row: DueDateShiftRow, error: unknown): DueDateShiftResult => {
-  if (error instanceof JiraRequestScopeChanged || error instanceof NotAuthenticated)
+  const status = dueDateWriteStatus(error);
+  if (status === "skipped")
     return { row, status: "skipped", message: "Kontext oder Anmeldung geändert. Keine weitere Änderung gesendet; Serverstand neu prüfen." };
-  if (error instanceof JiraApiError && error.status < 500 && error.status !== 408)
+  if (status === "failed" && error instanceof JiraApiError)
     return { row, status: "failed", message: `Jira hat die Änderung abgelehnt (HTTP ${error.status}).` };
   return { row, status: "uncertain", message: "Ergebnis unklar. Nicht automatisch erneut verschieben; zuerst den Serverstand neu lesen und prüfen." };
 };

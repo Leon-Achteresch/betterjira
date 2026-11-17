@@ -7,6 +7,12 @@ import { tmpdir } from "node:os";
 const directory = process.env.BROWSER_QA_DIRECTORY ?? join(tmpdir(), "betterjira-browser-qa");
 
 export default mergeConfig(base({ command: "build", mode: "production" }), {
+  resolve: {
+    alias: [{
+      find: "@/lib/jira/table-field-apply-capability",
+      replacement: join(import.meta.dirname, "tests/browser/table-field-apply-capability.ts"),
+    }],
+  },
   plugins: [{
     name: "qa-render-faults",
     enforce: "pre",

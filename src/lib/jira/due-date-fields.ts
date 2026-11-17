@@ -1,5 +1,5 @@
 import { Schema } from "effect";
-import { jira, type JiraRequestScope } from "./client";
+import { jira, JiraApiError, JiraRequestScopeChanged, NotAuthenticated, type JiraRequestScope } from "./client";
 import type { BulkMetadata } from "./bulk-edit";
 
 export const DueDateIssue = Schema.Struct({
@@ -28,3 +28,9 @@ export const maySetDueDate = ({ permissions }: typeof DueDatePermissions.Type) =
 
 export const supportsDueDate = (metadata: BulkMetadata) =>
   metadata.fields.duedate?.operations?.includes("set");
+
+export const dueDateWriteStatus = (error: unknown) => {
+  if (error instanceof JiraRequestScopeChanged || error instanceof NotAuthenticated) return "skipped";
+  if (error instanceof JiraApiError && error.status < 500 && error.status !== 408) return "failed";
+  return "uncertain";
+};

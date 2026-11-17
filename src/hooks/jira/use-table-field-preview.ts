@@ -4,17 +4,20 @@ import { Effect } from "effect";
 import { jiraKeys } from "@/lib/jira/keys";
 import { jiraRequestScope, withJiraQueryScope, type JiraQueryScope } from "@/lib/jira/query-scope";
 import { planTableFieldPreview, previewTableField, TABLE_FIELD_LIMITS, type TableFieldTarget } from "@/lib/jira/table-field-preview";
+import { useTableFieldApply } from "./use-table-field-apply";
 
 export type TableFieldPreviewContext = {
   context: string;
   scope: JiraQueryScope;
+  siteUrl: string;
   targets: readonly TableFieldTarget[];
   accountLabel: string;
 };
 
 type Plan = Exclude<ReturnType<typeof planTableFieldPreview>, { error: string }>;
 
-export function useTableFieldPreview({ context, scope, targets }: TableFieldPreviewContext) {
+export function useTableFieldPreview(binding: TableFieldPreviewContext) {
+  const { context, scope, targets } = binding;
   const [input, setInput] = useState("");
   const [error, setError] = useState<string>();
   const [job, setJob] = useState<{ revision: number; plan: Plan }>();
@@ -33,11 +36,15 @@ export function useTableFieldPreview({ context, scope, targets }: TableFieldPrev
     },
   });
 
-  const canPreview = input.length > 0 && !query.isFetching;
+  const preview = job ? query.data : undefined;
+  const apply = useTableFieldApply(binding, preview);
+  const canPreview = input.length > 0 && !query.isFetching && !apply.busy;
   return {
     input,
     canPreview,
+    apply,
     setInput: (value: string) => {
+      if (apply.busy) return;
       const tooLong = value.length > TABLE_FIELD_LIMITS.characters;
       setInput(tooLong ? "" : value);
       setError(tooLong ? `Die Eingabe wurde verworfen. Füge höchstens ${TABLE_FIELD_LIMITS.characters.toLocaleString("de-DE")} Zeichen ein.` : undefined);
@@ -57,6 +64,6 @@ export function useTableFieldPreview({ context, scope, targets }: TableFieldPrev
     inputError: error,
     readError: query.isError,
     pending: !!job && query.isPending,
-    preview: job ? query.data : undefined,
+    preview,
   };
 }

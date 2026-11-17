@@ -50,7 +50,7 @@ export function BulkEditMenu({
           {table ? "Fälligkeiten aus Tabelle" : "Ausgewählte Vorgänge bearbeiten"}
         </p>
         <p className="text-xs text-muted-foreground">
-          {table ? "Lesende Vorschau für ausgewählte Tickets." :
+          {table ? "Vorschau für ausgewählte Tickets." :
             "Nur die ausgewählten geladenen Tickets werden geändert. Jira prüft die Berechtigung für jedes Ticket."}
         </p>
         <Label htmlFor="bulk-operation">Änderung</Label>

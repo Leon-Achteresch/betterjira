@@ -70,7 +70,7 @@ const titles = [
   "Tastaturbedienung im Editor verbessern",
   "Übergabe an das Team vorbereiten",
 ];
-const issues = Array.from({ length: scenario === "busy" ? 35 : scenario === "workspace" || scenario === "subtasks" || scenario === "multi-links" ? 12 : scenario === "ai" ? 8 : 3 }, (_, index) => ({
+const issues = Array.from({ length: scenario === "busy" ? 35 : scenario === "workspace" || scenario === "subtasks" || scenario === "multi-links" || scenario === "table-field-apply" ? 12 : scenario === "ai" ? 8 : 3 }, (_, index) => ({
   id: String(index + 1),
   key: `DEMO-${index + 1}`,
   names: {
@@ -1278,7 +1278,7 @@ const respond = async (request) => {
       return { body: {} };
     }
     if (filter && request.method === "PUT") return { body: Object.assign(filter, input) };
-    const issue = issues.find((issue) => path.startsWith(`/issue/${issue.key}/`) || path === `/issue/${issue.key}`);
+    const issue = issues.find((issue) => path.startsWith(`/issue/${issue.key}/`) || path === `/issue/${issue.key}` || path === `/issue/${issue.id}`);
     const commentItem = path.match(/^\/issue\/([^/]+)\/comment\/([^/]+)$/);
     if (commentItem && issue && (request.method === "PUT" || request.method === "DELETE")) {
       const list = issue.fields.comment.comments;
@@ -1768,3 +1768,8 @@ window.__TAURI_INTERNALS__ = {
     throw new Error(`Nicht simuliertes Tauri-Kommando: ${command}`);
   },
 };
+if (scenario === "table-field-apply") {
+  const bridge = window.__TAURI_INTERNALS__;
+  const invoke = bridge.invoke;
+  Object.defineProperty(window, "__qaTableFieldApply", { value: () => window.__TAURI_INTERNALS__ === bridge && bridge.invoke === invoke });
+}

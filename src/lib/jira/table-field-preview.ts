@@ -12,13 +12,18 @@ export const TABLE_PREVIEW_FIELD = "duedate";
 export type TableFieldTarget = { key: string; id: string };
 type Row = { line: number; key: string; value: string };
 type ReadyRow = Row & { status: "unchecked"; id: string };
-export type TableFieldRow = Row & {
-  status: "change" | "unchanged" | "columns" | "missing-key" | "invalid-key" | "duplicate" | "outside-selection"
+export type TableFieldRow = Row & ({
+  status: "change" | "unchanged";
+  before: string | null;
+  identity: { id: string; projectId: string; typeId: string };
+} | {
+  status: "columns" | "missing-key" | "invalid-key" | "duplicate" | "outside-selection"
     | "ambiguous" | "missing-value" | "invalid-date" | "different-issue" | "missing-issue" | "forbidden"
     | "unsupported" | "missing-current" | "invalid-current" | "read-error";
   before?: string | null;
-};
+});
 type TableFieldPlan = { rows: readonly (ReadyRow | TableFieldRow)[]; unmatched: number };
+export type TableFieldPreview = { rows: readonly TableFieldRow[]; unmatched: number };
 
 export function planTableFieldPreview(input: string, targets: readonly TableFieldTarget[]): TableFieldPlan | { error: string } {
   const parsed = parseTsv(input, TABLE_FIELD_LIMITS);
@@ -48,7 +53,7 @@ export function planTableFieldPreview(input: string, targets: readonly TableFiel
   return { rows, unmatched: [...selected.keys()].filter((key) => !counts.has(key)).length };
 }
 
-const failedRead = (error: unknown, issueLookup = false): TableFieldRow["status"] => {
+const failedRead = (error: unknown, issueLookup = false): "missing-issue" | "forbidden" | "read-error" => {
   if (issueLookup && error instanceof JiraApiError && error.status === 404) return "missing-issue";
   if (error instanceof JiraApiError && error.status === 403) return "forbidden";
   return "read-error";
@@ -64,15 +69,16 @@ const readRow = ({ id, status: _status, ...row }: ReadyRow, scope: JiraRequestSc
     if (before === undefined) return { ...row, status: "missing-current" } satisfies TableFieldRow;
     if (before !== null && shiftCalendarDate(before, 0) !== before)
       return { ...row, status: "invalid-current" } satisfies TableFieldRow;
+    const identity = { id, projectId: issue.fields.project.id, typeId: issue.fields.issuetype.id };
     return yield* Effect.gen(function* () {
       const rights = yield* readDueDatePermissions(row.key, scope);
       if (!maySetDueDate(rights)) return { ...row, before, status: "forbidden" } satisfies TableFieldRow;
       const metadata = yield* bulkIssueEditMetadata(row.key, scope);
       if (!supportsDueDate(metadata)) return { ...row, before, status: "unsupported" } satisfies TableFieldRow;
-      return { ...row, before, status: before === row.value ? "unchanged" : "change" } satisfies TableFieldRow;
-    }).pipe(Effect.catch((error) => Effect.succeed({ ...row, before, status: failedRead(error) })));
+      return { ...row, before, identity, status: before === row.value ? "unchanged" : "change" } satisfies TableFieldRow;
+    }).pipe(Effect.catch((error) => Effect.succeed<TableFieldRow>({ ...row, before, status: failedRead(error) })));
   });
 
-export const previewTableField = (plan: TableFieldPlan, scope: JiraRequestScope) =>
+export const previewTableField = (plan: TableFieldPlan, scope: JiraRequestScope): Effect.Effect<TableFieldPreview> =>
   Effect.forEach(plan.rows, (row) => row.status === "unchecked" ? readRow(row, scope) : Effect.succeed(row), { concurrency: 2 })
     .pipe(Effect.map((rows) => ({ rows, unmatched: plan.unmatched })));
