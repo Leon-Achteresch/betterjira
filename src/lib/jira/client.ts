@@ -22,7 +22,7 @@ export class NotAuthenticated extends Data.TaggedError("NotAuthenticated")<{}> {
 export class JiraRequestScopeChanged extends Data.TaggedError("JiraRequestScopeChanged")<{}> {
   override get message() { return "Das Jira-Konto hat sich geändert. Bitte die Aktion im aktuellen Konto erneut ausführen."; }
 }
-export type JiraRequestScope = { cloudId: string; isCurrent: () => boolean };
+export type JiraRequestScope = { cloudId: string; isCurrent: () => boolean; onDispatch?: () => void };
 export class JiraApiError extends Data.TaggedError("JiraApiError")<{ status: number; body: string; retryAfterMs?: number; retryAt?: number; handledRetries?: boolean }> {
   override get message() {
     if (this.status === 429) return rateLimitMessage(this.retryAt, Date.now());
@@ -214,10 +214,11 @@ export const currentSite = validSession().pipe(
   Effect.catchTag("NotAuthenticated", () => Effect.succeed(null)),
 );
 
-const authedAttempt = (path: string, init?: RequestInit & ClientOptions, scope?: JiraRequestScope) =>
+const authedAttempt = (path: string, init?: RequestInit & ClientOptions, scope?: JiraRequestScope, retry = true) =>
   Effect.gen(function* () {
     const call = (session: Session) => Effect.gen(function* () {
       if (scope && (session.cloudId !== scope.cloudId || !scope.isCurrent())) return yield* new JiraRequestScopeChanged();
+      yield* Effect.sync(() => scope?.onDispatch?.());
       return yield* send(`https://api.atlassian.com/ex/jira/${session.cloudId}/rest/${path}`, {
         ...init,
         headers: {
@@ -230,7 +231,7 @@ const authedAttempt = (path: string, init?: RequestInit & ClientOptions, scope?:
     });
     const session = yield* validSession();
     const response = yield* call(session);
-    if (response.status !== 401) return response;
+    if (response.status !== 401 || !retry) return response;
     const renewed = yield* validSession(session.accessToken);
     return yield* call(renewed);
   });
@@ -254,7 +255,7 @@ const authedFetch = (path: string, init?: JiraRequestInit) => Effect.gen(functio
   for (let attempt = 0; ; attempt++) {
     const response = yield* Effect.gen(function* () {
       yield* awaitRateLimit;
-      const response = yield* authedAttempt(path, requestInit, scope);
+      const response = yield* authedAttempt(path, requestInit, scope, retry);
       if (response.status === 429) {
         rateLimitedUntil = Math.max(rateLimitedUntil, Date.now() + (retryAfterMs(response.headers.get("Retry-After")) || 1000));
       }

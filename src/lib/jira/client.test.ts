@@ -20,6 +20,37 @@ beforeEach(async () => {
 afterEach(() => vi.useRealTimers());
 
 describe("Jira transport request budgets", () => {
+  it("does not replay an explicitly non-retrying unauthorized write and reports dispatch only at the transport boundary", async () => {
+    const { jiraSend } = await import("./client");
+    const onDispatch = vi.fn();
+    http.mockResolvedValue(new Response("unauthorized", { status: 401 }));
+    const error = await Effect.runPromise(
+      jiraSend("/issueLink", {
+        method: "POST",
+        body: "{}",
+        retry: false,
+        scope: { cloudId: "test-cloud", isCurrent: () => true, onDispatch },
+      }),
+    ).catch((error: unknown) => error);
+    expect(error).toMatchObject({ _tag: "JiraApiError", status: 401 });
+    expect(http).toHaveBeenCalledTimes(1);
+    expect(onDispatch).toHaveBeenCalledTimes(1);
+    expect(http.mock.calls[0][1]).not.toHaveProperty("onDispatch");
+    const blocked = vi.fn();
+    await Effect.runPromise(
+      jiraSend("/issueLink", {
+        method: "POST",
+        retry: false,
+        scope: {
+          cloudId: "test-cloud",
+          isCurrent: () => false,
+          onDispatch: blocked,
+        },
+      }),
+    ).catch(() => undefined);
+    expect(blocked).not.toHaveBeenCalled();
+    expect(http).toHaveBeenCalledTimes(1);
+  });
   it("bounds concurrent reads, reserves write capacity and loads the keychain once", async () => {
     const { jira, jiraSend } = await import("./client");
     let open = 0;

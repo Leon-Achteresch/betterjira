@@ -19,6 +19,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { IssueActions } from "@/components/issues/issue-actions";
 import { IssueLinksPanel } from "@/components/issues/issue-links-panel";
 import { AddIssueLink } from "@/components/issues/add-issue-link";
+import { MultiTicketLinks } from "@/components/issues/multi-ticket-links";
 import { RemoteLinksPanel } from "@/components/issues/remote-links-panel";
 import { IssueSubtasks } from "@/components/issues/issue-subtasks";
 import { IssueHistoryPanel } from "@/components/issues/issue-history-panel";
@@ -275,6 +276,7 @@ export function IssueView({
               retrying={links.retrying}
               onRetry={links.retry}
             />
+            <MultiTicketLinks state={links.multi} />
           </Section>
 
           <motion.div variants={reveal(reduce)}>

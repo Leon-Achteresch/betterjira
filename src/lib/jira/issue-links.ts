@@ -121,3 +121,9 @@ export const fetchIssueLinks = (key: string) =>
   jira(`/issue/${encodeURIComponent(key)}?fields=issuelinks`, IssueLinksResponse).pipe(
     Effect.map(({ fields }) => summarizeIssueLinks(fields.issuelinks ?? [])),
   );
+
+export const hasIssueLink = (links: readonly unknown[], target: string, typeId: string, direction: IssueLinkDirection, symmetric: boolean) => links.some((raw) => {
+  const link = Option.getOrUndefined(decodeLink(raw));
+  const side = link && sideOf(link);
+  return !!side && link?.type?.id === typeId && side.issue.key.toUpperCase() === target && (symmetric || side.direction === direction);
+});

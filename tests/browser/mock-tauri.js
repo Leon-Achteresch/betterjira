@@ -70,7 +70,7 @@ const titles = [
   "Tastaturbedienung im Editor verbessern",
   "Übergabe an das Team vorbereiten",
 ];
-const issues = Array.from({ length: scenario === "busy" ? 35 : scenario === "workspace" || scenario === "subtasks" ? 12 : scenario === "ai" ? 8 : 3 }, (_, index) => ({
+const issues = Array.from({ length: scenario === "busy" ? 35 : scenario === "workspace" || scenario === "subtasks" || scenario === "multi-links" ? 12 : scenario === "ai" ? 8 : 3 }, (_, index) => ({
   id: String(index + 1),
   key: `DEMO-${index + 1}`,
   names: {
@@ -1218,6 +1218,8 @@ const respond = async (request) => {
     }
     window.__qa.writes.push({ path, method: request.method, input });
     if (path === "/issueLink" && request.method === "POST") {
+      const multi = await window.__qaMultiLinkWriteRule?.(input);
+      if (multi) return multi;
       addedIssueLinks.push({ ...input, id: `qa-link-${addedIssueLinks.length + 1}`, type: Object.values(linkTypes).find((type) => type.id === input.type.id) });
       return { status: 201, body: null };
     }
@@ -1355,7 +1357,7 @@ const respond = async (request) => {
     if (rule.status) return { status: rule.status, body: { errorMessages: [`Test: Jira antwortet mit ${rule.status}`] } };
     return { body: { isLast: true, values: rule.values ?? window.__qaProjects ?? (scenario === "create" ? createProjects : projects) } };
   }
-  if (path === "/issueLinkType") return { body: { issueLinkTypes: Object.values(linkTypes) } };
+  if (path === "/issueLinkType") return { body: { issueLinkTypes: window.__qaLinkTypes ?? Object.values(linkTypes) } };
   if (path === "/mypermissions" && url.searchParams.get("permissions") === "LINK_ISSUES")
     return { body: { permissions: { LINK_ISSUES: { havePermission: window.__qaLinkPermission !== false } } } };
   if (path === "/mypermissions" && url.searchParams.get("issueKey")) {
@@ -1534,11 +1536,11 @@ const respond = async (request) => {
       stats.open--;
     }
   }
-  if (issue && url.searchParams.get("fields") === "issuelinks") {
+  if (issue && url.searchParams.get("fields")?.split(",").includes("issuelinks")) {
     const rule = window.__qaIssueLinksRule?.(issue.key) ?? {};
     if (rule.delayMs) await new Promise((resolve) => setTimeout(resolve, rule.delayMs));
     if (rule.status) return { status: rule.status, body: { errorMessages: [`Test: Jira antwortet mit ${rule.status}`] } };
-    return { body: { id: issue.id, key: issue.key, fields: { issuelinks: rule.issuelinks ?? currentIssueLinks(issue.key) } } };
+    return { body: { id: issue.id, key: issue.key, fields: { summary: issue.fields.summary, issuelinks: rule.issuelinks ?? currentIssueLinks(issue.key) } } };
   }
   if (issue && url.searchParams.get("fields") === "description" && window.__qa.failDescriptionRead)
     return { status: 403, body: { errorMessages: ["Test: Beschreibung nicht lesbar"] } };
