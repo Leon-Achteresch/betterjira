@@ -133,4 +133,16 @@ describe("persistierte Beschreibungsbasis und bestehende Revisionslocks", () => 
     expect(await submitFieldDraft(store, id, send)).toEqual({ status: "missing" });
     expect(send).not.toHaveBeenCalled();
   });
+
+  it("setzt bei bewusster Übernahme Text und Basis exakt auf die verglichene Fassung und stellt den Altdraft wieder her", () => {
+    const remote = descriptionBasis("adf", fixture.remote)!;
+    store.getState().write(id, text);
+    const previous = store.getState().drafts[id];
+    store.getState().rebase(id, JSON.stringify(fixture.remote), remote);
+    expect(store.getState().drafts[id]).toMatchObject({ text: JSON.stringify(fixture.remote), basis: remote });
+    expect(store.getState().drafts[id].revision).not.toBe(previous.revision);
+    store.getState().rebase(id, previous.text, previous.basis);
+    expect(store.getState().drafts[id]).not.toHaveProperty("basis");
+    expect(store.getState().drafts[id].text).toBe(text);
+  });
 });

@@ -1,11 +1,12 @@
-import { useRef, useState, type FormEvent, type KeyboardEvent } from "react";
+import { useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
+import { toast } from "sonner";
 import { useJiraEditIssue, useJiraEditIssueWiki } from "@/hooks/jira/use-issue-mutations";
 import { useJiraMyself, useJiraSite } from "@/lib/jira/queries";
 import { encode, jiraErrors } from "@/lib/jira/field-values";
 import { adfDraftField, fieldDraftId, parseAdfDraft } from "@/lib/field-draft";
 import { useFieldDraftStore } from "@/hooks/use-field-drafts";
 import { useCheckedDescriptionSave } from "@/hooks/jira/use-checked-description-save";
-import { descriptionBasis, type DescriptionBasis } from "@/lib/description-comparison";
+import { adoptableDescription, descriptionBasis, type DescriptionBasis } from "@/lib/description-comparison";
 import { submitFieldDraft } from "@/lib/field-draft-save";
 
 function useScopedFieldDraft(issueKey: string, field: string) {
@@ -47,6 +48,7 @@ export function useFieldDraft({
   const basis = origin.id === id ? origin.basis : undefined;
   const write = useFieldDraftStore((state) => state.write);
   const discardDraft = useFieldDraftStore((state) => state.discard);
+  const rebase = useFieldDraftStore((state) => state.rebase);
   const saving = useFieldDraftStore((state) => saveLockId !== undefined && state.saving.includes(saveLockId));
   const edit = useJiraEditIssue(issueKey);
   const wikiEdit = useJiraEditIssueWiki(issueKey);
@@ -57,6 +59,8 @@ export function useFieldDraft({
   const text = draft?.text ?? initial;
   const errors = jiraErrors(mutation.error);
   const comparison = description && checked.variables?.input.format === mode && checked.data && checked.data.status !== "saved" ? checked.data : undefined;
+  const adoptable = useMemo(() => (comparison ? adoptableDescription(comparison.remote) : undefined), [comparison]);
+  const pending = mutation.isPending || saving;
 
   const submit = async (event?: FormEvent, reviewed?: DescriptionBasis) => {
     event?.preventDefault();
@@ -94,13 +98,26 @@ export function useFieldDraft({
     text,
     ready: id !== undefined,
     hasDraft: draft !== undefined,
-    pending: mutation.isPending || saving,
+    pending,
     errors: [...errors.messages, ...Object.values(errors.fields)],
     notice,
     comparison,
     confirmCompared: () => {
       if (comparison) return submit(undefined, comparison.remote);
     },
+    adoptRemote: id && comparison && adoptable !== undefined ? () => {
+      if (pending) return;
+      const previous = useFieldDraftStore.getState().drafts[id];
+      rebase(id, adoptable, comparison.remote);
+      checked.reset();
+      setNotice(undefined);
+      toast("Jira-Fassung in den Entwurf übernommen", {
+        id: `description-adopt:${id}`,
+        description: "Noch nichts gespeichert.",
+        duration: 8000,
+        action: { label: "Rückgängig", onClick: () => (previous ? rebase(id, previous.text, previous.basis) : discardDraft(id)) },
+      });
+    } : undefined,
     setText: (value: unknown) => {
       if (id && typeof value === "string") write(id, value, basis);
     },

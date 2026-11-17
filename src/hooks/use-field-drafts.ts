@@ -16,6 +16,7 @@ type FieldDraftState = {
   drafts: FieldDrafts;
   saving: readonly string[];
   write: (id: string, text: string, basis?: DescriptionBasis) => void;
+  rebase: (id: string, text: string, basis: DescriptionBasis | undefined) => void;
   discard: (id: string) => void;
   complete: (id: string, submitted: FieldDraft, savedBasis?: DescriptionBasis) => boolean;
   beginSave: (id: string) => boolean;
@@ -30,6 +31,7 @@ export const useFieldDraftStore = create<FieldDraftState>()(
       drafts: {},
       saving: [],
       write: (id, text, basis) => set(({ drafts }) => ({ drafts: replaceFieldDraft(drafts, id, text, crypto.randomUUID(), basis) })),
+      rebase: (id, text, basis) => set(({ drafts }) => ({ drafts: { ...drafts, [id]: { text, revision: crypto.randomUUID(), ...(basis && { basis }) } } })),
       discard: (id) => set(({ drafts }) => ({ drafts: removeFieldDraft(drafts, id) })),
       complete: (id, submitted, savedBasis) => {
         if (!isSubmittedFieldDraft(get().drafts[id], submitted)) {

@@ -1,4 +1,5 @@
 import { Schema } from "effect";
+import { isAdfDoc, isEditableAdf } from "@/lib/jira/adf";
 
 export const DescriptionFormat = Schema.Literals(["adf", "wiki", "text"]);
 export type DescriptionFormat = typeof DescriptionFormat.Type;
@@ -32,4 +33,9 @@ export const sameDescription = (left: DescriptionBasis, right: DescriptionBasis)
 export const descriptionSource = (basis: DescriptionBasis | undefined) => {
   if (!basis || basis.value === null) return undefined;
   return typeof basis.value === "string" ? basis.value : JSON.stringify(basis.value, null, 2);
+};
+
+export const adoptableDescription = (remote: DescriptionBasis): string | undefined => {
+  if (remote.format !== "adf") return remote.value === null ? "" : typeof remote.value === "string" ? remote.value : undefined;
+  return isAdfDoc(remote.value) && isEditableAdf(remote.value) ? JSON.stringify(remote.value) : undefined;
 };

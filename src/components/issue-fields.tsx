@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent, type ReactNode } from "react";
+import { useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { PencilIcon } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { AdfContent, ExternalLink, safeUrl } from "@/components/adf-content";
@@ -8,7 +8,8 @@ import { MentionEditor } from "@/components/mention-editor";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-import { DescriptionComparisonPanel } from "@/components/description-comparison-panel";
+import { DescriptionComparisonPanel, DescriptionPreview } from "@/components/description-comparison-panel";
+import type { AdfEditorHandle } from "@/components/adf-editor";
 import { descriptionSource } from "@/lib/description-comparison";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -342,6 +343,12 @@ function StringFieldForm({
   const rendered = useIssueRendered(mode === "adf" && id === "description" ? issue : undefined);
   const doc = useMemo(() => (mode === "adf" ? (parseAdfDraft(editor.text) ?? parseAdfDraft(initial)) : undefined), [mode, editor.text, initial]);
   const [uploading, setUploading] = useState(false);
+  const mediaSource = { doc: issue?.fields[id], rendered: id === "description" ? renderedDescription(rendered) : undefined };
+  const richEditor = useRef<AdfEditorHandle>(null);
+  const wikiEditor = useRef<HTMLTextAreaElement>(null);
+  const adoptRemote = editor.adoptRemote;
+  const remote = editor.comparison?.remote;
+  const basis = editor.comparison?.submitted.basis;
 
   return (
     <motion.form
@@ -358,6 +365,7 @@ function StringFieldForm({
       <fieldset disabled={!editor.ready} className="min-w-0">
         {mode === "adf" ? (
           <MentionEditor
+            ref={richEditor}
             id={`field-${id}`}
             label={field?.name ?? id}
             value={doc}
@@ -366,13 +374,14 @@ function StringFieldForm({
             autoFocus
             issueKey={issueKey}
             participants={NO_PARTICIPANTS}
-            mediaSource={{ doc: issue?.fields[id], rendered: id === "description" ? renderedDescription(rendered) : undefined }}
+            mediaSource={mediaSource}
             onSubmitShortcut={() => void editor.submit()}
             onEscape={editor.close}
             onUploadingChange={setUploading}
           />
         ) : mode === "wiki" ? (
           <Textarea
+            ref={wikiEditor}
             autoFocus
             value={editor.text}
             aria-label="Text bearbeiten"
@@ -390,14 +399,20 @@ function StringFieldForm({
           />
         )}
       </fieldset>
-      {editor.comparison && (
+      {editor.comparison && remote && (
         <DescriptionComparisonPanel
-          key={JSON.stringify(editor.comparison.remote)}
+          key={JSON.stringify(remote)}
           status={editor.comparison.status}
-          remote={descriptionSource(editor.comparison.remote)}
-          basis={descriptionSource(editor.comparison.submitted.basis)}
+          remote={descriptionSource(remote)}
+          basis={descriptionSource(basis)}
+          remotePreview={remote.format === "adf" ? <DescriptionPreview doc={remote.value} mediaSource={mediaSource} /> : undefined}
+          basisPreview={basis?.format === "adf" ? <DescriptionPreview doc={basis.value} mediaSource={mediaSource} /> : undefined}
           pending={editor.pending || uploading}
           onConfirm={() => void editor.confirmCompared()}
+          onAdopt={adoptRemote && (() => {
+            adoptRemote();
+            (mode === "adf" ? richEditor.current : wikiEditor.current)?.focus();
+          })}
         />
       )}
       {editor.errors.map((message) => (

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import fixture from "../../tests/jira/fixtures/description-conflict.json";
-import { descriptionBasis, sameDescription } from "./description-comparison";
+import { adoptableDescription, descriptionBasis, sameDescription } from "./description-comparison";
 
 describe("originalgetreuer Beschreibungsvergleich", () => {
   it("ignoriert Objektschlüsselreihenfolge, erhält Rohwerte und verändert nichts", () => {
@@ -46,5 +46,20 @@ describe("originalgetreuer Beschreibungsvergleich", () => {
       expect(descriptionBasis("adf", value)).toBeUndefined();
     }
     expect(descriptionBasis("wiki", fixture.base)).toBeUndefined();
+  });
+});
+
+describe("bewusste lokale Übernahme der Jira-Fassung", () => {
+  it("übernimmt Wiki-Rohtext und ADF-Struktur exakt, null-Wiki als leeren Text", () => {
+    const wiki = "h1. Titel\n\n  eingerückt  ";
+    expect(adoptableDescription({ version: 1, format: "wiki", value: wiki })).toBe(wiki);
+    expect(adoptableDescription({ version: 1, format: "wiki", value: null })).toBe("");
+    const adf = descriptionBasis("adf", fixture.remote)!;
+    expect(JSON.parse(adoptableDescription(adf)!)).toEqual(fixture.remote);
+  });
+
+  it("bietet leere oder nicht editierbare ADF-Fassungen nicht zur Übernahme an", () => {
+    expect(adoptableDescription({ version: 1, format: "adf", value: null })).toBeUndefined();
+    expect(adoptableDescription({ version: 1, format: "adf", value: { type: "doc", version: 1, content: [{ type: "text", text: "lose" }] } })).toBeUndefined();
   });
 });

@@ -164,10 +164,10 @@ function renderNode(node: AdfNode, key: number, media?: AdfMediaRender): ReactNo
   }
 }
 
-export function AdfContent({ doc, rendered, className }: { doc: unknown; rendered?: RenderedDoc; className?: string }) {
-  const media = useAdfMedia(doc, rendered);
+export function AdfContent({ doc, rendered, media, className }: { doc: unknown; rendered?: RenderedDoc; media?: AdfMediaRender; className?: string }) {
+  const resolved = useAdfMedia(doc, rendered);
   if (!isAdfNode(doc)) return null;
-  return <div className={cn("flex min-w-0 flex-col gap-3 text-sm leading-relaxed wrap-anywhere [&_li>p]:inline [&_p]:min-h-[1lh]", className)}>{renderNodes(doc.content, media)}</div>;
+  return <div className={cn("flex min-w-0 flex-col gap-3 text-sm leading-relaxed wrap-anywhere [&_li>p]:inline [&_p]:min-h-[1lh]", className)}>{renderNodes(doc.content, media ?? resolved)}</div>;
 }
 
 export function AdfNodeView({ node, media }: { node: unknown; media?: AdfMediaRender }) {
