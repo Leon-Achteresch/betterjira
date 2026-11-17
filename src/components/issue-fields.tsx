@@ -392,6 +392,7 @@ function StringFieldForm({
       </fieldset>
       {editor.comparison && (
         <DescriptionComparisonPanel
+          key={JSON.stringify(editor.comparison.remote)}
           status={editor.comparison.status}
           remote={descriptionSource(editor.comparison.remote)}
           basis={descriptionSource(editor.comparison.submitted.basis)}
