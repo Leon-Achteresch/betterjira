@@ -1,26 +1,12 @@
 import { expect, test, type Page } from "@playwright/test";
+import { officeTableInitial, officeTableRemote, officeTableSaved, officeTableTsv } from "../jira/fixtures/description-office-table";
 
 const ISSUE = "/tests/browser/fixture.html?route=/issue/DEMO-1";
-const TSV = "Name\tPreis\tNotiz\t\nBüro\t\t =1+2 \tEnde";
-const unknownBlock = { type: "bodiedExtension", attrs: { extensionKey: "future", parameters: { flag: true } }, content: [
-  { type: "paragraph", content: [{ type: "text", text: "Bestehende Erweiterung" }] },
-] };
-const existingTable = { type: "table", attrs: { localId: "original-table" }, content: [{
-  type: "tableRow", content: [{ type: "tableCell", attrs: { colspan: 2 }, content: [{ type: "paragraph" }] }],
-}] };
-const paragraph = (value: string) => ({ type: "paragraph", ...(value !== "" && { content: [{ type: "text", text: value }] }) });
-const initial = { type: "doc", version: 1, content: [unknownBlock, existingTable, paragraph("Bestehender Absatz")] };
-const imported = { type: "table", attrs: { isNumberColumnEnabled: false, layout: "default" }, content: [
-  ["Name", "Preis", "Notiz", ""],
-  ["Büro", "42", " =1+2 ", "Ende"],
-].map((cells) => ({ type: "tableRow", content: cells.map((value) => ({
-  type: "tableCell", attrs: {}, content: [paragraph(value)],
-})) })) };
 type Write = { method: string; path: string; input: { fields?: { description?: unknown } } };
 type Qa = { issues: Array<{ key: string; fields: { description: unknown } }>; writes: Write[] };
 
 const open = async (page: Page) => {
-  await page.addInitScript((description) => Reflect.set(window, "__qaInitialDescription", description), initial);
+  await page.addInitScript((description) => Reflect.set(window, "__qaInitialDescription", description), officeTableInitial);
   await page.goto(ISSUE);
   await page.getByRole("button", { name: "Beschreibung bearbeiten", exact: true }).press("Enter");
   await expect(editor(page)).toBeFocused();
@@ -57,7 +43,7 @@ test("TSV-Import ist ausdrücklich, lässt gewöhnliches Paste intakt und ist ei
   await importInput(page).fill("X".repeat(32_001));
   await expect(popup(page).getByRole("alert")).toContainText("32.000 Zeichen");
   await expect(insert(page)).toBeDisabled();
-  await importInput(page).fill(TSV);
+  await importInput(page).fill(officeTableTsv);
   const shots = process.env.OFFICE_TABLE_SHOTS;
   if (shots) await popup(page).screenshot({ path: `${shots}/${info.project.name}-import.png` });
   await insert(page).press("Enter");
@@ -84,7 +70,7 @@ test("Zellen bleiben nach Wiederaufnahme editierbar und der explizite C1-Save se
   if (info.project.name === "narrow-dark-reduced") await page.setViewportSize({ width: 390, height: 844 });
   await open(page);
   await showImport(page);
-  await importInput(page).fill(TSV);
+  await importInput(page).fill(officeTableTsv);
   await insert(page).click();
   await expect(editor(page)).toBeFocused();
   await page.keyboard.press("Escape");
@@ -96,11 +82,10 @@ test("Zellen bleiben nach Wiederaufnahme editierbar und der explizite C1-Save se
   await page.keyboard.type("42");
   await expect(emptyCell).toHaveText("42");
   await expect(editor(page)).toContainText("Bestehende Erweiterung");
-  const updatedRemote = { ...initial, content: [...initial.content, paragraph("Änderung auf Jira")] };
   await page.evaluate((remote) => {
     const qa: Qa = Reflect.get(window, "__qa");
     qa.issues.find(({ key }) => key === "DEMO-1")!.fields.description = remote;
-  }, updatedRemote);
+  }, officeTableRemote);
   await page.getByRole("button", { name: "Speichern", exact: true }).click();
   const conflict = page.getByRole("group", { name: "Beschreibung wurde in Jira geändert" });
   await expect(conflict).toContainText("Änderung auf Jira");
@@ -110,6 +95,6 @@ test("Zellen bleiben nach Wiederaufnahme editierbar und der explizite C1-Save se
   await expect(editor(page)).toHaveCount(0);
   expect(await writes(page)).toEqual([expect.objectContaining({
     method: "PUT", path: "/issue/DEMO-1",
-    input: { fields: { description: { ...initial, content: [...initial.content, imported] } } },
+    input: { fields: { description: officeTableSaved } },
   })]);
 });

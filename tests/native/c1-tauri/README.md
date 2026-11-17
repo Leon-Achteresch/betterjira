@@ -32,3 +32,15 @@ python3 tests/native/c1-tauri/run.py src-tauri/target/debug/examples/c1_ipc_fixt
 The scenario opens the normal description editor and reuses the ADF document from the browser acceptance. It checks readable nested text, source-only nodes, six unresolved media items and exact JSON in both source columns. It also checks that a change confined to an unsupported node invalidates the old acknowledgement. Adopting the Jira revision and closing and reopening the editor preserve the complete draft without a PUT.
 
 After an explicit text edit and fresh confirmation, the stub records one PUT with the complete expected ADF. The final confirmed GET is held while the test signs out. It returns the acknowledged Jira revision, and the draft remains in private storage without another PUT. The stub permits synthetic rendered metadata and records any attachment or media payload request. The WebView also checks for attempts to load the placeholder URLs. Signed packaging, live media resolution and server-side atomicity require separate evidence.
+
+## N12 office TSV in the description editor
+
+```sh
+VITE_ATLASSIAN_CLIENT_ID= VITE_ATLASSIAN_CLIENT_SECRET= RAYON_NUM_THREADS=2 GOMAXPROCS=2 \
+  node_modules/.bin/vite build --config tests/native/c1-tauri/vite.config.ts --mode c1-tsv --outDir "$work/tsv"
+python3 tests/native/c1-tauri/run.py src-tauri/target/debug/examples/c1_ipc_fixture "$work/tsv" c1-tsv
+```
+
+The scenario enters synthetic TSV directly in the regular import form and types into a cell using WebKit. It exercises input validation, explicit insertion, cancel and resume, and C1's confirmation after a conflicting Jira change. The shared fixture document includes blank cells, literal formula text, an unknown extension, and an existing table with a merged cell.
+
+The fixture verifies zero writes through local editing and one exact ADF PUT after confirmation. A new WebView document reads the saved issue from the synthetic Jira server and reopens the editor with the saved cell values. The host uses its private session and the same Seatbelt checks. The system clipboard, signed packaging and live Jira require separate evidence.

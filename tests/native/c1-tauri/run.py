@@ -77,11 +77,21 @@ def run_host(root, executable, port, guard, scenario, case):
             require(ledger["unexpected"] == 0 and not ledger["held"], f"Unexpected final fixture ledger: {ledger}")
             if scenario == "c1":
                 media = case == "c1-media"
-                require(len(ledger["writes"]) == 1 and len(ledger["reads"]) == (6 if media else 5),
+                expected_reads = {"c1": 5, "c1-media": 6, "c1-tsv": 2}
+                require(len(ledger["writes"]) == 1 and len(ledger["reads"]) == expected_reads[case],
                         f"Unexpected C1 fixture ledger: {ledger}")
                 if media:
                     require(ledger["mediaRequests"] == [] and ledger["renderedReads"] > 0,
                             f"Unexpected C1 media fixture ledger: {ledger}")
+                if case == "c1-tsv":
+                    detail = curl(f"{fixture}/__c1/ticket-reads", authenticated=True)
+                    detail.check_returncode()
+                    reads = json.loads(detail.stdout)
+                    print("Native TSV issue detail reads:", json.dumps(reads, ensure_ascii=False), flush=True)
+                    written = ledger["writes"][0]
+                    require(written["status"] == 204 and len(reads) >= 2 and
+                            reads[-1] == {"status": 200, "description": written["payload"]["fields"]["description"]},
+                            "Reload did not read back the written TSV description")
             elif scenario == "n01":
                 require(sorted((entry["target"], entry["status"]) for entry in ledger["writes"]) ==
                         [("DEMO-2", 201), ("DEMO-3", 403), ("DEMO-5", 503)] and
@@ -110,7 +120,7 @@ def run_host(root, executable, port, guard, scenario, case):
 
 def main():
     require(sys.platform == "darwin", "This fixture requires macOS")
-    cases = ("c1", "c1-media", "n01", "n02", "n02-control", "n03", "n03-control", "n04", "n05")
+    cases = ("c1", "c1-media", "c1-tsv", "n01", "n02", "n02-control", "n03", "n03-control", "n04", "n05")
     require(len(sys.argv) in (3, 4), "Usage: python3 tests/native/c1-tauri/run.py <fixture executable> <fixture build> [" + "|".join(cases) + "]")
     case = sys.argv[3] if len(sys.argv) == 4 else "c1"
     require(case in cases, "Unknown IPC fixture scenario")
@@ -136,7 +146,8 @@ def main():
             plistlib.dump({"CFBundleIdentifier": f"com.leon.betterjira.{scenario}-ipc-fixture",
                            "CFBundleName": name, "CFBundlePackageType": "APPL",
                            "CFBundleExecutable": executable.name, "LSUIElement": True}, info)
-        server = subprocess.Popen(["bun", str(fixture_dir / "server.ts"), *(["media"] if case == "c1-media" else [])],
+        variant = [case.removeprefix("c1-")] if case in ("c1-media", "c1-tsv") else []
+        server = subprocess.Popen(["bun", str(fixture_dir / "server.ts"), *variant],
                                   stdout=subprocess.PIPE, text=True, cwd=REPO)
         try:
             require(bool(select.select([server.stdout], [], [], 10)[0]), "Jira fixture did not start")
