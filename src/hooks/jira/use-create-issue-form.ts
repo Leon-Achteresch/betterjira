@@ -33,6 +33,8 @@ import { freshTemplateTarget } from "@/lib/jira/create-metadata-query";
 import { applyTemplateToTarget, templateValueText } from "@/lib/jira/template-application";
 import { jiraQueryScopeMatches } from "@/lib/jira/query-scope";
 import { useComponentLeads } from "./use-component-leads";
+import { useCreationHints } from "./use-creation-hints";
+import { useJiraAccountScope } from "./use-jira-account-scope";
 
 export type CreateIssueStatus = "no-project" | "loading" | "load-error" | "no-permission" | "no-types" | "blocked" | "parent-invalid" | "ready";
 
@@ -45,6 +47,7 @@ export function useCreateIssueForm(parentKey?: string) {
   const create = useCreateIssue();
   const client = useQueryClient();
   const { scope: accountScope } = useJiraQueryScope();
+  const account = useJiraAccountScope();
   const applying = useRef(false);
   const [templatesPending, setTemplatesPending] = useState(false);
   const [templateFailure, setTemplateFailure] = useState<{ context: string; message: string }>();
@@ -121,6 +124,8 @@ export function useCreateIssueForm(parentKey?: string) {
               : plan.blocked.length > 0
                 ? "blocked"
                 : "ready";
+
+  const creationHints = useCreationHints({ project: project?.id === projectId ? project : undefined, summary, context, revision: savedDraft, scope: accountScope, ready: status === "ready" && !!storage.id && !pending && !templatesPending, accountLabel: account.accountLabel });
 
   const changeSelection = () => {
     create.reset();
@@ -288,6 +293,7 @@ export function useCreateIssueForm(parentKey?: string) {
     missing,
     valueOf: (input: CreateInput) => inputValue(editableDraft, input),
     componentLeads,
+    creationHints,
     selectProject: (id: string) => {
       updateDraft((current) => ({ ...current, projectId: id, issueTypeId: undefined }));
       changeSelection();

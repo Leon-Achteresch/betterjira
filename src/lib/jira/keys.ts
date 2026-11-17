@@ -26,6 +26,7 @@ export const jiraKeys = {
   issueCountScoped: (jql: string, scope: JiraQueryScope | undefined) => [...jiraKeys.issueCount(jql), scope?.cloudId ?? "", scope?.accountId ?? ""] as const,
   fieldCatalog: ["jira", "field-catalog"] as const,
   componentLeads: (project: { key: string; id?: string } | undefined, ids: readonly string[], scope: JiraQueryScope | undefined) => ["jira", "component-leads", scope?.cloudId ?? "", scope?.accountId ?? "", project?.key ?? "", project?.id ?? "", [...ids].sort()] as const,
+  creationHints: (owner: string, generation: number, jql: string, scope: JiraQueryScope | undefined) => ["jira", "creation-hints", scope?.cloudId ?? "", scope?.accountId ?? "", owner, generation, jql] as const,
   filter: (id: string) => ["jira", "filter", id] as const,
   filterFavourite: ["jira", "filter-favourite"] as const,
   jqlValidation: (jql: string) => ["jira", "jql-validation", jql] as const,

@@ -20,6 +20,7 @@ import { fieldInputId, type CreateIssueForm as CreateIssueFormModel } from "@/ho
 import { EASE_OUT } from "@/lib/ease";
 import { IS_MAC } from "@/lib/platform";
 import { ComponentLeadHints } from "@/components/issues/component-lead-hints";
+import { CreationHints } from "./creation-hints";
 
 const NOTICES = {
   "no-permission": {
@@ -168,6 +169,7 @@ export function CreateIssueForm({ form }: { form: CreateIssueFormModel }) {
             aria-describedby={fieldError("summary", "Titel") ? "create-summary-error" : undefined}
             onChange={(event) => form.setSummary(event.target.value)}
           />
+          <CreationHints state={form.creationHints} />
         </FieldBlock>
 
         <AnimatePresence initial={false} mode="popLayout">

@@ -10,16 +10,17 @@ const mock = vi.hoisted(() => {
   const data = new Map<string, string>();
   const localStorage = { getItem: (key: string) => data.get(key) ?? null, setItem: (key: string, value: string) => data.set(key, value), removeItem: (key: string) => data.delete(key) };
   vi.stubGlobal("window", { localStorage });
-  return { permission: vi.fn(), types: vi.fn(), fields: vi.fn(), success: vi.fn(), create: vi.fn(), reset: vi.fn() };
+  return { permission: vi.fn(), types: vi.fn(), fields: vi.fn(), success: vi.fn(), create: vi.fn(), reset: vi.fn(), search: vi.fn() };
 });
 vi.mock("@tanstack/react-router", async (original) => ({ ...await original<typeof import("@tanstack/react-router")>(), useNavigate: () => vi.fn() }));
 vi.mock("sonner", () => ({ toast: { success: mock.success, error: vi.fn() } }));
 vi.mock("@/lib/jira/client", async (original) => ({ ...await original<typeof import("@/lib/jira/client")>(), currentSite: Effect.succeed({ cloudId: "site-a" }) }));
+vi.mock("@/lib/jira/search", async (original) => ({ ...await original<typeof import("@/lib/jira/search")>(), searchIssues: mock.search }));
 vi.mock("@/lib/jira/create-issue", async (original) => ({ ...await original<typeof import("@/lib/jira/create-issue")>(), canCreateIssues: mock.permission, createIssueTypes: mock.types, createFields: mock.fields }));
 vi.mock("@/lib/jira/queries", async (original) => ({
   ...await original<typeof import("@/lib/jira/queries")>(),
-  useJiraSite: () => ({ data: { cloudId: "site-a", siteUrl: "https://jira.test" }, isSuccess: true }),
-  useJiraMyself: () => ({ data: { accountId: "account-a" }, isSuccess: true }),
+  useJiraSite: () => ({ data: { cloudId: "site-a", siteUrl: "https://jira.test", siteName: "Test-Site" }, isSuccess: true }),
+  useJiraMyself: () => ({ data: { accountId: "account-a", displayName: "Testkonto" }, isSuccess: true }),
   useJiraProjects: () => ({ data: [{ id: "target", key: "TARGET", name: "Ziel" }, { id: "source", key: "SOURCE", name: "Quelle" }], isPending: false, error: null }),
 }));
 vi.mock("./use-create-issue-parent", () => ({ useCreateIssueParent: () => ({ data: undefined, isPending: false, error: null }) }));
@@ -84,11 +85,23 @@ beforeEach(() => {
   mock.types.mockReset().mockReturnValue(Effect.succeed([{ id: "target-type", name: "Task" }]));
   mock.fields.mockReset().mockReturnValue(Effect.succeed(fields));
   mock.success.mockReset(); mock.create.mockReset(); mock.reset.mockReset();
+  mock.search.mockReset().mockReturnValue(Effect.succeed({ issues: [{ id: "hint", key: "TARGET-1", fields: { summary: "Vorhandenes Anliegen", project: { id: "target", key: "TARGET" } } }], isLast: true }));
   store.setState({ workspaces: { [account]: { draft: { projectId: "target", issueTypeId: "target-type", summary: "Eigen", description: null, values: {} }, templates: [template] } } });
 });
 afterEach(() => client.clear());
 
 describe("projektübergreifende Vorlagen im bestehenden Erstellungsformular", () => {
+  it("sucht nur bewusst im aktuellen Erstellziel und bewahrt Entwurf und bestehende Erstellung", async () => {
+    offeredFields = fields.filter((field) => field.fieldId === "summary" || field.fieldId === "description");
+    const before = store.getState().workspaces[account].draft;
+    const form = mount(); expect(mock.search).not.toHaveBeenCalled(); await form.creationHints.start();
+    expect(mock.search).toHaveBeenCalledTimes(1); expect(mock.search.mock.calls[0][0]).toContain('project = "target"'); expect(mock.search.mock.calls[0][3]).toBe(10);
+    expect(store.getState().workspaces[account].draft).toBe(before); expect(mock.create).not.toHaveBeenCalled();
+    form.selectProject("source"); const changed = mount(); expect(changed.creationHints.request?.project.id).toBe("source"); expect(changed.creationHints.result).toBeUndefined();
+    expect(store.getState().workspaces[account].draft.summary).toBe(before.summary);
+    mock.create.mockResolvedValue({ id: "created", key: "SOURCE-2" }); changed.submit();
+    await vi.waitFor(() => expect(mock.create).toHaveBeenCalledTimes(1)); expect(mock.create.mock.calls[0][0].fields.project.id).toBe("source");
+  });
   it("bindet Komponenten-Rollenhinweise an die tatsaechliche Auswahl und den Projektkontext ohne Zuweisung", () => {
     offeredFields = [...fields, Schema.decodeUnknownSync(CreateField)({ fieldId: "components", name: "Komponenten", required: true, schema: { type: "array", items: "component", system: "components" }, allowedValues: [{ id: "c1", name: "Backend" }], operations: ["set"] })];
     mount().setValue("components", [{ id: "c1", name: "Backend" }]);
