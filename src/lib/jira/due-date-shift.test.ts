@@ -4,7 +4,8 @@ import fixture from "../../../tests/jira/fixtures/due-date-shift.json";
 
 const mock = vi.hoisted(() => ({ jira: vi.fn(), jiraSend: vi.fn() }));
 vi.mock("./client", async (original) => ({ ...await original<typeof import("./client")>(), ...mock }));
-const { applyDueDateShift, previewDueDateShift, DueDateIssue } = await import("./due-date-shift");
+const { applyDueDateShift, previewDueDateShift } = await import("./due-date-shift");
+const { DueDateIssue } = await import("./due-date-fields");
 const { JiraApiError, JiraAuthError } = await import("./client");
 let issues = Schema.decodeUnknownSync(Schema.Array(DueDateIssue))(fixture.issues);
 let writable: Set<string>;

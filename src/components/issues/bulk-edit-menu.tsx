@@ -1,4 +1,4 @@
-import { AnimatePresence } from "motion/react";
+import { AnimatePresence, useIsPresent } from "motion/react";
 import { PencilIcon } from "lucide-react";
 import { UserPicker } from "@/components/jira-field-input";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Fade } from "@/components/motion/fade";
 import type { BulkEditState } from "@/hooks/jira/use-bulk-edit";
 import { DueDateShiftPanel } from "./due-date-shift-panel";
+import { TableFieldPreviewPanel } from "./table-field-preview-panel";
 
 export function BulkEditMenu({
   state,
@@ -28,6 +29,9 @@ export function BulkEditMenu({
   state: BulkEditState;
   disabled: boolean;
 }) {
+  const present = useIsPresent();
+  const table = state.operation === "table-field-preview";
+  const tableContext = present ? state.tablePreview : null;
   return (
     <Popover open={state.open} onOpenChange={state.setOpen}>
       <PopoverTrigger asChild>
@@ -38,15 +42,16 @@ export function BulkEditMenu({
       </PopoverTrigger>
       <PopoverContent
         align="start"
-        className="w-80 max-w-[calc(100vw-2rem)] p-3"
+        collisionPadding={table ? 8 : undefined}
+        className={table ? "w-[26rem] max-w-[calc(100vw-2rem)] p-3" : "w-80 max-w-[calc(100vw-2rem)] p-3"}
         aria-label="Sammelbearbeitung"
       >
         <p className="font-medium text-balance">
-          Ausgewählte Vorgänge bearbeiten
+          {table ? "Fälligkeiten aus Tabelle" : "Ausgewählte Vorgänge bearbeiten"}
         </p>
         <p className="text-xs text-muted-foreground">
-          Nur die ausgewählten geladenen Tickets werden geändert. Jira prüft die
-          Berechtigung für jedes Ticket.
+          {table ? "Lesende Vorschau für ausgewählte Tickets." :
+            "Nur die ausgewählten geladenen Tickets werden geändert. Jira prüft die Berechtigung für jedes Ticket."}
         </p>
         <Label htmlFor="bulk-operation">Änderung</Label>
         <Select
@@ -95,10 +100,15 @@ export function BulkEditMenu({
               Labels entfernen
             </SelectItem>
             <SelectItem value="shift-due-date">Fälligkeiten verschieben</SelectItem>
+            <SelectItem value="table-field-preview">Tabellenwerte prüfen</SelectItem>
           </SelectContent>
         </Select>
         {state.operation === "shift-due-date" ? (
           <DueDateShiftPanel state={state.dueShift} />
+        ) : table ? (
+          tableContext
+            ? <TableFieldPreviewPanel key={tableContext.context} context={tableContext} />
+            : <p role="status" className="text-xs text-muted-foreground">Wähle Tickets im aktuellen Jira-Kontext aus.</p>
         ) : state.loading ? (
           <Skeleton className="h-20 rounded-xl" />
         ) : state.error ? (
@@ -205,7 +215,7 @@ export function BulkEditMenu({
             </Button>
           </>
         )}
-        {state.operation !== "shift-due-date" && state.total > 0 && (
+        {!table && state.operation !== "shift-due-date" && state.total > 0 && (
           <Fade>
             <p role="status" className="text-xs tabular-nums">
               {state.succeeded} von {state.total} geändert

@@ -3,6 +3,8 @@ export type IssueLink = { issueKey: string; commentId?: string };
 const ISSUE_KEY = /^[A-Z][A-Z0-9_]*-\d+$/;
 const COMMENT_ID = /^\d+$/;
 
+export const isExactIssueKey = (value: string) => ISSUE_KEY.test(value);
+
 const toUrl = (value: string) => {
   try {
     return new URL(value);
@@ -25,7 +27,7 @@ export const parseIssueLink = (href: string, siteUrl: string): IssueLink | undef
   if (!url || !site || url.origin !== site.origin) return undefined;
   const key = /^\/browse\/([^/]+)\/?$/.exec(url.pathname)?.[1];
   const issueKey = key ? decodeKey(key) : undefined;
-  if (!issueKey || !ISSUE_KEY.test(issueKey)) return undefined;
+  if (!issueKey || !isExactIssueKey(issueKey)) return undefined;
   const commentId = url.searchParams.get("focusedCommentId") ?? /^#comment-(\d+)$/.exec(url.hash)?.[1];
   return commentId && COMMENT_ID.test(commentId) ? { issueKey, commentId } : { issueKey };
 };

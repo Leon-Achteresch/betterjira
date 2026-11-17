@@ -28,7 +28,7 @@ const shift = (): DueDateShiftState => ({
   ] },
 });
 const bulk = (dueShift: DueDateShiftState): BulkEditState => ({
-  open: true, setOpen: vi.fn(), dueShift, operation: "shift-due-date", setOperation: vi.fn(), priority: "", setPriority: vi.fn(), status: "", setStatus: vi.fn(), labelsText: "", setLabelsText: vi.fn(),
+  open: true, setOpen: vi.fn(), dueShift, tablePreview: null, operation: "shift-due-date", setOperation: vi.fn(), priority: "", setPriority: vi.fn(), status: "", setStatus: vi.fn(), labelsText: "", setLabelsText: vi.fn(),
   options: { assign: false, unassign: false, priorities: [], statuses: [], addLabels: false, removeLabels: false }, assignee: null, setAssignee: vi.fn(), userScope: { issueKey: "DEMO-1", assignee: true },
   errors: [], succeeded: 0, total: 0, failed: 0, pending: false, loading: false, error: null, canSubmit: false, submit: vi.fn(), retry: vi.fn(), reload: vi.fn(),
 });

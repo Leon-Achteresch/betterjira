@@ -8,6 +8,8 @@ import {
 } from "@/hooks/jira/use-jira";
 import { useLatestRef } from "@/hooks/use-latest-ref";
 import { useDueDateShift } from "./use-due-date-shift";
+import type { TableFieldPreviewContext } from "./use-table-field-preview";
+import { TABLE_PREVIEW_FIELD, type TableFieldTarget } from "@/lib/jira/table-field-preview";
 import {
   bulkEditIssue,
   bulkEditMetadata,
@@ -47,9 +49,10 @@ type Operation =
   | "status"
   | "add-labels"
   | "remove-labels";
-type BulkOperation = Operation | "shift-due-date";
+type BulkOperation = Operation | "shift-due-date" | "table-field-preview";
 
-export function useBulkEdit(keys: readonly string[], disabled: boolean, selectionContext = "") {
+export function useBulkEdit(selection: readonly TableFieldTarget[], disabled: boolean, selectionContext = "") {
+  const keys = selection.map(({ key }) => key);
   const client = useQueryClient();
   const site = useJiraSite();
   const myself = useJiraMyself();
@@ -86,7 +89,7 @@ export function useBulkEdit(keys: readonly string[], disabled: boolean, selectio
         ),
         { signal },
       ),
-    enabled: open && operation !== "shift-due-date" && !!scope && keys.length > 0 && !disabled,
+    enabled: open && operation !== "shift-due-date" && operation !== "table-field-preview" && !!scope && keys.length > 0 && !disabled,
     staleTime: 30_000,
   });
   const options = commonBulkOptions(metadata.data ?? []);
@@ -171,6 +174,15 @@ export function useBulkEdit(keys: readonly string[], disabled: boolean, selectio
     },
   });
   const dueShift = useDueDateShift(keys, disabled || mutation.isPending, open && operation === "shift-due-date", selectionContext);
+  const tablePreview: TableFieldPreviewContext | null =
+    open && operation === "table-field-preview" && !disabled && scope && site.isSuccess && site.data && myself.isSuccess && selection.length
+      ? {
+          context: JSON.stringify([scope, selectionContext, TABLE_PREVIEW_FIELD, selection.map(({ key, id }) => [key, id]).sort()]),
+          scope,
+          targets: selection,
+          accountLabel: `${myself.data.displayName} · ${site.data.siteName}`,
+        }
+      : null;
   const visibleResults = resultScope === scopeKey ? results : [];
   const failed = visibleResults.filter(({ error }) => error);
   const submit = (retry = false) => {
@@ -206,6 +218,7 @@ export function useBulkEdit(keys: readonly string[], disabled: boolean, selectio
     open,
     setOpen: (value: boolean) => { if (!dueShift.isBusy()) setOpen(value); },
     dueShift,
+    tablePreview,
     operation,
     setOperation: (value: string) => {
       if (lock.current || dueShift.isBusy()) return;
@@ -217,7 +230,8 @@ export function useBulkEdit(keys: readonly string[], disabled: boolean, selectio
         value === "status" ||
         value === "add-labels" ||
         value === "remove-labels" ||
-        value === "shift-due-date"
+        value === "shift-due-date" ||
+        value === "table-field-preview"
       )
         setOperation(value);
     },

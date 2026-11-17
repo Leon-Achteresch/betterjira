@@ -1,13 +1,8 @@
-import { Data, Effect, Schema } from "effect";
-import { jira, JiraApiError, JiraRequestScopeChanged, NotAuthenticated, type JiraRequestScope } from "./client";
+import { Data, Effect } from "effect";
+import { JiraApiError, JiraRequestScopeChanged, NotAuthenticated, type JiraRequestScope } from "./client";
 import { bulkEditIssue, bulkIssueEditMetadata } from "./bulk-edit";
 import { shiftCalendarDate } from "../calendar-date-shift";
-
-export const DueDateIssue = Schema.Struct({
-  id: Schema.String, key: Schema.String,
-  fields: Schema.Struct({ duedate: Schema.optional(Schema.NullOr(Schema.String)), project: Schema.Struct({ id: Schema.String }), issuetype: Schema.Struct({ id: Schema.String }) }),
-});
-const DueDatePermissions = Schema.Struct({ permissions: Schema.Record(Schema.String, Schema.Struct({ havePermission: Schema.Boolean })) });
+import { maySetDueDate, readDueDateIssue, readDueDatePermissions, supportsDueDate } from "./due-date-fields";
 
 export type DueDateShiftRow = { key: string; id?: string; projectId?: string; typeId?: string; before?: string | null; after: string | null; reason?: string };
 export type DueDateShiftPreview = { days: number; rows: readonly DueDateShiftRow[] };
@@ -20,15 +15,15 @@ export class DueDateShiftInvalid extends Data.TaggedError("DueDateShiftInvalid")
 const readRow = (key: string, days: number, scope: JiraRequestScope): Effect.Effect<DueDateShiftRow> => Effect.gen(function* () {
   if (!scope.isCurrent()) return { key, after: null, reason: "Kontext geändert. Keine Änderung gesendet." };
   const { issue, metadata, rights } = yield* Effect.all({
-    issue: jira(`/issue/${encodeURIComponent(key)}?fields=duedate,project,issuetype`, DueDateIssue, { scope, cache: "no-store" }),
+    issue: readDueDateIssue(key, scope),
     metadata: bulkIssueEditMetadata(key, scope),
-    rights: jira(`/mypermissions?${new URLSearchParams({ issueKey: key, permissions: "EDIT_ISSUES,SCHEDULE_ISSUES" })}`, DueDatePermissions, { scope, cache: "no-store" }),
+    rights: readDueDatePermissions(key, scope),
   }, { concurrency: 3 });
   const before = issue.fields.duedate;
   const after = typeof before === "string" ? shiftCalendarDate(before, days) : null;
   const reason = issue.key.toUpperCase() !== key.toUpperCase() ? "Ticketzuordnung hat sich geändert."
-    : !rights.permissions.EDIT_ISSUES?.havePermission || !rights.permissions.SCHEDULE_ISSUES?.havePermission ? "Bearbeiten oder Vorgänge planen ist nicht erlaubt."
-    : !metadata.fields.duedate?.operations?.includes("set") ? "Fälligkeit ist für dieses Ticket nicht bearbeitbar."
+    : !maySetDueDate(rights) ? "Bearbeiten oder Vorgänge planen ist nicht erlaubt."
+    : !supportsDueDate(metadata) ? "Fälligkeit ist für dieses Ticket nicht bearbeitbar."
     : before === undefined ? "Fälligkeit wurde nicht geliefert."
     : before === null || before === "" ? "Keine vorhandene Fälligkeit."
     : shiftCalendarDate(before, 0) === null ? "Ungültiges Kalenderdatum."

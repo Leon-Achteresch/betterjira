@@ -1336,6 +1336,10 @@ const respond = async (request) => {
   }
   window.__qaReads?.push(path);
   window.__qa.reads.push(path);
+  if (window.__qaReadRule) {
+    const override = await window.__qaReadRule(path, url.searchParams);
+    if (override) return override;
+  }
   if (/^\/issue\/[^/]+\/editmeta$/.test(path)) return { body: { fields: {
     assignee: { required: false, operations: ["set"] },
     priority: { operations: ["set"], allowedValues: [{ id: "1", name: "Hoch" }, { id: "2", name: "Mittel" }] },
