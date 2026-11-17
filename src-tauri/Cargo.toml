@@ -17,12 +17,19 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 
+[features]
+c1-ipc-fixture = []
+
+[[example]]
+name = "c1_ipc_fixture"
+required-features = ["c1-ipc-fixture"]
+
 [dependencies]
 tauri = { version = "2", features = ["tray-icon", "macos-private-api"] }
 tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-tauri-plugin-http = "2.8.3"
+tauri-plugin-http = "=2.8.3"
 tauri-plugin-notification = "2"
 tiny_http = "0.12"
 tauri-plugin-process = "2"
