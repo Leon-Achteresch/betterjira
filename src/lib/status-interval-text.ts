@@ -11,8 +11,9 @@ const DE = {
   identity: "Fehlende Status-IDs: gleichnamige Status werden nicht gleichgesetzt; diese Grenzen sind unbestätigt.",
   current: "Letzter Übergang und aktueller Status stimmen nicht überein. Kein laufender Aufenthalt abgeleitet.",
   renamed: "Weitere beobachtete Namen derselben ID", unknown: "Unbekannter Status", noId: "ohne ID",
-  cut: "Grenze unbekannt · nicht summiert", open: "laufend · separat", confirmed: "abgeschlossen", creation: "ab Erstellung", transition: "ab beobachtetem Eintritt", unknownStart: "Beginn unbekannt", unknownEnd: "Ende unbekannt",
+  cut: "Grenze unbekannt · nicht summiert", open: "laufend · separat", confirmed: "abgeschlossen", creation: "ab Erstellung", unknownStart: "Beginn unbekannt", unknownEnd: "Ende unbekannt",
   showMore: "Alle Aufenthalte zeigen", showLess: "Weniger zeigen", unselected: "Erst nach deiner Auswahl wird die Dauer für diesen Status angezeigt.",
+  stays: "Aufenthalte", notSummed: "nicht summiert",
 };
 const EN: typeof DE = {
   title: "Time in status", choose: "Explicitly select a status", placeholder: "Select a status…",
@@ -27,8 +28,9 @@ const EN: typeof DE = {
   identity: "Missing status IDs: matching names are not treated as matching identities; these boundaries are unconfirmed.",
   current: "The last transition and current status disagree. No ongoing stay was inferred.",
   renamed: "Other observed names for this ID", unknown: "Unknown status", noId: "no ID",
-  cut: "Unknown boundary · excluded from sum", open: "ongoing · separate", confirmed: "completed", creation: "since creation", transition: "since observed entry", unknownStart: "Unknown start", unknownEnd: "Unknown end",
+  cut: "Unknown boundary · excluded from sum", open: "ongoing · separate", confirmed: "completed", creation: "since creation", unknownStart: "Unknown start", unknownEnd: "Unknown end",
   showMore: "Show all stays", showLess: "Show fewer", unselected: "Select a status to see its duration.",
+  stays: "Stays", notSummed: "not summed",
 };
 
 export const statusIntervalTranslator = (locale: string) => {

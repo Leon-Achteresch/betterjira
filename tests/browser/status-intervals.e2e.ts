@@ -154,3 +154,33 @@ for (const change of ["account", "site", "issue", "unmount"] as const) {
     if (change !== "unmount") await expect(page.getByTestId("hook")).toHaveText('{"open":false}');
   });
 }
+
+test("viele Aufenthalte: zuerst fuenf, alle nur bewusst per Tastatur und ohne Zusatzabruf", async ({ page }) => {
+  await page.addInitScript(() => {
+    const values = Array.from({ length: 15 }, (_, index) => {
+      const into = index % 2 === 0;
+      return { id: `cycle-${index}`, created: new Date(Date.UTC(2026, 10, 1, index + 1)).toISOString(), author: { displayName: "QA" }, items: [{ field: "status", fieldtype: "jira", fieldId: "status", from: into ? "3" : "7", to: into ? "7" : "3", fromString: into ? "In Arbeit" : "Warten", toString: into ? "Warten" : "In Arbeit" }] };
+    });
+    (window as unknown as StatusWindow).__qaHistoryRule = (key) => (key === "DEMO-1" ? { values } : {});
+  });
+  await open(page);
+  await select(page, "7");
+  const stays = summary(page).getByRole("list", { name: "Aufenthalte" });
+  await expect(stays.getByRole("listitem")).toHaveCount(5);
+  await expect(summary(page)).toContainText("Aufenthalte · 5 / 8");
+  const more = summary(page).getByRole("button", { name: "Alle Aufenthalte zeigen (8)" });
+  await expect(more).toHaveAttribute("aria-expanded", "false");
+  const reads = await page.evaluate(() => (window as unknown as StatusWindow).__qaHistory.reads.length);
+  await more.focus();
+  await page.keyboard.press("Enter");
+  await expect(stays.getByRole("listitem")).toHaveCount(8);
+  const less = summary(page).getByRole("button", { name: "Weniger zeigen" });
+  await expect(less).toBeFocused();
+  await expect(less).toHaveAttribute("aria-expanded", "true");
+  await expect(stays.getByRole("listitem").last()).toContainText("laufend · separat");
+  await expect(closed(page)).toContainText("7 h");
+  expect(await summary(page).evaluate((node) => node.scrollWidth - node.clientWidth)).toBeLessThanOrEqual(0);
+  await page.keyboard.press("Enter");
+  await expect(stays.getByRole("listitem")).toHaveCount(5);
+  expect(await page.evaluate(() => (window as unknown as StatusWindow).__qaHistory.reads.length)).toBe(reads);
+});
