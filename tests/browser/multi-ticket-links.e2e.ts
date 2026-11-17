@@ -505,3 +505,97 @@ for (const boundary of ["issue", "account", "unmount"] as const) {
     } else await expect(page.getByTestId("unmounted")).toBeVisible();
   });
 }
+
+test("20 Ziele mit langem Typ: Geltungsbereich und Hauptaktion bleiben sichtbar, Stop und Teilergebnisse per Tastatur", async ({
+  page,
+}) => {
+  const long = "wartet auf eine sehr lange externe Abhängigkeit mit mehrstufigem Freigabeprozess";
+  await page.addInitScript((outward) => {
+    Reflect.set(window, "__qaLinkTypes", [
+      { id: "10000", name: "Blocks", inward: "is blocked by", outward: "blocks" },
+      { id: "10077", name: "Long", inward: "wird blockiert von", outward },
+    ]);
+  }, long);
+  await page.goto(
+    "/tests/browser/fixture.html?scenario=multi-links&route=/issue/DEMO-4",
+  );
+  const trigger = page.getByRole("button", { name: "Mehrere Tickets verknüpfen", exact: true });
+  await trigger.evaluate((node) => node.scrollIntoView({ block: "center" }));
+  await trigger.focus();
+  await page.keyboard.press("Enter");
+  await expect(popup(page)).toBeVisible();
+  expect(await popup(page).evaluate((node) => node.contains(document.activeElement))).toBe(true);
+  await popup(page).getByRole("combobox").click();
+  await page.getByRole("option", { name: `${long} · outward`, exact: true }).click();
+  const targets = Array.from({ length: 21 }, (_, index) => `DEMO-${index + 1}`).filter((key) => key !== "DEMO-4");
+  await popup(page).getByLabel("Explizite Zielkeys").fill(targets.join("\n"));
+  await popup(page).getByRole("button", { name: "Vorschau prüfen", exact: true }).click();
+  const confirm = popup(page).getByRole("button", { name: "Geprüfte Verknüpfungen bestätigen" });
+  await expect(confirm).toBeEnabled();
+  await expect(popup(page)).toContainText(`DEMO-4 ${long} … (outward)`);
+  await expect(popup(page)).toContainText("Nur gelesen");
+  expect(await writes(page)).toEqual([]);
+  const list = popup(page).getByLabel("Geprüfte Zielmenge").getByRole("listitem");
+  await expect(list).toHaveCount(5);
+  const all = popup(page).getByRole("button", { name: "Alle Ziele anzeigen (20)" });
+  await all.focus();
+  await page.keyboard.press("Space");
+  await expect(list).toHaveCount(20);
+  await expect(popup(page).getByRole("button", { name: "Weniger anzeigen" })).toHaveAttribute("aria-expanded", "true");
+  const inView = (locator: ReturnType<typeof popup>) =>
+    locator.evaluate((node) => {
+      const box = node.getBoundingClientRect();
+      return box.top >= 0 && box.bottom <= innerHeight && box.left >= 0 && box.right <= innerWidth;
+    });
+  const scope = popup(page).locator("dl").filter({ hasText: "Quelle" });
+  expect(await inView(scope)).toBe(true);
+  expect(await inView(confirm)).toBe(true);
+  expect(
+    await popup(page).evaluate((node) =>
+      [node, ...node.querySelectorAll("*")]
+        .filter(
+          (child) =>
+            child.clientWidth > 0 &&
+            child.scrollWidth > child.clientWidth + 1 &&
+            getComputedStyle(child).textOverflow !== "ellipsis",
+        )
+        .map((child) => child.outerHTML.slice(0, 80)),
+    ),
+  ).toEqual([]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+
+  await page.evaluate(() => {
+    let calls = 0;
+    Reflect.set(window, "__qaMultiLinkWriteRule", async () => {
+      calls += 1;
+      const call = calls;
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      if (call === 1) return { status: 403, body: {} };
+      if (call === 2) throw new Error("Synthetisch: Antwort verloren");
+    });
+  });
+  await confirm.focus();
+  await page.keyboard.press("Enter");
+  const stop = popup(page).getByRole("button", { name: "Weitere Abgaben stoppen" });
+  await expect(stop).toBeVisible();
+  expect(await inView(stop)).toBe(true);
+  await expect(popup(page)).toContainText("lassen sich nicht zurückrufen");
+  await expect.poll(() => writes(page).then((rows) => rows.length)).toBeGreaterThanOrEqual(3);
+  await stop.focus();
+  await page.keyboard.press("Enter");
+  await expect(popup(page).getByRole("status")).toContainText("Nicht begonnen");
+  await expect(popup(page).getByRole("status")).toContainText("1 Abgelehnt");
+  await expect(popup(page).getByRole("status")).toContainText("1 Unklar");
+  const sent = (await writes(page)).length;
+  expect(sent).toBeLessThan(11);
+  await expect(popup(page).getByRole("alert")).toContainText("nicht zurückgerufen");
+  expect(await inView(scope)).toBe(true);
+  expect(await inView(confirm)).toBe(true);
+  await expect(confirm).toBeDisabled();
+  await expect(confirm).toBeFocused();
+  await page.waitForTimeout(600);
+  expect(await writes(page)).toHaveLength(sent);
+  await page.keyboard.press("Escape");
+  await expect(popup(page)).toHaveCount(0);
+  await expect(trigger).toBeFocused();
+});
