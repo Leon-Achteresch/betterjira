@@ -86,11 +86,14 @@ def run_host(root, executable, port, guard, scenario, case):
                 require(sorted((entry["target"], entry["status"]) for entry in ledger["writes"]) ==
                         [("DEMO-2", 201), ("DEMO-3", 403), ("DEMO-5", 503)] and
                         ledger["released"] == ["DEMO-6", "DEMO-7"], f"Unexpected N01 fixture ledger: {ledger}")
-            elif case == "n02-control":
-                require(not ledger["writes"] and not ledger["released"], f"N02 read-only control dispatched: {ledger}")
-            else:
+            elif case in ("n02-control", "n03-control"):
+                require(not ledger["writes"] and not ledger["released"], f"{scenario} read-only control dispatched: {ledger}")
+            elif scenario == "n02":
                 require([entry["status"] for entry in ledger["writes"]] == [204, 403, 204, 503, 204] and
                         ledger["released"] == ["GET DEMO-7", "PUT DEMO-7"], f"Unexpected N02 fixture ledger: {ledger}")
+            else:
+                require([entry["status"] for entry in ledger["writes"]] == [201, 401, 503, 201] and
+                        ledger["released"] == ["GET parent", "POST issue"], f"Unexpected N03 fixture ledger: {ledger}")
             require(not list((root / "data").rglob("61746c61737369616e2d73657373696f6e")),
                     "Private session file still exists after logout")
             print("Network canary: one unsandboxed loopback control, zero hits from the isolated host or WebView")
@@ -100,9 +103,9 @@ def run_host(root, executable, port, guard, scenario, case):
 
 def main():
     require(sys.platform == "darwin", "This fixture requires macOS")
-    require(len(sys.argv) in (3, 4), "Usage: python3 tests/native/c1-tauri/run.py <fixture executable> <fixture build> [c1|c1-media|n01|n02|n02-control]")
+    require(len(sys.argv) in (3, 4), "Usage: python3 tests/native/c1-tauri/run.py <fixture executable> <fixture build> [c1|c1-media|n01|n02|n02-control|n03|n03-control]")
     case = sys.argv[3] if len(sys.argv) == 4 else "c1"
-    require(case in ("c1", "c1-media", "n01", "n02", "n02-control"), "Unknown IPC fixture scenario")
+    require(case in ("c1", "c1-media", "n01", "n02", "n02-control", "n03", "n03-control"), "Unknown IPC fixture scenario")
     scenario = case.split("-")[0]
     fixture_dir = HERE.parent / f"{scenario}-tauri"
     binary = Path(sys.argv[1]).resolve(strict=True)

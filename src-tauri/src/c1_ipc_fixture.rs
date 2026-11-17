@@ -60,6 +60,11 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
             "n02-ipc-fixture",
             "tests/native/n02-tauri/fixture.html",
         ),
+        "n03" => (
+            "betterjira N03 IPC Fixture",
+            "n03-ipc-fixture",
+            "tests/native/n03-tauri/fixture.html",
+        ),
         _ => return Err("Unknown IPC fixture scenario".into()),
     };
     let identifier = format!("com.leon.betterjira.{window}");
@@ -105,6 +110,9 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
         format!("window.__C1_JIRA_ORIGIN__ = {origin:?}; window.__C1_CANARY_ORIGIN__ = {trap:?};");
     if window == "n02-ipc-fixture" {
         init.push_str("Object.defineProperty(window, '__N02_NATIVE_FIXTURE__', { value: true });");
+    }
+    if window == "n03-ipc-fixture" {
+        init.push_str("Object.defineProperty(window, '__N03_NATIVE_FIXTURE__', { value: true });");
     }
     tauri::Builder::default()
         .plugin(tauri_plugin_http::init())
