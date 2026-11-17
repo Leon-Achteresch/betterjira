@@ -55,6 +55,11 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
             "n01-ipc-fixture",
             "tests/native/n01-tauri/fixture.html",
         ),
+        "n02" => (
+            "betterjira N02 IPC Fixture",
+            "n02-ipc-fixture",
+            "tests/native/n02-tauri/fixture.html",
+        ),
         _ => return Err("Unknown IPC fixture scenario".into()),
     };
     let identifier = format!("com.leon.betterjira.{window}");
@@ -96,8 +101,11 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     config.app.security.dev_csp = Some(csp);
     context.set_assets(Box::new(FixtureAssets(assets)));
 
-    let init =
+    let mut init =
         format!("window.__C1_JIRA_ORIGIN__ = {origin:?}; window.__C1_CANARY_ORIGIN__ = {trap:?};");
+    if window == "n02-ipc-fixture" {
+        init.push_str("Object.defineProperty(window, '__N02_NATIVE_FIXTURE__', { value: true });");
+    }
     tauri::Builder::default()
         .plugin(tauri_plugin_http::init())
         .invoke_handler(tauri::generate_handler![

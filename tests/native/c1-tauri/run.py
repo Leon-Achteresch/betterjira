@@ -35,7 +35,7 @@ def curl(url, sandbox=(), env=None, authenticated=False):
                           capture_output=True, text=True, env=env)
 
 
-def run_host(root, executable, port, guard, scenario, media):
+def run_host(root, executable, port, guard, scenario, case):
     with http.server.ThreadingHTTPServer(("127.0.0.1", 0), Canary) as canary:
         canary.hits = []
         threading.Thread(target=canary.serve_forever, daemon=True).start()
@@ -76,15 +76,21 @@ def run_host(root, executable, port, guard, scenario, media):
             result.check_returncode()
             require(ledger["unexpected"] == 0 and not ledger["held"], f"Unexpected final fixture ledger: {ledger}")
             if scenario == "c1":
+                media = case == "c1-media"
                 require(len(ledger["writes"]) == 1 and len(ledger["reads"]) == (6 if media else 5),
                         f"Unexpected C1 fixture ledger: {ledger}")
                 if media:
                     require(ledger["mediaRequests"] == [] and ledger["renderedReads"] > 0,
                             f"Unexpected C1 media fixture ledger: {ledger}")
-            else:
+            elif scenario == "n01":
                 require(sorted((entry["target"], entry["status"]) for entry in ledger["writes"]) ==
                         [("DEMO-2", 201), ("DEMO-3", 403), ("DEMO-5", 503)] and
                         ledger["released"] == ["DEMO-6", "DEMO-7"], f"Unexpected N01 fixture ledger: {ledger}")
+            elif case == "n02-control":
+                require(not ledger["writes"] and not ledger["released"], f"N02 read-only control dispatched: {ledger}")
+            else:
+                require([entry["status"] for entry in ledger["writes"]] == [204, 403, 204, 503, 204] and
+                        ledger["released"] == ["GET DEMO-7", "PUT DEMO-7"], f"Unexpected N02 fixture ledger: {ledger}")
             require(not list((root / "data").rglob("61746c61737369616e2d73657373696f6e")),
                     "Private session file still exists after logout")
             print("Network canary: one unsandboxed loopback control, zero hits from the isolated host or WebView")
@@ -94,11 +100,10 @@ def run_host(root, executable, port, guard, scenario, media):
 
 def main():
     require(sys.platform == "darwin", "This fixture requires macOS")
-    require(len(sys.argv) in (3, 4), "Usage: python3 tests/native/c1-tauri/run.py <fixture executable> <fixture build> [c1|c1-media|n01]")
+    require(len(sys.argv) in (3, 4), "Usage: python3 tests/native/c1-tauri/run.py <fixture executable> <fixture build> [c1|c1-media|n01|n02|n02-control]")
     case = sys.argv[3] if len(sys.argv) == 4 else "c1"
-    require(case in ("c1", "c1-media", "n01"), "Unknown IPC fixture scenario")
-    media = case == "c1-media"
-    scenario = "c1" if media else case
+    require(case in ("c1", "c1-media", "n01", "n02", "n02-control"), "Unknown IPC fixture scenario")
+    scenario = case.split("-")[0]
     fixture_dir = HERE.parent / f"{scenario}-tauri"
     binary = Path(sys.argv[1]).resolve(strict=True)
     build = Path(sys.argv[2]).resolve(strict=True)
@@ -120,13 +125,13 @@ def main():
             plistlib.dump({"CFBundleIdentifier": f"com.leon.betterjira.{scenario}-ipc-fixture",
                            "CFBundleName": name, "CFBundlePackageType": "APPL",
                            "CFBundleExecutable": executable.name, "LSUIElement": True}, info)
-        server = subprocess.Popen(["bun", str(fixture_dir / "server.ts"), *(["media"] if media else [])],
+        server = subprocess.Popen(["bun", str(fixture_dir / "server.ts"), *(["media"] if case == "c1-media" else [])],
                                   stdout=subprocess.PIPE, text=True, cwd=REPO)
         try:
             require(bool(select.select([server.stdout], [], [], 10)[0]), "Jira fixture did not start")
             port = int(server.stdout.readline())
             require(0 < port < 65536 and server.poll() is None, "Jira fixture did not bind a private port")
-            run_host(root, executable, port, guard, scenario, media)
+            run_host(root, executable, port, guard, scenario, case)
         finally:
             if server.poll() is None:
                 server.terminate()
