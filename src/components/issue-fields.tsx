@@ -373,6 +373,7 @@ function StringFieldForm({
             onChange={(value) => editor.setText(JSON.stringify(value))}
             disabled={!editor.ready}
             autoFocus
+            enableTableImport={id === "description"}
             issueKey={issueKey}
             participants={NO_PARTICIPANTS}
             mediaSource={mediaSource}

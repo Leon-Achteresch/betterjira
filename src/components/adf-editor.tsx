@@ -4,6 +4,7 @@ import { EditorContent, NodeViewWrapper, ReactNodeViewRenderer, useEditor, useEd
 import type { SuggestionOptions } from "@tiptap/suggestion";
 import { BoldIcon, CodeIcon, ImagePlusIcon, ItalicIcon, ListIcon, ListOrderedIcon, XIcon, type LucideIcon } from "lucide-react";
 import { AdfContent, AdfNodeView } from "@/components/adf-content";
+import { AdfTableImport } from "@/components/adf-table-import";
 import { Tooltip } from "@/components/motion/tooltip";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
@@ -20,10 +21,12 @@ import {
   AdfTrailingParagraph,
   adfToEditor,
   editorToAdf,
+  editableTableToEditor,
   isAdfDoc,
   isEditableAdf,
   type AdfNode,
 } from "@/lib/jira/adf";
+import { adfTableExtensions, insertEditableTable } from "@/lib/jira/adf-editable-table";
 import { matchKnownMedia } from "@/lib/jira/adf-media";
 import { AdfUploadPlaceholder } from "@/lib/jira/adf-uploads";
 import { cn } from "@/lib/utils";
@@ -95,6 +98,7 @@ export type AdfEditorProps = {
   disabled?: boolean;
   toolbar?: boolean;
   autoFocus?: boolean;
+  enableTableImport?: boolean;
   suggestion?: MentionSuggestion;
   isSuggestionOpen?: () => boolean;
   onSubmitShortcut?: () => void;
@@ -114,8 +118,9 @@ const preservedExtensions = [
   AdfUploadPlaceholder,
 ];
 
-const buildExtensions = (suggestion?: MentionSuggestion) => [
+const buildExtensions = (suggestion: MentionSuggestion | undefined, enableTableImport: boolean) => [
   ...preservedExtensions,
+  ...(enableTableImport ? adfTableExtensions : []),
   suggestion ? AdfMention.configure({ suggestion }) : AdfMention,
 ];
 
@@ -129,6 +134,8 @@ const tools: { label: string; icon: LucideIcon; name: string; run: (editor: Edit
 
 const EDITOR_CLASS =
   "min-h-24 max-h-80 overflow-y-auto px-2.5 py-2 text-sm leading-relaxed outline-none [&_a]:text-info [&_a]:underline [&_blockquote]:border-l-2 [&_blockquote]:pl-3 [&_code]:rounded [&_code]:bg-muted [&_code]:px-1 [&_code]:font-mono [&_h1]:text-lg [&_h1]:font-semibold [&_h2]:text-lg [&_h2]:font-semibold [&_h3]:font-semibold [&_hr]:my-2 [&_ol]:list-decimal [&_ol]:pl-6 [&_pre]:rounded-md [&_pre]:bg-muted [&_pre]:p-2 [&_ul]:list-disc [&_ul]:pl-6 [&>*+*]:mt-2 [&_[data-type=mention]]:rounded [&_[data-type=mention]]:bg-muted [&_[data-type=mention]]:px-1 [&_[data-type=mention]]:font-medium";
+const TABLE_EDITOR_CLASS =
+  "[&_[data-adf-table-scroll]]:max-w-full [&_[data-adf-table-scroll]]:overflow-x-auto [&_[data-adf-table-scroll]_table]:w-full [&_[data-adf-table-scroll]_table]:border-collapse [&_[data-adf-table-scroll]_td]:min-w-20 [&_[data-adf-table-scroll]_td]:border [&_[data-adf-table-scroll]_td]:px-2 [&_[data-adf-table-scroll]_td]:py-1 [&_[data-adf-table-scroll]_td]:align-top [&_[data-adf-table-scroll]_td]:wrap-anywhere";
 
 const serialize = (value: unknown) => (isAdfDoc(value) ? JSON.stringify(value) : null);
 
@@ -142,6 +149,7 @@ export function AdfEditor({
   disabled = false,
   toolbar = true,
   autoFocus = false,
+  enableTableImport = false,
   suggestion,
   isSuggestionOpen,
   onSubmitShortcut,
@@ -154,7 +162,7 @@ export function AdfEditor({
   const reduce = useReducedMotion();
   const [{ initial, editable, extensions }] = useState(() => {
     const initial = isAdfDoc(value) ? value : undefined;
-    return { initial, editable: !initial || isEditableAdf(initial), extensions: buildExtensions(suggestion) };
+    return { initial, editable: !initial || isEditableAdf(initial), extensions: buildExtensions(suggestion, enableTableImport) };
   });
   const emitted = useRef(serialize(value));
   const uploads = useEditorUploads(media, onUploadingChange);
@@ -167,14 +175,14 @@ export function AdfEditor({
     extensions,
     editable: !disabled,
     autofocus: autoFocus ? "end" : false,
-    content: initial && editable ? adfToEditor(initial) : undefined,
+    content: initial && editable ? adfToEditor(initial, enableTableImport) : undefined,
     onUpdate: ({ editor }) => {
       const doc = editorToAdf(editor.getJSON());
       emitted.current = JSON.stringify(doc);
       handlers.current.onChange(doc);
     },
     editorProps: {
-      attributes: { id, role: "textbox", "aria-multiline": "true", "aria-label": label, class: EDITOR_CLASS },
+      attributes: { id, role: "textbox", "aria-multiline": "true", "aria-label": label, class: cn(EDITOR_CLASS, enableTableImport && TABLE_EDITOR_CLASS) },
       handleKeyDown: (_view, event) => {
         if (event.isComposing || handlers.current.isSuggestionOpen?.()) return false;
         const submit = handlers.current.onSubmitShortcut;
@@ -208,9 +216,9 @@ export function AdfEditor({
     const incoming = serialize(value);
     if (incoming === emitted.current) return;
     emitted.current = incoming;
-    if (isAdfDoc(value) && isEditableAdf(value)) editor.commands.setContent(adfToEditor(value), { emitUpdate: false });
+    if (isAdfDoc(value) && isEditableAdf(value)) editor.commands.setContent(adfToEditor(value, enableTableImport), { emitUpdate: false });
     else if (incoming === null && !editor.isEmpty) editor.commands.clearContent(false);
-  }, [editor, value]);
+  }, [editor, value, enableTableImport]);
 
   useLayoutEffect(() => {
     if (editor.isEditable !== !disabled) editor.setEditable(!disabled, false);
@@ -276,6 +284,16 @@ export function AdfEditor({
                 <Icon />
               </Button>
             ))}
+            {enableTableImport && (
+              <AdfTableImport
+                disabled={disabled}
+                onInsert={(table) => {
+                  const node = editableTableToEditor(table);
+                  return !!node && insertEditableTable(editor, node);
+                }}
+                focusEditor={() => { editor.commands.focus(); }}
+              />
+            )}
             {uploads.enabled && (
               <>
                 <input
