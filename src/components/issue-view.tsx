@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { IssueActions } from "@/components/issues/issue-actions";
 import { IssueLinksPanel } from "@/components/issues/issue-links-panel";
+import { DependencyNeighborhood } from "@/components/issues/dependency-neighborhood";
 import { AddIssueLink } from "@/components/issues/add-issue-link";
 import { MultiTicketLinks } from "@/components/issues/multi-ticket-links";
 import { RemoteLinksPanel } from "@/components/issues/remote-links-panel";
@@ -277,6 +278,7 @@ export function IssueView({
               onRetry={links.retry}
             />
             <MultiTicketLinks state={links.multi} />
+            <DependencyNeighborhood state={links.dependencies} />
           </Section>
 
           <motion.div variants={reveal(reduce)}>

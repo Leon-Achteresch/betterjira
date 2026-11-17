@@ -5,6 +5,8 @@ export const jiraKeys = {
   allIssues: ["jira", "issues"] as const,
   allBoards: ["jira", "board"] as const,
   multiLinkPreview: (context: string, request: number) => ["jira", "multi-link-preview", context, request] as const,
+  dependencyNeighborhood: (context: string, instance: string, request: number | undefined) =>
+    ["jira", "dependency-neighborhood", context, instance, request] as const,
   multiLinkWrite: (scope: JiraQueryScope | undefined) => ["jira", "multi-link-write", scope?.cloudId ?? "", scope?.accountId ?? ""] as const,
   multiLinkLedger: (scope: JiraQueryScope, host: string, source: string, choice: string) => ["jira", "multi-link-ledger", scope.cloudId, scope.accountId, host, source, choice] as const,
   bulkEdit: (scope: string, keys: readonly string[]) => ["jira", "bulk-edit", scope, [...keys].sort()] as const,

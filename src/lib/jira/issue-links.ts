@@ -1,5 +1,5 @@
 import { Effect, Option, Schema } from "effect";
-import { jira } from "./client";
+import { jira, type JiraRequestScope } from "./client";
 import { jiraKeys } from "./queries";
 
 const LinkType = Schema.Struct({
@@ -32,6 +32,7 @@ const LinkedIssueType = Schema.Struct({
 });
 
 const IssueLinksResponse = Schema.Struct({
+  key: Schema.optional(Schema.String),
   fields: Schema.Struct({
     issuelinks: Schema.optional(Schema.NullOr(Schema.Array(Schema.Unknown))),
   }),
@@ -90,6 +91,12 @@ const sideOf = (link: typeof IssueLink.Type) => {
   return undefined;
 };
 
+export function readIssueLink(raw: unknown) {
+  const link = Option.getOrUndefined(decodeLink(raw));
+  const side = link && sideOf(link);
+  return side && link ? { key: side.issue.key.trim(), direction: side.direction, typeId: link.type?.id } : undefined;
+}
+
 export const summarizeIssueLinks = (links: readonly unknown[]): IssueLinkSummary => {
   const groups = new Map<string, IssueLinkGroup>();
   let unreadable = 0;
@@ -117,8 +124,12 @@ export const issueLinkKeys = {
     [...jiraKeys.all, "issue-links", cloudId, accountId, key] as const,
 };
 
+export const fetchIssueLinkData = (key: string, scope?: JiraRequestScope) =>
+  jira(`/issue/${encodeURIComponent(key)}?fields=issuelinks`, IssueLinksResponse,
+    scope ? { scope, cache: "no-store", retry: false } : undefined);
+
 export const fetchIssueLinks = (key: string) =>
-  jira(`/issue/${encodeURIComponent(key)}?fields=issuelinks`, IssueLinksResponse).pipe(
+  fetchIssueLinkData(key).pipe(
     Effect.map(({ fields }) => summarizeIssueLinks(fields.issuelinks ?? [])),
   );
 
