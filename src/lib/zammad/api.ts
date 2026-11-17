@@ -10,6 +10,7 @@ import {
   type ArticleInput,
   type CreateTicketInput,
   type TicketPatch,
+  type Connection,
 } from "./model";
 
 export const PAGE_SIZE = 30;
@@ -45,15 +46,34 @@ export const createTicket = (input: CreateTicketInput) =>
     ...input,
     article: { ...input.article, content_type: "text/plain", sender: "Agent" },
   });
-export const getArticles = (id: number) =>
-  zammad(`/ticket_articles/by_ticket/${id}?expand=true`, Schema.Array(Article));
-export const addArticle = (id: number, input: ArticleInput) =>
-  zammad("/ticket_articles", Article, "POST", {
-    ...input,
-    ticket_id: id,
-    content_type: "text/plain",
-    sender: "Agent",
-  });
+export const getArticles = (
+  id: number,
+  connectionScope?: Required<Connection>,
+) =>
+  zammad(
+    `/ticket_articles/by_ticket/${id}?expand=true`,
+    Schema.Array(Article),
+    "GET",
+    undefined,
+    connectionScope,
+  );
+export const addArticle = (
+  id: number,
+  input: ArticleInput,
+  connectionScope?: Required<Connection>,
+) =>
+  zammad(
+    "/ticket_articles",
+    Article,
+    "POST",
+    {
+      ...input,
+      ticket_id: id,
+      content_type: "text/plain",
+      sender: "Agent",
+    },
+    connectionScope,
+  );
 export const getTags = (id: number) =>
   zammad(
     `/tags?object=Ticket&o_id=${id}`,

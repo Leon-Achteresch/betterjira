@@ -19,6 +19,7 @@ import type {
   CreateTicketInput,
   Ticket,
   TicketPatch,
+  Connection,
 } from "@/lib/zammad/model";
 
 export const useUpdateZammadTicket = (ticket: Ticket | undefined) => {
@@ -76,25 +77,47 @@ export const useZammadWrite = (id: number) => {
     ]);
   const onError = (error: Error) => toast.error(error.message);
   const article = useMutation({
-    mutationFn: (input: ArticleInput & { files?: readonly File[] }) =>
+    mutationFn: (
+      input: ArticleInput & {
+        files?: readonly File[];
+        isCurrent?: () => boolean;
+        connectionScope?: Required<Connection>;
+      },
+    ) =>
       Effect.runPromise(
         encodeUploads(input.files ?? []).pipe(
           Effect.flatMap((attachments) =>
-            addArticle(id, {
-              body: input.body,
-              type: input.type,
-              internal: input.internal,
-              to: input.to,
-              cc: input.cc,
-              subject: input.subject,
-              in_reply_to: input.in_reply_to,
-              attachments,
-            }),
+            input.isCurrent && !input.isCurrent()
+              ? Effect.fail(
+                  new ZammadError({
+                    message:
+                      "Entwurfskontext wurde gewechselt. Es wurde nichts gesendet.",
+                  }),
+                )
+              : addArticle(
+                  id,
+                  {
+                    body: input.body,
+                    type: input.type,
+                    internal: input.internal,
+                    to: input.to,
+                    cc: input.cc,
+                    subject: input.subject,
+                    in_reply_to: input.in_reply_to,
+                    attachments,
+                  },
+                  input.connectionScope,
+                ),
           ),
         ),
       ),
     onMutate: async (input) => {
       await client.cancelQueries({ queryKey: zammadKeys.articles(id) });
+      if (input.isCurrent && !input.isCurrent())
+        throw new ZammadError({
+          message:
+            "Entwurfskontext wurde gewechselt. Es wurde nichts gesendet.",
+        });
       const previous = client.getQueryData<readonly Article[]>(
         zammadKeys.articles(id),
       );

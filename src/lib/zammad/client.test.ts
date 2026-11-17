@@ -39,6 +39,41 @@ const ok = (body: unknown, status = 200) => ({
 beforeEach(() => invoke.mockReset());
 
 describe("Zammad transport", () => {
+  it("pins explicitly scoped source reads and internal note writes without putting scope into customer content", async () => {
+    const scope = { baseUrl: "https://support.example.com", revision: "7" };
+    invoke.mockResolvedValueOnce(ok([]));
+    await Effect.runPromise(getArticles(41, scope));
+    expect(invoke).toHaveBeenLastCalledWith("zammad_request", {
+      path: "/ticket_articles/by_ticket/41?expand=true",
+      method: "GET",
+      body: null,
+      connectionScope: scope,
+    });
+    const article = {
+      id: 14,
+      ticket_id: 41,
+      body: "Zitat",
+      internal: true,
+      created_at: "2026-11-09T09:00:00Z",
+    };
+    invoke.mockResolvedValueOnce(ok(article));
+    await Effect.runPromise(
+      addArticle(41, { body: "Zitat", internal: true, type: "note" }, scope),
+    );
+    expect(invoke).toHaveBeenLastCalledWith("zammad_request", {
+      path: "/ticket_articles",
+      method: "POST",
+      body: JSON.stringify({
+        body: "Zitat",
+        internal: true,
+        type: "note",
+        ticket_id: 41,
+        content_type: "text/plain",
+        sender: "Agent",
+      }),
+      connectionScope: scope,
+    });
+  });
   it("reads only public connection data and never sends a token in ticket requests", async () => {
     invoke.mockResolvedValueOnce({
       baseUrl: "https://support.example.com",

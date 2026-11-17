@@ -31,6 +31,7 @@ export default mergeConfig(base({ command: "build", mode: "production" }), {
         motion: join(import.meta.dirname, "tests/browser/motion-fixture.html"),
         fieldDraft: join(import.meta.dirname, "tests/browser/field-draft-fixture.html"),
         history: join(import.meta.dirname, "tests/browser/history-hook-fixture.html"),
+        sourceQuote: join(import.meta.dirname, "tests/browser/source-quote-hook-fixture.html"),
       },
     },
   },

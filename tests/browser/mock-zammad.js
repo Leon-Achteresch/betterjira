@@ -26,7 +26,7 @@ const ticket = (id, number, title) => ({
 const state = (window.__qaZammad = {
   connection:
     enabled && scenario !== "zammad-unconnected"
-      ? { baseUrl: "https://helpdesk.example.com" }
+      ? { baseUrl: "https://helpdesk.example.com", revision: "0" }
       : null,
   tickets: [
     ticket(41, "20043776", "Anmeldung am Kundenportal nicht möglich"),
@@ -78,6 +78,7 @@ const state = (window.__qaZammad = {
   denied: [],
   failNext: null,
   delay: 0,
+  revision: 0,
 });
 const user = {
   id: 3,
@@ -102,19 +103,21 @@ const response = (body, status = 200) => ({
   data: null,
 });
 export async function zammadInvoke(command, args) {
-  if (command === "zammad_connection_get") return state.connection;
+  if (command === "zammad_connection_get") return structuredClone(state.connection);
   if (command === "zammad_connect") {
     if (args.token === "invalid") throw "Zammad-Token ist ungültig";
-    state.connection = { baseUrl: args.baseUrl };
-    return state.connection;
+    state.connection = { baseUrl: args.baseUrl, revision: String(++state.revision) };
+    return structuredClone(state.connection);
   }
   if (command === "zammad_disconnect") {
+    state.revision++;
     state.connection = null;
     return null;
   }
   if (command !== "zammad_request")
     throw new Error(`Unbekanntes Kommando ${command}`);
   const { path, method } = args;
+  if (args.connectionScope && (args.connectionScope.baseUrl !== state.connection?.baseUrl || args.connectionScope.revision !== state.connection?.revision)) throw "Zammad-Verbindung wurde gewechselt. Es wurde keine Anfrage gesendet.";
   const body = args.body ? JSON.parse(args.body) : null;
   state.requests.push({ path, method, body });
   if (state.delay)

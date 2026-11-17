@@ -1,7 +1,10 @@
 import { Schema } from "effect";
 
 const optionalText = Schema.optional(Schema.NullOr(Schema.String));
-export const Connection = Schema.Struct({ baseUrl: Schema.String });
+export const Connection = Schema.Struct({
+  baseUrl: Schema.String,
+  revision: Schema.optional(Schema.String),
+});
 export type Connection = typeof Connection.Type;
 export const User = Schema.Struct({
   id: Schema.Number,
