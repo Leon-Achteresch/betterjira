@@ -35,7 +35,7 @@ def curl(url, sandbox=(), env=None, authenticated=False):
                           capture_output=True, text=True, env=env)
 
 
-def run_host(root, executable, port, guard, scenario):
+def run_host(root, executable, port, guard, scenario, media):
     with http.server.ThreadingHTTPServer(("127.0.0.1", 0), Canary) as canary:
         canary.hits = []
         threading.Thread(target=canary.serve_forever, daemon=True).start()
@@ -76,8 +76,11 @@ def run_host(root, executable, port, guard, scenario):
             result.check_returncode()
             require(ledger["unexpected"] == 0 and not ledger["held"], f"Unexpected final fixture ledger: {ledger}")
             if scenario == "c1":
-                require(len(ledger["writes"]) == 1 and len(ledger["reads"]) == 5,
+                require(len(ledger["writes"]) == 1 and len(ledger["reads"]) == (6 if media else 5),
                         f"Unexpected C1 fixture ledger: {ledger}")
+                if media:
+                    require(ledger["mediaRequests"] == [] and ledger["renderedReads"] > 0,
+                            f"Unexpected C1 media fixture ledger: {ledger}")
             else:
                 require(sorted((entry["target"], entry["status"]) for entry in ledger["writes"]) ==
                         [("DEMO-2", 201), ("DEMO-3", 403), ("DEMO-5", 503)] and
@@ -91,16 +94,18 @@ def run_host(root, executable, port, guard, scenario):
 
 def main():
     require(sys.platform == "darwin", "This fixture requires macOS")
-    require(len(sys.argv) in (3, 4), "Usage: python3 tests/native/c1-tauri/run.py <fixture executable> <fixture build> [c1|n01]")
-    scenario = sys.argv[3] if len(sys.argv) == 4 else "c1"
-    require(scenario in ("c1", "n01"), "Unknown IPC fixture scenario")
+    require(len(sys.argv) in (3, 4), "Usage: python3 tests/native/c1-tauri/run.py <fixture executable> <fixture build> [c1|c1-media|n01]")
+    case = sys.argv[3] if len(sys.argv) == 4 else "c1"
+    require(case in ("c1", "c1-media", "n01"), "Unknown IPC fixture scenario")
+    media = case == "c1-media"
+    scenario = "c1" if media else case
     fixture_dir = HERE.parent / f"{scenario}-tauri"
     binary = Path(sys.argv[1]).resolve(strict=True)
     build = Path(sys.argv[2]).resolve(strict=True)
     require(binary.name == "c1_ipc_fixture", "Expected the feature-gated C1 example executable")
     require((build / fixture_dir.relative_to(REPO) / "fixture.html").is_file(), "Expected the selected scenario build")
     name = f"betterjira {scenario.upper()} IPC Fixture"
-    with tempfile.TemporaryDirectory(prefix=f"betterjira-{scenario}-tauri-", dir="/tmp") as directory:
+    with tempfile.TemporaryDirectory(prefix=f"betterjira-{case}-tauri-", dir="/tmp") as directory:
         root = Path(directory).resolve()
         for folder in ("home", "tmp", "data"):
             (root / folder).mkdir(mode=0o700)
@@ -115,12 +120,13 @@ def main():
             plistlib.dump({"CFBundleIdentifier": f"com.leon.betterjira.{scenario}-ipc-fixture",
                            "CFBundleName": name, "CFBundlePackageType": "APPL",
                            "CFBundleExecutable": executable.name, "LSUIElement": True}, info)
-        server = subprocess.Popen(["bun", str(fixture_dir / "server.ts")], stdout=subprocess.PIPE, text=True, cwd=REPO)
+        server = subprocess.Popen(["bun", str(fixture_dir / "server.ts"), *(["media"] if media else [])],
+                                  stdout=subprocess.PIPE, text=True, cwd=REPO)
         try:
             require(bool(select.select([server.stdout], [], [], 10)[0]), "Jira fixture did not start")
             port = int(server.stdout.readline())
             require(0 < port < 65536 and server.poll() is None, "Jira fixture did not bind a private port")
-            run_host(root, executable, port, guard, scenario)
+            run_host(root, executable, port, guard, scenario, media)
         finally:
             if server.poll() is None:
                 server.terminate()

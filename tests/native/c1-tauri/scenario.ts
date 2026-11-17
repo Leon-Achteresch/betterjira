@@ -1,29 +1,8 @@
 import { invoke } from "@tauri-apps/api/core";
 import { button, check, click, fixtureDriver, same, signOut, wait } from "./driver";
+import { append, comparison, confirm, editor, openEditor, requireConflict, save } from "./description-driver";
 
 const { control, preflight } = fixtureDriver("c1");
-const comparison = () => document.querySelector('[role=group][aria-labelledby="description-comparison-title"]');
-const editor = () => document.querySelector<HTMLElement>('[role=textbox][aria-label="Beschreibung"]');
-const openEditor = () => click(() => button("Beschreibung bearbeiten"), "description editor");
-const append = async (text: string) => {
-  const field = await wait(() => {
-    const current = editor();
-    return current === document.activeElement ? current : undefined;
-  }, "editor focus");
-  const lastBlock = field.lastElementChild!;
-  getSelection()!.collapse(lastBlock, lastBlock.childNodes.length);
-  check(document.execCommand("insertText", false, text), "WebKit text input failed");
-  await wait(() => field.textContent.includes(text), text);
-};
-const save = () => click(() => button("Speichern"), "description save");
-const requireConflict = async (text: string) => {
-  await wait(() => comparison()?.querySelector('[role=region][aria-label="Aktuell in Jira"]')?.textContent.includes(text), text);
-  check(button("Entwurf trotzdem speichern", comparison())?.disabled, "Overwrite enabled without acknowledgement");
-};
-const confirm = async () => {
-  await click(() => comparison()?.querySelector<HTMLElement>("[role=checkbox]"), "acknowledge comparison");
-  await click(() => button("Entwurf trotzdem speichern", comparison()), "confirm draft");
-};
 type Ledger = {
   reads: { cloud: string; status: number | "pending"; description?: unknown }[];
   writes: { path: string; payload: unknown; status: number }[];

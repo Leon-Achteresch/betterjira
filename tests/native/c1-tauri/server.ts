@@ -1,5 +1,6 @@
 import { createJiraMock } from "../../jira/mock-backend";
 import { adf } from "../../jira/mock-data";
+import { mediaDocuments } from "./media-documents";
 
 const jira = createJiraMock({ issues: 3, projects: ["DEMO"] });
 const field = jira.data.fields.find(({ id }) => id === "description");
@@ -13,10 +14,14 @@ const writes: { path: string; payload: unknown; status: number }[] = [];
 let holdNext = false;
 let release: (() => void) | undefined;
 let unexpected = 0;
-const descriptions = {
+const media = process.argv[2] === "media";
+let renderedReads = 0;
+const mediaRequests: string[] = [];
+const descriptions = media ? mediaDocuments : {
   initial: adf("C1 Ausgangsfassung"),
   remote: adf("C1 Jira-Fassung"),
   revised: adf("C1 Jira-Zwischenstand"),
+  newerText: adf("C1 Jira-Neufassung"),
   beforeLogout: adf("C1 Jira-Fassung vor Abmeldung"),
 };
 const setDescription = (description: unknown) => jira.jira.editIssue(key, { fields: { description } });
@@ -29,15 +34,19 @@ const server = Bun.serve({
     const url = new URL(request.url);
     const { pathname } = url;
     const method = request.method;
+    if (media && /\/(?:attachment\/|secure\/attachment\/|media\/|group\.png$|single\.png$)/i.test(pathname)) {
+      mediaRequests.push(pathname);
+      return new Response(null, { status: 403 });
+    }
     if (method === "GET" && pathname === "/__c1/probe") return Response.json({ fixture: true });
     if (request.headers.get("authorization") !== "Bearer mock") {
       unexpected++;
       return new Response(null, { status: 401 });
     }
-    if (pathname === "/__c1/state" && method === "GET") return Response.json({ reads, writes, unexpected, held: !!release });
+    if (pathname === "/__c1/state" && method === "GET") return Response.json({ reads, writes, unexpected, held: !!release, renderedReads, mediaRequests });
     if (pathname === "/__c1/remote" && method === "POST") {
       const revision = url.searchParams.get("revision");
-      if (revision === "remote" || revision === "revised" || revision === "beforeLogout") {
+      if (revision === "remote" || revision === "revised" || revision === "beforeLogout" || revision === "newerText") {
         setDescription(descriptions[revision]);
         return new Response(null, { status: 204 });
       }
@@ -53,6 +62,10 @@ const server = Bun.serve({
       return new Response(null, { status: 204 });
     }
     if (pathname.startsWith(cloudPrefix)) {
+      if (media && method === "GET" && pathname === issuePath && url.searchParams.get("expand") === "renderedFields") {
+        renderedReads++;
+        return Response.json({ renderedFields: { description: '<img src="https://external-media.invalid/group.png">' } });
+      }
       if (method === "GET" && pathname === issuePath && url.searchParams.get("fields") === "description") {
         const read: (typeof reads)[number] = { cloud: jira.cloudId, status: "pending" };
         reads.push(read);

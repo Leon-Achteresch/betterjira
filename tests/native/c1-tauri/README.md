@@ -18,3 +18,17 @@ The feature-gated example uses the actual Tauri dispatcher, the app's session co
 The scenario enters the regular description editor and checks conflict detection, adoption without a PUT and the exact ADF payload of one confirmed PUT. It then holds a second confirmed read, signs out through the app and releases the matching Jira response. The pending save settles with a single PUT total. Real Jira authentication, distributed app startup and server-side GET-to-PUT atomicity require separate evidence.
 
 The Rust and JavaScript HTTP plugin versions are pinned together. Rust 2.9 expects a different IPC request from JavaScript 2.8.3. Run this fixture when updating the pair.
+
+## Unknown ADF nodes and unresolved media
+
+Build and run the ADF scenario in a separate directory with the same feature-gated host and runner.
+
+```sh
+VITE_ATLASSIAN_CLIENT_ID= VITE_ATLASSIAN_CLIENT_SECRET= RAYON_NUM_THREADS=2 GOMAXPROCS=2 \
+  node_modules/.bin/vite build --config tests/native/c1-tauri/vite.config.ts --mode c1-media --outDir "$work/media"
+python3 tests/native/c1-tauri/run.py src-tauri/target/debug/examples/c1_ipc_fixture "$work/media" c1-media
+```
+
+The scenario opens the normal description editor and reuses the ADF document from the browser acceptance. It checks readable nested text, source-only nodes, six unresolved media items and exact JSON in both source columns. It also checks that a change confined to an unsupported node invalidates the old acknowledgement. Adopting the Jira revision and closing and reopening the editor preserve the complete draft without a PUT.
+
+After an explicit text edit and fresh confirmation, the stub records one PUT with the complete expected ADF. The final confirmed GET is held while the test signs out. It returns the acknowledged Jira revision, and the draft remains in private storage without another PUT. The stub permits synthetic rendered metadata and records any attachment or media payload request. The WebView also checks for attempts to load the placeholder URLs. Signed packaging, live media resolution and server-side atomicity require separate evidence.
