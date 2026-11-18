@@ -43,7 +43,7 @@ const project = {
   id: "1",
   key: "DEMO",
   name: "Produktentwicklung",
-  projectTypeKey: scenario === "jsm" ? "service_desk" : "software",
+  projectTypeKey: scenario === "jsm" || scenario === "approvals" ? "service_desk" : "software",
   avatarUrls: author.avatarUrls,
 };
 const projects =
@@ -70,7 +70,7 @@ const titles = [
   "Tastaturbedienung im Editor verbessern",
   "Übergabe an das Team vorbereiten",
 ];
-const issues = Array.from({ length: scenario === "busy" ? 35 : scenario === "workspace" || scenario === "subtasks" ? 12 : scenario === "ai" ? 8 : 3 }, (_, index) => ({
+const issues = Array.from({ length: scenario === "busy" ? 35 : scenario === "workspace" || scenario === "subtasks" || scenario === "multi-links" || scenario === "table-field-apply" ? 12 : scenario === "ai" ? 8 : 3 }, (_, index) => ({
   id: String(index + 1),
   key: `DEMO-${index + 1}`,
   names: {
@@ -103,7 +103,7 @@ const issues = Array.from({ length: scenario === "busy" ? 35 : scenario === "wor
     assignee: author,
     reporter: index === 0 && !DEV_COMMENT_SCENARIOS.has(scenario) ? former : author,
     priority: { name: "Mittel" },
-    issuetype: { name: "Aufgabe" },
+    issuetype: { name: "Aufgabe", subtask: false },
     created: "2026-11-01T09:00:00Z",
     updated: "2026-11-04T10:00:00Z",
     description: paragraph(
@@ -719,13 +719,18 @@ const scmCloud = {
   DECLINED: [],
   SUPERSEDED: [],
 };
-const scmRespond = async ({ url, body }) => {
+const scmRespond = async ({ url, body, method, auth }) => {
   const qa = window.__qaScm;
   qa.requests.push(url);
+  if (scmScenario === "scm-review-threads") qa.transcript.push({ url, body, method, auth });
   if (qa.delayMs) await new Promise((resolve) => setTimeout(resolve, qa.delayMs));
   const json = (value, status = 200) => ({ status, body: JSON.stringify(value) });
   if (url.startsWith("https://api.github.com/graphql")) {
     const { query, variables } = JSON.parse(body);
+    if (/^\s*query N23ReviewThreads\b/.test(query) && scmScenario === "scm-review-threads") {
+      const result = await window.__qaReviewThreadsRule?.({ url, query, variables, method, auth });
+      return result ? json(result.body, result.status) : json({ message: "No N23 fixture response" }, 404);
+    }
     const repo = `${variables.owner}/${variables.name}`;
     if (qa.failRepos.includes(repo)) return json({ message: "Test: GitHub vorübergehend nicht erreichbar" }, 502);
     if (query.includes("search(")) return json({ data: { search: { nodes: [] }, repository: { refs: { nodes: [] } } } });
@@ -748,6 +753,7 @@ if (scmScenario) {
     failRepos: scmScenario === "scm-partial" ? ["qa-team/api"] : [],
     delayMs: scmScenario === "scm-slow" ? 1200 : 0,
     requests: [],
+    transcript: [],
     opened: [],
     hosts: scmScenario === "scm-empty" ? { hosts: {} } : { hosts: { "github.com": [{ state: "success", active: true, host: "github.com", login: "qa-user" }] } },
   };
@@ -1037,6 +1043,7 @@ if (scenario === "rollout-duplicate" && localStorage.getItem("betterjira:calenda
     ]),
   );
 }
+if (window.__qaInitialDescription !== undefined) issues[0].fields.description = window.__qaInitialDescription;
 window.__qa = { reads: [], writes: [], issueReads: [], failNextWrite: false, delayMs: 0, issues, wiki, briefing, briefingFailure: false, searches: [], searchDelayMs: 0, failSearch: false, emptySearch: false, sessionFailure: scenario === "session-error", sessionDelayMs: scenario === "session-slow" ? 1500 : 0, filters: qaFilters, filterRequests: 0, failFilters: new URLSearchParams(location.search).get("fail") === "filters", commands: [], metaDelay: {}, createFailure: null, opened: [], myselfDelayMs: window.__qaMyselfDelayMs ?? 0, failMyself: window.__qaFailMyself ?? false, myselfCalls: 0 };
 window.__qa.filters = /^\/filter\/(100|200)/.test(new URLSearchParams(location.search).get("route") ?? "") ? [
   { id: "100", name: "Offene Testtickets", jql: "project = DEMO AND statusCategory != Done ORDER BY updated DESC", favourite: true, owner: author },
@@ -1141,6 +1148,22 @@ history["DEMO-1"].push(
     ],
   },
 );
+if (scenario === "status-intervals") {
+  const prefix = Number(new URLSearchParams(location.search).get("historyPrefix") ?? 40);
+  history["DEMO-1"] = [
+    ...Array.from({ length: prefix }, (_, index) => ({ id: `meta-${index}`, created: new Date(Date.UTC(2026, 10, 1, 0, index + 1)).toISOString(), items: [historyItem("priority", "Mittel", "Hoch")] })),
+    ...[
+      ["2026-11-02T00:00:00Z", "3", "7", "In Arbeit", "Warten"],
+      ["2026-11-03T00:00:00Z", "7", "3", "Warten", "In Arbeit"],
+      ["2026-11-04T00:00:00Z", "3", "7", "In Arbeit", "Warten"],
+      ["2026-11-04T12:00:00Z", "7", "7", "Warten", "Warten auf Partner"],
+      ["2026-11-05T00:00:00Z", "7", "3", "Warten auf Partner", "In Arbeit"],
+      ["2026-11-06T00:00:00Z", "3", "7", "In Arbeit", "Warten auf Partner"],
+    ].map(([created, from, to, fromString, toString], index) => ({ id: `status-${index}`, created, items: [historyItem("status", fromString, toString, { fieldId: "status", from, to })] })),
+  ];
+  issues[0].fields.created = "2026-11-01T00:00:00Z";
+  issues[0].fields.status = { ...issues[0].fields.status, id: "7", name: "Warten auf Rückmeldung der externen Partnerorganisation zur abschließenden technischen Prüfung" };
+}
 window.__qaHistory = { reads: [], history };
 const respondHistory = async (key, url) => {
   const startAt = Number(url.searchParams.get("startAt") ?? 0);
@@ -1157,10 +1180,30 @@ const respondHistory = async (key, url) => {
 const respond = async (request) => {
   const url = new URL(request.url);
   if (url.hostname === "api.github.com") return { body: window.__qaUpdates.releases };
-  const path = url.pathname.replace(/^.*\/rest\/(?:api\/[23]|agile\/1\.0)/, "");
+  const path = url.pathname.replace(/^.*\/rest\/(?:api\/[23]|agile\/1\.0|servicedeskapi)/, "");
   if (request.method !== "GET") {
     if (path.endsWith("approximate-count")) return { body: { count: issues.length } };
     if (path.startsWith("/jql/parse")) return { body: { queries: [{ errors: [] }] } };
+    const book = request.method === "POST" && scenario === "worklog-estimate" && path.match(/^\/issue\/([^/]+)\/worklog$/);
+    if (book) {
+      const issue = issues.find(({ id, key }) => id === book[1] || key === book[1]);
+      const input = request.data ? JSON.parse(new TextDecoder().decode(new Uint8Array(request.data))) : {};
+      const params = Object.fromEntries(url.searchParams);
+      const account = window.__qa.accountId ?? "qa-user";
+      const fault = await window.__qaWorklogBookingRule?.(params);
+      const status = issue ? fault?.status ?? 201 : 404;
+      window.__qa.writes.push({ method: request.method, path, fullPath: url.pathname, params, input, status, account });
+      if (!issue || (status !== 201 && !fault?.commit))
+        return { status, body: { errorMessages: ["Synthetische Buchung nicht bestätigt"] } };
+      const created = { id: `work-${++nextId}`, issueId: issue.id, author, started: input.started,
+        timeSpent: input.timeSpent, ...(input.comment && { comment: paragraph(input.comment) }) };
+      issue.fields.worklog.worklogs.push(created);
+      issue.fields.worklog.total++;
+      if (params.adjustEstimate === "new") {
+        issue.fields.timetracking = { ...issue.fields.timetracking, remainingEstimate: params.newEstimate };
+      }
+      return { status, body: created };
+    }
     if (window.__qaWriteGate) await window.__qaWriteGate;
     if (window.__qa.delayMs) await new Promise((resolve) => setTimeout(resolve, window.__qa.delayMs));
     if (window.__qa.failNextWrite) {
@@ -1172,7 +1215,7 @@ const respond = async (request) => {
     }
     const uploadTarget = path.match(/^\/issue\/([^/]+)\/attachments$/);
     if (uploadTarget) {
-      const target = issues.find((issue) => issue.key === uploadTarget[1]);
+      const target = issues.find((issue) => (issue.key === uploadTarget[1] || issue.id === uploadTarget[1]));
       const text = new TextDecoder().decode(new Uint8Array(request.data ?? []));
       const parts = [...text.matchAll(/filename="([^"]*)"(?:\r\nContent-Type: ([^\r\n]+))?/g)];
       const names = parts.map((match) => match[1]);
@@ -1202,6 +1245,8 @@ const respond = async (request) => {
     }
     window.__qa.writes.push({ path, method: request.method, input });
     if (path === "/issueLink" && request.method === "POST") {
+      const multi = await window.__qaMultiLinkWriteRule?.(input);
+      if (multi) return multi;
       addedIssueLinks.push({ ...input, id: `qa-link-${addedIssueLinks.length + 1}`, type: Object.values(linkTypes).find((type) => type.id === input.type.id) });
       return { status: 201, body: null };
     }
@@ -1211,6 +1256,7 @@ const respond = async (request) => {
     }
     if (path === "/issue" && request.method === "POST") {
       const target = createProjects.find((entry) => entry.id === input.fields.project.id) ?? project;
+      const parent = input.fields.parent && issues.find((entry) => entry.key === input.fields.parent.key || entry.id === input.fields.parent.id);
       const key = `${target.key}-${issues.length + 1}`;
       const id = String(10000 + issues.length + 1);
       issues.push({
@@ -1221,7 +1267,7 @@ const respond = async (request) => {
           ...issues[0].fields,
           summary: input.fields.summary,
           issuetype: createMeta[target.id]?.types.find((type) => type.id === input.fields.issuetype.id) ?? issues[0].fields.issuetype,
-          parent: input.fields.parent ? { key: input.fields.parent.key, fields: { summary: issues.find((entry) => entry.key === input.fields.parent.key)?.fields.summary ?? "" } } : undefined,
+          parent: parent && { key: parent.key, fields: { summary: parent.fields.summary } },
           subtasks: [],
           project: target,
           description: input.fields.description ?? null,
@@ -1229,10 +1275,7 @@ const respond = async (request) => {
           worklog: { total: 0, worklogs: [] },
         },
       });
-      if (input.fields.parent) {
-        const parent = issues.find((entry) => entry.key === input.fields.parent.key);
-        if (parent) parent.fields.subtasks = [...(parent.fields.subtasks ?? []), { id, key, fields: { summary: input.fields.summary, status: issues.at(-1).fields.status } }];
-      }
+      if (parent) parent.fields.subtasks = [...(parent.fields.subtasks ?? []), { id, key, fields: { summary: input.fields.summary, status: issues.at(-1).fields.status } }];
       return { status: 201, body: { id, key, self: `https://example.atlassian.net/rest/api/3/issue/${id}` } };
     }
     const favourite = qaFilters.find((filter) => path === `/filter/${filter.id}/favourite`);
@@ -1259,7 +1302,7 @@ const respond = async (request) => {
       return { body: {} };
     }
     if (filter && request.method === "PUT") return { body: Object.assign(filter, input) };
-    const issue = issues.find((issue) => path.startsWith(`/issue/${issue.key}/`) || path === `/issue/${issue.key}`);
+    const issue = issues.find((issue) => path.startsWith(`/issue/${issue.key}/`) || path === `/issue/${issue.key}` || path === `/issue/${issue.id}`);
     const commentItem = path.match(/^\/issue\/([^/]+)\/comment\/([^/]+)$/);
     if (commentItem && issue && (request.method === "PUT" || request.method === "DELETE")) {
       const list = issue.fields.comment.comments;
@@ -1296,8 +1339,13 @@ const respond = async (request) => {
       });
       issue.fields.worklog.total++;
     }
-    if (path.endsWith("/transitions") && issue)
+    if (path.endsWith("/transitions") && issue) {
       issue.fields.status = transitions.find((entry) => entry.id === input.transition.id).to;
+      for (const { add } of input.update?.comment ?? []) {
+        issue.fields.comment.comments.push({ id: String(++nextCommentId), author, created: new Date().toISOString(), body: add.body });
+      }
+      issue.fields.comment.total = issue.fields.comment.comments.length;
+    }
     if (request.method === "PUT" && issue && input.fields) {
       Object.assign(issue.fields, input.fields);
       if (typeof input.fields.description === "string") {
@@ -1317,6 +1365,10 @@ const respond = async (request) => {
   }
   window.__qaReads?.push(path);
   window.__qa.reads.push(path);
+  if (window.__qaReadRule) {
+    const override = await window.__qaReadRule(path, url.searchParams, url.pathname);
+    if (override) return override;
+  }
   if (/^\/issue\/[^/]+\/editmeta$/.test(path)) return { body: { fields: {
     assignee: { required: false, operations: ["set"] },
     priority: { operations: ["set"], allowedValues: [{ id: "1", name: "Hoch" }, { id: "2", name: "Mittel" }] },
@@ -1339,7 +1391,7 @@ const respond = async (request) => {
     if (rule.status) return { status: rule.status, body: { errorMessages: [`Test: Jira antwortet mit ${rule.status}`] } };
     return { body: { isLast: true, values: rule.values ?? window.__qaProjects ?? (scenario === "create" ? createProjects : projects) } };
   }
-  if (path === "/issueLinkType") return { body: { issueLinkTypes: Object.values(linkTypes) } };
+  if (path === "/issueLinkType") return { body: { issueLinkTypes: window.__qaLinkTypes ?? Object.values(linkTypes) } };
   if (path === "/mypermissions" && url.searchParams.get("permissions") === "LINK_ISSUES")
     return { body: { permissions: { LINK_ISSUES: { havePermission: window.__qaLinkPermission !== false } } } };
   if (path === "/mypermissions" && url.searchParams.get("issueKey")) {
@@ -1367,7 +1419,8 @@ const respond = async (request) => {
     if (delay) await new Promise((resolve) => setTimeout(resolve, delay));
     const meta = createMeta[projectId] ?? { types: [], fields: {} };
     if (!typeId) return { body: { startAt: 0, maxResults: 100, total: meta.types.length, issueTypes: meta.types } };
-    const fields = meta.fields[typeId] ?? [];
+    const defaults = meta.fields[typeId] ?? [];
+    const fields = window.__qaCreateFieldsRule?.(projectId, typeId, defaults) ?? defaults;
     return { body: { startAt: 0, maxResults: 100, total: fields.length, fields } };
   }
 
@@ -1407,11 +1460,12 @@ const respond = async (request) => {
   if (path.startsWith("/search/jql")) {
     const qa = window.__qa;
     qa.searches.push(url.searchParams.get("jql"));
-    const rule = window.__qaSearchRule?.(url.searchParams.get("jql") ?? "", url.searchParams.get("nextPageToken")) ?? {};
+    const rule = window.__qaSearchRule?.(url.searchParams.get("jql") ?? "", url.searchParams.get("nextPageToken"), url.searchParams, request.method) ?? {};
     await rule.waitFor;
     const delayMs = rule.delayMs ?? qa.searchDelayMs;
     if (delayMs) await new Promise((resolve) => setTimeout(resolve, delayMs));
     if (rule.status) return { status: rule.status, headers: rule.headers, body: { errorMessages: [`Test: Jira antwortet mit ${rule.status}`] } };
+    if (rule.page) return { body: rule.page };
     if (rule.issues) return { body: { issues: rule.issues, isLast: !rule.nextPageToken, nextPageToken: rule.nextPageToken } };
     if (qa.failSearch) return { status: 400, body: { errorMessages: ["Test: Abfrage nicht möglich"] } };
     const found = rule.issues ?? (rule.keys ? issues.filter((issue) => rule.keys.includes(issue.key)) : issues);
@@ -1518,14 +1572,19 @@ const respond = async (request) => {
       stats.open--;
     }
   }
-  if (issue && url.searchParams.get("fields") === "issuelinks") {
+  if (issue && url.searchParams.get("fields")?.split(",").includes("issuelinks")) {
     const rule = window.__qaIssueLinksRule?.(issue.key) ?? {};
     if (rule.delayMs) await new Promise((resolve) => setTimeout(resolve, rule.delayMs));
     if (rule.status) return { status: rule.status, body: { errorMessages: [`Test: Jira antwortet mit ${rule.status}`] } };
-    return { body: { id: issue.id, key: issue.key, fields: { issuelinks: rule.issuelinks ?? currentIssueLinks(issue.key) } } };
+    return { body: { id: issue.id, key: issue.key, fields: { summary: issue.fields.summary, issuelinks: rule.issuelinks ?? currentIssueLinks(issue.key) } } };
   }
+  const descriptionReadGate = window.__qaDescriptionReadGate;
+  if (issue && descriptionReadGate && url.searchParams.get("fields") === "description")
+    await descriptionReadGate(issue.key);
+  if (issue && url.searchParams.get("fields") === "description" && window.__qa.failDescriptionRead)
+    return { status: 403, body: { errorMessages: ["Test: Beschreibung nicht lesbar"] } };
   if (issue && url.pathname.includes("/api/2/") && url.searchParams.get("fields") === "description")
-    return { body: { fields: { description: wiki[issue.key] } } };
+    return { body: { id: issue.id, key: issue.key, fields: { description: wiki[issue.key] } } };
   if (issue && url.searchParams.get("fields") === "*all") {
     const rule = window.__qaIssueRule?.(issue.key) ?? {};
     if (rule.delayMs) await new Promise((resolve) => setTimeout(resolve, rule.delayMs));
@@ -1739,3 +1798,12 @@ window.__TAURI_INTERNALS__ = {
     throw new Error(`Nicht simuliertes Tauri-Kommando: ${command}`);
   },
 };
+if (scenario === "table-field-apply" || scenario === "subtask-rows" || scenario === "approvals" || scenario === "worklog-estimate" || scenario === "scm-review-threads") {
+  const bridge = window.__TAURI_INTERNALS__;
+  const invoke = bridge.invoke;
+  const flag = scenario === "approvals" ? "__qaIssueApprovals"
+    : scenario === "scm-review-threads" ? "__qaReviewThreads"
+    : scenario === "worklog-estimate" ? "__qaWorklogEstimate"
+    : scenario === "subtask-rows" ? "__qaSubtaskRows" : "__qaTableFieldApply";
+  Object.defineProperty(window, flag, { value: () => window.__TAURI_INTERNALS__ === bridge && bridge.invoke === invoke });
+}

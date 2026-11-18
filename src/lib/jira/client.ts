@@ -22,7 +22,7 @@ export class NotAuthenticated extends Data.TaggedError("NotAuthenticated")<{}> {
 export class JiraRequestScopeChanged extends Data.TaggedError("JiraRequestScopeChanged")<{}> {
   override get message() { return "Das Jira-Konto hat sich geändert. Bitte die Aktion im aktuellen Konto erneut ausführen."; }
 }
-export type JiraRequestScope = { cloudId: string; isCurrent: () => boolean };
+export type JiraRequestScope = { cloudId: string; siteUrl?: string; isCurrent: () => boolean; onDispatch?: () => void };
 export class JiraApiError extends Data.TaggedError("JiraApiError")<{ status: number; body: string; retryAfterMs?: number; retryAt?: number; handledRetries?: boolean }> {
   override get message() {
     if (this.status === 429) return rateLimitMessage(this.retryAt, Date.now());
@@ -40,6 +40,8 @@ const Session = Schema.Struct({
 });
 type Session = typeof Session.Type;
 let cachedSession: Session | undefined;
+let connectionRevision = 0;
+export const jiraConnectionRevision = () => connectionRevision;
 
 const TokenResponse = Schema.Struct({
   access_token: Schema.String,
@@ -114,7 +116,7 @@ const saveSession = (session: Session) =>
     catch: authError("Anmeldedaten konnten nicht gespeichert werden"),
   }).pipe(Effect.tap(() => Effect.sync(() => { cachedSession = session; })));
 
-const deleteSession = Effect.sync(() => { cachedSession = undefined; }).pipe(Effect.andThen(Effect.tryPromise({
+const deleteSession = Effect.sync(() => { cachedSession = undefined; connectionRevision++; }).pipe(Effect.andThen(Effect.tryPromise({
   try: () => invoke("session_delete"),
   catch: authError("Anmeldedaten konnten nicht gelöscht werden"),
 })));
@@ -169,6 +171,7 @@ export const login = Effect.gen(function* () {
   if (!site) return yield* new JiraAuthError({ message: "Dieser Account hat keinen Zugriff auf eine Jira-Site" });
 
   yield* saveSession({ ...tokens, cloudId: site.id, siteUrl: site.url, siteName: site.name }).pipe(
+    Effect.tap(() => Effect.sync(() => { connectionRevision++; })),
     refreshLock.withPermits(1),
   );
 });
@@ -214,10 +217,15 @@ export const currentSite = validSession().pipe(
   Effect.catchTag("NotAuthenticated", () => Effect.succeed(null)),
 );
 
-const authedAttempt = (path: string, init?: RequestInit & ClientOptions, scope?: JiraRequestScope) =>
+const authedAttempt = (path: string, init?: RequestInit & ClientOptions, scope?: JiraRequestScope, retry = true) =>
   Effect.gen(function* () {
     const call = (session: Session) => Effect.gen(function* () {
-      if (scope && (session.cloudId !== scope.cloudId || !scope.isCurrent())) return yield* new JiraRequestScopeChanged();
+      if (scope && (
+        session.cloudId !== scope.cloudId ||
+        (scope.siteUrl !== undefined && session.siteUrl !== scope.siteUrl) ||
+        !scope.isCurrent()
+      )) return yield* new JiraRequestScopeChanged();
+      yield* Effect.sync(() => scope?.onDispatch?.());
       return yield* send(`https://api.atlassian.com/ex/jira/${session.cloudId}/rest/${path}`, {
         ...init,
         headers: {
@@ -230,7 +238,7 @@ const authedAttempt = (path: string, init?: RequestInit & ClientOptions, scope?:
     });
     const session = yield* validSession();
     const response = yield* call(session);
-    if (response.status !== 401) return response;
+    if (response.status !== 401 || !retry) return response;
     const renewed = yield* validSession(session.accessToken);
     return yield* call(renewed);
   });
@@ -254,7 +262,7 @@ const authedFetch = (path: string, init?: JiraRequestInit) => Effect.gen(functio
   for (let attempt = 0; ; attempt++) {
     const response = yield* Effect.gen(function* () {
       yield* awaitRateLimit;
-      const response = yield* authedAttempt(path, requestInit, scope);
+      const response = yield* authedAttempt(path, requestInit, scope, retry);
       if (response.status === 429) {
         rateLimitedUntil = Math.max(rateLimitedUntil, Date.now() + (retryAfterMs(response.headers.get("Retry-After")) || 1000));
       }
@@ -282,6 +290,11 @@ export const jiraSend = (path: string, init: JiraRequestInit, api: ApiVersion = 
 
 export const jiraAgile = <S extends Schema.Decoder<unknown>>(path: string, schema: S) =>
   authedFetch(`agile/1.0${path}`).pipe(Effect.flatMap(decode(schema)));
+
+export const jiraRequestApprovals = <S extends Schema.Decoder<unknown>>(key: string, limit: number, schema: S, scope: JiraRequestScope) =>
+  authedFetch(`servicedeskapi/request/${encodeURIComponent(key)}/approval?start=0&limit=${limit}`, {
+    method: "GET", scope, cache: "no-store", retry: false, maxRedirections: 0,
+  }).pipe(Effect.flatMap(decode(schema)));
 
 const AgileWriteResults = Schema.Struct({ entries: Schema.Array(Schema.Struct({
   issueId: Schema.Number,

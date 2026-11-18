@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import descriptionWithMedia from "../../../tests/jira/fixtures/description-adf-media.json";
 import {
   adfSchema,
   adfToEditor,
@@ -73,6 +74,11 @@ describe("ADF im Editor", () => {
     const editor = adfToEditor(doc);
     expect(editor.content?.find((node) => node.type === "adfBlock")?.attrs?.json).toBe(JSON.stringify(doc.content![7]));
     expect(JSON.stringify(editor)).toContain("adfMarks");
+  });
+
+  it("erhält unbekannte Knoten, Medien und zusätzliche Attribute eines bekannten Absatzes", () => {
+    expect(isEditableAdf(descriptionWithMedia)).toBe(true);
+    expect(throughEditor(descriptionWithMedia)).toEqual(descriptionWithMedia);
   });
 
   it("lehnt Strukturen ab, die der Editor nicht verlustfrei abbilden kann", () => {

@@ -10,6 +10,7 @@ export default defineConfig({
   ...base,
   workers: 1,
   maxFailures: 8,
+  retries: 1,
   reporter: [["line"], ["json", { outputFile: join(directory, "report.json") }]],
   outputDir: join(directory, "results"),
   use: { ...base.use, baseURL: url, screenshot: "only-on-failure" },

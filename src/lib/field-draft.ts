@@ -1,9 +1,11 @@
 import { Schema } from "effect";
 import { isAdfDoc, type AdfNode } from "./jira/adf";
+import { DescriptionBasis, sameDescription } from "./description-comparison";
 
 export const FieldDraft = Schema.Struct({
   text: Schema.String,
   revision: Schema.String,
+  basis: Schema.optional(DescriptionBasis),
 });
 
 export type FieldDraft = typeof FieldDraft.Type;
@@ -26,10 +28,10 @@ export const parseAdfDraft = (text: string): AdfNode | undefined => {
   }
 };
 
-export const replaceFieldDraft = (drafts: FieldDrafts, id: string, text: string, revision: string): FieldDrafts => ({
-  ...drafts,
-  [id]: { text, revision },
-});
+export const replaceFieldDraft = (drafts: FieldDrafts, id: string, text: string, revision: string, initialBasis?: DescriptionBasis): FieldDrafts => {
+  const basis = drafts[id] ? drafts[id].basis : initialBasis;
+  return { ...drafts, [id]: { text, revision, ...(basis && { basis }) } };
+};
 
 export const removeFieldDraft = (drafts: FieldDrafts, id: string): FieldDrafts => {
   const { [id]: previous, ...remaining } = drafts;
@@ -41,3 +43,9 @@ export const isSubmittedFieldDraft = (current: FieldDraft | undefined, submitted
 
 export const clearSubmittedFieldDraft = (drafts: FieldDrafts, id: string, submitted: FieldDraft): FieldDrafts =>
   isSubmittedFieldDraft(drafts[id], submitted) ? removeFieldDraft(drafts, id) : drafts;
+
+export const rebaseNewerFieldDraft = (drafts: FieldDrafts, id: string, submitted: FieldDraft, basis?: DescriptionBasis): FieldDrafts => {
+  const current = drafts[id];
+  if (!current || !basis || !current.basis || !submitted.basis || !sameDescription(current.basis, submitted.basis)) return drafts;
+  return { ...drafts, [id]: { ...current, basis } };
+};

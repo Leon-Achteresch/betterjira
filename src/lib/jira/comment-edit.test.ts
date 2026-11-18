@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { adfToEditor, editorToAdf, type AdfNode } from "./adf";
+import type { IssueComment } from "./comment-thread";
 import {
   canSaveEdit,
+  commentEditAction,
   editableCommentIds,
   editBaseline,
   editBlockReason,
@@ -16,6 +18,31 @@ const paragraph = (...content: AdfNode[]): AdfNode => ({ type: "paragraph", cont
 const doc = (...content: AdfNode[]): AdfNode => ({ type: "doc", version: 1, content });
 const body = doc(paragraph(text("Hallo")));
 const locked = doc({ type: "bulletList", content: [{ type: "listItem", content: [{ type: "codeBlock", content: [text("x")] }] }] });
+
+describe("gemeinsame Bearbeitungsaktion für Kopf und Kommentarende", () => {
+  const comment = { id: "10", body, created: "2026-11-01T10:00:00Z" };
+
+  it.each([[false, false], [false, true], [true, false]])("bietet bei confirmed=%s und canEdit=%s keine Aktion an", (confirmed, canEdit) => {
+    expect(commentEditAction(comment, { confirmed, canEdit, label: "Bearbeiten", onEdit: () => undefined })).toBeUndefined();
+  });
+
+  it("bindet genau den gewählten Kommentar an den vorhandenen Editorcallback", () => {
+    const targets: IssueComment[] = [];
+    const reply = { ...comment, id: "11", parentId: comment.id };
+    const onEdit = (target: IssueComment) => { targets.push(target); };
+    const rootAction = commentEditAction(comment, { confirmed: true, canEdit: true, label: "Bearbeiten", onEdit });
+    const replyAction = commentEditAction(reply, { confirmed: true, canEdit: true, label: "Bearbeiten", onEdit });
+    replyAction?.onSelect();
+    rootAction?.onSelect();
+    expect(targets).toEqual([reply, comment]);
+    expect(targets[0]).toBe(reply);
+  });
+
+  it("erhält Beschriftung und Sperrgrund für Menü und Textende", () => {
+    const action = commentEditAction(comment, { confirmed: true, canEdit: true, label: "Bearbeitung fortsetzen", disabledReason: "Nur in Jira bearbeitbar", onEdit: () => undefined });
+    expect(action).toMatchObject({ label: "Bearbeitung fortsetzen", disabledReason: "Nur in Jira bearbeitbar" });
+  });
+});
 
 describe("Kommentar bearbeiten", () => {
   it("nimmt als Vergleichsbasis den Kommentar nach Hin- und Rückwandlung", () => {

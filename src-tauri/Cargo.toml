@@ -17,16 +17,29 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 
+[features]
+c1-ipc-fixture = ["tauri-plugin-http/rustls-tls-native-roots", "dep:block2", "dep:objc2-app-kit", "dep:objc2-foundation", "dep:objc2-web-kit"]
+
+[[example]]
+name = "c1_ipc_fixture"
+required-features = ["c1-ipc-fixture"]
+
 [dependencies]
 tauri = { version = "2", features = ["tray-icon", "macos-private-api"] }
 tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-tauri-plugin-http = "2.8.3"
+tauri-plugin-http = "=2.8.3"
 tauri-plugin-notification = "2"
 tiny_http = "0.12"
 tauri-plugin-process = "2"
 tauri-plugin-updater = "2"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+block2 = { version = "0.6", optional = true }
+objc2-app-kit = { version = "0.3", optional = true, default-features = false, features = ["std", "NSBitmapImageRep", "NSImage", "NSImageRep"] }
+objc2-foundation = { version = "0.3", optional = true, default-features = false, features = ["std", "NSData", "NSDictionary", "NSError", "NSString"] }
+objc2-web-kit = { version = "0.3", optional = true, default-features = false, features = ["std", "WKWebView", "WKSnapshotConfiguration", "block2", "objc2-app-kit"] }
 
 [target.'cfg(target_os = "windows")'.dependencies]
 window-vibrancy = "0.8.1"

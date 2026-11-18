@@ -14,6 +14,7 @@ const worklogLimit = Semaphore.makeUnsafe(WORKLOG_CONCURRENCY);
 
 export const Worklog = Schema.Struct({
   id: Schema.String,
+  updated: Schema.optional(Schema.NullOr(Schema.String)),
   author: Schema.optional(Schema.Struct({ accountId: Schema.String })),
   started: Schema.String,
   timeSpentSeconds: Schema.Number,

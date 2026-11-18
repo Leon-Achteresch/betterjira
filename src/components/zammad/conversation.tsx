@@ -7,6 +7,7 @@ import {
   MessageSquareIcon,
   PaperclipIcon,
   PhoneIcon,
+  QuoteIcon,
   XIcon,
 } from "lucide-react";
 import { PersonLabel } from "@/components/people/person-label";
@@ -18,6 +19,11 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -27,6 +33,7 @@ import { Kbd } from "@/components/ui/kbd";
 import { FADE_IN, FADE_OUT } from "@/lib/ease";
 import { IS_MAC } from "@/lib/platform";
 import type { HelpdeskDetailModel } from "@/hooks/zammad/use-helpdesk-detail";
+import { SourceCcAction } from "./source-cc-action";
 
 export function Conversation({ model }: { model: HelpdeskDetailModel }) {
   return (
@@ -80,18 +87,23 @@ export function Conversation({ model }: { model: HelpdeskDetailModel }) {
                       variant="ghost"
                       className="h-8 gap-1.5 px-2 text-xs text-muted-foreground"
                       onClick={() => model.onReply(article)}
+                      disabled={model.quote.active}
                       aria-label={`Auf Nachricht von ${article.author.name} antworten`}
                     >
                       <CornerUpLeftIcon className="size-3.5" />
                       Antworten
                     </Button>
                   )}
+                  {article.id > 0 && (
+                    <SourceQuoteAction model={model} sourceId={article.id} />
+                  )}
                 </header>
                 <div className="mt-2 min-w-0 pl-[2.625rem] text-[13px] leading-relaxed">
                   {!article.internal && article.to && (
                     <p className="mb-2 truncate text-[11px] text-muted-foreground">
                       An {article.to}
-                      {article.cc && ` · CC ${article.cc}`}
+                      {typeof article.cc === "string" &&
+                        article.cc && ` · CC ${article.cc}`}
                     </p>
                   )}
                   {article.html ? (
@@ -142,6 +154,108 @@ export function Conversation({ model }: { model: HelpdeskDetailModel }) {
   );
 }
 
+function SourceQuoteAction({
+  model,
+  sourceId,
+}: {
+  model: HelpdeskDetailModel;
+  sourceId: number;
+}) {
+  const quote = model.quote;
+  return (
+    <Popover
+      open={quote.selectedId === sourceId}
+      onOpenChange={(open) => (open ? quote.open(sourceId) : quote.close())}
+    >
+      <Tooltip content="Als interne Notiz zitieren">
+        <PopoverTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-8 text-muted-foreground"
+            aria-label="Als interne Notiz zitieren"
+            disabled={!quote.available || model.sending}
+          >
+            <QuoteIcon className="size-3.5" />
+          </Button>
+        </PopoverTrigger>
+      </Tooltip>
+      <PopoverContent
+        align="end"
+        collisionPadding={16}
+        className="w-[min(24rem,calc(100vw-2rem))] gap-3 p-4"
+        aria-label="Interne Notiz mit Quellzitat vorbereiten"
+      >
+        <div className="space-y-1">
+          <h3 className="text-sm font-medium text-balance">
+            Quelle als internes Zitat
+          </h3>
+          <p className="text-xs leading-relaxed text-muted-foreground">
+            Übernimm den geprüften Text in einen separaten, bearbeitbaren
+            Entwurf. Dein bisheriger Entwurf bleibt erhalten.
+          </p>
+        </div>
+        {quote.loading && (
+          <div
+            role="status"
+            aria-label="Quelle wird geprüft"
+            className="space-y-2"
+          >
+            <Skeleton className="h-4 w-40" />
+            <Skeleton className="h-20 w-full" />
+          </div>
+        )}
+        {quote.error && (
+          <p role="alert" className="text-xs leading-relaxed text-destructive">
+            {quote.error}
+          </p>
+        )}
+        {quote.preview && (
+          <div className="min-w-0 space-y-2 rounded-xl bg-muted/50 p-3">
+            <p className="break-words text-xs font-medium">
+              {quote.preview.author}
+            </p>
+            <p className="break-words text-[11px] text-muted-foreground tabular-nums">
+              {quote.preview.time}
+            </p>
+            <blockquote
+              tabIndex={0}
+              aria-label="Geprüfter Quelltext"
+              className="max-h-44 overflow-y-auto border-l-2 border-foreground/15 pl-3 text-[13px] leading-relaxed break-words whitespace-pre-wrap outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+            >
+              {quote.preview.excerpt}
+            </blockquote>
+            {quote.preview.clipped && (
+              <p className="text-xs text-muted-foreground">
+                Auf die ersten 2.000 Zeichen begrenzt.
+              </p>
+            )}
+          </div>
+        )}
+        <p className="text-[11px] leading-relaxed text-muted-foreground">
+          Quellbeitrag {sourceId} · Nur Text; Formatierung, Medien und Anhänge
+          werden nicht übernommen. Es wird nichts gesendet.
+        </p>
+        {quote.alreadyIncluded && (
+          <p role="status" className="text-xs text-muted-foreground">
+            Dieser Beitrag ist bereits im Zitatentwurf.
+          </p>
+        )}
+        <Button
+          type="button"
+          className="w-full text-xs"
+          disabled={!quote.preview || model.sending}
+          onClick={quote.insert}
+        >
+          {quote.alreadyIncluded
+            ? "Zitatentwurf öffnen"
+            : "In internen Entwurf übernehmen"}
+        </Button>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 function TicketComposer({ model }: { model: HelpdeskDetailModel }) {
   const reduce = useReducedMotion();
   return (
@@ -150,6 +264,45 @@ function TicketComposer({ model }: { model: HelpdeskDetailModel }) {
       aria-label="Kommentar oder Nachricht verfassen"
       className="flex flex-col gap-3"
     >
+      <AnimatePresence initial={false}>
+        {model.quote.active && (
+          <motion.div
+            key="quote-draft"
+            initial={{ opacity: 0, y: reduce ? 0 : 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, transition: FADE_OUT }}
+            transition={FADE_IN}
+            className="flex flex-wrap items-center gap-2 rounded-xl border border-border/60 bg-muted/30 p-3 text-xs"
+          >
+            <LockKeyholeIcon className="size-4 shrink-0 text-muted-foreground" />
+            <div className="min-w-0 flex-1 basis-40">
+              <p className="font-medium">Interner Zitatentwurf</p>
+              <p className="mt-0.5 text-muted-foreground">
+                Bearbeitbar. Speichern erfolgt erst über „Intern kommentieren“.
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              className="text-xs"
+              onClick={model.quote.leave}
+            >
+              Zum bisherigen Entwurf
+            </Button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      {!model.quote.active && model.quote.hasDraft && (
+        <Button
+          type="button"
+          variant="ghost"
+          className="self-start text-xs"
+          onClick={model.quote.resume}
+        >
+          <QuoteIcon className="size-3.5" />
+          Internen Zitatentwurf öffnen
+        </Button>
+      )}
       <div className="flex flex-wrap items-center gap-2">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -158,6 +311,7 @@ function TicketComposer({ model }: { model: HelpdeskDetailModel }) {
               variant="ghost"
               className="h-8 gap-2 px-0 text-[13px]"
               aria-label="Kommunikationsart wählen"
+              disabled={model.quote.active}
             >
               {model.kind === "email" ? (
                 <MailIcon className="size-4" />
@@ -258,6 +412,9 @@ function TicketComposer({ model }: { model: HelpdeskDetailModel }) {
                 className="border-transparent bg-muted/30 text-[13px] shadow-none"
               />
             </label>
+            {model.sourceCc.available && (
+              <SourceCcAction model={model.sourceCc} />
+            )}
             <label className="grid grid-cols-[3rem_minmax(0,1fr)] items-center text-xs text-muted-foreground">
               Betreff
               <Input

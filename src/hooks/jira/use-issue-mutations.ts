@@ -23,6 +23,9 @@ import { invalidateIssueChange } from "@/lib/jira/mutation-cache";
 import { patchBoardIssue, rollbackBoardPatches } from "@/lib/jira/board-cache";
 import { deduplicateMutation } from "@/lib/jira/deduplicate-mutation";
 import { resolvePendingMedia } from "@/hooks/jira/use-pending-uploads";
+import { useJiraQueryScope } from "./use-jira-query-scope";
+import { jiraRequestScope, withJiraQueryScope } from "@/lib/jira/query-scope";
+import type { WorklogBooking } from "@/lib/jira/worklog";
 
 const useIssueMutation = <A>(
   key: string,
@@ -118,7 +121,7 @@ export const useJiraAddWorklog = (key: string) =>
   useIssueMutation(
     key,
     "worklog",
-    (worklog: { timeSpent: string; started: string; comment?: string; remainingEstimate?: string }) =>
+    (worklog: WorklogBooking) =>
       addWorklog(key, worklog),
   );
 
@@ -145,11 +148,15 @@ export const useJiraEditIssueWiki = (key: string) =>
     editIssueWiki(key, fields), true,
   );
 
-export const useJiraWikiField = (key: string, field: string) =>
-  useQuery({
-    queryKey: jiraKeys.wiki(key, field),
+export const useJiraWikiField = (key: string, field: string) => {
+  const client = useQueryClient();
+  const { scope } = useJiraQueryScope();
+  return useQuery({
+    queryKey: jiraKeys.wikiScoped(key, field, scope),
     queryFn: ({ signal }) =>
-      Effect.runPromise(wikiField(key, field), { signal }),
+      Effect.runPromise(withJiraQueryScope(client, scope, wikiField(key, field, scope ? jiraRequestScope(client, scope) : undefined)), { signal }),
+    enabled: !!scope,
     staleTime: 0,
     gcTime: 0,
   });
+};

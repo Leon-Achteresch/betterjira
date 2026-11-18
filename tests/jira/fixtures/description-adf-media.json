@@ -1,0 +1,55 @@
+{
+  "type": "doc",
+  "version": 1,
+  "content": [
+    {
+      "type": "paragraph",
+      "attrs": { "localId": "preserve-paragraph" },
+      "content": [{ "type": "text", "text": "Jira-Einleitung" }]
+    },
+    {
+      "type": "bodiedExtension",
+      "attrs": { "extensionKey": "qa-extension", "parameters": { "opaque": [null, false, 7] } },
+      "content": [
+        { "type": "paragraph", "content": [{ "type": "text", "text": "Lesbarer Text innerhalb der Erweiterung" }] },
+        {
+          "type": "panel",
+          "attrs": { "panelType": "info" },
+          "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "Text im verschachtelten Hinweis" }] }]
+        }
+      ]
+    },
+    {
+      "type": "extension",
+      "attrs": { "extensionKey": "qa-opaque", "revision": "R" }
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        { "type": "text", "text": "Vor der Inline-Erweiterung " },
+        { "type": "inlineExtension", "attrs": { "extensionKey": "qa-inline", "parameters": { "nested": { "id": 17 } } } },
+        { "type": "text", "text": " danach lesbar." }
+      ]
+    },
+    { "type": "media", "attrs": { "id": "uuid-standalone", "type": "file", "collection": "", "alt": "Einzelmedium.bin" } },
+    {
+      "type": "mediaSingle",
+      "attrs": { "layout": "center", "width": 480, "widthType": "pixel" },
+      "content": [{ "type": "media", "attrs": { "id": "uuid-a", "type": "file", "collection": "", "width": 1200, "height": 600 } }]
+    },
+    {
+      "type": "mediaGroup",
+      "content": [
+        { "type": "media", "attrs": { "id": "uuid-d", "type": "file", "collection": "" } },
+        { "type": "media", "attrs": { "id": "uuid-unresolved", "type": "file", "collection": "", "alt": "Ablauf Übergabe.png" } },
+        { "type": "media", "attrs": { "type": "external", "url": "https://external-media.invalid/group.png", "alt": "Externes Gruppenbild" } }
+      ]
+    },
+    {
+      "type": "mediaSingle",
+      "attrs": { "layout": "center" },
+      "content": [{ "type": "media", "attrs": { "type": "external", "url": "https://external-media.invalid/single.png", "alt": "Externes Einzelbild" } }]
+    },
+    { "type": "paragraph", "content": [{ "type": "text", "text": "Jira-Schluss" }] }
+  ]
+}

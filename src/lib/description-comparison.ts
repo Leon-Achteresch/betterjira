@@ -1,0 +1,41 @@
+import { Schema } from "effect";
+import { isAdfDoc, isEditableAdf } from "@/lib/jira/adf";
+
+export const DescriptionFormat = Schema.Literals(["adf", "wiki", "text"]);
+export type DescriptionFormat = typeof DescriptionFormat.Type;
+
+export const DescriptionBasis = Schema.Struct({
+  version: Schema.Literal(1),
+  format: DescriptionFormat,
+  value: Schema.Json,
+});
+export type DescriptionBasis = typeof DescriptionBasis.Type;
+
+const isJsonArray = (value: Schema.Json): value is Schema.JsonArray => Array.isArray(value);
+
+export const descriptionBasis = (format: DescriptionFormat, value: unknown): DescriptionBasis | undefined => {
+  if (!Schema.is(Schema.Json)(value)) return undefined;
+  if (value !== null && (format === "adf"
+    ? typeof value !== "object" || isJsonArray(value) || value.type !== "doc"
+    : typeof value !== "string")) return undefined;
+  return { version: 1, format, value };
+};
+
+const canonicalJson = (value: Schema.Json): string => {
+  if (value === null || typeof value !== "object") return JSON.stringify(value);
+  if (isJsonArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
+  return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${canonicalJson(value[key])}`).join(",")}}`;
+};
+
+export const sameDescription = (left: DescriptionBasis, right: DescriptionBasis) =>
+  left.format === right.format && canonicalJson(left.value) === canonicalJson(right.value);
+
+export const descriptionSource = (basis: DescriptionBasis | undefined) => {
+  if (!basis || basis.value === null) return undefined;
+  return typeof basis.value === "string" ? basis.value : JSON.stringify(basis.value, null, 2);
+};
+
+export const adoptableDescription = (remote: DescriptionBasis): string | undefined => {
+  if (remote.format !== "adf") return remote.value === null ? "" : typeof remote.value === "string" ? remote.value : undefined;
+  return isAdfDoc(remote.value) && isEditableAdf(remote.value) ? JSON.stringify(remote.value) : undefined;
+};

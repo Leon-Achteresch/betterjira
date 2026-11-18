@@ -1,34 +1,35 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Effect } from "effect";
-import { canCreateIssues, createFields, createIssue, createIssueTypes, type CreateIssuePayload } from "@/lib/jira/create-issue";
-import { jiraKeys, useJiraSite } from "@/lib/jira/queries";
+import { createIssue, type CreateIssuePayload } from "@/lib/jira/create-issue";
+import { jiraKeys } from "@/lib/jira/queries";
+import { createFieldsQuery, createPermissionQuery, createTypesQuery } from "@/lib/jira/create-metadata-query";
 import { useJiraQueryScope } from "@/hooks/jira/use-jira-query-scope";
 import { jiraQueryScopeMatches, jiraRequestScope, withJiraQueryScope, type JiraQueryScope } from "@/lib/jira/query-scope";
 
 export const useCreatePermission = (projectId: string | undefined) => {
-  const site = useJiraSite();
+  const client = useQueryClient();
+  const { scope } = useJiraQueryScope();
   return useQuery({
-    queryKey: jiraKeys.createPermission(projectId ?? ""),
-    queryFn: ({ signal }) => Effect.runPromise(canCreateIssues(projectId!), { signal }),
-    enabled: !!site.data && !!projectId,
+    ...createPermissionQuery(client, projectId ?? "", scope),
+    enabled: !!scope && !!projectId,
   });
 };
 
 export const useCreateIssueTypes = (projectId: string | undefined, enabled: boolean) => {
-  const site = useJiraSite();
+  const client = useQueryClient();
+  const { scope } = useJiraQueryScope();
   return useQuery({
-    queryKey: jiraKeys.createIssueTypes(projectId ?? ""),
-    queryFn: ({ signal }) => Effect.runPromise(createIssueTypes(projectId!), { signal }),
-    enabled: !!site.data && !!projectId && enabled,
+    ...createTypesQuery(client, projectId ?? "", scope),
+    enabled: !!scope && !!projectId && enabled,
   });
 };
 
 export const useCreateFields = (projectId: string | undefined, issueTypeId: string | undefined) => {
-  const site = useJiraSite();
+  const client = useQueryClient();
+  const { scope } = useJiraQueryScope();
   return useQuery({
-    queryKey: jiraKeys.createFields(projectId ?? "", issueTypeId ?? ""),
-    queryFn: ({ signal }) => Effect.runPromise(createFields(projectId!, issueTypeId!), { signal }),
-    enabled: !!site.data && !!projectId && !!issueTypeId,
+    ...createFieldsQuery(client, projectId ?? "", issueTypeId ?? "", scope),
+    enabled: !!scope && !!projectId && !!issueTypeId,
   });
 };
 

@@ -12,6 +12,8 @@ import { toast } from "sonner";
 import { useSubmissionLock } from "@/hooks/use-submission-lock";
 import { useZammadPeople } from "./use-zammad-people";
 import { useZammadDraft } from "./use-zammad-draft";
+import { useZammadSourceQuote } from "./use-zammad-source-quote";
+import { useZammadSourceCc } from "./use-zammad-source-cc";
 import {
   authorId,
   articlePerson,
@@ -41,6 +43,7 @@ import {
   useZammadTags,
   useZammadTicket,
   useZammadTime,
+  useZammadUser,
 } from "./use-zammad-queries";
 import { useUserPicker } from "./use-user-picker";
 
@@ -51,6 +54,7 @@ export const useHelpdeskDetail = (input: string) => {
       : 0;
   const lock = useSubmissionLock();
   const connection = useZammadConnection();
+  const user = useZammadUser();
   const query = useZammadTicket(id);
   const ticket = query.data;
   const activeId = ticket?.id ?? 0;
@@ -78,16 +82,42 @@ export const useHelpdeskDetail = (input: string) => {
   );
   const update = useUpdateZammadTicket(ticket);
   const write = useZammadWrite(activeId);
-  const draft = useZammadDraft(`${connection.data?.baseUrl ?? ""}:${id}`);
+  const draftScope = [connection.data?.baseUrl, connection.data?.revision, id];
+  const originalDraft = useZammadDraft(
+    JSON.stringify([...draftScope, user.data?.id ?? null]),
+    user.data?.id ? JSON.stringify([...draftScope, null]) : undefined,
+  );
+  const quote = useZammadSourceQuote(
+    ticket?.id === id ? id : 0,
+    articles.data ?? [],
+  );
+  const draft = quote.active
+    ? { ...quote.draft, update: quote.update, complete: quote.complete }
+    : originalDraft;
+  const updateDraft = (patch: Parameters<typeof draft.update>[0]) => {
+    if (quote.isComposerCurrent()) draft.update(patch);
+  };
   const { body, kind, files } = draft;
-  const setBody = (body: string) => draft.update({ body });
+  const setBody = (body: string) => updateDraft({ body });
   const setKind = (kind: string) => {
-    draft.update({ kind });
+    if (quote.active || !quote.isComposerCurrent()) return;
+    updateDraft({ kind });
     setReplyTarget(null);
   };
-  const setFiles = (files: File[]) => draft.update({ files });
+  const setFiles = (files: File[]) => updateDraft({ files });
   const replyTarget = draft.reply;
-  const setReplyTarget = (reply: Article | null) => draft.update({ reply });
+  const sourceCc = useZammadSourceCc({
+    ticketId: activeId === id ? id : 0,
+    reply:
+      kind === "email" && !quote.active && !write.article.isPending
+        ? replyTarget
+        : null,
+    articles: articles.data ?? [],
+    connection: connection.data,
+    userId: user.data?.id,
+    addCc: originalDraft.addCc,
+  });
+  const setReplyTarget = (reply: Article | null) => updateDraft({ reply });
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const people = useZammadPeople([
     ticket?.owner_id,
@@ -137,7 +167,12 @@ export const useHelpdeskDetail = (input: string) => {
   };
   const onArticle = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (write.article.isPending) return;
+    if (
+      write.article.isPending ||
+      !quote.isComposerCurrent() ||
+      (quote.active && !quote.requestScope)
+    )
+      return;
     const form = event.currentTarget;
     const data = new FormData(form);
     const body = formText(data, "body");
@@ -145,18 +180,26 @@ export const useHelpdeskDetail = (input: string) => {
     void write.article
       .mutateAsync({
         body,
-        type: kind === "email" ? "email" : kind === "phone" ? "phone" : "note",
-        internal: kind === "internal",
+        type: quote.active
+          ? "note"
+          : kind === "email"
+            ? "email"
+            : kind === "phone"
+              ? "phone"
+              : "note",
+        internal: quote.active || kind === "internal",
         to: kind === "email" ? recipient.trim() : undefined,
         cc: kind === "email" ? draft.cc.trim() : undefined,
         subject: kind === "email" ? subject : ticket?.title,
         in_reply_to:
           kind === "email" ? (replyTarget?.message_id ?? undefined) : undefined,
         files,
+        isCurrent: quote.isComposerCurrent,
+        connectionScope: quote.active ? quote.requestScope : undefined,
       })
       .then(
         () => {
-          form.reset();
+          if (quote.isComposerCurrent()) form.reset();
           draft.complete();
           toast.success(
             kind === "email" ? "E-Mail versendet" : "Beitrag gespeichert",
@@ -219,9 +262,10 @@ export const useHelpdeskDetail = (input: string) => {
     });
   };
   const onReply = (article: Article) => {
+    if (quote.active || !quote.isComposerCurrent()) return;
     if (!canReplyToArticle(article)) return;
     const person = replyRecipient(article);
-    draft.update({
+    updateDraft({
       kind: "email",
       recipient: person.email ?? "",
       subject: `Re: ${(article.subject || ticket?.title || "").replace(/^re:\s*/i, "")}`,
@@ -229,6 +273,7 @@ export const useHelpdeskDetail = (input: string) => {
     setReplyTarget(article);
     setTab("conversation");
     requestAnimationFrame(() => {
+      if (!quote.isComposerCurrent()) return;
       inputRef.current?.focus();
       inputRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
     });
@@ -254,7 +299,9 @@ export const useHelpdeskDetail = (input: string) => {
             ? "Kunde"
             : "Team",
         canReply: canReplyToArticle(article),
-        dateLabel: ticketDate(article.created_at),
+        dateLabel: Number.isFinite(Date.parse(article.created_at))
+          ? ticketDate(article.created_at)
+          : "Quellzeit unbekannt",
         html:
           article.content_type === "text/html"
             ? safeArticleHtml(article.body)
@@ -291,6 +338,8 @@ export const useHelpdeskDetail = (input: string) => {
         onPropertyChange({ note: event.currentTarget.value });
     },
     onReply,
+    quote,
+    sourceCc,
     replyTarget,
     inputRef,
     onComposerKeyDown,
@@ -298,9 +347,9 @@ export const useHelpdeskDetail = (input: string) => {
       setReplyTarget(null);
     },
     recipient,
-    setRecipient: (recipient: string) => draft.update({ recipient }),
+    setRecipient: (recipient: string) => updateDraft({ recipient }),
     cc: draft.cc,
-    setCc: (cc: string) => draft.update({ cc }),
+    setCc: (cc: string) => updateDraft({ cc }),
     composerLabel:
       kind === "email"
         ? "E-Mail senden"
@@ -322,7 +371,7 @@ export const useHelpdeskDetail = (input: string) => {
           ? "Telefonat dokumentieren …"
           : "Kommentar schreiben …",
     subject,
-    setSubject: (subject: string) => draft.update({ subject }),
+    setSubject: (subject: string) => updateDraft({ subject }),
     connected: !!connection.data,
     loading:
       connection.isPending || (!!connection.data && query.isPending && id > 0),

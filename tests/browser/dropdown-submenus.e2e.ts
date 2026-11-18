@@ -13,7 +13,9 @@ const viewTrigger = (page: Page) => page.getByRole("button", { name: "Ansicht un
 const filterTrigger = (page: Page) => page.locator("button[aria-haspopup=menu]").filter({ hasText: /^Eigenschaften/ });
 const item = (page: Page, name: string) => page.getByRole("menuitem", { name, exact: true });
 const submenu = (page: Page) => page.locator("[data-slot=dropdown-menu-sub-content]");
-const copied = (page: Page) => page.evaluate(() => window.__qaCopied.at(-1));
+const copied = (page: Page) => page.evaluate(() => window.__qaCopied);
+const tableCopy = "Tabelle (Excel, Numbers)";
+const loadMore = "Übrige Treffer begrenzt laden…";
 
 const shot = async (page: Page, testInfo: TestInfo, name: string) => {
   const dir = process.env.DROPDOWN_SUBMENU_SHOTS;
@@ -38,6 +40,7 @@ const expectReachable = async (page: Page, items: Locator) => {
       expect(box.y).toBeGreaterThanOrEqual(0);
       expect(box.x + box.width).toBeLessThanOrEqual(viewport.width);
       expect(box.y + box.height).toBeLessThanOrEqual(viewport.height);
+      if (await target.isDisabled()) continue;
       const hit = await target.evaluate((element) => {
         const rect = element.getBoundingClientRect();
         const probes = [
@@ -64,6 +67,19 @@ const openCopyMenuWithMouse = async (page: Page) => {
   await expect(submenu(page)).toBeVisible();
 };
 
+const openCopyMenuWithKeyboard = async (page: Page) => {
+  await viewTrigger(page).press("Enter");
+  await expect(item(page, "Gruppieren nach")).toBeFocused();
+  await page.keyboard.press("ArrowDown");
+  await expect(page.getByRole("menuitemcheckbox", { name: "Kompakte Zeilen" })).toBeFocused();
+  await page.keyboard.press("ArrowDown");
+  await expect(item(page, "Labelvarianten vergleichen…")).toBeFocused();
+  await page.keyboard.press("ArrowDown");
+  await expect(item(page, "Kopieren als")).toBeFocused();
+  await page.keyboard.press("ArrowRight");
+  await expect(item(page, tableCopy)).toBeFocused();
+};
+
 test.beforeEach(async ({ page }) => {
   page.on("pageerror", (error) => {
     throw error;
@@ -86,14 +102,23 @@ for (const narrow of [false, true]) {
 
     test("Kopieren als: Untermenü vollständig sichtbar, Mausklick kopiert", async ({ page }, testInfo) => {
       await openCopyMenuWithMouse(page);
-      await expectReachable(page, submenu(page).getByRole("menuitem"));
+      const options = submenu(page).getByRole("menuitem");
+      await expect(submenu(page).getByText("Nur geladene Treffer kopieren", { exact: true })).toBeVisible();
+      await expect(options).toHaveText([loadMore, tableCopy, "Markdown", "Schlüsselliste", "JQL", "Kundenhinweis entwerfen…"]);
+      await expect(item(page, loadMore)).toBeDisabled();
+      await expect(item(page, "Kundenhinweis entwerfen…")).toBeDisabled();
+      for (const name of [tableCopy, "Markdown", "Schlüsselliste", "JQL"]) {
+        await expect(item(page, name)).toBeEnabled();
+      }
+      await expectReachable(page, options);
       await shot(page, testInfo, `${narrow ? "390" : "breit"}-kopieren-als`);
 
+      expect(await copied(page)).toEqual([]);
       await glide(page, item(page, "Markdown"));
       await expect(item(page, "Markdown")).toBeFocused();
       await item(page, "Markdown").click();
       await expect(submenu(page)).toHaveCount(0);
-      await expect.poll(() => copied(page)).toMatch(/^\| .+ \|\n\| --- \|/);
+      await expect.poll(() => copied(page)).toEqual([expect.stringMatching(/^\| .+ \|\n\| --- \|[\s\S]*DEMO-1/)]);
       await expect(page.getByText("Zeilen kopiert")).toBeVisible();
     });
 
@@ -107,20 +132,12 @@ for (const narrow of [false, true]) {
       await expect(item(page, "JQL")).toBeFocused();
       await page.mouse.down();
       await page.mouse.up();
-      await expect.poll(() => copied(page)).toContain('project = "DEMO"');
+      await expect.poll(() => copied(page)).toEqual([expect.stringContaining('project = "DEMO"')]);
       await expect(page.getByRole("menu")).toHaveCount(0);
     });
 
     test("Tastatur: Pfeiltasten, Enter, Escape und Fokusrückgabe", async ({ page }) => {
-      await viewTrigger(page).focus();
-      await page.keyboard.press("Enter");
-      await expect(item(page, "Gruppieren nach")).toBeFocused();
-      await page.getByRole("menuitemcheckbox", { name: "Kompakte Zeilen" }).focus();
-      await expect(page.getByRole("menuitemcheckbox", { name: "Kompakte Zeilen" })).toBeFocused();
-      await page.keyboard.press("ArrowDown");
-      await expect(item(page, "Kopieren als")).toBeFocused();
-      await page.keyboard.press("ArrowRight");
-      await expect(item(page, "Tabelle (Excel, Numbers)")).toBeFocused();
+      await openCopyMenuWithKeyboard(page);
       await expectReachable(page, submenu(page).getByRole("menuitem"));
       await page.keyboard.press("ArrowDown");
       await expect(item(page, "Markdown")).toBeFocused();
@@ -129,23 +146,19 @@ for (const narrow of [false, true]) {
       await expect(item(page, "Kopieren als")).toBeFocused();
 
       await page.keyboard.press("ArrowRight");
-      await expect(item(page, "Tabelle (Excel, Numbers)")).toBeFocused();
+      await expect(item(page, tableCopy)).toBeFocused();
+      expect(await copied(page)).toEqual([]);
       await page.keyboard.press("Enter");
       await expect(page.getByRole("menu")).toHaveCount(0);
       await expect(viewTrigger(page)).toBeFocused();
-      expect(await copied(page)).toMatch(/^[^\n]+\t[^\n]+\nDEMO-/);
+      const tsv = /^([^\n]+\t[^\n]+)\nDEMO-/;
+      await expect.poll(() => copied(page)).toEqual([expect.stringMatching(tsv)]);
 
-      await page.keyboard.press("Enter");
-      await expect(item(page, "Gruppieren nach")).toBeFocused();
-      await page.getByRole("menuitemcheckbox", { name: "Kompakte Zeilen" }).focus();
-      await expect(page.getByRole("menuitemcheckbox", { name: "Kompakte Zeilen" })).toBeFocused();
-      await page.keyboard.press("ArrowDown");
-      await expect(item(page, "Kopieren als")).toBeFocused();
-      await page.keyboard.press("ArrowRight");
-      await expect(item(page, "Tabelle (Excel, Numbers)")).toBeFocused();
+      await openCopyMenuWithKeyboard(page);
       await page.keyboard.press("Escape");
       await expect(page.getByRole("menu")).toHaveCount(0);
       await expect(viewTrigger(page)).toBeFocused();
+      expect(await copied(page)).toEqual([expect.stringMatching(tsv)]);
     });
 
     test("Filter: Status-Untermenü erreichbar, Auswahl filtert die Tabelle", async ({ page }, testInfo) => {

@@ -1,0 +1,8 @@
+{
+  "issueKey": "DEMO-1",
+  "attachments": [
+    { "id": "11", "filename": "gleich.png", "size": 1024, "mimeType": "image/png", "created": "2026-11-01T10:00:00Z", "author": { "accountId": "me" } },
+    { "id": "12", "filename": "gleich.png", "size": 2048, "mimeType": "image/png", "created": "2026-11-01T11:00:00Z", "author": { "accountId": "other" } },
+    { "id": "13", "filename": "Bericht.pdf", "size": 4096, "mimeType": "application/pdf", "created": "2026-11-01T12:00:00Z", "author": { "accountId": "me" } }
+  ]
+}

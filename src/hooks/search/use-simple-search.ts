@@ -25,7 +25,7 @@ export function useSimpleSearch(search: SucheSearch) {
     retryingProjects: projects.isFetching,
     jql: simpleSearchJql(project?.key, debouncedText),
     generatedJql: simpleSearchJql(search.projekt, text.text),
-    text: { value: text.text, onChange: text.setText, placeholder: "Alle Vorgänge durchsuchen" },
+    text: { value: text.text, onChange: text.setText, placeholder: "Alle Vorgänge durchsuchen", pending: text.text !== debouncedText },
     selectProject: (key: string | undefined) => void navigate({ search: (prev) => ({ ...prev, projekt: key }) }),
     retryProjects: () => void projects.refetch(),
   };

@@ -7,6 +7,7 @@ import { mergeIssuePages } from "./issue-page-cache";
 import { composeJql, quoteJql } from "./jql";
 import { searchIssues, type SearchPage, type SearchIssue } from "./search";
 import { reconcileIds } from "./reconcile-ids";
+import { jiraQueryScopeMatches, jiraRequestScope } from "./query-scope";
 
 export const BOARD_RECONCILE_DELAY = 150;
 const RECONCILE_BATCH_SIZE = 50;
@@ -127,6 +128,10 @@ export const reconcileSearches = async (client: QueryClient, keys: readonly stri
   await Promise.all(queries.map(async (query) => {
     const [,, kind, jql, fields] = query.queryKey;
     if (kind !== "search" || typeof jql !== "string" || !Array.isArray(fields) || !fields.every((field): field is string => typeof field === "string")) return;
+    const cloudId = query.queryKey[6];
+    const accountId = query.queryKey[7];
+    const scope = typeof cloudId === "string" && typeof accountId === "string" ? { cloudId, accountId } : undefined;
+    if (scope && !jiraQueryScopeMatches(client, scope)) return;
     await client.cancelQueries({ queryKey: query.queryKey, exact: true });
     const refreshed: SearchIssue[] = [];
     const current = client.getQueryData<InfiniteData<SearchPage>>(query.queryKey);
@@ -135,15 +140,15 @@ export const reconcileSearches = async (client: QueryClient, keys: readonly stri
       const clause = `key in (${batch.map(quoteJql).join(",")})`;
       const ids = reconcileIds(client, batch, current?.pages.flatMap((page) => page.issues) ?? []);
       const issues = await collectChangedIssues<SearchIssue>((token) => client.fetchQuery({
-        queryKey: jiraKeys.searchReconcile(jql, fields, batch, token),
-        queryFn: ({ signal }) => Effect.runPromise(searchIssues(composeJql(jql, [clause]), fields, token, RECONCILE_BATCH_SIZE, ids), { signal }),
+        queryKey: jiraKeys.searchReconcile(jql, fields, batch, token, scope),
+        queryFn: ({ signal }) => Effect.runPromise(searchIssues(composeJql(jql, [clause]), fields, token, RECONCILE_BATCH_SIZE, ids, scope && jiraRequestScope(client, scope)), { signal }),
         staleTime: 0,
         gcTime: 0,
         retry: false,
       }));
       refreshed.push(...issues);
     }
-    if (client.getQueryData(jiraKeys.site) !== site) return;
+    if (client.getQueryData(jiraKeys.site) !== site || (scope && !jiraQueryScopeMatches(client, scope))) return;
     const applicable = keys.filter((key) => revision(client, key) === versions.get(key));
     client.setQueryData<InfiniteData<SearchPage>>(query.queryKey, (current) => current && mergeIssuePages(current, applicable, refreshed.filter((issue) => applicable.includes(issue.key))));
   }));

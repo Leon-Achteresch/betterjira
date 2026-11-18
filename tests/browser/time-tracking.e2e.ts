@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { expectMinimumTargetSize } from "./target-size";
 
 declare global {
   interface Window {
@@ -311,7 +312,7 @@ test.describe("Suche in eigenen Buchungen", () => {
     expect(state.overflow).toBeLessThanOrEqual(0);
     expect(state.dark).toBe(narrow);
     expect(state.reduced).toBe(narrow);
-    expect((await searchField(page).boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(32);
+    await expectMinimumTargetSize(searchField(page));
     await page.mouse.move(0, 0);
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/${narrow ? "390-dunkel" : "desktop-hell"}-suche.png`, fullPage: true });
   });

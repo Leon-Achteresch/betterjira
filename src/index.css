@@ -258,11 +258,13 @@
   input, textarea { caret-color: var(--primary); }
   [data-slot=sidebar-inset] {
     background-color: color-mix(in oklch, var(--background) 90%, transparent);
-    border: 1px solid var(--border);
     border-radius: var(--radius-2xl);
     margin: 0 0.5rem 0.5rem 0;
     min-width: 0;
-    box-shadow: inset 1px 1px 0 var(--glass-rim);
+    box-shadow: 0 0 0 1px color-mix(in oklch, var(--border) 70%, transparent), var(--elevation-sm);
+  }
+  [data-slot=sidebar][data-state=collapsed] ~ [data-slot=sidebar-inset] {
+    margin-left: 0.5rem;
   }
   [data-slot=table] { font-variant-numeric: tabular-nums; }
   ::selection {

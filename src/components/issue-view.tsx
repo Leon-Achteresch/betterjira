@@ -18,7 +18,11 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { IssueActions } from "@/components/issues/issue-actions";
 import { IssueLinksPanel } from "@/components/issues/issue-links-panel";
+import { CriteriaTestReview } from "@/components/issues/criteria-test-review";
+import { IssueApprovalsContent } from "@/components/issues/issue-approvals";
+import { DependencyNeighborhood } from "@/components/issues/dependency-neighborhood";
 import { AddIssueLink } from "@/components/issues/add-issue-link";
+import { MultiTicketLinks } from "@/components/issues/multi-ticket-links";
 import { RemoteLinksPanel } from "@/components/issues/remote-links-panel";
 import { IssueSubtasks } from "@/components/issues/issue-subtasks";
 import { IssueHistoryPanel } from "@/components/issues/issue-history-panel";
@@ -28,7 +32,9 @@ import { useIssueReadingPosition } from "@/hooks/use-issue-reading-position";
 import { useIssueActions } from "@/hooks/use-issue-actions";
 import { useIssueDevelopmentPanel } from "@/hooks/scm/use-issue-development-panel";
 import { useIssueHistory } from "@/hooks/jira/use-issue-history";
+import { useIssueApprovals } from "@/hooks/jira/use-issue-approvals";
 import { useIssueLinks } from "@/hooks/jira/use-issue-links";
+import { useCriteriaTestReview } from "@/hooks/jira/use-criteria-test-review";
 import { useRemoteLinks } from "@/hooks/jira/use-remote-links";
 import { useIssueCommentPages } from "@/hooks/jira/use-issue-comment-pages";
 import { useIssueRendered } from "@/hooks/jira/use-issue-rendered";
@@ -63,9 +69,9 @@ function Section({ title, aside, children }: { title: string; aside?: ReactNode;
 
 function Property({ label, children, wide }: { label: string; children: ReactNode; wide?: boolean }) {
   return (
-    <div className={cn("flex min-w-32 flex-col gap-1", wide && "hidden @5xl:flex")}>
+    <div className={cn("flex min-w-32 max-w-full flex-col gap-1", wide && "hidden @5xl:flex")}>
       <dt className="text-xs text-muted-foreground">{label}</dt>
-      <dd className="text-sm">{children}</dd>
+      <dd className="min-w-0 text-sm">{children}</dd>
     </div>
   );
 }
@@ -97,10 +103,10 @@ function Vitals({ issue }: { issue: JiraIssueDetail }) {
 }
 
 const LAYOUT = {
-  article: "mx-auto grid w-full max-w-4xl gap-y-8 @5xl:max-w-none @5xl:grid-cols-[minmax(0,1fr)_17rem] @5xl:gap-x-12",
+  article: "mx-auto grid w-full max-w-4xl grid-cols-[minmax(0,1fr)] gap-y-8 @5xl:max-w-none @5xl:grid-cols-[minmax(0,1fr)_17rem] @5xl:gap-x-12",
   bar: "@5xl:col-span-2 @5xl:row-start-1",
   header: "min-w-0 @5xl:col-start-1 @5xl:row-start-2",
-  aside: "@5xl:sticky @5xl:top-16 @5xl:col-start-2 @5xl:row-span-2 @5xl:row-start-2 @5xl:self-start",
+  aside: "min-w-0 @5xl:sticky @5xl:top-16 @5xl:col-start-2 @5xl:row-span-2 @5xl:row-start-2 @5xl:self-start",
   body: "flex min-w-0 flex-col gap-10 @5xl:col-start-1 @5xl:row-start-3",
 };
 
@@ -149,8 +155,15 @@ export function IssueView({
   const helpdesk = useJiraHelpdesk(view.issue);
   useIssueReadingPosition(issueKey, !!view.issue, !!focusComment);
   const actions = useIssueActions(view.issue, site.data?.siteUrl, initialTab);
-  const history = useIssueHistory(issueKey);
+  const history = useIssueHistory(issueKey, view.issue?.key === issueKey ? { created: view.issue.fields.created, status: view.issue.fields.status } : undefined);
   const links = useIssueLinks(issueKey);
+  const criteriaReview = useCriteriaTestReview({
+    key: view.issue?.key ?? "",
+    id: view.issue?.id ?? "",
+    revision: view.issue?.fields.updated ?? "",
+    description: view.issue?.fields.description,
+  }, links.previewContext, links.refreshError ? undefined : links.summary);
+  const approvals = useIssueApprovals(view.issue?.key === issueKey ? issueKey : undefined);
   const remoteLinks = useRemoteLinks(issueKey);
   const commentPages = useIssueCommentPages(
     view.issue?.key ?? issueKey,
@@ -205,7 +218,7 @@ export function IssueView({
         <IssueActions
           actions={actions}
           attachmentCount={attachmentCount}
-          timeSpent={fields.timetracking?.timeSpent}
+          timeSpent={fields.timetracking?.timeSpent ?? undefined}
           refreshing={view.refreshing}
           onRefresh={view.refresh}
         />
@@ -260,6 +273,16 @@ export function IssueView({
 
           <JiraHelpdeskLinks references={helpdesk} />
 
+          {approvals.available && (
+            <Section title="Freigaben" aside={
+              <Button variant="outline" size="sm" className="min-h-8" disabled={approvals.loading} onClick={approvals.read}>
+                Freigaben prüfen
+              </Button>
+            }>
+              <IssueApprovalsContent key={approvals.context} page={approvals.page} error={approvals.error} loading={approvals.loading} />
+            </Section>
+          )}
+
           {(subtasks.length > 0 || !fields.issuetype.subtask) && (
             <Section title="Unteraufgaben" aside={!fields.issuetype.subtask && <Button variant="ghost" asChild className="ml-auto"><Link to="/neu" search={{ parent: issue.key }}>Unteraufgabe erstellen</Link></Button>}>
               {subtasks.length > 0 ? <IssueSubtasks key={issue.key} subtasks={subtasks} /> : <p className="text-sm text-muted-foreground">Noch keine Unteraufgaben.</p>}
@@ -269,12 +292,16 @@ export function IssueView({
           <Section title={links.summary ? `Verknüpfungen · ${links.summary.total}` : "Verknüpfungen"} aside={<AddIssueLink actions={links.actions} />}>
             <IssueLinksPanel
               actions={links.actions}
+              previewContext={links.previewContext}
               summary={links.summary}
               error={links.error}
               refreshError={links.refreshError}
               retrying={links.retrying}
               onRetry={links.retry}
             />
+            <MultiTicketLinks state={links.multi} />
+            <DependencyNeighborhood state={links.dependencies} />
+            <CriteriaTestReview state={criteriaReview} loadingLinks={links.retrying && !links.summary} />
           </Section>
 
           <motion.div variants={reveal(reduce)}>

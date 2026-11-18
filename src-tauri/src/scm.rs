@@ -99,7 +99,15 @@ fn ensure_host(url: &str, host: &str) -> Result<(), String> {
 }
 
 async fn send(auth: &Auth, url: &str, method: &reqwest::Method, body: &Option<String>, fresh: bool) -> Result<ScmResponse, String> {
-    let mut request = reqwest::Client::new()
+    #[cfg(all(target_os = "macos", feature = "c1-ipc-fixture"))]
+    let fixture_client = super::c1_ipc_fixture::scm_client_for_fixture(
+        &reqwest::Url::parse(url).map_err(|err| err.to_string())?, method, auth,
+    )?;
+    #[cfg(all(target_os = "macos", feature = "c1-ipc-fixture"))]
+    let client = fixture_client.unwrap_or_else(reqwest::Client::new);
+    #[cfg(not(all(target_os = "macos", feature = "c1-ipc-fixture")))]
+    let client = reqwest::Client::new();
+    let mut request = client
         .request(method.clone(), url)
         .header("Accept", "application/json")
         .header("User-Agent", "betterjira");

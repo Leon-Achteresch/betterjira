@@ -21,6 +21,7 @@ export const zammad = <S extends Schema.Decoder<unknown>>(
   schema: S,
   method = "GET",
   body?: unknown,
+  connectionScope?: Required<Connection>,
 ) =>
   Effect.tryPromise({
     try: () =>
@@ -28,6 +29,7 @@ export const zammad = <S extends Schema.Decoder<unknown>>(
         path,
         method,
         body: body === undefined ? null : JSON.stringify(body),
+        ...(connectionScope ? { connectionScope } : {}),
       }),
     catch: failure("Zammad-Anfrage fehlgeschlagen"),
   }).pipe(

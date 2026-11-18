@@ -25,8 +25,9 @@ export function JiraStatusBadge({
         : CircleDashedIcon;
   return (
     <Badge
+      title={status.name}
       className={cn(
-        "gap-1.5 uppercase tracking-wide",
+        "min-w-0 max-w-full gap-1.5 uppercase tracking-wide",
         palette[status.statusCategory.colorName] ?? "bg-muted text-muted-foreground",
         className,
       )}
@@ -38,10 +39,10 @@ export function JiraStatusBadge({
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: reduce ? 0 : -4, transition: { duration: 0.12 } }}
           transition={{ duration: 0.32, ease: EASE_OUT }}
-          className="inline-flex items-center gap-1.5"
+          className="inline-flex min-w-0 items-center gap-1.5"
         >
-          <Icon aria-hidden className="size-3" />
-          {status.name}
+          <Icon aria-hidden className="size-3 shrink-0" />
+          <span className="truncate">{status.name}</span>
         </motion.span>
       </AnimatePresence>
     </Badge>

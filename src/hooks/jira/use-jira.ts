@@ -4,12 +4,17 @@ import { deduplicateMutation } from "@/lib/jira/deduplicate-mutation";
 import { resolvePendingMedia } from "@/hooks/jira/use-pending-uploads";
 import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { Effect, Schema } from "effect";
-import { currentSite, jira, jiraImage, jiraSend, logout, runLogin } from "@/lib/jira/client";
+import { currentSite, jira, JiraRequestScopeChanged, jiraImage, logout, runLogin } from "@/lib/jira/client";
 import { commentPageKeys, embeddedCommentsChanged, pagesOutdatedBy } from "@/lib/jira/comment-pages";
 import { RawComment } from "@/lib/jira/comment-thread";
 import { JiraStatus } from "@/lib/jira/status";
 import { JiraUser } from "@/lib/jira/user";
-import { withJiraQueryScope, type JiraQueryScope } from "@/lib/jira/query-scope";
+import { jiraQueryScopeMatches, jiraRequestScope, withJiraQueryScope, type JiraQueryScope } from "@/lib/jira/query-scope";
+import { fetchSavedFilters, filterAccessLost, type JiraFilterScope } from "@/lib/jira/saved-filters";
+import { ISSUE_TIME_FIELDS } from "@/lib/jira/issue-time";
+import { readIssueTransitions, sendIssueTransition, type JiraTransitionBody } from "@/lib/jira/issue-transitions";
+
+export type { JiraTransition, JiraTransitionField } from "@/lib/jira/issue-transitions";
 
 export { jiraKeys } from "@/lib/jira/keys";
 import { jiraKeys } from "@/lib/jira/keys";
@@ -113,19 +118,38 @@ export const useJiraIssues = (jql: string, enabled = true) => {
   });
 };
 
-const Filters = Schema.Array(Schema.Struct({ id: Schema.String, name: Schema.String, favourite: Schema.optional(Schema.Boolean), jql: Schema.optional(Schema.String) }));
+export type { JiraFilter } from "@/lib/jira/saved-filters";
 
-export const useJiraFilters = () => {
+export const filterRequestScope = (client: QueryClient, scope: JiraFilterScope) => ({
+  cloudId: scope.cloudId,
+  siteUrl: scope.siteUrl,
+  isCurrent: () => jiraQueryScopeMatches(client, scope) &&
+    client.getQueryData<{ siteUrl: string }>(jiraKeys.site)?.siteUrl === scope.siteUrl &&
+    client.getQueryState(jiraKeys.myself)?.status === "success",
+});
+
+export const useJiraFilterScope = () => {
   const site = useJiraSite();
-  return useQuery({
-    queryKey: jiraKeys.filters,
-    queryFn: ({ signal }) =>
-      Effect.runPromise(jira("/filter/my?includeFavourites=true&expand=jql", Filters), { signal }),
-    enabled: !!site.data,
-  });
+  const myself = useJiraMyself();
+  const scope: JiraFilterScope | undefined = site.isSuccess && site.data && myself.isSuccess && myself.data.accountId
+    ? { cloudId: site.data.cloudId, siteUrl: site.data.siteUrl, accountId: myself.data.accountId }
+    : undefined;
+  return { scope, scopeError: myself.error, checkingScope: myself.isFetching, retryScope: myself.refetch };
 };
 
-export type JiraFilter = (typeof Filters.Type)[number];
+export const useJiraFilters = () => {
+  const context = useJiraFilterScope();
+  const client = useQueryClient();
+  const scope = context.scope;
+  const query = useQuery({
+    queryKey: jiraKeys.filtersScoped(scope),
+    queryFn: ({ signal }) => Effect.runPromise(scope
+      ? fetchSavedFilters(scope.accountId, filterRequestScope(client, scope))
+      : Effect.fail(new JiraRequestScopeChanged()), { signal }),
+    enabled: !!scope,
+  });
+  return { ...query, ...context, data: filterAccessLost(query.error) ? undefined : query.data };
+};
 
 export const useJiraLogin = () => {
   const queryClient = useQueryClient();
@@ -215,7 +239,7 @@ const IssueDetail = Schema.Struct({
       created: Schema.String,
       updated: Schema.String,
       issuetype: Schema.Struct({ name: Schema.String, subtask: Schema.optional(Schema.Boolean) }),
-      project: Schema.Struct({ key: Schema.String, name: Schema.String, projectTypeKey: Schema.optional(Schema.String) }),
+      project: Schema.Struct({ key: Schema.String, id: Schema.optional(Schema.String), name: Schema.String, projectTypeKey: Schema.optional(Schema.String) }),
       parent: Schema.optional(Schema.Struct({ key: Schema.String, fields: Schema.Struct({ summary: Schema.String }) })),
       subtasks: Schema.optional(
         Schema.Array(Schema.Struct({ id: Schema.String, key: Schema.String, fields: Schema.Struct({ summary: Schema.String, status: JiraStatus }) })),
@@ -240,13 +264,7 @@ const IssueDetail = Schema.Struct({
           }),
         ),
       ),
-      timetracking: Schema.optional(
-        Schema.Struct({
-          originalEstimate: Schema.optional(Schema.String),
-          remainingEstimate: Schema.optional(Schema.String),
-          timeSpent: Schema.optional(Schema.String),
-        }),
-      ),
+      ...ISSUE_TIME_FIELDS,
       worklog: Schema.optional(
         Schema.Struct({
           total: Schema.Number,
@@ -275,7 +293,7 @@ export const issueQuery = (key: string, scope: JiraQueryScope | undefined, clien
   queryFn: async ({ signal }: { signal: AbortSignal }) => {
     const startedAt = Date.now();
     const issue = await Effect.runPromise(
-      withJiraQueryScope(client, scope, jira(`/issue/${encodeURIComponent(key)}?fields=*all&expand=names,editmeta`, IssueDetail)),
+      withJiraQueryScope(client, scope, jira(`/issue/${encodeURIComponent(key)}?fields=*all&expand=names,editmeta`, IssueDetail, { scope: scope && jiraRequestScope(client, scope) })),
       { signal },
     );
     const previous = client.getQueryData<JiraIssueDetail>(jiraKeys.issueDetail(key, scope));
@@ -286,38 +304,12 @@ export const issueQuery = (key: string, scope: JiraQueryScope | undefined, clien
   },
 });
 
-const TransitionField = Schema.Struct({
-  required: Schema.Boolean,
-  name: Schema.String,
-  schema: Schema.Struct({
-    type: Schema.String,
-    items: Schema.optional(Schema.String),
-    system: Schema.optional(Schema.String),
-    custom: Schema.optional(Schema.String),
-  }),
-  allowedValues: Schema.optional(Schema.Array(Schema.Unknown)),
-});
-
-const Transitions = Schema.Struct({
-  transitions: Schema.Array(
-    Schema.Struct({
-      id: Schema.String,
-      name: Schema.String,
-      to: JiraStatus,
-      fields: Schema.optional(Schema.Record(Schema.String, TransitionField)),
-    }),
-  ),
-});
-
 const IssueFieldValues = Schema.Struct({ fields: Schema.Record(Schema.String, Schema.Unknown) });
-
-export type JiraTransition = (typeof Transitions.Type)["transitions"][number];
-export type JiraTransitionField = typeof TransitionField.Type;
 
 const transitionsWithValues = (key: string) =>
   Effect.gen(function* () {
     const path = `/issue/${encodeURIComponent(key)}`;
-    const { transitions } = yield* jira(`${path}/transitions?expand=transitions.fields`, Transitions);
+    const { transitions } = yield* readIssueTransitions(key);
     const ids = [...new Set(transitions.flatMap((transition) => Object.keys(transition.fields ?? {})))];
     if (ids.length === 0) return { transitions, current: {} };
     const { fields } = yield* jira(`${path}?${new URLSearchParams({ fields: ids.join(",") })}`, IssueFieldValues);
@@ -336,11 +328,7 @@ export const useJiraTransitions = (key: string, enabled: boolean) => {
 
 export type JiraTransitionRequest = {
   issueKey: string;
-  body: {
-    transition: { id: string };
-    fields?: Record<string, unknown>;
-    update?: Record<string, unknown>;
-  };
+  body: JiraTransitionBody;
 };
 
 export const useJiraTransition = () => {
@@ -349,10 +337,7 @@ export const useJiraTransition = () => {
     mutationKey: ["jira", "transition"],
     mutationFn: ({ issueKey, body }: JiraTransitionRequest) =>
       deduplicateMutation(queryClient, JSON.stringify([issueKey, "transition", body]), async () => Effect.runPromise(
-        jiraSend(`/issue/${encodeURIComponent(issueKey)}/transitions`, {
-          method: "POST",
-          body: JSON.stringify(await resolvePendingMedia(queryClient, issueKey, body)),
-        }),
+        sendIssueTransition(issueKey, await resolvePendingMedia(queryClient, issueKey, body)),
       )),
     onMutate: async ({ issueKey, body }) => {
       await queryClient.cancelQueries({ queryKey: jiraKeys.allBoards });

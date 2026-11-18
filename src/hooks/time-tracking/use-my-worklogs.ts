@@ -54,6 +54,7 @@ export function useMyWorklogs(range: TimeRange) {
 
   return {
     summary,
+    correctionScope: scope && site.isSuccess && myself.isSuccess && site.data ? { ...scope, siteUrl: site.data.siteUrl } : undefined,
     coverage,
     issueCount: issues.length,
     pending: !accountError && (!scope || candidates.isPending),

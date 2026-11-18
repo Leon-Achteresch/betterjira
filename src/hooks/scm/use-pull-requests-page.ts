@@ -27,6 +27,7 @@ import {
   type PullRequestsSearch,
   type PullRequestStatus,
 } from "@/lib/scm/pull-requests";
+import { usePullRequestReviewThreads } from "./use-pull-request-review-threads";
 import { useScmConnections } from "./use-scm-connections";
 import { useScmSettings } from "./use-scm-settings";
 
@@ -77,6 +78,7 @@ export const usePullRequestsPage = (search: PullRequestsSearch) => {
     (queries[index]?.data?.pullRequests ?? []).map((pr) => ({ pr, repo: target.link.repo, repoId: target.id })),
   );
   const pullRequests = visiblePullRequests(listed, status, search.q, sort, checks);
+  const review = usePullRequestReviewThreads(pullRequests, selected, JSON.stringify([selectedRepo, status, search.q, checks]), gh.isFetching || gh.isError);
   const empty = pullRequestEmptyReason(listed, status, search.q, checks);
   const failedRepos = repos.filter((repo) => repo.error !== null);
   const truncatedRepos = repos.flatMap(({ id, repo, truncated, browseUrl }) => truncated && browseUrl ? [{ id, repo, browseUrl }] : []);
@@ -118,6 +120,7 @@ export const usePullRequestsPage = (search: PullRequestsSearch) => {
     emptyText,
     filterLabel: PULL_REQUEST_STATUS_LABELS[status],
     pullRequests,
+    review,
     empty,
     loading: pullRequests.length === 0 && repos.some((repo) => repo.status === "loading"),
     refreshing: queries.some((query) => query.isFetching),

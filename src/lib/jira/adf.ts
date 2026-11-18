@@ -3,6 +3,7 @@ import { Mention } from "@tiptap/extension-mention";
 import { Plugin, type Transaction } from "@tiptap/pm/state";
 import StarterKit from "@tiptap/starter-kit";
 import { Schema } from "effect";
+import { adfTableExtensions, EDITABLE_TABLE, tableNodeFromEditor, tableToEditor } from "./adf-editable-table";
 import { INLINE_NODES } from "./adf-nodes";
 
 export type AdfMark = { type: string; attrs?: Record<string, unknown> };
@@ -16,6 +17,8 @@ export type AdfNode = {
 };
 
 const EDITABLE_NODES = new Set(["paragraph", "heading", "bulletList", "orderedList", "listItem", "codeBlock", "blockquote", "hardBreak", "rule"]);
+const NATIVE_NODE_ATTR: Partial<Record<string, string>> = { heading: "level", codeBlock: "language", orderedList: "order" };
+const PreservedNodeAttrs = Schema.Record(Schema.String, Schema.Json);
 const MENTION_ATTRS = new Set(["id", "text", "localId", "accessLevel", "userType"]);
 const MENTION_EXTRA_ATTRS = ["localId", "accessLevel", "userType"] as const;
 
@@ -74,6 +77,9 @@ const attrsFromEditor = (node: JSONContent) => {
   return undefined;
 };
 
+const preservedNodeAttrs = (node: AdfNode) =>
+  Object.fromEntries(Object.entries(node.attrs ?? {}).filter(([name]) => name !== NATIVE_NODE_ATTR[node.type]));
+
 export const adfNodeToEditor = (node: AdfNode): JSONContent => {
   if (node.type === "text") return { type: "text", text: node.text, ...(node.marks?.length && { marks: marksToEditor(node.marks) }) };
   if (isNativeMention(node)) return { type: "mention", attrs: mentionAttrsToEditor(node.attrs ?? {}) };
@@ -81,21 +87,29 @@ export const adfNodeToEditor = (node: AdfNode): JSONContent => {
     return { type: INLINE_NODES.has(node.type) ? "adfInline" : "adfBlock", attrs: { json: JSON.stringify(node) } };
   }
   const attrs = attrsToEditor(node);
+  const preserved = preservedNodeAttrs(node);
   return {
     type: node.type === "rule" ? "horizontalRule" : node.type,
-    ...(attrs && { attrs }),
+    ...((attrs || Object.keys(preserved).length > 0) && {
+      attrs: { ...attrs, ...(Object.keys(preserved).length > 0 && { adfNodeAttrs: preserved }) },
+    }),
     ...(node.content && { content: node.content.map(adfNodeToEditor) }),
   };
 };
 
 const nodeFromEditor = (node: JSONContent): AdfNode => {
+  const tableNode = tableNodeFromEditor(node, nodeFromEditor);
+  if (tableNode) return tableNode;
   if (node.type === "adfInline" || node.type === "adfBlock") return JSON.parse(String(node.attrs?.json)) as AdfNode;
   if (node.type === "mention") return { type: "mention", attrs: mentionAttrsFromEditor(node.attrs ?? {}) };
   if (node.type === "text") {
     const marks = marksFromEditor(node.marks);
     return { type: "text", text: node.text ?? "", ...(marks.length > 0 && { marks }) };
   }
-  const attrs = attrsFromEditor(node);
+  const preserved: unknown = node.attrs?.adfNodeAttrs;
+  const attrs = Schema.is(PreservedNodeAttrs)(preserved)
+    ? { ...preserved, ...attrsFromEditor(node) }
+    : attrsFromEditor(node);
   return {
     type: node.type === "horizontalRule" ? "rule" : node.type!,
     ...(attrs && { attrs }),
@@ -108,9 +122,27 @@ const TRAILING_PARAGRAPH: JSONContent = { type: "paragraph", attrs: { trailing: 
 const isTrailingParagraph = (node: JSONContent | undefined) =>
   node?.type === "paragraph" && node.attrs?.trailing === true && !node.content?.length;
 
-export const adfToEditor = (doc: AdfNode): JSONContent => {
-  const content = (doc.content ?? []).map(adfNodeToEditor);
-  return { type: "doc", content: content.at(-1)?.type === "adfBlock" ? [...content, TRAILING_PARAGRAPH] : content };
+const needsTrailingParagraph = (type: string | undefined) => type === "adfBlock" || type === EDITABLE_TABLE;
+const equivalentJson = Schema.toEquivalence(Schema.Json);
+
+export function editableTableToEditor(node: AdfNode): JSONContent | undefined {
+  try {
+    const candidate = tableToEditor(node, adfNodeToEditor);
+    if (!candidate) return undefined;
+    const checked = adfSchema.nodeFromJSON(candidate);
+    checked.check();
+    const roundTrip = nodeFromEditor(checked.toJSON());
+    return Schema.is(Schema.Json)(node) && Schema.is(Schema.Json)(roundTrip) && equivalentJson(node, roundTrip)
+      ? candidate
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+export const adfToEditor = (doc: AdfNode, editableTables = false): JSONContent => {
+  const content = (doc.content ?? []).map((node) => (editableTables ? editableTableToEditor(node) : undefined) ?? adfNodeToEditor(node));
+  return { type: "doc", content: needsTrailingParagraph(content.at(-1)?.type) ? [...content, TRAILING_PARAGRAPH] : content };
 };
 
 export const editorToAdf = (doc: JSONContent): AdfNode => {
@@ -157,11 +189,21 @@ export const AdfMention = Mention.extend({
   renderHTML: ({ options, node }) => ["span", mergeAttributes({ "data-type": "mention" }, options.HTMLAttributes), mentionLabel(node.attrs)],
 });
 
-export const AdfStarterKit = StarterKit.configure({ trailingNode: false, link: { openOnClick: false, autolink: true } });
+export const AdfStarterKit = StarterKit.extend({
+  addGlobalAttributes() {
+    return [
+      ...(this.parent?.() ?? []),
+      {
+        types: [...EDITABLE_NODES].map((type) => type === "rule" ? "horizontalRule" : type),
+        attributes: { adfNodeAttrs: { default: null, rendered: false, keepOnSplit: false } },
+      },
+    ];
+  },
+}).configure({ trailingNode: false, link: { openOnClick: false, autolink: true } });
 
 export const withTrailingParagraph = (tr: Transaction) => {
   const paragraph = tr.doc.type.schema.nodes.paragraph;
-  if (tr.doc.lastChild?.type.name !== "adfBlock" || !paragraph) return tr;
+  if (!needsTrailingParagraph(tr.doc.lastChild?.type.name) || !paragraph) return tr;
   return tr.insert(tr.doc.content.size, paragraph.create({ trailing: true }));
 };
 
@@ -171,12 +213,12 @@ export const AdfTrailingParagraph = Extension.create({
   addProseMirrorPlugins: () => [
     new Plugin({
       appendTransaction: (_transactions, _previous, state) =>
-        state.doc.lastChild?.type.name === "adfBlock" ? withTrailingParagraph(state.tr).setMeta("addToHistory", false) : null,
+        needsTrailingParagraph(state.doc.lastChild?.type.name) ? withTrailingParagraph(state.tr).setMeta("addToHistory", false) : null,
     }),
   ],
 });
 
-export const adfSchema = getSchema([AdfStarterKit, AdfInline, AdfBlock, AdfMarks, AdfMention, AdfTrailingParagraph]);
+export const adfSchema = getSchema([AdfStarterKit, AdfInline, AdfBlock, AdfMarks, AdfMention, AdfTrailingParagraph, ...adfTableExtensions]);
 
 export const isEditableAdf = (doc: AdfNode) => {
   try {

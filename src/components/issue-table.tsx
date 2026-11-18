@@ -5,6 +5,7 @@ import { SearchXIcon, TriangleAlertIcon } from "lucide-react";
 import { IssueGrid } from "@/components/issues/issue-grid";
 import { IssueToolbar } from "@/components/issues/issue-toolbar";
 import { SelectionToolbar } from "@/components/issues/selection-toolbar";
+import { SearchLoadControls } from "@/components/issues/search-load-controls";
 import { Alert, AlertAction, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
@@ -210,6 +211,7 @@ export function IssueTable({
           </motion.div>
         </>
       )}
+      <SearchLoadControls state={table.searchLoad} />
     </div>
   );
 }

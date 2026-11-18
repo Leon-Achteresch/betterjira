@@ -1,0 +1,45 @@
+{
+  "configuration": {
+    "filter": { "id": "123" },
+    "columnConfig": {
+      "columns": [
+        { "name": "In Arbeit", "statuses": [{ "id": "1" }] },
+        { "name": "Fachlich fertig", "statuses": [{ "id": "2" }] },
+        { "name": "Ausgeliefert", "statuses": [{ "id": "3" }, { "id": "4" }] }
+      ]
+    }
+  },
+  "page": {
+    "issues": [
+      {
+        "id": "10001", "key": "DEMO-1",
+        "fields": {
+          "summary": "Grüner Status vor der rechten Spalte",
+          "status": { "id": "2", "name": "Fertig", "statusCategory": { "key": "done", "colorName": "green" } },
+          "assignee": null, "created": "2026-11-01T09:00:00Z", "issuetype": { "name": "Task" },
+          "priority": { "name": "Blocker" },
+          "customfield_sprint": [{ "id": 5, "name": "Sprint 5", "state": "active", "boardId": 42 }]
+        }
+      },
+      {
+        "id": "10002", "key": "DEMO-2",
+        "fields": {
+          "summary": "Grüner Status in der rechten Spalte",
+          "status": { "id": "3", "name": "Ausgeliefert", "statusCategory": { "key": "done", "colorName": "green" } },
+          "assignee": null, "created": "2026-11-01T09:00:00Z", "issuetype": { "name": "Task" },
+          "customfield_sprint": [{ "id": 5, "name": "Sprint 5", "state": "active", "boardId": 42 }]
+        }
+      },
+      {
+        "id": "10003", "key": "DEMO-3",
+        "fields": {
+          "summary": "Statusfarbe bestimmt nicht die Abschluss-Spalte",
+          "status": { "id": "4", "name": "Archivierung", "statusCategory": { "key": "indeterminate", "colorName": "yellow" } },
+          "assignee": null, "created": "2026-11-01T09:00:00Z", "issuetype": { "name": "Task" },
+          "customfield_sprint": [{ "id": 5, "name": "Sprint 5", "state": "active", "boardId": 42 }]
+        }
+      }
+    ],
+    "isLast": true
+  }
+}

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import {
   BookmarkIcon,
@@ -22,6 +22,8 @@ import { ColumnPicker } from "@/components/issues/column-picker";
 import { FacetMenu, FacetOptionIcon } from "@/components/issues/facet-menu";
 import { NameDialog } from "@/components/issues/name-dialog";
 import { ViewImportContent } from "@/components/issues/view-import-content";
+import { LabelComparisonContent } from "@/components/issues/label-comparison-content";
+import { CustomerChangeDraftContent } from "@/components/issues/customer-change-draft-content";
 import { Tooltip } from "@/components/motion/tooltip";
 import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
@@ -98,20 +100,25 @@ function ViewMenu({
   onOpenSearch?: (jql: string) => void;
 }) {
   const [saving, setSaving] = useState(false);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const draftEditor = useRef<HTMLTextAreaElement>(null);
+  const restoreDraftFocus = useRef(false);
+  const draft = table.customerChangeDraft;
+  const panelOpen = table.transfer.open || table.labelComparison.open || draft.open;
   return (
     <>
-      <Popover open={table.transfer.open} onOpenChange={table.transfer.setOpen}>
+      <Popover open={panelOpen} onOpenChange={(open) => { if (!open) { table.transfer.setOpen(false); table.labelComparison.setOpen(false); draft.setOpen(false); } }}>
       <DropdownMenu>
         <Tooltip content="Ansicht und Export">
         <PopoverAnchor asChild>
         <DropdownMenuTrigger asChild>
-          <Button variant="outline" size="icon-sm" aria-label="Ansicht und Export">
+          <Button ref={trigger} variant="outline" size="icon-sm" aria-label="Ansicht und Export">
             <EllipsisIcon />
           </Button>
         </DropdownMenuTrigger>
         </PopoverAnchor>
         </Tooltip>
-        <DropdownMenuContent align="end" className="min-w-60 [&_[role=menuitem]]:min-h-8 [&_[role=menuitem]]:rounded-xl" onCloseAutoFocus={(event) => { if (table.transfer.open) event.preventDefault(); }}>
+        <DropdownMenuContent align="end" className="min-w-60 [&_[role=menuitem]]:min-h-8 [&_[role=menuitem]]:rounded-xl" onCloseAutoFocus={(event) => { if (panelOpen) event.preventDefault(); }}>
           <DropdownMenuSub>
             <DropdownMenuSubTrigger>
               <GroupIcon />
@@ -139,12 +146,18 @@ function ViewMenu({
             Kompakte Zeilen
           </DropdownMenuCheckboxItem>
           <DropdownMenuSeparator />
+          <DropdownMenuItem disabled={table.labelComparison.disabled} onSelect={() => table.labelComparison.setOpen(true)}>Labelvarianten vergleichen…</DropdownMenuItem>
           <DropdownMenuSub>
             <DropdownMenuSubTrigger>
               <ClipboardCopyIcon />
               Kopieren als
             </DropdownMenuSubTrigger>
             <DropdownMenuSubContent className="min-w-52">
+              <DropdownMenuLabel>Nur geladene Treffer kopieren</DropdownMenuLabel>
+              <DropdownMenuItem disabled={table.searchLoad.pending ? false : !table.searchLoad.canStart} onSelect={table.searchLoad.pending ? table.searchLoad.stop : table.searchLoad.start}>
+                {table.searchLoad.pending ? "Nachladen abbrechen" : "Übrige Treffer begrenzt laden…"}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
               <DropdownMenuItem disabled={table.isPlaceholder} onSelect={() => void table.exportAs("tsv")}>
                 <TableIcon />
                 Tabelle (Excel, Numbers)
@@ -157,6 +170,8 @@ function ViewMenu({
                 Schlüsselliste
               </DropdownMenuItem>
               <DropdownMenuItem onSelect={() => void table.exportAs("jql")}>JQL</DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem disabled={draft.disabled} onSelect={() => draft.setOpen(true)}>Kundenhinweis entwerfen…</DropdownMenuItem>
             </DropdownMenuSubContent>
           </DropdownMenuSub>
           {(onAdoptJql || onOpenSearch) && <DropdownMenuSeparator />}
@@ -210,8 +225,27 @@ function ViewMenu({
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-      <PopoverContent align="end" aria-label="Ansicht importieren" className="w-[min(26rem,calc(100vw-2rem))]">
-        <ViewImportContent transfer={table.transfer} />
+      <PopoverContent align="end" collisionPadding={draft.open ? 16 : undefined}
+        aria-label={draft.open ? "Kundenhinweis entwerfen" : table.labelComparison.open ? "Labelvarianten vergleichen" : "Ansicht importieren"}
+        className={cn("overflow-y-auto rounded-2xl", draft.open
+          ? "max-h-[min(42rem,85vh,var(--radix-popover-content-available-height))] w-[min(38rem,calc(100vw-2rem))] p-4"
+          : "max-h-[min(42rem,85vh)] w-[min(26rem,calc(100vw-2rem))]")}
+        onOpenAutoFocus={(event) => {
+          restoreDraftFocus.current = !!draftEditor.current;
+          if (!draftEditor.current) return;
+          event.preventDefault();
+          draftEditor.current.focus();
+        }}
+        onInteractOutside={() => { restoreDraftFocus.current = false; }}
+        onCloseAutoFocus={(event) => {
+          if (!restoreDraftFocus.current || event.defaultPrevented) return;
+          event.preventDefault();
+          trigger.current?.focus();
+        }}
+      >
+        {draft.open && <CustomerChangeDraftContent state={draft} editorRef={draftEditor} />}
+        {table.labelComparison.open && <LabelComparisonContent state={table.labelComparison} />}
+        {table.transfer.open && <ViewImportContent transfer={table.transfer} />}
       </PopoverContent>
       </Popover>
       <NameDialog
@@ -382,7 +416,7 @@ export function IssueToolbar({
             size="icon-sm"
             aria-label="Aktualisieren"
             onClick={table.refresh}
-            disabled={table.isFetching}
+            disabled={table.isFetching || table.searchLoad.pending}
           >
             <RefreshCwIcon className={cn(table.isFetching && !reduce && "animate-spin")} />
           </Button>

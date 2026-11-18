@@ -10,6 +10,8 @@ mod scm;
 mod secrets;
 mod update;
 mod zammad;
+#[cfg(all(target_os = "macos", feature = "c1-ipc-fixture"))]
+pub mod c1_ipc_fixture;
 
 #[cfg(target_os = "macos")]
 fn app_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {

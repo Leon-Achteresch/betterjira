@@ -1,4 +1,4 @@
-import { createContext, use, type ReactNode } from "react";
+import { createContext, Fragment, use, type ReactNode } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { AdfMediaGroup, AdfMediaInline, AdfMediaSingle } from "@/components/adf-media";
 import { useAdfMedia, type AdfMediaRender } from "@/hooks/jira/use-adf-media";
@@ -74,12 +74,14 @@ function renderText(node: AdfNode, key: number) {
   }, <span key={key}>{node.text}</span>);
 }
 
-function renderNodes(nodes: unknown, media?: AdfMediaRender) {
-  return Array.isArray(nodes) ? nodes.filter(isAdfNode).map((node, index) => renderNode(node, index, media)) : null;
+function renderNodes(nodes: unknown, media?: AdfMediaRender, showUnsupported = false) {
+  return Array.isArray(nodes)
+    ? nodes.filter(isAdfNode).map((node, index) => renderNode(node, index, media, showUnsupported))
+    : null;
 }
 
-function renderNode(node: AdfNode, key: number, media?: AdfMediaRender): ReactNode {
-  const children = renderNodes(node.content, media);
+function renderNode(node: AdfNode, key: number, media?: AdfMediaRender, showUnsupported = false): ReactNode {
+  const children = renderNodes(node.content, media, showUnsupported);
   const attrs = node.attrs ?? {};
   switch (node.type) {
     case "doc":
@@ -157,17 +159,27 @@ function renderNode(node: AdfNode, key: number, media?: AdfMediaRender): ReactNo
       return media ? <AdfMediaSingle key={key} node={node} media={media} /> : <p key={key} className="text-sm text-muted-foreground italic">[Anhang]</p>;
     case "mediaGroup":
       return media ? <AdfMediaGroup key={key} node={node} media={media} /> : <p key={key} className="text-sm text-muted-foreground italic">[Anhang]</p>;
+    case "media":
+      return showUnsupported ? (
+        media ? <AdfMediaInline key={key} node={node} media={media} /> : <span key={key} className="text-muted-foreground italic">[Anhang]</span>
+      ) : null;
     case "mediaInline":
       return media ? <AdfMediaInline key={key} node={node} media={media} /> : <span key={key} className="text-muted-foreground italic">[Anhang]</span>;
     default:
+      if (showUnsupported) return (
+        <Fragment key={key}>
+          <span className="text-xs text-muted-foreground" title={node.type}>Nur in der Quelle darstellbar</span>
+          {children}
+        </Fragment>
+      );
       return children ? <div key={key}>{children}</div> : null;
   }
 }
 
-export function AdfContent({ doc, rendered, className }: { doc: unknown; rendered?: RenderedDoc; className?: string }) {
-  const media = useAdfMedia(doc, rendered);
+export function AdfContent({ doc, rendered, media, className, showUnsupported = false }: { doc: unknown; rendered?: RenderedDoc; media?: AdfMediaRender; className?: string; showUnsupported?: boolean }) {
+  const resolved = useAdfMedia(doc, rendered);
   if (!isAdfNode(doc)) return null;
-  return <div className={cn("flex min-w-0 flex-col gap-3 text-sm leading-relaxed wrap-anywhere [&_li>p]:inline [&_p]:min-h-[1lh]", className)}>{renderNodes(doc.content, media)}</div>;
+  return <div className={cn("flex min-w-0 flex-col gap-3 text-sm leading-relaxed wrap-anywhere [&_li>p]:inline [&_p]:min-h-[1lh]", className)}>{renderNodes(doc.content, media ?? resolved, showUnsupported)}</div>;
 }
 
 export function AdfNodeView({ node, media }: { node: unknown; media?: AdfMediaRender }) {

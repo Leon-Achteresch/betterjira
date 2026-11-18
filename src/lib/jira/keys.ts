@@ -1,22 +1,56 @@
 import type { JiraQueryScope } from "./query-scope";
+import type { JiraFilterScope } from "./saved-filters";
 
 export const jiraKeys = {
   all: ["jira"] as const,
   allIssues: ["jira", "issues"] as const,
   allBoards: ["jira", "board"] as const,
+  multiLinkPreview: (context: string, request: number) => ["jira", "multi-link-preview", context, request] as const,
+  dependencyNeighborhood: (context: string, instance: string, request: number | undefined) =>
+    ["jira", "dependency-neighborhood", context, instance, request] as const,
+  duplicateComparison: (context: string, instance: string, request: number | undefined) =>
+    ["jira", "duplicate-comparison", context, instance, request] as const,
+  linkDirectionPreview: (context: string, instance: string, request: number | undefined) =>
+    ["jira", "link-direction-preview", context, instance, request] as const,
+  criteriaTestReview: (instance: string, request: number | undefined) =>
+    ["jira", "criteria-test-review", instance, request] as const,
+  issueApprovals: (context: string, instance: string, request: number | undefined) =>
+    ["jira", "issue-approvals", context, instance, request] as const,
+  multiLinkWrite: (scope: JiraQueryScope | undefined) => ["jira", "multi-link-write", scope?.cloudId ?? "", scope?.accountId ?? ""] as const,
+  multiLinkLedger: (scope: JiraQueryScope, host: string, source: string, choice: string) => ["jira", "multi-link-ledger", scope.cloudId, scope.accountId, host, source, choice] as const,
   bulkEdit: (scope: string, keys: readonly string[]) => ["jira", "bulk-edit", scope, [...keys].sort()] as const,
+  bulkCompletionPreview: (context: string, instance: string, revision: number | undefined) =>
+    ["jira", "bulk-completion-preview", context, instance, revision] as const,
+  bulkCompletionWrite: (scope: JiraQueryScope | undefined) => ["jira", "bulk-completion-write", scope?.cloudId ?? "", scope?.accountId ?? ""] as const,
+  tableFieldPreview: (context: string, instance: string, revision: number | undefined) =>
+    ["jira", "table-field-preview", context, instance, revision] as const,
+  tableFieldApply: (scope: JiraQueryScope) => ["jira", "table-field-apply", scope.cloudId, scope.accountId] as const,
+  subtaskRowsPreview: (instance: string, revision: number | undefined) => ["jira", "subtask-rows-preview", instance, revision] as const,
+  subtaskRowsWrite: (scope: JiraQueryScope) => ["jira", "subtask-rows-write", scope.cloudId, scope.accountId] as const,
+  dueDateShiftPreview: (context: string, days: number | null) => ["jira", "due-date-shift", "preview", context, days] as const,
+  dueDateShiftWrite: (scope: JiraQueryScope | undefined) => ["jira", "due-date-shift", "write", scope?.cloudId ?? "", scope?.accountId ?? ""] as const,
   attachment: (variant: string, id: string) => ["jira", "attachment", variant, id] as const,
   attachmentMediaId: (id: string) => ["jira", "attachment", "media-id", id] as const,
+  attachmentManagement: (key: string, scope: JiraQueryScope | undefined) => ["jira", "issue", key, "attachment-management", scope?.cloudId ?? "", scope?.accountId ?? ""] as const,
+  attachmentDeletion: (key: string, scope: JiraQueryScope | undefined) => ["jira", "attachment-deletion", key, scope?.cloudId ?? "", scope?.accountId ?? ""] as const,
   wiki: (key: string, field: string) => ["jira", "wiki", key, field] as const,
+  wikiScoped: (key: string, field: string, scope: JiraQueryScope | undefined) => ["jira", "wiki", key, field, scope?.cloudId ?? "", scope?.accountId ?? ""] as const,
+  descriptionSave: (key: string, scope: JiraQueryScope | undefined) => ["jira", "description-save", key, scope?.cloudId ?? "", scope?.accountId ?? ""] as const,
   site: ["jira", "site"] as const,
   myself: ["jira", "myself"] as const,
   projects: ["jira", "projects"] as const,
   avatar: (url: string) => ["jira", "avatar", url] as const,
   issues: (jql: string) => ["jira", "issues", jql] as const,
   search: (jql: string, fields: readonly string[], pageSize: number) => ["jira", "issues", "search", jql, fields, pageSize] as const,
+  searchScoped: (jql: string, fields: readonly string[], pageSize: number, scope: JiraQueryScope | undefined) => [...jiraKeys.search(jql, fields, pageSize), scope?.cloudId ?? "", scope?.accountId ?? ""] as const,
+  searchLoad: (key: readonly unknown[]) => ["jira", "search-load", ...key] as const,
   issueCount: (jql: string) => ["jira", "issues", "count", jql] as const,
+  issueCountScoped: (jql: string, scope: JiraQueryScope | undefined) => [...jiraKeys.issueCount(jql), scope?.cloudId ?? "", scope?.accountId ?? ""] as const,
   fieldCatalog: ["jira", "field-catalog"] as const,
+  componentLeads: (project: { key: string; id?: string } | undefined, ids: readonly string[], scope: JiraQueryScope | undefined) => ["jira", "component-leads", scope?.cloudId ?? "", scope?.accountId ?? "", project?.key ?? "", project?.id ?? "", [...ids].sort()] as const,
+  creationHints: (owner: string, generation: number, jql: string, scope: JiraQueryScope | undefined) => ["jira", "creation-hints", scope?.cloudId ?? "", scope?.accountId ?? "", owner, generation, jql] as const,
   filter: (id: string) => ["jira", "filter", id] as const,
+  filterScoped: (id: string, scope?: JiraFilterScope) => [...jiraKeys.filter(id), scope?.cloudId, scope?.accountId, scope?.siteUrl] as const,
   filterFavourite: ["jira", "filter-favourite"] as const,
   jqlValidation: (jql: string) => ["jira", "jql-validation", jql] as const,
   issue: (key: string) => ["jira", "issue", key] as const,
@@ -29,6 +63,7 @@ export const jiraKeys = {
   transitions: (key: string) => ["jira", "transitions", key] as const,
   userSearch: (query: string, issueKey: string, assignee: boolean) => ["jira", "user-search", query, issueKey, assignee] as const,
   filters: ["jira", "filters"] as const,
+  filtersScoped: (scope?: JiraFilterScope) => [...jiraKeys.filters, scope?.cloudId, scope?.accountId, scope?.siteUrl] as const,
   myWork: ["jira", "my-work"] as const,
   projectBoards: (key: string) => ["jira", "project-boards", key] as const,
   board: (id: number, sprint?: number) => ["jira", "board", id, sprint ?? "open"] as const,
@@ -42,9 +77,12 @@ export const jiraKeys = {
   createIssueTypes: (projectId: string) => ["jira", "create-meta", projectId] as const,
   createFields: (projectId: string, issueTypeId: string) => ["jira", "create-meta", projectId, issueTypeId] as const,
   createPermission: (projectId: string) => ["jira", "create-permission", projectId] as const,
+  createPermissionScoped: (projectId: string, scope: JiraQueryScope | undefined) => ["jira", "create-permission", projectId, scope?.cloudId ?? "", scope?.accountId ?? ""] as const,
+  createIssueTypesScoped: (projectId: string, scope: JiraQueryScope | undefined) => ["jira", "create-meta", projectId, "types", scope?.cloudId ?? "", scope?.accountId ?? ""] as const,
+  createFieldsScoped: (projectId: string, typeId: string, scope: JiraQueryScope | undefined) => ["jira", "create-meta", projectId, typeId, "fields", scope?.cloudId ?? "", scope?.accountId ?? ""] as const,
   allIssueCounts: ["jira", "issues", "count"] as const,
   boardReconcile: (id: number, sprint: number | undefined, keys: readonly string[], token?: string) =>
     ["jira", "board-reconcile", id, sprint ?? "open", [...keys].sort(), token ?? "first"] as const,
-  searchReconcile: (jql: string, fields: readonly string[], keys: readonly string[], token?: string) =>
-    ["jira", "search-reconcile", jql, fields, [...keys].sort(), token ?? "first"] as const,
+  searchReconcile: (jql: string, fields: readonly string[], keys: readonly string[], token?: string, scope?: JiraQueryScope) =>
+    ["jira", "search-reconcile", jql, fields, [...keys].sort(), token ?? "first", ...(scope ? [scope.cloudId, scope.accountId] : [])] as const,
 };

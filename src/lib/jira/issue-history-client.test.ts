@@ -1,8 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Effect, Schema } from "effect";
+import fixture from "../../../tests/jira/fixtures/status-intervals.json";
+import { reconstructStatusIntervals, sumStatusIntervals } from "./status-intervals";
 
 const { response, requests } = vi.hoisted(() => ({
-  response: { total: 48, cap: 20, emptyAt: -1, wrongAt: -1 },
+  response: { total: 48, cap: 20, emptyAt: -1, wrongAt: -1, changedTotalAt: -1, values: undefined as unknown[] | undefined },
   requests: [] as { startAt: number; maxResults: number }[],
 }));
 
@@ -18,21 +20,30 @@ vi.mock("./client", async () => {
       const count = startAt === response.emptyAt ? 0 : Math.max(0, Math.min(maxResults, response.cap, response.total - startAt));
       return Schema.decodeUnknownEffect(schema)({
         startAt: startAt === response.wrongAt ? startAt + 1 : startAt,
-        total: response.total,
-        values: Array.from({ length: count }, (_, offset) => ({ id: String(startAt + offset), items: [] })),
+        total: startAt === response.changedTotalAt ? response.total + 1 : response.total,
+        values: response.values?.slice(startAt, startAt + count) ?? Array.from({ length: count }, (_, offset) => ({ id: String(startAt + offset), items: [] })),
       });
     }),
   };
 });
 
-const { fetchIssueHistory, olderPageParam } = await import("./issue-history");
+const { fetchIssueHistory, mergeHistoryPages, olderPageParam } = await import("./issue-history");
 
 beforeEach(() => {
-  Object.assign(response, { total: 48, cap: 20, emptyAt: -1, wrongAt: -1 });
+  Object.assign(response, { total: 48, cap: 20, emptyAt: -1, wrongAt: -1, changedTotalAt: -1, values: undefined });
   requests.length = 0;
 });
 
 describe("fetchIssueHistory", () => {
+  it("erhält Statusidentitäten vom synthetischen Transport bis zur Intervallsumme", async () => {
+    Object.assign(response, { total: 6, cap: 2, values: fixture.changes });
+    const page = await Effect.runPromise(fetchIssueHistory("DEMO-1", null));
+    const data = reconstructStatusIntervals({ history: mergeHistoryPages([page]), current: fixture.current, created: fixture.created, asOf: fixture.asOf });
+    expect(data.complete).toBe(true);
+    expect(sumStatusIntervals(data.intervals, "id:7")).toMatchObject({ closedMs: 172800000, openMs: 86400000 });
+    expect(requests.map((request) => request.startAt)).toEqual([0, 2, 4]);
+  });
+
   it("füllt das neueste Fenster lückenlos bei kleineren Jira-Seiten", async () => {
     response.cap = 5;
     const page = await Effect.runPromise(fetchIssueHistory("DEMO-1", null));
@@ -64,7 +75,7 @@ describe("fetchIssueHistory", () => {
     expect(requests).toHaveLength(1);
   });
 
-  it.each(["emptyAt", "wrongAt"] as const)("bricht bei %s ab, statt eine Lücke als geladen zu behandeln", async (field) => {
+  it.each(["emptyAt", "wrongAt", "changedTotalAt"] as const)("bricht bei %s ab, statt eine Lücke als geladen zu behandeln", async (field) => {
     response.cap = 5;
     response[field] = 33;
     const failure = await Effect.runPromise(Effect.flip(fetchIssueHistory("DEMO-1", null)));

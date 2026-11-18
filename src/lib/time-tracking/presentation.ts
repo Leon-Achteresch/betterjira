@@ -20,6 +20,8 @@ export const timeDayViews = (summary: TimeSummary, today: Date) =>
     entries: day.entries.map((entry) => ({
       id: entry.id,
       issueKey: entry.issueKey,
+      issueId: entry.issueId,
+      worklog: entry.worklog,
       summary: entry.summary,
       comment: entry.comment,
       time: format(entry.started, "HH:mm"),

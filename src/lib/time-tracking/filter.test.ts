@@ -3,6 +3,7 @@ import type { TimeEntry, TimeSummary } from "./aggregate";
 import { filterTimeSummary } from "./filter";
 
 const entry = (id: string, issueKey: string, summary: string, comment: string, seconds: number, started: number): TimeEntry => ({
+  issueId: issueKey, worklog: { id, started: new Date(started).toISOString(), timeSpentSeconds: seconds, comment },
   id,
   issueKey,
   summary,

@@ -1,9 +1,11 @@
 use super::secrets;
 use serde::{Deserialize, Serialize};
+use std::sync::Mutex;
 use std::time::Duration;
 use tauri_plugin_http::reqwest;
 
 const KEY: &str = "zammad-connection";
+static CONNECTION_REVISION: Mutex<u64> = Mutex::new(0);
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -12,10 +14,11 @@ pub struct Connection {
     token: String,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PublicConnection {
     base_url: String,
+    revision: String,
 }
 
 #[derive(Serialize)]
@@ -84,7 +87,10 @@ async fn send(
     let url = endpoint(&connection.base_url, path)?;
     let client = reqwest::Client::builder()
         .redirect(reqwest::redirect::Policy::none())
-        .timeout(Duration::from_secs(30))
+        .timeout(Duration::from_secs(30));
+    #[cfg(all(target_os = "macos", feature = "c1-ipc-fixture"))]
+    let client = super::c1_ipc_fixture::zammad_client_for_fixture(client, &url)?;
+    let client = client
         .build()
         .map_err(|_| "HTTP-Client konnte nicht gestartet werden")?;
     let method =
@@ -141,8 +147,12 @@ async fn send(
 
 #[tauri::command]
 pub fn zammad_connection_get() -> Result<Option<PublicConnection>, String> {
+    let revision = CONNECTION_REVISION
+        .lock()
+        .map_err(|_| "Zammad-Verbindung ist gesperrt")?;
     Ok(load()?.map(|connection| PublicConnection {
         base_url: connection.base_url,
+        revision: revision.to_string(),
     }))
 }
 
@@ -170,17 +180,51 @@ pub async fn zammad_connect(base_url: String, token: String) -> Result<PublicCon
         .ok()
         .and_then(|value| value.get("id").and_then(|id| id.as_u64()))
         .ok_or("Unerwartete Zammad-Antwort")?;
+    let mut revision = CONNECTION_REVISION
+        .lock()
+        .map_err(|_| "Zammad-Verbindung ist gesperrt")?;
     secrets::set(
         KEY,
         &serde_json::to_string(&connection)
             .map_err(|_| "Verbindung konnte nicht gespeichert werden")?,
     )?;
-    Ok(PublicConnection { base_url })
+    *revision += 1;
+    Ok(PublicConnection {
+        base_url,
+        revision: revision.to_string(),
+    })
 }
 
 #[tauri::command]
 pub fn zammad_disconnect() -> Result<(), String> {
-    secrets::delete(KEY)
+    let mut revision = CONNECTION_REVISION
+        .lock()
+        .map_err(|_| "Zammad-Verbindung ist gesperrt")?;
+    secrets::delete(KEY)?;
+    *revision += 1;
+    Ok(())
+}
+
+fn validate_scope(
+    base_url: &str,
+    revision: u64,
+    expected: Option<&PublicConnection>,
+) -> Result<(), String> {
+    if expected
+        .is_some_and(|scope| scope.base_url != base_url || scope.revision != revision.to_string())
+    {
+        return Err("Zammad-Verbindung wurde gewechselt. Es wurde keine Anfrage gesendet.".into());
+    }
+    Ok(())
+}
+
+fn request_connection(expected: Option<&PublicConnection>) -> Result<Connection, String> {
+    let revision = CONNECTION_REVISION
+        .lock()
+        .map_err(|_| "Zammad-Verbindung ist gesperrt")?;
+    let connection = load()?.ok_or("Bitte zuerst Zammad verbinden")?;
+    validate_scope(&connection.base_url, *revision, expected)?;
+    Ok(connection)
 }
 
 fn valid_avatar_path(path: &str) -> bool {
@@ -195,8 +239,9 @@ pub async fn zammad_request(
     method: String,
     body: Option<String>,
     binary: Option<bool>,
+    connection_scope: Option<PublicConnection>,
 ) -> Result<Response, String> {
-    let connection = load()?.ok_or("Bitte zuerst Zammad verbinden")?;
+    let connection = request_connection(connection_scope.as_ref())?;
     let binary = binary.unwrap_or(false);
     if binary
         && (!(path.starts_with("/ticket_attachment/") || valid_avatar_path(&path))
@@ -210,6 +255,18 @@ pub async fn zammad_request(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn scoped_requests_pin_the_host_and_credential_revision() {
+        let scope = PublicConnection {
+            base_url: "https://support.example.com".into(),
+            revision: "7".into(),
+        };
+        assert!(validate_scope("https://support.example.com", 7, Some(&scope)).is_ok());
+        assert!(validate_scope("https://other.example.com", 7, Some(&scope)).is_err());
+        assert!(validate_scope("https://support.example.com", 8, Some(&scope)).is_err());
+        assert!(validate_scope("https://support.example.com", 9, Some(&scope)).is_err());
+        assert!(validate_scope("https://support.example.com", 9, None).is_ok());
+    }
     #[test]
     fn validates_base() {
         assert_eq!(

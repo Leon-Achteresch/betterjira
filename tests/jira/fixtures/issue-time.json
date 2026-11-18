@@ -1,0 +1,23 @@
+{
+  "id": "10001",
+  "key": "DEMO-1",
+  "names": {},
+  "editmeta": {"fields": {}},
+  "fields": {
+    "summary": "Zeitwerte vergleichen",
+    "status": {"id":"1","name":"Offen","statusCategory":{"key":"new","colorName":"blue-gray"}},
+    "created": "2026-11-01T09:00:00.000+0000",
+    "updated": "2026-11-16T09:00:00.000+0000",
+    "issuetype": {"name":"Story"},
+    "project": {"key":"DEMO","name":"Testprojekt"},
+    "timetracking": {"originalEstimate":"3d","timeSpent":"2h","remainingEstimate":"4h","originalEstimateSeconds":86400,"timeSpentSeconds":7200,"remainingEstimateSeconds":14400},
+    "timeoriginalestimate": 86400,
+    "timespent": 7200,
+    "timeestimate": 14400,
+    "aggregatetimeoriginalestimate": 172800,
+    "aggregatetimespent": 18000,
+    "aggregatetimeestimate": 36000,
+    "subtasks": [{"id":"10002","key":"DEMO-2","fields":{"summary":"Nur sichtbare Unteraufgabe","status":{"id":"1","name":"Offen","statusCategory":{"key":"new","colorName":"blue-gray"}},"timeoriginalestimate":999999,"timespent":999999,"timeestimate":999999}}],
+    "worklog": {"total":9,"worklogs":[{"id":"w1","timeSpent":"1h","started":"2026-11-15T09:00:00.000+0000"}]}
+  }
+}

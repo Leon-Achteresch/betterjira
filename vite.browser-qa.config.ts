@@ -7,7 +7,39 @@ import { tmpdir } from "node:os";
 const directory = process.env.BROWSER_QA_DIRECTORY ?? join(tmpdir(), "betterjira-browser-qa");
 
 export default mergeConfig(base({ command: "build", mode: "production" }), {
+  resolve: {
+    alias: [{
+      find: "@/lib/jira/bulk-transition-comment-capability",
+      replacement: join(import.meta.dirname, "tests/browser/bulk-transition-comment-capability.ts"),
+    }, {
+      find: "@/lib/jira/table-field-apply-capability",
+      replacement: join(import.meta.dirname, "tests/browser/table-field-apply-capability.ts"),
+    }, {
+      find: "@/lib/jira/subtask-rows-capability",
+      replacement: join(import.meta.dirname, "tests/browser/subtask-rows-capability.ts"),
+    }, {
+      find: "@/lib/jira/issue-approvals-capability",
+      replacement: join(import.meta.dirname, "tests/browser/issue-approvals-capability.ts"),
+    }, {
+      find: "@/lib/jira/worklog-estimate-capability",
+      replacement: join(import.meta.dirname, "tests/browser/worklog-estimate-capability.ts"),
+    }, {
+      find: "@/lib/scm/review-threads-capability",
+      replacement: join(import.meta.dirname, "tests/browser/review-threads-capability.ts"),
+    }],
+  },
   plugins: [{
+    name: "qa-review-connection-refresh",
+    transform(source, id) {
+      if (!id.replaceAll("\\", "/").endsWith("/src/main.tsx")) return;
+      return `${source}
+import { scmKeys as fixtureScmKeys } from "@/lib/scm/client";
+if (window.__qaReviewThreads?.() === true) {
+  Object.defineProperty(window, "__qaRefreshScmHosts", { value: () =>
+    queryClient.refetchQueries({ queryKey: fixtureScmKeys.ghHosts, exact: true }, { throwOnError: true }) });
+}`;
+    },
+  }, {
     name: "qa-render-faults",
     enforce: "pre",
     transform(code, id) {
@@ -29,6 +61,10 @@ export default mergeConfig(base({ command: "build", mode: "production" }), {
       input: {
         app: join(import.meta.dirname, "index.html"),
         motion: join(import.meta.dirname, "tests/browser/motion-fixture.html"),
+        fieldDraft: join(import.meta.dirname, "tests/browser/field-draft-fixture.html"),
+        history: join(import.meta.dirname, "tests/browser/history-hook-fixture.html"),
+        sourceQuote: join(import.meta.dirname, "tests/browser/source-quote-hook-fixture.html"),
+        multiLink: join(import.meta.dirname, "tests/browser/multi-link-hook-fixture.html"),
       },
     },
   },

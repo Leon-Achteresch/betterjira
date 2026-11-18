@@ -11,13 +11,15 @@ import { useJiraSession } from "@/hooks/jira/use-jira-session";
 import { useFilterEditor } from "@/hooks/use-filter-editor";
 
 export const Route = createFileRoute("/filter/$id")({
+  validateSearch: (search: Record<string, unknown>): { abfrage?: true } => search.abfrage === true ? { abfrage: true } : {},
   component: Filter,
 });
 
 function Filter() {
   const { id } = Route.useParams();
   const session = useJiraSession();
-  const editor = useFilterEditor(id);
+  const { abfrage } = Route.useSearch();
+  const editor = useFilterEditor(id, abfrage);
 
   return (
     <SessionGate
@@ -26,7 +28,7 @@ function Filter() {
       pending={<FilterSkeleton />}
       unconnected={<LoginPrompt description="Melde dich an, um Filter zu sehen." />}
     >
-      <FilterHeader key={id} id={id} editor={editor} />
+      <FilterHeader key={editor.context} id={id} editor={editor} />
       <AnimatePresence initial={false}>
         {editor.refreshFailed && <FilterRefreshNotice key="refresh" retrying={editor.retrying} onRetry={editor.retry} />}
       </AnimatePresence>
@@ -34,10 +36,10 @@ function Filter() {
         <FilterLoadError {...editor.loadError} retrying={editor.retrying} onRetry={editor.retry} />
       ) : (
         <>
-          <FilterJqlPanel key={id} editor={editor} />
+          <FilterJqlPanel key={editor.context} editor={editor} />
           {editor.tableJql ? (
-            <IssueTable key={id} scope={`filter:${id}`} jql={editor.tableJql} onAdoptJql={editor.adopt} />
-          ) : (
+            <IssueTable key={editor.context} scope={`filter:${id}`} jql={editor.tableJql} onAdoptJql={editor.adopt} />
+          ) : !editor.filter && (
             <Skeleton className="h-64 w-full rounded-2xl" />
           )}
         </>

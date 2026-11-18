@@ -15,6 +15,10 @@ import { EASE_OUT, SPRING_LAYOUT } from "@/lib/ease";
 import { useAttachmentSort } from "@/hooks/use-attachment-sort";
 import { type JiraIssueDetail } from "@/lib/jira/queries";
 import { useAttachmentOpener } from "@/hooks/jira/use-attachment-opener";
+import { useAttachmentSelection } from "@/hooks/use-attachment-selection";
+import { Checkbox } from "@/components/motion/checkbox";
+import { Tooltip } from "@/components/motion/tooltip";
+import { AttachmentSelectionBar, AttachmentDeleteDialog, AttachmentDeletionResults } from "@/components/issues/attachment-deletion-controls";
 
 type Attachment = NonNullable<JiraIssueDetail["fields"]["attachment"]>[number];
 
@@ -129,11 +133,13 @@ export function IssueAttachments({ issueKey, attachments }: { issueKey: string; 
   const upload = useJiraUploadAttachments(issueKey);
   const input = useRef<HTMLInputElement>(null);
   const filter = useAttachmentFilter(attachments);
+  const selection = useAttachmentSelection(issueKey, attachments, filter);
   const sort = useAttachmentSort(issueKey, attachments);
   const reduce = useReducedMotion();
 
   return (
     <div className="flex flex-col gap-3">
+      {(attachments.length > 0 || selection.results.length > 0) && <AttachmentSelectionBar selection={selection} />}
       {(attachments.length > 1 || filter.active) && (
         <AttachmentFilterBar
           query={filter.query}
@@ -171,9 +177,20 @@ export function IssueAttachments({ issueKey, attachments }: { issueKey: string; 
               layout={!reduce}
               transition={SPRING_LAYOUT}
               hidden={!filter.visibleIds.has(attachment.id)}
-              className="min-w-0"
+              className="relative min-w-0"
             >
               <AttachmentTile attachment={attachment} onOpen={opener.open} />
+              <AnimatePresence initial={false}>
+                {selection.selecting && (
+                  <motion.div key="select" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15, ease: EASE_OUT }} className="absolute right-1 top-1 rounded-xl bg-background/90 p-0.5 shadow-sm backdrop-blur">
+                    <Tooltip content={selection.eligibleIds.has(attachment.id) ? undefined : "Für diese Datei ist kein aktuelles Löschrecht bestätigt. Anhänge gegebenenfalls neu prüfen."}>
+                      <span className="inline-flex rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring" tabIndex={!selection.eligibleIds.has(attachment.id) ? 0 : undefined}>
+                        <Checkbox checked={selection.selectedIds.has(attachment.id)} disabled={selection.pending || !selection.eligibleIds.has(attachment.id)} onCheckedChange={() => selection.toggle(attachment.id)} aria-label={`${attachmentName(attachment.filename)} (ID ${attachment.id}) auswählen`} className="[&_button]:size-8 [&_button]:rounded-xl" />
+                      </span>
+                    </Tooltip>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </motion.li>
           ))}
         </ul>
@@ -203,6 +220,8 @@ export function IssueAttachments({ issueKey, attachments }: { issueKey: string; 
           </p>
         )}
       </div>
+      <AttachmentDeletionResults selection={selection} />
+      <AttachmentDeleteDialog dialog={selection.dialog} />
       {opener.preview && <Preview attachment={opener.preview} onClose={opener.close} />}
     </div>
   );

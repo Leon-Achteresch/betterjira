@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { CircleAlertIcon, FunnelIcon, RotateCwIcon, SearchIcon, TerminalSquareIcon, TriangleAlertIcon } from "lucide-react";
 import { FilterOverviewRow } from "@/components/filters/filter-overview-row";
+import { FilterContentSearch } from "@/components/filters/filter-content-search";
 import { NAV_TAB_CLASS, NavTabIndicator, NavTabs } from "@/components/motion/nav-tabs";
 import { Stagger, StaggerItem } from "@/components/motion/stagger";
 import { Alert, AlertAction, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -25,6 +26,7 @@ type FilterOverviewProps<T extends OverviewFilter> = {
   view: FilterOverviewView;
   query: string;
   counts: Record<FilterOverviewView, number>;
+  contentSearch: React.ComponentProps<typeof FilterContentSearch> | null;
   filters: readonly T[];
   pendingIds: readonly string[];
   errorText: string;
@@ -73,18 +75,21 @@ export function FilterOverview<T extends OverviewFilter>(props: FilterOverviewPr
             </Link>
           ))}
         </NavTabs>
-        <InputGroup className="md:max-w-72">
-          <InputGroupAddon>
-            <SearchIcon />
-          </InputGroupAddon>
-          <InputGroupInput
-            type="search"
-            aria-label="Filter durchsuchen"
-            placeholder="Name oder JQL …"
-            value={props.query}
-            onChange={(event) => props.onQueryChange(event.target.value)}
-          />
-        </InputGroup>
+        <div className="flex flex-col gap-2 min-[450px]:flex-row min-[450px]:items-center">
+          {props.contentSearch && <FilterContentSearch {...props.contentSearch} />}
+          <InputGroup className="min-w-0 md:w-60">
+            <InputGroupAddon>
+              <SearchIcon />
+            </InputGroupAddon>
+            <InputGroupInput
+              type="search"
+              aria-label="Filter durchsuchen"
+              placeholder="Name oder JQL …"
+              value={props.query}
+              onChange={(event) => props.onQueryChange(event.target.value)}
+            />
+          </InputGroup>
+        </div>
       </div>
       <p aria-live="polite" className="sr-only">
         {ready ? `${props.filters.length} Filter` : ""}

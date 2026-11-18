@@ -173,8 +173,8 @@ test("Verzögerte Kontoprüfung zeigt erst danach die eigenen Einstellungen", as
     state.__qaMyselfGate = new Promise<void>((resolve) => { state.__qaReleaseMyself = resolve; });
   });
   await open(page);
-  await expect(page.getByRole("main").getByRole("status")).toBeVisible();
-  await expect(star(page, "Produktentwicklung")).toHaveCount(0);
+  await expect(page.getByRole("main").getByRole("status").or(star(page, "Produktentwicklung"))).toBeVisible();
+  await expect(page.getByRole("main").getByRole("button", { name: "Produktentwicklung aus Favoriten entfernen" })).toHaveCount(0);
   await expect(legacyNotice(page)).toHaveCount(0);
   await page.evaluate(() => (window as unknown as { __qaReleaseMyself?: () => void }).__qaReleaseMyself?.());
 

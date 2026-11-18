@@ -3,6 +3,8 @@ import { Effect } from "effect";
 import { fetchIssueLinks, issueLinkKeys } from "@/lib/jira/issue-links";
 import { useJiraMyself, useJiraSite } from "@/lib/jira/queries";
 import { useIssueLinkActions } from "@/hooks/jira/use-issue-link-actions";
+import { useDependencyNeighborhood } from "./use-dependency-neighborhood";
+import { useMultiTicketLinks } from "./use-multi-ticket-links";
 import { withJiraQueryScope } from "@/lib/jira/query-scope";
 
 export function useIssueLinks(issueKey: string) {
@@ -19,9 +21,14 @@ export function useIssueLinks(issueKey: string) {
   });
   const accountError = !accountId && myself.isError ? myself.error : null;
   const actions = useIssueLinkActions(issueKey, query.data);
+  const multi = useMultiTicketLinks(issueKey);
+  const dependencies = useDependencyNeighborhood(issueKey, scope, site.data?.siteUrl ?? "");
 
   return {
     actions,
+    multi,
+    dependencies,
+    previewContext: { source: issueKey, scope: myself.isError || site.isError ? undefined : scope, host: site.data?.siteUrl ?? "" },
     summary: query.data,
     error: query.data ? null : (query.error ?? accountError),
     refreshError: query.data && query.isRefetchError ? query.error : null,

@@ -36,6 +36,7 @@ export function useTimeTrackingPage(search: TimeRangeSearch) {
   return {
     view: worklogs.error ? "error" : worklogs.pending ? "pending" : "ready",
     session,
+    correctionContext: worklogs.correctionScope ? { scope: worklogs.correctionScope, filter: query } : undefined,
     rangeKey: `${range.kind}:${range.start.getTime()}`,
     label: timeRangeLabel(range),
     previousLabel: range.kind === "tag" ? "Vorheriger Tag" : "Vorherige Woche",

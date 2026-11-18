@@ -5,5 +5,7 @@ const scopeKey = ({ cloudId, accountId, start, end }: TimeTrackingScope) => [clo
 export const timeTrackingKeys = {
   all: ["jira", "time-tracking"] as const,
   candidates: (scope: TimeTrackingScope) => [...timeTrackingKeys.all, "issues", ...scopeKey(scope)] as const,
+  correction: (instance: string, context: string, step: "target" | "preview", revision?: number) =>
+    [...timeTrackingKeys.all, "correction", instance, context, step, revision] as const,
   worklogs: (scope: TimeTrackingScope, issueId: string) => [...timeTrackingKeys.all, "worklogs", ...scopeKey(scope), issueId] as const,
 };

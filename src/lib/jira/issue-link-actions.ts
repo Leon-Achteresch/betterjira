@@ -42,8 +42,8 @@ export const linkPayload = ({ source, target, typeId, direction }: CreateLinkInp
 
 export class InvalidIssueLink extends Data.TaggedError("InvalidIssueLink")<{ message: string }> {}
 
-export const fetchLinkTypes = () => jira("/issueLinkType", LinkTypes).pipe(Effect.map(({ issueLinkTypes }) => issueLinkTypes));
-export const fetchLinkPermission = (key: string) => jira(`/mypermissions?${new URLSearchParams({ issueKey: key, permissions: "LINK_ISSUES" })}`, Permission)
+export const fetchLinkTypes = (scope?: JiraRequestScope) => jira("/issueLinkType", LinkTypes, scope ? { scope, cache: "no-store", retry: false } : undefined).pipe(Effect.map(({ issueLinkTypes }) => issueLinkTypes));
+export const fetchLinkPermission = (key: string, scope?: JiraRequestScope) => jira(`/mypermissions?${new URLSearchParams({ issueKey: key, permissions: "LINK_ISSUES" })}`, Permission, scope ? { scope, cache: "no-store", retry: false } : undefined)
   .pipe(Effect.map(({ permissions }) => permissions.LINK_ISSUES?.havePermission === true));
 
 export const searchLinkTargets = (query: string) => {
@@ -53,9 +53,9 @@ export const searchLinkTargets = (query: string) => {
     .pipe(Effect.map(({ issues }) => issues));
 };
 
-export const createIssueLink = (input: CreateLinkInput, requestScope?: JiraRequestScope) => Effect.gen(function* () {
+export const createIssueLink = (input: CreateLinkInput, requestScope?: JiraRequestScope, retry = true) => Effect.gen(function* () {
   if (input.source === input.target) return yield* new InvalidIssueLink({ message: "Ein Ticket kann nicht mit sich selbst verknüpft werden." });
-  return yield* jiraSend("/issueLink", { method: "POST", body: JSON.stringify(linkPayload(input)), scope: requestScope });
+  return yield* jiraSend("/issueLink", { method: "POST", body: JSON.stringify(linkPayload(input)), scope: requestScope, retry });
 });
 
 export const deleteIssueLink = (id: string, requestScope?: JiraRequestScope) => jiraSend(`/issueLink/${encodeURIComponent(id)}`, { method: "DELETE", scope: requestScope });

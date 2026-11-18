@@ -8,9 +8,11 @@ import { EASE_OUT, SPRING_LAYOUT } from "@/lib/ease";
 import { fadeProps } from "@/lib/motion/fade-props";
 import { PULL_REQUEST_LIST_LIMIT } from "@/lib/scm/model";
 import type { PullRequestListProps } from "@/types/pull-requests";
+import { pullRequestRowKey } from "@/hooks/scm/use-pull-request-review-threads";
+import { ReviewThreadsPopover } from "./review-threads-popover";
 import { PullRequestsEmpty } from "./pull-requests-empty";
 
-export function PullRequestList({ pullRequests, failedRepos: failed, truncatedRepos: truncated, waiting, empty, emptyText, onOpen, onChecksReset }: PullRequestListProps) {
+export function PullRequestList({ pullRequests, review, failedRepos: failed, truncatedRepos: truncated, waiting, empty, emptyText, onOpen, onChecksReset }: PullRequestListProps) {
   const reduce = useReducedMotion();
 
   return (
@@ -58,17 +60,22 @@ export function PullRequestList({ pullRequests, failedRepos: failed, truncatedRe
           <motion.div key="list" {...fadeProps(reduce)}>
             <Stagger role="list" aria-busy={waiting || undefined} className="-mx-2 flex flex-col">
               <AnimatePresence initial={false}>
-                {pullRequests.map((entry) => (
-                  <StaggerItem
-                    key={entry.pr.url}
-                    role="listitem"
-                    layout={!reduce}
-                    transition={{ layout: SPRING_LAYOUT }}
-                    exit={{ opacity: 0, transition: { duration: 0.12, ease: EASE_OUT } }}
-                  >
-                    <PullRequestRow pr={entry.pr} repo={entry.repo} onOpen={onOpen} />
-                  </StaggerItem>
-                ))}
+                {pullRequests.map((entry) => {
+                  const preview = review.forEntry(entry);
+                  return (
+                    <StaggerItem
+                      key={pullRequestRowKey(entry)}
+                      role="listitem"
+                      layout={!reduce}
+                      transition={{ layout: SPRING_LAYOUT }}
+                      exit={{ opacity: 0, transition: { duration: 0.12, ease: EASE_OUT } }}
+                      className={preview ? "grid grid-cols-[minmax(0,1fr)_auto] items-center" : undefined}
+                    >
+                      <PullRequestRow pr={entry.pr} repo={entry.repo} onOpen={onOpen} />
+                      {preview && <ReviewThreadsPopover entry={entry} preview={preview} onOpen={onOpen} />}
+                    </StaggerItem>
+                  );
+                })}
               </AnimatePresence>
             </Stagger>
           </motion.div>

@@ -1,0 +1,12 @@
+{
+  "issues": [
+    { "id": "1", "key": "DEMO-1", "fields": { "labels": ["api-gateway", "frontend", "api-gateway"] } },
+    { "id": "2", "key": "DEMO-2", "fields": { "labels": ["API-Gateway", "FrontEnd"] } },
+    { "id": "3", "key": "DEMO-3", "fields": { "labels": ["api_gateway", "frontent", "different"] } },
+    { "id": "4", "key": "DEMO-4", "fields": { "labels": ["api.gateway", "frontend", "", 7, "has space"] } },
+    { "id": "5", "key": "DEMO-5", "fields": {} },
+    { "id": "6", "key": "DEMO-6", "fields": { "labels": null } },
+    { "id": "7", "key": "DEMO-7", "fields": { "labels": [] } }
+  ],
+  "isLast": true
+}

@@ -1,0 +1,12 @@
+{
+  "issues": [
+    { "id": "1", "key": "DEMO-1", "fields": { "summary": "Gateway meldet Fehler", "project": { "id": "101", "key": "DEMO" }, "status": { "name": "Offen" }, "issuetype": { "name": "Bug" } } },
+    { "id": "2", "key": "DEMO-2", "fields": { "summary": "Gateway-Problem untersucht", "project": { "id": "101", "key": "DEMO" }, "status": { "name": "Erledigt" }, "issuetype": { "name": "Task" } } },
+    { "id": "3", "key": "OTHER-3", "fields": { "summary": "Fremdes Anliegen", "project": { "id": "202", "key": "OTHER" } } },
+    { "id": "1", "key": "DEMO-1", "fields": { "summary": "Doppelt geliefert", "project": { "id": "101", "key": "DEMO" } } },
+    { "id": "4", "key": "DEMO-4", "fields": { "summary": "Nicht bestaetigbar" } },
+    { "id": "5", "key": "DEMO-5", "fields": { "summary": "Noch ein Hinweis", "project": { "id": "101" } } }
+  ],
+  "nextPageToken": "not-followed",
+  "isLast": false
+}

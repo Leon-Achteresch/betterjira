@@ -7,6 +7,10 @@ import {
   type JiraUserResult,
 } from "@/hooks/jira/use-jira";
 import { useLatestRef } from "@/hooks/use-latest-ref";
+import { useDueDateShift } from "./use-due-date-shift";
+import { useBulkTransitionComment } from "./use-bulk-transition-comment";
+import type { TableFieldPreviewContext } from "./use-table-field-preview";
+import { TABLE_PREVIEW_FIELD, type TableFieldTarget } from "@/lib/jira/table-field-preview";
 import {
   bulkEditIssue,
   bulkEditMetadata,
@@ -46,8 +50,10 @@ type Operation =
   | "status"
   | "add-labels"
   | "remove-labels";
+type BulkOperation = Operation | "shift-due-date" | "table-field-preview" | "transition-comment";
 
-export function useBulkEdit(keys: readonly string[], disabled: boolean) {
+export function useBulkEdit(selection: readonly TableFieldTarget[], disabled: boolean, selectionContext = "") {
+  const keys = selection.map(({ key }) => key);
   const client = useQueryClient();
   const site = useJiraSite();
   const myself = useJiraMyself();
@@ -58,7 +64,7 @@ export function useBulkEdit(keys: readonly string[], disabled: boolean) {
   const scopeKey = JSON.stringify(scope);
   const latestScope = useLatestRef(scopeKey);
   const [open, setOpen] = useState(false);
-  const [operation, setOperation] = useState<Operation>("self");
+  const [operation, setOperation] = useState<BulkOperation>("self");
   const [priority, setPriority] = useState("");
   const [status, setStatus] = useState("");
   const [assignee, setAssignee] = useState<JiraUserResult | null>(null);
@@ -84,7 +90,7 @@ export function useBulkEdit(keys: readonly string[], disabled: boolean) {
         ),
         { signal },
       ),
-    enabled: open && !!scope && keys.length > 0 && !disabled,
+    enabled: open && operation !== "shift-due-date" && operation !== "table-field-preview" && operation !== "transition-comment" && !!scope && keys.length > 0 && !disabled,
     staleTime: 30_000,
   });
   const options = commonBulkOptions(metadata.data ?? []);
@@ -168,10 +174,28 @@ export function useBulkEdit(keys: readonly string[], disabled: boolean) {
       lock.current = false;
     },
   });
+  const dueShift = useDueDateShift(keys, disabled || mutation.isPending, open && operation === "shift-due-date", selectionContext);
+  const transitionComment = useBulkTransitionComment({
+    active: open && operation === "transition-comment" && !disabled && site.isSuccess && myself.isSuccess,
+    context: selectionContext,
+    scope,
+    siteUrl: site.data?.siteUrl,
+    targets: selection,
+  });
+  const tablePreview: TableFieldPreviewContext | null =
+    open && operation === "table-field-preview" && !disabled && scope && site.isSuccess && site.data && myself.isSuccess && selection.length
+      ? {
+          context: JSON.stringify([scope, site.data.siteUrl, selectionContext, TABLE_PREVIEW_FIELD, selection.map(({ key, id }) => [key, id]).sort()]),
+          scope,
+          siteUrl: site.data.siteUrl,
+          targets: selection,
+          accountLabel: `${myself.data.displayName} · ${site.data.siteName}`,
+        }
+      : null;
   const visibleResults = resultScope === scopeKey ? results : [];
   const failed = visibleResults.filter(({ error }) => error);
   const submit = (retry = false) => {
-    if (lock.current || disabled || !scope) return;
+    if (lock.current || dueShift.isBusy() || operation === "transition-comment" || disabled || !scope) return;
     const previous = last.current;
     const sent =
       retry && previous?.scopeKey === scopeKey ? previous.action : action;
@@ -201,9 +225,13 @@ export function useBulkEdit(keys: readonly string[], disabled: boolean) {
   };
   return {
     open,
-    setOpen,
+    setOpen: (value: boolean) => { if (!dueShift.isBusy()) setOpen(value); },
+    dueShift,
+    tablePreview,
+    transitionComment: operation === "transition-comment" ? transitionComment : null,
     operation,
     setOperation: (value: string) => {
+      if (lock.current || dueShift.isBusy()) return;
       if (
         value === "self" ||
         value === "person" ||
@@ -211,7 +239,10 @@ export function useBulkEdit(keys: readonly string[], disabled: boolean) {
         value === "priority" ||
         value === "status" ||
         value === "add-labels" ||
-        value === "remove-labels"
+        value === "remove-labels" ||
+        value === "shift-due-date" ||
+        value === "table-field-preview" ||
+        value === "transition-comment"
       )
         setOperation(value);
     },
@@ -231,7 +262,7 @@ export function useBulkEdit(keys: readonly string[], disabled: boolean) {
     succeeded: visibleResults.length - failed.length,
     total: resultScope === scopeKey ? total : 0,
     failed: failed.length,
-    pending: mutation.isPending,
+    pending: mutation.isPending || dueShift.pending || transitionComment.applying,
     loading: metadata.isPending,
     error: metadata.error,
     canSubmit:
@@ -239,6 +270,7 @@ export function useBulkEdit(keys: readonly string[], disabled: boolean) {
       !!keys.length &&
       !disabled &&
       !mutation.isPending &&
+      !dueShift.pending &&
       metadata.isSuccess,
     submit: () => submit(),
     retry: () => submit(true),

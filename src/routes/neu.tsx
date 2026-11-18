@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { SquarePenIcon } from "lucide-react";
 import { CreateIssueForm } from "@/components/create-issue/create-issue-form";
+import { SubtaskRows } from "@/components/create-issue/subtask-rows";
 import { LoginPrompt } from "@/components/shell/login-prompt";
 import { SessionGate } from "@/components/shell/session-gate";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -17,6 +18,7 @@ function NewIssue() {
   const { parent } = Route.useSearch();
   const session = useJiraSession();
   const form = useCreateIssueForm(parent);
+  const rows = form.subtaskRowsTarget;
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-4 sm:p-8">
@@ -34,6 +36,13 @@ function NewIssue() {
         pending={<Skeleton className="h-80 w-full rounded-2xl" />}
         unconnected={<LoginPrompt description="Melde dich an, um Tickets zu erstellen." />}
       >
+        {rows && (
+          <SubtaskRows
+            key={JSON.stringify([rows.scope.cloudId, rows.scope.accountId, rows.siteUrl, rows.parent.key, rows.parent.id, rows.project.id, rows.project.key, rows.type.id])}
+            target={rows}
+            singlePending={form.pending}
+          />
+        )}
         <CreateIssueForm form={form} />
       </SessionGate>
     </div>
