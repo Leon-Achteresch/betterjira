@@ -8,6 +8,7 @@ import {
 } from "@/hooks/jira/use-jira";
 import { useLatestRef } from "@/hooks/use-latest-ref";
 import { useDueDateShift } from "./use-due-date-shift";
+import { useBulkTransitionComment } from "./use-bulk-transition-comment";
 import type { TableFieldPreviewContext } from "./use-table-field-preview";
 import { TABLE_PREVIEW_FIELD, type TableFieldTarget } from "@/lib/jira/table-field-preview";
 import {
@@ -49,7 +50,7 @@ type Operation =
   | "status"
   | "add-labels"
   | "remove-labels";
-type BulkOperation = Operation | "shift-due-date" | "table-field-preview";
+type BulkOperation = Operation | "shift-due-date" | "table-field-preview" | "transition-comment";
 
 export function useBulkEdit(selection: readonly TableFieldTarget[], disabled: boolean, selectionContext = "") {
   const keys = selection.map(({ key }) => key);
@@ -89,7 +90,7 @@ export function useBulkEdit(selection: readonly TableFieldTarget[], disabled: bo
         ),
         { signal },
       ),
-    enabled: open && operation !== "shift-due-date" && operation !== "table-field-preview" && !!scope && keys.length > 0 && !disabled,
+    enabled: open && operation !== "shift-due-date" && operation !== "table-field-preview" && operation !== "transition-comment" && !!scope && keys.length > 0 && !disabled,
     staleTime: 30_000,
   });
   const options = commonBulkOptions(metadata.data ?? []);
@@ -174,6 +175,13 @@ export function useBulkEdit(selection: readonly TableFieldTarget[], disabled: bo
     },
   });
   const dueShift = useDueDateShift(keys, disabled || mutation.isPending, open && operation === "shift-due-date", selectionContext);
+  const transitionComment = useBulkTransitionComment({
+    active: open && operation === "transition-comment" && !disabled && site.isSuccess && myself.isSuccess,
+    context: selectionContext,
+    scope,
+    siteUrl: site.data?.siteUrl,
+    targets: selection,
+  });
   const tablePreview: TableFieldPreviewContext | null =
     open && operation === "table-field-preview" && !disabled && scope && site.isSuccess && site.data && myself.isSuccess && selection.length
       ? {
@@ -187,7 +195,7 @@ export function useBulkEdit(selection: readonly TableFieldTarget[], disabled: bo
   const visibleResults = resultScope === scopeKey ? results : [];
   const failed = visibleResults.filter(({ error }) => error);
   const submit = (retry = false) => {
-    if (lock.current || dueShift.isBusy() || disabled || !scope) return;
+    if (lock.current || dueShift.isBusy() || operation === "transition-comment" || disabled || !scope) return;
     const previous = last.current;
     const sent =
       retry && previous?.scopeKey === scopeKey ? previous.action : action;
@@ -220,6 +228,7 @@ export function useBulkEdit(selection: readonly TableFieldTarget[], disabled: bo
     setOpen: (value: boolean) => { if (!dueShift.isBusy()) setOpen(value); },
     dueShift,
     tablePreview,
+    transitionComment: operation === "transition-comment" ? transitionComment : null,
     operation,
     setOperation: (value: string) => {
       if (lock.current || dueShift.isBusy()) return;
@@ -232,7 +241,8 @@ export function useBulkEdit(selection: readonly TableFieldTarget[], disabled: bo
         value === "add-labels" ||
         value === "remove-labels" ||
         value === "shift-due-date" ||
-        value === "table-field-preview"
+        value === "table-field-preview" ||
+        value === "transition-comment"
       )
         setOperation(value);
     },
@@ -252,7 +262,7 @@ export function useBulkEdit(selection: readonly TableFieldTarget[], disabled: bo
     succeeded: visibleResults.length - failed.length,
     total: resultScope === scopeKey ? total : 0,
     failed: failed.length,
-    pending: mutation.isPending || dueShift.pending,
+    pending: mutation.isPending || dueShift.pending || transitionComment.applying,
     loading: metadata.isPending,
     error: metadata.error,
     canSubmit:

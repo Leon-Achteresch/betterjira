@@ -19,6 +19,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Fade } from "@/components/motion/fade";
 import type { BulkEditState } from "@/hooks/jira/use-bulk-edit";
+import { BulkTransitionCommentPanel } from "./bulk-transition-comment-panel";
 import { DueDateShiftPanel } from "./due-date-shift-panel";
 import { TableFieldPreviewPanel } from "./table-field-preview-panel";
 
@@ -31,6 +32,8 @@ export function BulkEditMenu({
 }) {
   const present = useIsPresent();
   const table = state.operation === "table-field-preview";
+  const completion = state.operation === "transition-comment";
+  const wide = table || completion;
   const tableContext = present ? state.tablePreview : null;
   return (
     <Popover open={state.open} onOpenChange={state.setOpen}>
@@ -42,17 +45,17 @@ export function BulkEditMenu({
       </PopoverTrigger>
       <PopoverContent
         align="start"
-        collisionPadding={table ? 8 : undefined}
-        className={table ? "w-[26rem] max-w-[calc(100vw-2rem)] p-3" : "w-80 max-w-[calc(100vw-2rem)] p-3"}
+        collisionPadding={wide ? 8 : undefined}
+        className={wide ? "w-[26rem] max-w-[calc(100vw-2rem)] p-3" : "w-80 max-w-[calc(100vw-2rem)] p-3"}
         aria-label="Sammelbearbeitung"
       >
         <p className="font-medium text-balance">
           {table ? "Fälligkeiten aus Tabelle" : "Ausgewählte Vorgänge bearbeiten"}
         </p>
-        <p className="text-xs text-muted-foreground">
+        {!completion && <p className="text-xs text-muted-foreground">
           {table ? "Vorschau für ausgewählte Tickets." :
             "Nur die ausgewählten geladenen Tickets werden geändert. Jira prüft die Berechtigung für jedes Ticket."}
-        </p>
+        </p>}
         <Label htmlFor="bulk-operation">Änderung</Label>
         <Select
           value={state.operation}
@@ -87,6 +90,7 @@ export function BulkEditMenu({
             >
               Status ändern
             </SelectItem>
+            <SelectItem value="transition-comment">Abschluss mit Begründung</SelectItem>
             <SelectItem
               value="add-labels"
               disabled={!state.options.addLabels}
@@ -103,7 +107,9 @@ export function BulkEditMenu({
             <SelectItem value="table-field-preview">Tabellenwerte prüfen</SelectItem>
           </SelectContent>
         </Select>
-        {state.operation === "shift-due-date" ? (
+        {completion ? (
+          present && state.transitionComment && <BulkTransitionCommentPanel state={state.transitionComment} />
+        ) : state.operation === "shift-due-date" ? (
           <DueDateShiftPanel state={state.dueShift} />
         ) : table ? (
           tableContext
@@ -215,7 +221,7 @@ export function BulkEditMenu({
             </Button>
           </>
         )}
-        {!table && state.operation !== "shift-due-date" && state.total > 0 && (
+        {!wide && state.operation !== "shift-due-date" && state.total > 0 && (
           <Fade>
             <p role="status" className="text-xs tabular-nums">
               {state.succeeded} von {state.total} geändert

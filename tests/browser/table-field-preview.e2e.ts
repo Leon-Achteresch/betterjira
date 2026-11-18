@@ -72,6 +72,7 @@ test("TSV prüft exakte Auswahl, Alt- und Neuwerte und Zeilenfehler über die Su
   await page.goto(fixture);
   await select(page, "DEMO-1", "DEMO-2", "DEMO-3", "DEMO-4", "DEMO-5", "DEMO-6");
   await enterPreview(page);
+  await expect(dialog(page).getByLabel("Änderung", { exact: true })).toBeFocused();
   await page.keyboard.press("Tab");
   await expect(input(page)).toBeFocused();
   await input(page).fill([

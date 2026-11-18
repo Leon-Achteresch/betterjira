@@ -9,6 +9,9 @@ const directory = process.env.BROWSER_QA_DIRECTORY ?? join(tmpdir(), "betterjira
 export default mergeConfig(base({ command: "build", mode: "production" }), {
   resolve: {
     alias: [{
+      find: "@/lib/jira/bulk-transition-comment-capability",
+      replacement: join(import.meta.dirname, "tests/browser/bulk-transition-comment-capability.ts"),
+    }, {
       find: "@/lib/jira/table-field-apply-capability",
       replacement: join(import.meta.dirname, "tests/browser/table-field-apply-capability.ts"),
     }, {

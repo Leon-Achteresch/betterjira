@@ -10,6 +10,9 @@ export const jiraKeys = {
   multiLinkWrite: (scope: JiraQueryScope | undefined) => ["jira", "multi-link-write", scope?.cloudId ?? "", scope?.accountId ?? ""] as const,
   multiLinkLedger: (scope: JiraQueryScope, host: string, source: string, choice: string) => ["jira", "multi-link-ledger", scope.cloudId, scope.accountId, host, source, choice] as const,
   bulkEdit: (scope: string, keys: readonly string[]) => ["jira", "bulk-edit", scope, [...keys].sort()] as const,
+  bulkCompletionPreview: (context: string, instance: string, revision: number | undefined) =>
+    ["jira", "bulk-completion-preview", context, instance, revision] as const,
+  bulkCompletionWrite: (scope: JiraQueryScope | undefined) => ["jira", "bulk-completion-write", scope?.cloudId ?? "", scope?.accountId ?? ""] as const,
   tableFieldPreview: (context: string, instance: string, revision: number | undefined) =>
     ["jira", "table-field-preview", context, instance, revision] as const,
   tableFieldApply: (scope: JiraQueryScope) => ["jira", "table-field-apply", scope.cloudId, scope.accountId] as const,

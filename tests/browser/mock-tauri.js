@@ -1313,8 +1313,13 @@ const respond = async (request) => {
       });
       issue.fields.worklog.total++;
     }
-    if (path.endsWith("/transitions") && issue)
+    if (path.endsWith("/transitions") && issue) {
       issue.fields.status = transitions.find((entry) => entry.id === input.transition.id).to;
+      for (const { add } of input.update?.comment ?? []) {
+        issue.fields.comment.comments.push({ id: String(++nextCommentId), author, created: new Date().toISOString(), body: add.body });
+      }
+      issue.fields.comment.total = issue.fields.comment.comments.length;
+    }
     if (request.method === "PUT" && issue && input.fields) {
       Object.assign(issue.fields, input.fields);
       if (typeof input.fields.description === "string") {
