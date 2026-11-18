@@ -31,7 +31,7 @@ export default mergeConfig(base({ command: "build", mode: "production" }), {
   plugins: [{
     name: "qa-review-connection-refresh",
     transform(source, id) {
-      if (id !== join(import.meta.dirname, "src/main.tsx")) return;
+      if (!id.replaceAll("\\", "/").endsWith("/src/main.tsx")) return;
       return `${source}
 import { scmKeys as fixtureScmKeys } from "@/lib/scm/client";
 if (window.__qaReviewThreads?.() === true) {
