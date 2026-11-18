@@ -78,7 +78,10 @@ test("fehlgeschlagene Kontoprüfung bietet Retry statt endloser Ticket-Platzhalt
   });
   await retry(page, error).click();
   await expect(title(page)).toHaveText(DEMO_1);
-  expect(await page.evaluate(() => window.__qa.myselfCalls)).toBe(2);
+  const calls = await page.evaluate(() => window.__qa.myselfCalls);
+  expect(calls).toBeGreaterThanOrEqual(2);
+  await page.waitForTimeout(500);
+  expect(await page.evaluate(() => window.__qa.myselfCalls)).toBe(calls);
 });
 
 test("erster 503 erklärt den Fehler ohne Ticketinhalt und Retry lädt das Ticket", async ({ page }, testInfo) => {

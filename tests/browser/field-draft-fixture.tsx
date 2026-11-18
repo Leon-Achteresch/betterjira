@@ -25,7 +25,7 @@ const qa: FieldDraftQa = {
   store: useFieldDraftStore,
   closes: [],
   scope: (cloudId, accountId) => {
-    client.setQueryData(jiraKeys.site, { cloudId });
+    client.setQueryData(jiraKeys.site, { cloudId, siteUrl: "https://example.atlassian.net" });
     client.setQueryData(jiraKeys.myself, { accountId });
   },
 };
@@ -40,7 +40,7 @@ function EditorHarness({ options }: { options: Options }) {
 
 function Fixture() {
   const [options, setOptions] = useState<Options>({
-    issueKey: "DEMO-1", field: "description", mode: "adf",
+    issueKey: "DEMO-1", issueId: "1", field: "description", mode: "adf",
     initial: JSON.stringify({ type: "doc", version: 1, content: [{ type: "paragraph" }] }),
     initialRaw: { type: "doc", version: 1, content: [{ type: "paragraph" }] },
     onClose: () => qa.closes.push("DEMO-1"),

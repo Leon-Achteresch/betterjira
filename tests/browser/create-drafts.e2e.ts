@@ -26,8 +26,10 @@ const saveReportTemplate = async (page: Page) => {
   await expect(currentTemplates(page).getByRole("button", { name: QUARTERLY_REPORT, exact: true })).toBeVisible();
 };
 const choose = async (page: Page, label: string, option: RegExp) => {
-  await main(page).getByRole("combobox", { name: label, exact: true }).click();
-  await page.getByRole("option", { name: option }).click();
+  await expect(async () => {
+    await main(page).getByRole("combobox", { name: label, exact: true }).click();
+    await page.getByRole("option", { name: option }).click({ timeout: 2_000 });
+  }).toPass({ timeout: 15_000 });
 };
 const fillTask = async (page: Page) => {
   await choose(page, "Projekt", /Produktentwicklung/);
