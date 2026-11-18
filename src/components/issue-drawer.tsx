@@ -79,7 +79,7 @@ export function IssueDrawer({
                   <IssueAttachments issueKey={issue.key} attachments={fields.attachment ?? []} />
                 )}
                 {id === "time" && (
-                  <IssueWorklog issueKey={issue.key} fields={fields} />
+                  <IssueWorklog issueKey={issue.key} issueId={open ? issue.id : undefined} fields={fields} />
                 )}
                 {id === "note" && <IssueNote issueKey={issue.key} />}
                 {id === "development" && development}

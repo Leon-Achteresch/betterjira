@@ -9,14 +9,17 @@ import { EASE_OUT } from "@/lib/ease";
 import { WORKLOG_PRESETS } from "@/lib/jira/worklog";
 import type { JiraIssueDetail } from "@/lib/jira/queries";
 import { IssueTimeSummaryPanel } from "@/components/issues/issue-time-summary";
+import { WorklogSelectedDays } from "@/components/time-tracking/worklog-selected-days";
 
 type Fields = JiraIssueDetail["fields"];
 
 export function IssueWorklog({
   issueKey,
+  issueId,
   fields,
 }: {
   issueKey: string;
+  issueId?: string;
   fields: Fields;
 }) {
   const editor = useIssueWorklog(issueKey, fields);
@@ -91,6 +94,8 @@ export function IssueWorklog({
           </Button>
         </fieldset>
       </form>
+      {issueId && <WorklogSelectedDays target={{ id: issueId, key: issueKey, summary: fields.summary }}
+        seed={{ duration: editor.timeSpent, started: editor.started }} loaded={fields.worklog} />}
       <AnimatePresence initial={false}>
         {editor.error && (
           <motion.p
