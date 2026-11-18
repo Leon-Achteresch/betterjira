@@ -28,22 +28,26 @@ def require(condition, message):
         raise RuntimeError(message)
 
 
-def curl(url, sandbox=(), env=None, authenticated=False):
+def curl(url, sandbox=(), env=None, authenticated=False, ca=None):
     headers = ["-H", "Authorization: Bearer mock"] if authenticated else []
+    trust = ["--cacert", str(ca)] if ca else []
     return subprocess.run([*sandbox, "/usr/bin/curl", "--noproxy", "*", "--fail",
-                           "--silent", "--show-error", "--max-time", "3", *headers, url],
+                           "--silent", "--show-error", "--max-time", "3", *trust, *headers, url],
                           capture_output=True, text=True, env=env)
 
 
-def run_host(root, executable, port, guard, scenario, case):
+def run_host(root, executable, port, guard, scenario, case, zammad_port=None):
     with http.server.ThreadingHTTPServer(("127.0.0.1", 0), Canary) as canary:
         canary.hits = []
         threading.Thread(target=canary.serve_forever, daemon=True).start()
         try:
             real_home = json.dumps(str(Path(pwd.getpwuid(os.getuid()).pw_dir).resolve()))
+            allowed_ports = [port, zammad_port] if zammad_port else [port]
+            require(canary.server_port not in allowed_ports, "Canary must be on its own port")
+            allow = ' '.join(f'(allow network-outbound (remote ip "localhost:{p}"))' for p in allowed_ports)
             profile = (
                 '(version 1) (allow default) (deny network-outbound) '
-                f'(allow network-outbound (remote ip "localhost:{port}")) '
+                f'{allow} '
                 f'(deny file-read* file-write* (subpath {real_home}) '
                 f'(subpath "/Library/Keychains") (literal {json.dumps(str(guard))})) '
                 '(deny mach-lookup (global-name "com.apple.securityd") (global-name "com.apple.secd"))'
@@ -59,13 +63,19 @@ def run_host(root, executable, port, guard, scenario, case):
             allowed = curl(f"{fixture}/__{scenario}/probe", sandbox, env)
             require(allowed.returncode == 0 and json.loads(allowed.stdout) == {"fixture": True},
                     f"Fixture is unreachable in Seatbelt: {allowed.stderr}")
+            if zammad_port:
+                env["C1_IPC_ZAMMAD_PORT"] = str(zammad_port)
+                allowed_tls = curl(f"https://127.0.0.1:{zammad_port}/probe", sandbox, env, ca=root/"tls/ca.pem")
+                require(allowed_tls.returncode == 0 and json.loads(allowed_tls.stdout) == {"fixture": True},
+                        f"Zammad TLS fixture is unreachable in Seatbelt: {allowed_tls.stderr}")
             denied = curl(trap + "/seatbelt", sandbox, env)
             require(denied.returncode == 7 and canary.hits == ["/control"],
                     f"Seatbelt allowed non-fixture egress: {denied.stderr}")
             denied_read = subprocess.run([*sandbox, "/bin/cat", str(guard)], env=env, capture_output=True)
             require(guard.read_text() == "private canary" and denied_read.returncode != 0 and not denied_read.stdout,
                     "Seatbelt did not deny the out-of-scope file read")
-            print(f"Seatbelt preflight: only fixture port {port} allowed. Canary port {canary.server_port} "
+            port_description = f"fixture port {port}" if not zammad_port else f"fixture ports {port} and {zammad_port} (verified private HTTPS)"
+            print(f"Seatbelt preflight: only {port_description} allowed. Canary port {canary.server_port} "
                   "and out-of-scope file denied. Real home and Keychain paths restricted.", flush=True)
             result = subprocess.run([*sandbox, str(executable)], cwd=root, env=env, timeout=90)
             require(canary.hits == ["/control"], f"Blocked canary received unexpected traffic: {canary.hits}")
@@ -122,6 +132,16 @@ def run_host(root, executable, port, guard, scenario, case):
                 require(not ledger["writes"] and ledger["searches"] == expected_searches and
                         ledger["released"] == [2] and ledger["details"] == [{"key": "DEMO-1", "status": 200}],
                         f"Unexpected N09 fixture ledger: {ledger}")
+            elif scenario == "n17":
+                require(len(ledger["writes"]) == 1 and ledger["released"] == ["A"], f"Unexpected N17 fixture ledger: {ledger}")
+                write = ledger["writes"][0]
+                body = write["body"]
+                require(write["method"] == "POST" and write["path"] == "/api/v1/ticket_articles" and write["credential"] == "A"
+                        and body["ticket_id"] == 41 and body["internal"] is True and body["type"] == "note"
+                        and body["content_type"] == "text/plain" and not {"to", "cc", "in_reply_to"} & body.keys(),
+                        f"Unexpected N17 write: {write}")
+                require(not list((root / "data").rglob("7a616d6d61642d636f6e6e656374696f6e")),
+                        "Private Zammad credential file still exists after disconnect")
             elif scenario == "n22":
                 expected_reads = [
                     {"method": "GET", "path": f"/ex/jira/mock-cloud/rest/api/3/issue/{key}/changelog",
@@ -142,7 +162,7 @@ def run_host(root, executable, port, guard, scenario, case):
 
 def main():
     require(sys.platform == "darwin", "This fixture requires macOS")
-    cases = ("c1", "c1-media", "c1-tsv", "n01", "n02", "n02-control", "n03", "n03-control", "n04", "n05", "n09", "n22")
+    cases = ("c1", "c1-media", "c1-tsv", "n01", "n02", "n02-control", "n03", "n03-control", "n04", "n05", "n09", "n17", "n22")
     require(len(sys.argv) in (3, 4), "Usage: python3 tests/native/c1-tauri/run.py <fixture executable> <fixture build> [" + "|".join(cases) + "]")
     case = sys.argv[3] if len(sys.argv) == 4 else "c1"
     require(case in cases, "Unknown IPC fixture scenario")
@@ -169,13 +189,18 @@ def main():
                            "CFBundleName": name, "CFBundlePackageType": "APPL",
                            "CFBundleExecutable": executable.name, "LSUIElement": True}, info)
         variant = [case.removeprefix("c1-")] if case in ("c1-media", "c1-tsv") else []
+        if scenario == "n17":
+            tls = root/"tls"
+            subprocess.run([sys.executable, str(fixture_dir / "tls.py"), str(tls)], check=True)
+            variant = [str(tls)]
         server = subprocess.Popen(["bun", str(fixture_dir / "server.ts"), *variant],
                                   stdout=subprocess.PIPE, text=True, cwd=REPO)
         try:
             require(bool(select.select([server.stdout], [], [], 10)[0]), "Jira fixture did not start")
-            port = int(server.stdout.readline())
-            require(0 < port < 65536 and server.poll() is None, "Jira fixture did not bind a private port")
-            run_host(root, executable, port, guard, scenario, case)
+            ports = [int(port) for port in server.stdout.readline().split()]
+            require(len(ports) == (2 if scenario == "n17" else 1) and len(set(ports)) == len(ports) and
+                    all(0 < port < 65536 for port in ports) and server.poll() is None, "Fixture did not bind distinct private ports")
+            run_host(root, executable, ports[0], guard, scenario, case, ports[1] if scenario == "n17" else None)
         finally:
             if server.poll() is None:
                 server.terminate()

@@ -1,4 +1,4 @@
-use std::{borrow::Cow, env, fs, path::PathBuf};
+use std::{borrow::Cow, env, fs, path::PathBuf, sync::OnceLock};
 
 use serde_json::json;
 use tauri::ipc::CapabilityBuilder;
@@ -7,6 +7,25 @@ use tauri::utils::{
     config::{AppDirectoriesOverride, Csp},
 };
 use tauri::{Assets, Manager, WebviewUrl, WebviewWindowBuilder, Wry};
+use tauri_plugin_http::reqwest;
+
+static ZAMMAD_TLS: OnceLock<(u16, reqwest::Certificate)> = OnceLock::new();
+
+pub(crate) fn zammad_client_for_fixture(
+    client: reqwest::ClientBuilder,
+    url: &reqwest::Url,
+) -> Result<reqwest::ClientBuilder, String> {
+    let Some((port, root)) = ZAMMAD_TLS.get() else {
+        return Ok(client);
+    };
+    if url.scheme() != "https" || url.host_str() != Some("127.0.0.1") || url.port() != Some(*port) {
+        return Err("Zammad fixture requires its private HTTPS origin".into());
+    }
+    Ok(client
+        .no_proxy()
+        .tls_built_in_root_certs(false)
+        .add_root_certificate(root.clone()))
+}
 
 struct FixtureAssets(PathBuf);
 
@@ -80,6 +99,11 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
             "n09-ipc-fixture",
             "tests/native/n09-tauri/fixture.html",
         ),
+        "n17" => (
+            "betterjira N17 IPC Fixture",
+            "n17-ipc-fixture",
+            "tests/native/n17-tauri/fixture.html",
+        ),
         "n22" => (
             "betterjira N22 IPC Fixture",
             "n22-ipc-fixture",
@@ -134,14 +158,42 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     if window == "n03-ipc-fixture" {
         init.push_str("Object.defineProperty(window, '__N03_NATIVE_FIXTURE__', { value: true });");
     }
-    tauri::Builder::default()
-        .plugin(tauri_plugin_http::init())
-        .invoke_handler(tauri::generate_handler![
+    let builder = tauri::Builder::default().plugin(tauri_plugin_http::init());
+    let builder = if window == "n17-ipc-fixture" {
+        let zammad: u16 = env::var("C1_IPC_ZAMMAD_PORT")?.parse()?;
+        if zammad == 0 || zammad == port || zammad == canary {
+            return Err("Zammad fixture requires a third distinct loopback port".into());
+        }
+        let ca = work.join("tls/ca.pem");
+        if ca.canonicalize()? != ca {
+            return Err("Zammad fixture CA must be inside its private root".into());
+        }
+        let root = reqwest::Certificate::from_pem(&fs::read(ca)?)?;
+        ZAMMAD_TLS
+            .set((zammad, root))
+            .map_err(|_| "Zammad fixture trust already set")?;
+        init.push_str(&format!(
+            "window.__N17_ZAMMAD_ORIGIN__ = 'https://127.0.0.1:{zammad}';"
+        ));
+        builder.invoke_handler(tauri::generate_handler![
+            super::session_get,
+            super::session_set,
+            super::session_delete,
+            super::zammad::zammad_connection_get,
+            super::zammad::zammad_connect,
+            super::zammad::zammad_disconnect,
+            super::zammad::zammad_request,
+            fixture_finish,
+        ])
+    } else {
+        builder.invoke_handler(tauri::generate_handler![
             super::session_get,
             super::session_set,
             super::session_delete,
             fixture_finish,
         ])
+    };
+    builder
         .setup(move |app| {
             app.set_activation_policy(tauri::ActivationPolicy::Accessory);
             let data = app.path().app_data_dir()?;

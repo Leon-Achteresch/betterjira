@@ -87,7 +87,10 @@ async fn send(
     let url = endpoint(&connection.base_url, path)?;
     let client = reqwest::Client::builder()
         .redirect(reqwest::redirect::Policy::none())
-        .timeout(Duration::from_secs(30))
+        .timeout(Duration::from_secs(30));
+    #[cfg(all(target_os = "macos", feature = "c1-ipc-fixture"))]
+    let client = super::c1_ipc_fixture::zammad_client_for_fixture(client, &url)?;
+    let client = client
         .build()
         .map_err(|_| "HTTP-Client konnte nicht gestartet werden")?;
     let method =
