@@ -40,7 +40,7 @@ const IssueLinksResponse = Schema.Struct({
 
 export type IssueLinkDirection = "inward" | "outward";
 
-export type IssueLinkReference = { id: string; typeId: string; typeName: string; direction: IssueLinkDirection };
+export type IssueLinkReference = { id: string; typeId: string; typeName: string; direction: IssueLinkDirection; duplicate?: true };
 
 export type LinkedIssueRow = {
   key: string;
@@ -64,6 +64,13 @@ export type IssueLinkSummary = {
 const decodeLink = Schema.decodeUnknownOption(IssueLink);
 const isStatus = Schema.is(LinkedStatus);
 const isIssueType = Schema.is(LinkedIssueType);
+
+const duplicateType = (type: typeof LinkType.Type | null | undefined) => {
+  const inward = type?.inward?.trim().toLowerCase();
+  return type?.name?.trim().toLowerCase() === "duplicate" &&
+    type.outward?.trim().toLowerCase() === "duplicates" &&
+    (inward === "is duplicated by" || inward === "duplicated by");
+};
 
 const relationLabel = (direction: IssueLinkDirection, type: typeof LinkType.Type | null | undefined) => {
   const label = (direction === "inward" ? type?.inward : type?.outward)?.trim();
@@ -97,6 +104,18 @@ export function readIssueLink(raw: unknown) {
   return side && link ? { key: side.issue.key.trim(), direction: side.direction, typeId: link.type?.id } : undefined;
 }
 
+const LinkIdentity = Schema.Struct({ id: Schema.String });
+const hasLinkIdentity = Schema.is(LinkIdentity);
+
+export function confirmsDuplicateLink(links: readonly unknown[], target: string, reference: IssueLinkReference) {
+  const matches = links.filter((raw) => hasLinkIdentity(raw) && raw.id === reference.id);
+  if (matches.length !== 1) return false;
+  const entry = Option.getOrUndefined(decodeLink(matches[0]));
+  const side = entry && sideOf(entry);
+  return !!side && side.issue.key.trim().toUpperCase() === target &&
+    side.direction === reference.direction && entry?.type?.id === reference.typeId && duplicateType(entry.type);
+}
+
 export const summarizeIssueLinks = (links: readonly unknown[]): IssueLinkSummary => {
   const groups = new Map<string, IssueLinkGroup>();
   let unreadable = 0;
@@ -111,7 +130,10 @@ export const summarizeIssueLinks = (links: readonly unknown[]): IssueLinkSummary
     const groupKey = label.toLocaleLowerCase("de");
     const group = groups.get(groupKey) ?? { label, issues: [] };
     const row = rowOf(side.issue);
-    if (link.id && link.type?.id && link.type.name) row.link = { id: link.id, typeId: link.type.id, typeName: link.type.name, direction: side.direction };
+    if (link.id && link.type?.id && link.type.name) row.link = {
+      id: link.id, typeId: link.type.id, typeName: link.type.name, direction: side.direction,
+      ...(duplicateType(link.type) && { duplicate: true }),
+    };
     if (!group.issues.some((issue) => issue.key === row.key)) group.issues.push(row);
     groups.set(groupKey, group);
   }

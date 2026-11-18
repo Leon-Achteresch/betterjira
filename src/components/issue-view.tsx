@@ -271,6 +271,7 @@ export function IssueView({
           <Section title={links.summary ? `Verknüpfungen · ${links.summary.total}` : "Verknüpfungen"} aside={<AddIssueLink actions={links.actions} />}>
             <IssueLinksPanel
               actions={links.actions}
+              comparison={links.comparison}
               summary={links.summary}
               error={links.error}
               refreshError={links.refreshError}

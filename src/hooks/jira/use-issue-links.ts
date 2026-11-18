@@ -28,6 +28,7 @@ export function useIssueLinks(issueKey: string) {
     actions,
     multi,
     dependencies,
+    comparison: { source: issueKey, scope: myself.isError || site.isError ? undefined : scope, host: site.data?.siteUrl ?? "" },
     summary: query.data,
     error: query.data ? null : (query.error ?? accountError),
     refreshError: query.data && query.isRefetchError ? query.error : null,

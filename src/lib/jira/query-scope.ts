@@ -10,8 +10,8 @@ export class JiraQueryScopeChanged extends Data.TaggedError("JiraQueryScopeChang
 const AccountScope = Schema.Struct({ accountId: Schema.String });
 const SiteScope = Schema.Struct({ cloudId: Schema.String });
 
-export const readJiraAccount = (scope: JiraRequestScope) =>
-  jira("/myself", AccountScope, { scope, cache: "no-store" });
+export const readJiraAccount = (scope: JiraRequestScope, retry = true) =>
+  jira("/myself", AccountScope, { scope, cache: "no-store", retry });
 
 export const jiraQueryScopeMatches = (client: QueryClient, scope: JiraQueryScope | undefined) => {
   const site = client.getQueryData(jiraKeys.site);
