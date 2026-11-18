@@ -40,7 +40,19 @@ const IssueLinksResponse = Schema.Struct({
 
 export type IssueLinkDirection = "inward" | "outward";
 
-export type IssueLinkReference = { id: string; typeId: string; typeName: string; direction: IssueLinkDirection; duplicate?: true };
+type DirectedLabels = Record<IssueLinkDirection, string>;
+
+export type IssueLinkReference = {
+  id: string;
+  typeId: string;
+  typeName: string;
+  direction: IssueLinkDirection;
+  duplicate?: true;
+  directed?: DirectedLabels;
+};
+
+export const oppositeLinkDirection = (direction: IssueLinkDirection): IssueLinkDirection =>
+  direction === "outward" ? "inward" : "outward";
 
 export type LinkedIssueRow = {
   key: string;
@@ -70,6 +82,14 @@ const duplicateType = (type: typeof LinkType.Type | null | undefined) => {
   return type?.name?.trim().toLowerCase() === "duplicate" &&
     type.outward?.trim().toLowerCase() === "duplicates" &&
     (inward === "is duplicated by" || inward === "duplicated by");
+};
+
+const normalizedLabel = (label: string) => label.normalize("NFKC").trim().replace(/\s+/g, " ").toLowerCase();
+
+const directedLabels = (type: typeof LinkType.Type | null | undefined) => {
+  const inward = type?.inward?.trim();
+  const outward = type?.outward?.trim();
+  if (inward && outward && normalizedLabel(inward) !== normalizedLabel(outward)) return { inward, outward };
 };
 
 const relationLabel = (direction: IssueLinkDirection, type: typeof LinkType.Type | null | undefined) => {
@@ -107,13 +127,30 @@ export function readIssueLink(raw: unknown) {
 const LinkIdentity = Schema.Struct({ id: Schema.String });
 const hasLinkIdentity = Schema.is(LinkIdentity);
 
-export function confirmsDuplicateLink(links: readonly unknown[], target: string, reference: IssueLinkReference) {
+function confirmedLinkType(links: readonly unknown[], target: string, reference: IssueLinkReference) {
   const matches = links.filter((raw) => hasLinkIdentity(raw) && raw.id === reference.id);
-  if (matches.length !== 1) return false;
+  if (matches.length !== 1) return undefined;
   const entry = Option.getOrUndefined(decodeLink(matches[0]));
   const side = entry && sideOf(entry);
-  return !!side && side.issue.key.trim().toUpperCase() === target &&
-    side.direction === reference.direction && entry?.type?.id === reference.typeId && duplicateType(entry.type);
+  if (side?.issue.key.trim().toUpperCase() === target &&
+    side.direction === reference.direction && entry?.type?.id === reference.typeId) return entry.type;
+}
+
+export function confirmsDuplicateLink(links: readonly unknown[], target: string, reference: IssueLinkReference) {
+  return duplicateType(confirmedLinkType(links, target, reference));
+}
+
+export function confirmsDirectedLink(links: readonly unknown[], target: string, reference: IssueLinkReference) {
+  if (!reference.id.trim() || !reference.typeId.trim()) return false;
+  const type = confirmedLinkType(links, target, reference);
+  const labels = directedLabels(type);
+  if (!labels || !reference.directed || type?.name?.trim() !== reference.typeName.trim() ||
+    labels.inward !== reference.directed.inward || labels.outward !== reference.directed.outward) return false;
+  return links.filter((raw) => {
+    const link = Option.getOrUndefined(decodeLink(raw));
+    return link?.type?.id === reference.typeId && [link.inwardIssue, link.outwardIssue]
+      .some((issue) => issue?.key.trim().toUpperCase() === target);
+  }).length === 1;
 }
 
 export const summarizeIssueLinks = (links: readonly unknown[]): IssueLinkSummary => {
@@ -133,8 +170,11 @@ export const summarizeIssueLinks = (links: readonly unknown[]): IssueLinkSummary
     if (link.id && link.type?.id && link.type.name) row.link = {
       id: link.id, typeId: link.type.id, typeName: link.type.name, direction: side.direction,
       ...(duplicateType(link.type) && { duplicate: true }),
+      directed: link.id.trim() && link.type.id.trim() && link.type.name.trim() ? directedLabels(link.type) : undefined,
     };
-    if (!group.issues.some((issue) => issue.key === row.key)) group.issues.push(row);
+    const existing = group.issues.find((issue) => issue.key === row.key);
+    if (!existing) group.issues.push(row);
+    else if (existing.link) existing.link.directed = undefined;
     groups.set(groupKey, group);
   }
   const list = [...groups.values()];

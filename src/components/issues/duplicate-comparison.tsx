@@ -1,21 +1,9 @@
-import { useId, useRef } from "react";
 import { GitCompareArrowsIcon } from "lucide-react";
-import { AnimatePresence } from "motion/react";
-import { Fade } from "@/components/motion/fade";
-import { Tooltip } from "@/components/motion/tooltip";
-import { Button } from "@/components/ui/button";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { Skeleton } from "@/components/ui/skeleton";
-import {
-  useDuplicateComparison,
-  type DuplicateComparisonContext,
-} from "@/hooks/jira/use-duplicate-comparison";
+import { useDuplicateComparison } from "@/hooks/jira/use-duplicate-comparison";
+import type { IssueLinkPreviewContext } from "@/hooks/jira/use-issue-link-preview";
 import type { DuplicateComparison } from "@/lib/jira/duplicate-comparison";
 import type { IssueLinkReference } from "@/lib/jira/issue-links";
+import { IssueLinkPreviewPopover } from "./issue-link-preview-popover";
 
 const fields = [
   ["summary", "Titel"],
@@ -74,99 +62,19 @@ export function DuplicateComparisonAction({
   target,
   reference,
 }: {
-  context: DuplicateComparisonContext;
+  context: IssueLinkPreviewContext;
   target: string;
   reference: IssueLinkReference;
 }) {
   const comparison = useDuplicateComparison(context, target, reference);
-  const titleId = useId();
-  const title = useRef<HTMLHeadingElement>(null);
-  if (!comparison.available) return null;
   return (
-    <Popover
-      key={comparison.context}
-      open={comparison.open}
-      onOpenChange={comparison.setOpen}
+    <IssueLinkPreviewPopover
+      title="Duplikat vergleichen"
+      triggerLabel={`Duplikatlink zu ${target} vergleichen`}
+      icon={<GitCompareArrowsIcon aria-hidden />}
+      preview={comparison}
     >
-      <Tooltip content="Duplikat vergleichen">
-        <PopoverTrigger asChild>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            aria-label={`Duplikatlink zu ${target} vergleichen`}
-          >
-            <GitCompareArrowsIcon />
-          </Button>
-        </PopoverTrigger>
-      </Tooltip>
-      <PopoverContent
-        side="top"
-        align="end"
-        collisionPadding={12}
-        aria-labelledby={titleId}
-        className="w-[min(31rem,calc(100vw-1.5rem))] p-3"
-        onOpenAutoFocus={(event) => {
-          event.preventDefault();
-          title.current?.focus();
-        }}
-      >
-        <h2
-          id={titleId}
-          ref={title}
-          tabIndex={-1}
-          className="px-2 font-medium text-balance outline-none"
-        >
-          Duplikat vergleichen
-        </h2>
-        <AnimatePresence initial={false} mode="wait">
-          {comparison.result ? (
-            <Fade key="comparison">
-              <ComparisonTable {...comparison.result} />
-            </Fade>
-          ) : comparison.error ? (
-            <Fade key="error">
-              <p role="alert" className="px-2 text-xs text-destructive">
-                {comparison.error}
-              </p>
-            </Fade>
-          ) : (
-            <Fade key="loading">
-              <div
-                role="status"
-                aria-label="Beide Tickets werden geprüft"
-                className="space-y-2 px-2 py-1"
-              >
-                <Skeleton className="h-5 w-3/4" />
-                <Skeleton className="h-5 w-full" />
-                <Skeleton className="h-5 w-5/6" />
-              </div>
-            </Fade>
-          )}
-        </AnimatePresence>
-        <div className="flex flex-wrap justify-end gap-2">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="min-h-8"
-            onClick={() => comparison.setOpen(false)}
-          >
-            {comparison.loading ? "Abbrechen" : "Schließen"}
-          </Button>
-          {comparison.error && (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="min-h-8"
-              onClick={comparison.retry}
-            >
-              Erneut versuchen
-            </Button>
-          )}
-        </div>
-      </PopoverContent>
-    </Popover>
+      {comparison.result && <ComparisonTable {...comparison.result} />}
+    </IssueLinkPreviewPopover>
   );
 }

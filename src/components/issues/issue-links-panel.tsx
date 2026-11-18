@@ -6,13 +6,14 @@ import type { IssueLinkActions } from "@/hooks/jira/use-issue-link-actions";
 import { JiraStatusBadge } from "@/components/jira-status-badge";
 import { IssuePreviewTooltip } from "@/components/issues/issue-preview";
 import { DuplicateComparisonAction } from "@/components/issues/duplicate-comparison";
+import { LinkDirectionPreviewAction } from "@/components/issues/link-direction-preview";
 import { Stagger, StaggerItem } from "@/components/motion/stagger";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { useVisibleItems } from "@/hooks/use-visible-items";
-import type { DuplicateComparisonContext } from "@/hooks/jira/use-duplicate-comparison";
+import type { IssueLinkPreviewContext } from "@/hooks/jira/use-issue-link-preview";
 import { EASE_OUT } from "@/lib/ease";
 import type { IssueLinkGroup, IssueLinkSummary, LinkedIssueRow } from "@/lib/jira/issue-links";
 import { jiraErrors } from "@/lib/jira/field-values";
@@ -22,7 +23,7 @@ const GROUP_LIMIT = 5;
 
 type IssueLinksPanelProps = {
   actions: IssueLinkActions;
-  comparison: DuplicateComparisonContext;
+  previewContext: IssueLinkPreviewContext;
   summary?: IssueLinkSummary;
   error: unknown;
   refreshError: unknown;
@@ -70,7 +71,7 @@ function LinkedIssue({ issue }: { issue: LinkedIssueRow }) {
   );
 }
 
-function LinkGroup({ group, actions, comparison }: { group: IssueLinkGroup; actions: IssueLinkActions; comparison: DuplicateComparisonContext }) {
+function LinkGroup({ group, actions, previewContext }: { group: IssueLinkGroup; actions: IssueLinkActions; previewContext: IssueLinkPreviewContext }) {
   const reduce = useReducedMotion();
   const { visible, expanded, canExpand, toggle } = useVisibleItems(group.issues, GROUP_LIMIT);
   const hidden = group.issues.length - GROUP_LIMIT;
@@ -92,7 +93,12 @@ function LinkGroup({ group, actions, comparison }: { group: IssueLinkGroup; acti
             >
               <div className="flex items-center gap-1">
                 <div className="min-w-0 flex-1"><LinkedIssue issue={issue} /></div>
-                {issue.link?.duplicate && <DuplicateComparisonAction context={comparison} target={issue.key} reference={issue.link} />}
+                {issue.link?.directed && (
+                  <LinkDirectionPreviewAction context={previewContext} target={issue.key} reference={issue.link} />
+                )}
+                {issue.link?.duplicate && (
+                  <DuplicateComparisonAction context={previewContext} target={issue.key} reference={issue.link} />
+                )}
                 {issue.link && actions.canRemove && <IconAction label={`Verknüpfung zu ${issue.key} entfernen`} tooltip="Verknüpfung entfernen" disabled={actions.pending} onClick={() => actions.remove(issue)}><UnlinkIcon /></IconAction>}
               </div>
             </motion.li>
@@ -123,14 +129,14 @@ function LinksSkeleton() {
   );
 }
 
-function LinksContent({ summary, actions, comparison }: { summary: IssueLinkSummary; actions: IssueLinkActions; comparison: DuplicateComparisonContext }) {
+function LinksContent({ summary, actions, previewContext }: { summary: IssueLinkSummary; actions: IssueLinkActions; previewContext: IssueLinkPreviewContext }) {
   if (summary.total === 0 && summary.unreadable === 0) {
     return <p className="text-sm text-muted-foreground">Keine verknüpften Tickets.</p>;
   }
   return (
     <Stagger className="-mx-2 flex flex-col gap-4">
       {summary.groups.map((group) => (
-        <LinkGroup key={group.label} group={group} actions={actions} comparison={comparison} />
+        <LinkGroup key={group.label} group={group} actions={actions} previewContext={previewContext} />
       ))}
       {summary.unreadable > 0 && (
         <StaggerItem className="flex items-start gap-2 px-2 text-xs text-muted-foreground">
@@ -147,7 +153,7 @@ function LinksContent({ summary, actions, comparison }: { summary: IssueLinkSumm
   );
 }
 
-export function IssueLinksPanel({ summary, error, refreshError, retrying, onRetry, actions, comparison }: IssueLinksPanelProps) {
+export function IssueLinksPanel({ summary, error, refreshError, retrying, onRetry, actions, previewContext }: IssueLinksPanelProps) {
   const reduce = useReducedMotion();
   const fade = {
     initial: { opacity: 0, y: reduce ? 0 : -4 },
@@ -175,7 +181,7 @@ export function IssueLinksPanel({ summary, error, refreshError, retrying, onRetr
       <AnimatePresence initial={false} mode="wait">
         {summary ? (
           <motion.div key="content" {...fade}>
-            <LinksContent summary={summary} actions={actions} comparison={comparison} />
+            <LinksContent summary={summary} actions={actions} previewContext={previewContext} />
           </motion.div>
         ) : error ? (
           <motion.div
