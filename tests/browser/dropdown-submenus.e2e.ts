@@ -104,8 +104,9 @@ for (const narrow of [false, true]) {
       await openCopyMenuWithMouse(page);
       const options = submenu(page).getByRole("menuitem");
       await expect(submenu(page).getByText("Nur geladene Treffer kopieren", { exact: true })).toBeVisible();
-      await expect(options).toHaveText([loadMore, tableCopy, "Markdown", "Schlüsselliste", "JQL"]);
+      await expect(options).toHaveText([loadMore, tableCopy, "Markdown", "Schlüsselliste", "JQL", "Kundenhinweis entwerfen…"]);
       await expect(item(page, loadMore)).toBeDisabled();
+      await expect(item(page, "Kundenhinweis entwerfen…")).toBeDisabled();
       for (const name of [tableCopy, "Markdown", "Schlüsselliste", "JQL"]) {
         await expect(item(page, name)).toBeEnabled();
       }

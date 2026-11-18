@@ -15,6 +15,7 @@ import { useIssueTableCopy } from "@/hooks/use-issue-table-copy";
 import { useSearchLoad } from "@/hooks/jira/use-search-load";
 import { uniqueSearchIssues } from "@/lib/jira/search-loading";
 import { useLabelComparison } from "@/hooks/use-label-comparison";
+import { useCustomerChangeDraft } from "@/hooks/use-customer-change-draft";
 import {
   DEFAULT_VIEW,
   FACETS,
@@ -91,6 +92,10 @@ export function useIssueTable(scope: string, baseJql: string, externalText?: Iss
   const selectionContext = JSON.stringify([preferenceKey, scope, jql]);
   const selection = useIssueSelection(selectionContext, issues);
   const labelComparison = useLabelComparison({ context: loadContext, scope: search.scope, ready: !isPlaceholder && !!search.data, accountLabel: account.accountLabel, issues, selected: selection.selected, hasMore: !!search.hasNextPage, readError: !!search.error });
+  const customerChangeDraft = useCustomerChangeDraft({
+    context: loadContext, scope: search.scope, ready: !isPlaceholder && !!search.data, selected: selection.selected,
+    hasMore: !!search.hasNextPage || search.data?.pages.at(-1)?.isLast === false, readError: !!search.error,
+  });
   const bulk = useBulkEdit(selection.selected, isPlaceholder, selectionContext);
   const canLoadMore = search.hasNextPage && !isPlaceholder && !search.isFetching && !searchLoad.pending;
   const facetIssues = facetSource.data?.pages[0]?.issues ?? [];
@@ -125,6 +130,7 @@ export function useIssueTable(scope: string, baseJql: string, externalText?: Iss
     bulk,
     searchLoad,
     labelComparison,
+    customerChangeDraft,
     selection: {
       ...selection,
       toggle: (key: string) => {
