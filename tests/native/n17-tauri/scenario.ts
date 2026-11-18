@@ -124,6 +124,7 @@ async function staleRevision(original: Connection) {
   await control("hold", "POST");
   await showSource();
   await wait(async () => (await ledger()).held && dialog()?.querySelector('[aria-label="Quelle wird geprüft"]'), "old source read parked on the TLS fixture");
+  await assertOriginal();
   const second = await connect("fixture-b");
   check(second.baseUrl === original.baseUrl && second.revision !== original.revision, "Native credential rotation did not advance the revision");
   same(await window.__N17_REFRESH_CONNECTION__(), second.revision, "Renderer did not observe the native revision B");
@@ -145,7 +146,8 @@ async function staleRevision(original: Connection) {
   await wait(async () => (await ledger()).released.length === 1, "old source response released after A→B→A");
   same((await ledger()).released, ["A"], "Delayed request lost its original credential");
   check(!dialog(), "Late source response reopened an outdated preview");
-  await assertOriginal();
+  await message("");
+  await wait(() => !cc() && !to(), "old email draft not revived by A→B→A");
   await showSource();
   await canInsert();
   check(dialog()?.innerText.includes(articleText) && !dialog()?.innerText.includes("Verspäteter Quelltext"), "Fresh preview contained the old response");
@@ -153,7 +155,7 @@ async function staleRevision(original: Connection) {
   selected.focus();
   selected.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
   await wait(() => !dialog(), "preview closed without inserting");
-  await assertOriginal();
+  await message("");
   same((await ledger()).writes, before.writes, "Late response or fresh preview sent a write");
 }
 

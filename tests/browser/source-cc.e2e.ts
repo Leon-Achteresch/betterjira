@@ -141,6 +141,7 @@ test("N16 übernimmt nur gewählte echte CCs und erhält den lokalen Entwurf", a
   await open(page);
   await expect(trigger(page)).toHaveCount(0);
   await reply(page).press("Enter");
+  await expect(body(page)).toBeFocused();
   expect(await reads(page)).toEqual([]);
   await cc(page).fill(manual);
   await body(page).fill("Meine Antwort bleibt erhalten.");
@@ -227,6 +228,7 @@ test("N16 verwirft Auswahl bei Abbruch und sperrt fehlende Artikelrechte", async
 }) => {
   await open(page);
   await reply(page).click();
+  await expect(body(page)).toBeFocused();
   await cc(page).fill(manual);
   await trigger(page).click();
   await choice(page, "qa@example.test").click();
@@ -260,6 +262,7 @@ test("N16 liest frische CC-Daten und erhält eine halbfertige manuelle Eingabe",
 }) => {
   await open(page);
   await reply(page).click();
+  await expect(body(page)).toBeFocused();
   await cc(page).fill("Halbfertige Adresse <");
   await page.evaluate(() => {
     Reflect.get(window, "__qaZammad").articles[0].cc = "fresh@example.test";
@@ -324,6 +327,7 @@ test("N16 sperrt alte Quellen nach nativer Verbindungsrevision auch beim Überne
 }) => {
   await open(page);
   await reply(page).click();
+  await expect(body(page)).toBeFocused();
   await cc(page).fill(manual);
   await hold(page);
   await page.evaluate(() => {
@@ -356,6 +360,7 @@ test("N16 verwirft offene Auswahl und isoliert den Entwurf beim Kontowechsel", a
 }) => {
   await open(page);
   await reply(page).click();
+  await expect(body(page)).toBeFocused();
   await cc(page).fill(manual);
   await hold(page);
   const before = await page.evaluate(

@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { Schema } from "effect";
 import { createJiraMock } from "../../jira/mock-backend";
+import { sourceCcFixture } from "../n16-tauri/server";
 import { articleFrom, articleTime, expectedNote, ticketTitle } from "./note";
 
 const jira = createJiraMock({ issues: 3, projects: ["DEMO"] });
@@ -39,11 +40,13 @@ const unexpected: string[] = [];
 let note: { id: number; created_at: string; from: string } | undefined;
 let armed = false;
 let held: (() => void) | undefined;
+const ccFixture = process.argv[3] === "n16" ? sourceCcFixture(ticket, source, author) : undefined;
+const controlPrefix = ccFixture ? "/__n16" : "/__n17";
 
 const reject = (request: Request, status = 400) => {
   const url = new URL(request.url);
   unexpected.push(`${request.method} ${url.pathname}${url.search}`);
-  return Response.json({ error: "Unexpected N17 fixture request" }, { status });
+  return Response.json({ error: "Unexpected Zammad fixture request" }, { status });
 };
 const plain = Bun.serve({
   hostname: "127.0.0.1",
@@ -51,8 +54,15 @@ const plain = Bun.serve({
   async fetch(request) {
     const { pathname } = new URL(request.url);
     const { method } = request;
-    if (method === "GET" && pathname === "/__n17/probe") return Response.json({ fixture: true });
+    if (method === "GET" && pathname === `${controlPrefix}/probe`) return Response.json({ fixture: true });
     if (request.headers.get("authorization") !== "Bearer mock") return reject(request, 401);
+    if (ccFixture && pathname.startsWith(`${controlPrefix}/`)) {
+      const operation = pathname.slice(controlPrefix.length + 1);
+      if (method === "GET" && operation === "state") return Response.json({
+        ...ccFixture.state(), unexpected: unexpected.length, unexpectedRequests: unexpected,
+      });
+      return ccFixture.control(operation, method) ?? reject(request);
+    }
     if (method === "GET" && pathname === "/__n17/state") return Response.json({
       sourceReads, identities, writes, released, held: !!held, armed, unexpected: unexpected.length, unexpectedRequests: unexpected,
     });
@@ -81,7 +91,13 @@ const tls = Bun.serve({
     if (method === "GET" && pathname === "/probe") return Response.json({ fixture: true });
     const token = request.headers.get("authorization");
     const credential = token === "Token token=fixture-a" ? "A" : token === "Token token=fixture-b" ? "B" : undefined;
+    ccFixture?.requests.push({ method, path: pathname + search, credential: credential ?? null });
     if (!credential) return reject(request, 401);
+    if (ccFixture) {
+      if (method !== "GET") return reject(request, 403);
+      const response = await ccFixture.read(pathname + search, credential);
+      if (response) return response;
+    }
     if (method !== "GET") {
       const body: unknown = await request.json().catch(() => null);
       writes.push({ method, path: pathname, credential, body });

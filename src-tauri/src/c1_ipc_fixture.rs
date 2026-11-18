@@ -99,6 +99,11 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
             "n09-ipc-fixture",
             "tests/native/n09-tauri/fixture.html",
         ),
+        "n16" => (
+            "betterjira N16 IPC Fixture",
+            "n16-ipc-fixture",
+            "tests/native/n16-tauri/fixture.html",
+        ),
         "n17" => (
             "betterjira N17 IPC Fixture",
             "n17-ipc-fixture",
@@ -159,7 +164,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
         init.push_str("Object.defineProperty(window, '__N03_NATIVE_FIXTURE__', { value: true });");
     }
     let builder = tauri::Builder::default().plugin(tauri_plugin_http::init());
-    let builder = if window == "n17-ipc-fixture" {
+    let builder = if matches!(window, "n16-ipc-fixture" | "n17-ipc-fixture") {
         let zammad: u16 = env::var("C1_IPC_ZAMMAD_PORT")?.parse()?;
         if zammad == 0 || zammad == port || zammad == canary {
             return Err("Zammad fixture requires a third distinct loopback port".into());

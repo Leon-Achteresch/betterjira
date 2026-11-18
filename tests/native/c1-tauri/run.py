@@ -140,8 +140,14 @@ def run_host(root, executable, port, guard, scenario, case, zammad_port=None):
                         and body["ticket_id"] == 41 and body["internal"] is True and body["type"] == "note"
                         and body["content_type"] == "text/plain" and not {"to", "cc", "in_reply_to"} & body.keys(),
                         f"Unexpected N17 write: {write}")
-                require(not list((root / "data").rglob("7a616d6d61642d636f6e6e656374696f6e")),
-                        "Private Zammad credential file still exists after disconnect")
+            elif scenario == "n16":
+                source = "/api/v1/ticket_articles/by_ticket/41?expand=true"
+                require(not ledger["writes"] and not ledger["armed"] and ledger["released"] == [
+                    {"label": "identity", "path": "/api/v1/users/me", "credential": "A"},
+                    {"label": "ticket", "path": source, "credential": "A"},
+                    {"label": "account", "path": source, "credential": "A"},
+                ] and any(item == {"path": source, "credential": "A", "status": 403}
+                          for item in ledger["sourceReads"]), f"Unexpected N16 fixture ledger: {ledger}")
             elif scenario == "n22":
                 expected_reads = [
                     {"method": "GET", "path": f"/ex/jira/mock-cloud/rest/api/3/issue/{key}/changelog",
@@ -153,6 +159,9 @@ def run_host(root, executable, port, guard, scenario, case, zammad_port=None):
                 ]
                 require(not ledger["writes"] and ledger["reads"] == expected_reads and ledger["released"] == [5],
                         f"Unexpected N22 fixture ledger: {ledger}")
+            if zammad_port:
+                require(not list((root / "data").rglob("7a616d6d61642d636f6e6e656374696f6e")),
+                        "Private Zammad credential file still exists after disconnect")
             require(not list((root / "data").rglob("61746c61737369616e2d73657373696f6e")),
                     "Private session file still exists after logout")
             print("Network canary: one unsandboxed loopback control, zero hits from the isolated host or WebView")
@@ -162,7 +171,7 @@ def run_host(root, executable, port, guard, scenario, case, zammad_port=None):
 
 def main():
     require(sys.platform == "darwin", "This fixture requires macOS")
-    cases = ("c1", "c1-media", "c1-tsv", "n01", "n02", "n02-control", "n03", "n03-control", "n04", "n05", "n09", "n17", "n22")
+    cases = ("c1", "c1-media", "c1-tsv", "n01", "n02", "n02-control", "n03", "n03-control", "n04", "n05", "n09", "n16", "n17", "n22")
     require(len(sys.argv) in (3, 4), "Usage: python3 tests/native/c1-tauri/run.py <fixture executable> <fixture build> [" + "|".join(cases) + "]")
     case = sys.argv[3] if len(sys.argv) == 4 else "c1"
     require(case in cases, "Unknown IPC fixture scenario")
@@ -189,18 +198,20 @@ def main():
                            "CFBundleName": name, "CFBundlePackageType": "APPL",
                            "CFBundleExecutable": executable.name, "LSUIElement": True}, info)
         variant = [case.removeprefix("c1-")] if case in ("c1-media", "c1-tsv") else []
-        if scenario == "n17":
+        https = scenario in ("n16", "n17")
+        server_dir = HERE.parent / "n17-tauri" if https else fixture_dir
+        if https:
             tls = root/"tls"
-            subprocess.run([sys.executable, str(fixture_dir / "tls.py"), str(tls)], check=True)
-            variant = [str(tls)]
-        server = subprocess.Popen(["bun", str(fixture_dir / "server.ts"), *variant],
+            subprocess.run([sys.executable, str(server_dir / "tls.py"), str(tls)], check=True)
+            variant = [str(tls), scenario]
+        server = subprocess.Popen(["bun", str(server_dir / "server.ts"), *variant],
                                   stdout=subprocess.PIPE, text=True, cwd=REPO)
         try:
             require(bool(select.select([server.stdout], [], [], 10)[0]), "Jira fixture did not start")
             ports = [int(port) for port in server.stdout.readline().split()]
-            require(len(ports) == (2 if scenario == "n17" else 1) and len(set(ports)) == len(ports) and
+            require(len(ports) == (2 if https else 1) and len(set(ports)) == len(ports) and
                     all(0 < port < 65536 for port in ports) and server.poll() is None, "Fixture did not bind distinct private ports")
-            run_host(root, executable, ports[0], guard, scenario, case, ports[1] if scenario == "n17" else None)
+            run_host(root, executable, ports[0], guard, scenario, case, ports[1] if https else None)
         finally:
             if server.poll() is None:
                 server.terminate()
