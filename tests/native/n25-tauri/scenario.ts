@@ -29,11 +29,13 @@ type Ledger = {
 const { control, preflight } = fixtureDriver("n25");
 const ledger = async (): Promise<Ledger> => (await control("state")).json();
 const phase = (name: string) => control(`phase?name=${name}`, "POST");
-const popup = () => [...document.querySelectorAll<HTMLElement>('[role="dialog"]')].find(
+const popup = (title = "Linkrichtung prüfen") => [...document.querySelectorAll<HTMLElement>('[role="dialog"]')].find(
   (dialog) => dialog.getAttribute("aria-labelledby") &&
-    dialog.querySelector("h2")?.textContent === "Linkrichtung prüfen",
+    dialog.querySelector("h2")?.textContent === title,
 );
 const trigger = (target = "DEMO-2") => button(`Richtung der Verknüpfung zu ${target} prüfen`);
+const duplicateTrigger = (target: string) => button(`Duplikatlink zu ${target} vergleichen`);
+const duplicateTitle = "Duplikat vergleichen";
 const phaseReads = async (name: string) => (await ledger()).reads.filter((read) => read.phase === name);
 const sequence = (reads: readonly Read[]) => reads.map(({ method, path, query, status }) => [method, path + query, status]);
 const account = ["GET", "/myself", 200];
@@ -46,22 +48,23 @@ const candidates = (title: string) => [...(popup()?.querySelectorAll(`section[ar
 );
 const suggestions = () => candidates("Umgekehrte Richtung");
 
-async function open(target: string) {
-  const control = await wait(() => trigger(target), `link preview entry for ${target}`);
+async function open(target: string, duplicate = false) {
+  const control = await wait(() => (duplicate ? duplicateTrigger : trigger)(target), `link preview entry for ${target}`);
   control.focus();
   check(document.activeElement === control, "Could not focus link preview entry");
   control.click();
   await wait(() => {
-    const heading = popup()?.querySelector("h2");
+    const heading = (duplicate ? popup(duplicateTitle) : popup())?.querySelector("h2");
     return heading && heading === document.activeElement;
   }, "preview heading receives focus");
 }
 
-async function escape(target: string) {
+async function escape(target: string, duplicate = false) {
+  const dialog = () => duplicate ? popup(duplicateTitle) : popup();
   const focused = document.activeElement;
-  check(!!focused && !!popup()?.contains(focused), "Escape did not originate in the preview");
+  check(!!focused && !!dialog()?.contains(focused), "Escape did not originate in the preview");
   focused?.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
-  await wait(() => !popup() && document.activeElement === trigger(target), "Escape closes the preview and returns focus to the link");
+  await wait(() => !dialog() && document.activeElement === (duplicate ? duplicateTrigger : trigger)(target), "Escape closes the preview and returns focus to the link");
 }
 
 async function navigate(target: string) {
@@ -105,7 +108,7 @@ async function blocked(name: "denied" | "changed-link" | "changed-type", message
   if (name !== "denied") {
     const changed = name === "changed-link" ? edge("DEMO-1", "inwardIssue", "n25-link-46")
       : edge("DEMO-1", "inwardIssue", "n25-link-42", "10004");
-    same(reads[2]?.links, [changed], "Fixture error did not isolate the link or type ID change");
+    same(reads[2]?.links?.[0], changed, "Fixture error did not isolate the link or type ID change");
   }
   await escape("DEMO-2");
   await phase("idle");
@@ -131,6 +134,78 @@ async function lateAccount() {
   check(!popup(), "Old result became visible again");
 }
 
+const duplicateQuery = new URLSearchParams({ fields: "summary,status,issuetype,priority,issuelinks" }).toString();
+const duplicateIssue = (key: string, status: number | "held" = 200) => ["GET", `/issue/${key}?${duplicateQuery}`, status];
+const readDuplicate = (name: string) => phaseReads(`n10-${name}`);
+const duplicatePopup = () => popup(duplicateTitle);
+const comparisonTable = () => duplicatePopup()?.querySelector("table");
+const duplicateEdge = (key: string, side: "inwardIssue" | "outwardIssue", id = "n10-link-50") => ({
+  id, type: { id: "10002", name: "Duplicate", outward: "duplicates", inward: "is duplicated by" }, [side]: { key },
+});
+
+async function verifyDuplicate(name: "outward" | "inward" | "new-account", source: string, target: string) {
+  await wait(() => duplicateTrigger(target), `regular duplicate action on ${source}`);
+  await phase(`n10-${name}`);
+  same(await readDuplicate(name), [], "N10 read before explicit selection");
+  await open(target, true);
+  const table = await wait(comparisonTable, "comparison table with two confirmed tickets");
+  same([...table.querySelectorAll("thead th")].slice(1).map((cell) => [...cell.children].map((part) => part.textContent)),
+    [["Duplikat", "DEMO-1"], ["Ursprung laut Link", "DEMO-2"]], "N10 reversed duplicate and original");
+  same([...table.querySelectorAll("tbody tr")].map((row) => [...row.children].map((cell) => cell.textContent?.trim())), [
+    ["Titel", "Doppelter Beleg", name === "new-account" ? "Ursprung für Konto C" : "Erster Beleg"],
+    ["Status", "Offen", "In Arbeit"], ["Typ", "Fehler", "Aufgabe"], ["Priorität", "Hoch", "Nicht verfügbar"],
+  ], "N10 fields used unverified or incomplete data");
+  const reads = await readDuplicate(name);
+  same(sequence(reads), [account, duplicateIssue(source), duplicateIssue(target), account], "Unexpected N10 comparison requests");
+  const side = name === "inward" ? "inwardIssue" : "outwardIssue";
+  const reciprocal = name === "inward" ? "outwardIssue" : "inwardIssue";
+  same([reads[1]?.links?.at(-1), reads[2]?.links?.at(-1)], [duplicateEdge(target, side), duplicateEdge(source, reciprocal)],
+    "N10 ledger does not confirm the same duplicate edge in both directions");
+  check(reads.every((read) => read.account === (name === "new-account" ? "mock-user-002" : "mock-user-001")), "N10 used the wrong account");
+  await escape(target, true);
+  same(sequence(await readDuplicate(name)), sequence(reads), "Escape sent an extra N10 request");
+  await phase("idle");
+}
+
+async function blockedDuplicate(name: "denied" | "changed-link", message: string) {
+  await phase(`n10-${name}`);
+  await open("DEMO-2", true);
+  await wait(() => duplicatePopup()?.querySelector('[role="alert"]')?.textContent === message, `N10 ${name} error`);
+  check(!comparisonTable(), "Unconfirmed duplicate showed a comparison");
+  const reads = await readDuplicate(name);
+  same(sequence(reads), [account, duplicateIssue("DEMO-1"), duplicateIssue("DEMO-2", name === "denied" ? 403 : 200)], "Rejected N10 case continued to another request");
+  if (name === "changed-link") same(reads[2]?.links, [duplicateEdge("DEMO-1", "inwardIssue", "n10-link-51")], "Fixture did not replace the reciprocal ID");
+  await escape("DEMO-2", true);
+  await phase("idle");
+}
+
+async function lateDuplicate(change: "ticket" | "account") {
+  await phase(`n10-${change}`);
+  await open("DEMO-2", true);
+  await wait(async () => (await ledger()).held, `N10 held reply before ${change} change`);
+  same(sequence(await readDuplicate(change)), [account, duplicateIssue("DEMO-1"), duplicateIssue("DEMO-2", "held")], "N10 did not hold the second ticket response");
+  if (change === "ticket") {
+    await navigate("DEMO-2");
+    await wait(() => duplicateTrigger("DEMO-1"), "reciprocal link after navigation");
+  } else {
+    await control("switch-account", "POST");
+    check(await window.__N25_REFRESH_ACCOUNT__() === "mock-user-002", "Renderer did not read the new Jira identity");
+    await wait(async () => (await readDuplicate(change)).some(({ path, account, query }) =>
+      path === "/issue/DEMO-1" && account === "mock-user-002" && query === "?fields=issuelinks"), "new account's regular link list");
+  }
+  await wait(() => !duplicatePopup(), "N10 popup closed before old response is released");
+  await control("release", "POST");
+  await wait(async () => (await ledger()).released.includes(`n10-${change}`), "old native HTTPS response released");
+  if (change === "ticket") {
+    await navigate("DEMO-1");
+    await wait(() => duplicateTrigger("DEMO-2"), "source link available after return");
+  }
+  check(!duplicatePopup() && !comparisonTable(), "Old N10 result resurfaced after the context change");
+  const oldPreview = (await readDuplicate(change)).filter(({ query, account }) => query !== "?fields=issuelinks" && account === "mock-user-001");
+  same(sequence(oldPreview), [account, duplicateIssue("DEMO-1"), duplicateIssue("DEMO-2")], "Abandoned N10 request continued after context loss");
+  await phase("idle");
+}
+
 async function run() {
   check(new URL(window.__C1_JIRA_ORIGIN__).protocol === "https:", "N25 did not start with a local HTTPS origin");
   await preflight();
@@ -149,12 +224,25 @@ async function run() {
   await blocked("changed-type", unconfirmed);
   await lateAccount();
 
+  await verifyDuplicate("outward", "DEMO-1", "DEMO-2");
+  check(!duplicateTrigger("DEMO-3") && !duplicateTrigger("DEMO-4"), "N10 offered a comparison for a non-duplicate relationship");
+  await navigate("DEMO-2");
+  await verifyDuplicate("inward", "DEMO-2", "DEMO-1");
+  await navigate("DEMO-1");
+  await wait(() => duplicateTrigger("DEMO-2"), "duplicate entry on the original route");
+  await blockedDuplicate("denied", "Mindestens ein Ticket ist für dieses Konto nicht lesbar.");
+  await blockedDuplicate("changed-link", "Der Duplikatlink konnte auf beiden Tickets nicht bestätigt werden.");
+  await lateDuplicate("ticket");
+  await lateDuplicate("account");
+  await verifyDuplicate("new-account", "DEMO-1", "DEMO-2");
+
   await signOut();
   const final = await ledger();
   check(final.transport === "https" && final.unexpected === 0 && !final.held, "Unexpected request or incomplete HTTPS fixture");
   same(final.writes, [], "N25 sent a Jira write");
   check(final.reads.every(({ origin }) => origin === "tauri://localhost"), "Jira reads did not use the Tauri HTTP origin");
   console.log("N25 passed: both perspectives, exact link and type, denied and changed endpoints, late account response, Escape and focus return; zero Jira writes");
+  console.log("N10 passed: both tickets, reciprocal duplicate ID, incomplete fields, denial, late ticket and account responses, fresh selection; zero Jira writes");
 }
 
 void run().then(

@@ -16,8 +16,13 @@ const symmetric = {
   type: { id: "10001", name: "Relates", outward: "relates to", inward: "relates to" },
   outwardIssue: { key: "DEMO-4" },
 };
+const duplicateType = { id: "10002", name: "Duplicate", outward: "duplicates", inward: "is duplicated by" };
+const duplicate = { id: "n10-link-50", type: duplicateType, outwardIssue: { key: "DEMO-2" } };
+const origin = { id: duplicate.id, type: duplicateType, inwardIssue: { key: "DEMO-1" } };
+const duplicateFields = "summary,status,issuetype,priority,issuelinks";
 
-const phases = ["idle", "outward", "inward", "denied", "changed-link", "changed-type", "account", "new-account"] as const;
+const phases = ["idle", "outward", "inward", "denied", "changed-link", "changed-type", "account", "new-account",
+  "n10-outward", "n10-inward", "n10-denied", "n10-changed-link", "n10-ticket", "n10-account", "n10-new-account"] as const;
 type Phase = typeof phases[number];
 type Read = {
   phase: Phase;
@@ -68,8 +73,8 @@ const server = Bun.serve({
       phase = next;
       return new Response(null, { status: 204 });
     }
-    if (method === "POST" && pathname === "/__n25/switch-account" && phase === "account" && pending) {
-      account = "mock-user-001";
+    if (method === "POST" && pathname === "/__n25/switch-account" && (phase === "account" || phase === "n10-account") && pending) {
+      account = phase === "account" ? "mock-user-001" : "mock-user-002";
       return new Response(null, { status: 204 });
     }
     if (method === "POST" && pathname === "/__n25/release" && pending) {
@@ -77,7 +82,8 @@ const server = Bun.serve({
       pending = undefined;
       return new Response(null, { status: 204 });
     }
-    const key = pathname.startsWith(`${api}/issue/`) && search === "?fields=issuelinks"
+    const compare = searchParams.get("fields") === duplicateFields;
+    const key = pathname.startsWith(`${api}/issue/`) && (search === "?fields=issuelinks" || (phase.startsWith("n10-") && compare))
       ? pathname.slice(`${api}/issue/`.length) : undefined;
     if (method === "GET" && (pathname === `${api}/myself` || key)) {
       const read: Read = {
@@ -86,15 +92,33 @@ const server = Bun.serve({
       };
       reads.push(read);
       if (!key) return Response.json({ accountId: account, displayName: `N25 ${account}`, avatarUrls: { "48x48": "" } });
+      if (compare) {
+        if (key !== "DEMO-1" && key !== "DEMO-2") return reject();
+        if (key === "DEMO-2" && phase === "n10-denied") {
+          read.status = 403;
+          return Response.json({ errorMessages: ["Private N10 permission detail"] }, { status: 403 });
+        }
+        read.links = key === "DEMO-1" ? [forward, duplicate] : [{ ...origin, id: phase === "n10-changed-link" ? "n10-link-51" : origin.id }];
+        if (key === "DEMO-2" && (phase === "n10-ticket" || phase === "n10-account")) {
+          read.status = "held";
+          await new Promise<void>((resolve) => { pending = resolve; });
+          read.status = 200;
+          released.push(read.phase);
+        }
+        const fields = key === "DEMO-1"
+          ? { summary: "Doppelter Beleg", status: { name: "Offen" }, issuetype: { name: "Fehler" }, priority: { name: "Hoch" } }
+          : { summary: read.account === "mock-user-002" ? "Ursprung für Konto C" : "Erster Beleg", status: { name: "In Arbeit" }, issuetype: { name: "Aufgabe" } };
+        return Response.json({ key, fields: { ...fields, issuelinks: read.links } });
+      }
       if (key === "DEMO-2" && phase === "denied") {
         read.status = 403;
         return Response.json({ errorMessages: ["Private N25 permission detail"] }, { status: 403 });
       }
-      if (key === "DEMO-1") read.links = [forward, other, symmetric];
+      if (key === "DEMO-1") read.links = [forward, other, symmetric, duplicate];
       else if (key === "DEMO-2") {
         read.links = [phase === "changed-link" ? { ...backward, id: "n25-link-46" }
           : phase === "changed-type" ? { ...backward, type: { ...type, id: "10004" } }
-            : backward];
+            : backward, origin];
       } else read.links = [];
       if (key === "DEMO-2" && phase === "account" && account === "mock-user-000") {
         read.status = "held";
@@ -105,7 +129,7 @@ const server = Bun.serve({
       return Response.json({ key, fields: { issuelinks: read.links } });
     }
     if (method === "GET" && pathname === `${api}/issueLinkType`)
-      return Response.json({ issueLinkTypes: [type, symmetric.type] });
+      return Response.json({ issueLinkTypes: [type, symmetric.type, duplicateType] });
     if (countQuery) shellReadPosts.push(pathname.slice(api.length));
     if (pathname.startsWith(prefix) && (method === "GET" || countQuery)) return jira.handle(request);
     return reject();

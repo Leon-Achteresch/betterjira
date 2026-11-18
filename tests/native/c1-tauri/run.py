@@ -166,8 +166,8 @@ def run_host(root, executable, port, guard, scenario, case, zammad_port=None):
                 require(not ledger["writes"] and ledger["reads"] == expected_reads and ledger["released"] == [5],
                         f"Unexpected N22 fixture ledger: {ledger}")
             elif scenario == "n25":
-                require(not ledger["writes"] and ledger["released"] == ["account"] and ledger["transport"] == "https",
-                        f"Unexpected N25 fixture ledger: {ledger}")
+                require(not ledger["writes"] and ledger["released"] == ["account", "n10-ticket", "n10-account"] and ledger["transport"] == "https",
+                        f"Unexpected N10/N25 fixture ledger: {ledger}")
             if zammad_port:
                 require(not list((root / "data").rglob("7a616d6d61642d636f6e6e656374696f6e")),
                         "Private Zammad credential file still exists after disconnect")
