@@ -62,6 +62,10 @@ def run_host(root, executable, port, guard, scenario, case, zammad_port=None):
                    "C1_IPC_CANARY_PORT": str(canary.server_port), "C1_IPC_SCENARIO": scenario,
                    "NO_PROXY": "127.0.0.1", "SSL_CERT_FILE": str(ca), "TOKIO_WORKER_THREADS": "2"}
             fixture = f"{'https' if jira_tls else 'http'}://127.0.0.1:{port}"
+            if case in ("n25-scm", "n25-scm-headless"):
+                env["C1_IPC_SCM_FIXTURE"] = "1"
+            if case == "n25-scm-headless":
+                env["C1_IPC_SCM_HEADLESS"] = "1"
             trap = f"http://127.0.0.1:{canary.server_port}"
             require(curl(trap + "/control").returncode == 0, "Canary is not reachable outside the sandbox")
             allowed = curl(f"{fixture}/__{scenario}/probe", sandbox, env, ca=ca if jira_tls else None)
@@ -166,8 +170,12 @@ def run_host(root, executable, port, guard, scenario, case, zammad_port=None):
                 require(not ledger["writes"] and ledger["reads"] == expected_reads and ledger["released"] == [5],
                         f"Unexpected N22 fixture ledger: {ledger}")
             elif scenario == "n25":
-                require(not ledger["writes"] and ledger["released"] == ["account", "n10-ticket", "n10-account"] and ledger["transport"] == "https",
+                expected = {"n25-worklogs": ["worklog-held"], "n25-scm": [], "n25-scm-headless": []}.get(case, ["account", "n10-ticket", "n10-account"])
+                require(not ledger["writes"] and ledger["released"] == expected and ledger["transport"] == "https",
                         f"Unexpected N10/N25 fixture ledger: {ledger}")
+                if case in ("n25-scm", "n25-scm-headless"):
+                    operations = ["scm-list"] if case == "n25-scm" else []
+                    require(ledger["graphql"] == operations + ["scm-read", "scm-redirect"], f"Unexpected GraphQL request sequence: {ledger}")
             if zammad_port:
                 require(not list((root / "data").rglob("7a616d6d61642d636f6e6e656374696f6e")),
                         "Private Zammad credential file still exists after disconnect")
@@ -180,7 +188,7 @@ def run_host(root, executable, port, guard, scenario, case, zammad_port=None):
 
 def main():
     require(sys.platform == "darwin", "This fixture requires macOS")
-    cases = ("c1", "c1-media", "c1-tsv", "n01", "n02", "n02-control", "n03", "n03-control", "n04", "n05", "n09", "n16", "n17", "n22", "n25")
+    cases = ("c1", "c1-media", "c1-tsv", "n01", "n02", "n02-control", "n03", "n03-control", "n04", "n05", "n09", "n16", "n17", "n22", "n25", "n25-worklogs", "n25-scm", "n25-scm-headless")
     require(len(sys.argv) in (3, 4), "Usage: python3 tests/native/c1-tauri/run.py <fixture executable> <fixture build> [" + "|".join(cases) + "]")
     case = sys.argv[3] if len(sys.argv) == 4 else "c1"
     require(case in cases, "Unknown IPC fixture scenario")
@@ -193,7 +201,7 @@ def main():
     name = f"betterjira {scenario.upper()} IPC Fixture"
     with tempfile.TemporaryDirectory(prefix=f"betterjira-{case}-tauri-", dir="/tmp") as directory:
         root = Path(directory).resolve()
-        for folder in ("home", "tmp", "data"):
+        for folder in ("home", "tmp", "data", "screenshots"):
             (root / folder).mkdir(mode=0o700)
         guard = root / "denied-read-canary"
         guard.write_text("private canary")
@@ -214,6 +222,10 @@ def main():
             tls = root / "tls"
             subprocess.run([sys.executable, str(tls_tools / "tls.py"), str(tls)], check=True)
             variant = [str(tls), scenario] if zammad_tls else [str(tls)]
+            if case in ("n25-worklogs", "n25-scm"):
+                variant.append(case.removeprefix("n25-"))
+            if case == "n25-scm-headless":
+                variant.append("scm")
         server = subprocess.Popen(["bun", str(server_dir / "server.ts"), *variant],
                                   stdout=subprocess.PIPE, text=True, cwd=REPO)
         try:
@@ -222,6 +234,16 @@ def main():
             require(len(ports) == (2 if zammad_tls else 1) and len(set(ports)) == len(ports) and
                     all(0 < port < 65536 for port in ports) and server.poll() is None, "Fixture did not bind distinct private ports")
             run_host(root, executable, ports[0], guard, scenario, case, ports[1] if zammad_tls else None)
+            snapshots = {"n25-worklogs": ["N07", "N08"], "n25-scm": ["N23"]}.get(case, [])
+            output = os.getenv("C1_IPC_PNG_OUTPUT")
+            for name in snapshots:
+                png = root / "screenshots" / f"{name}.png"
+                require(png.read_bytes().startswith(b"\x89PNG\r\n\x1a\n"), f"Missing WKWebView PNG for {name}")
+                if output:
+                    saved = Path(output).resolve(strict=True) / png.name
+                    with saved.open("xb") as file:
+                        file.write(png.read_bytes())
+                    print(f"WKWebView PNG: {saved}", flush=True)
         finally:
             if server.poll() is None:
                 server.terminate()

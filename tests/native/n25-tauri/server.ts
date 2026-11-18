@@ -3,6 +3,9 @@ import { createJiraMock } from "../../jira/mock-backend";
 
 const tls = process.argv[2];
 if (!tls) throw new Error("N25 requires private TLS certificate files");
+const worklogMode = process.argv[3] === "worklogs";
+const scmMode = process.argv[3] === "scm";
+const graphql: string[] = [];
 
 const jira = createJiraMock({ issues: 6, projects: ["DEMO"] });
 const prefix = `/ex/jira/${jira.cloudId}/rest/`;
@@ -22,7 +25,8 @@ const origin = { id: duplicate.id, type: duplicateType, inwardIssue: { key: "DEM
 const duplicateFields = "summary,status,issuetype,priority,issuelinks";
 
 const phases = ["idle", "outward", "inward", "denied", "changed-link", "changed-type", "account", "new-account",
-  "n10-outward", "n10-inward", "n10-denied", "n10-changed-link", "n10-ticket", "n10-account", "n10-new-account"] as const;
+  "n10-outward", "n10-inward", "n10-denied", "n10-changed-link", "n10-ticket", "n10-account", "n10-new-account",
+  "worklog-valid", "worklog-denied", "worklog-held", "days", "scm-read", "scm-redirect"] as const;
 type Phase = typeof phases[number];
 type Read = {
   phase: Phase;
@@ -43,6 +47,10 @@ const writes: string[] = [];
 const unexpectedRequests: string[] = [];
 const released: string[] = [];
 const shellReadPosts: string[] = [];
+const sourceId = jira.jira.findIssue("DEMO-1").id;
+const started = new Date();
+started.setHours(0, 1, 0, 0);
+const sourceWorklog = { id: "77", issueId: sourceId, author: { accountId: "mock-user-000" }, started: started.toISOString(), timeSpentSeconds: 3600, comment: "Versandbelege geprüft" };
 
 const server = Bun.serve({
   hostname: "127.0.0.1",
@@ -57,6 +65,31 @@ const server = Bun.serve({
     };
     if (protocol !== "https:") return reject();
     if (method === "GET" && pathname === "/__n25/probe") return Response.json({ fixture: true });
+    if (scmMode && pathname === "/api/graphql") {
+      if (method !== "POST" || search || request.headers.get("authorization") !== "Bearer fixture-scm-token") return reject(403);
+      if (phase !== "scm-read" && phase !== "scm-redirect") return reject();
+      const input: { query?: unknown; variables?: { owner?: string; name?: string; number?: number; first?: number; states?: unknown } } = await request.json();
+      const v = input.variables;
+      if (typeof input.query !== "string" || /\bmutation\b/.test(input.query) || v?.owner !== "fixture" || v?.name !== "repo") return reject();
+      const url = `${new URL(request.url).origin}/fixture/repo/pull/7`;
+      if (/^\s*query\(\$owner: String!, \$name: String!, \$states:/.test(input.query) &&
+          input.query.includes("pullRequests(states:") && v.first === 25 && JSON.stringify(v.states) === '["OPEN"]') {
+        graphql.push("scm-list");
+        return Response.json({ data: { repository: { pullRequests: { totalCount: 1, nodes: [{
+          number: 7, title: "Prüfe synthetischen Beleg", url, state: "OPEN", isDraft: false,
+          headRefName: "notes", baseRefName: "development", updatedAt: new Date(Date.now() - 60_000).toISOString(), author: null,
+          latestReviews: { nodes: [] }, reviewRequests: { nodes: [] }, commits: { nodes: [] },
+        }] } } } });
+      }
+      if (!/^\s*query N23ReviewThreads\(/.test(input.query) || !input.query.includes("isResolved isOutdated") || v.number !== 7 || v.first !== 8) return reject();
+      graphql.push(phase);
+      if (phase === "scm-redirect") return new Response(null, { status: 307, headers: { Location: "/api/graphql" } });
+      return Response.json({ data: { viewer: { login: "fixture-viewer" }, repository: {
+        nameWithOwner: "fixture/repo", pullRequest: { number: 7, url, reviewThreads: {
+          totalCount: 1, pageInfo: { hasNextPage: false }, nodes: [{ id: "one", path: "src/demo.ts", isResolved: false, isOutdated: true, comments: { nodes: [{ url: `${url}#discussion_r7` }] } }],
+        } },
+      } } });
+    }
     const countQuery = method === "POST" && pathname === `${api}/search/approximate-count`;
     if (pathname.startsWith(prefix) && method !== "GET" && !countQuery) {
       writes.push(`${method} ${pathname}${search}`);
@@ -64,7 +97,7 @@ const server = Bun.serve({
     }
     if (request.headers.get("authorization") !== "Bearer mock") return reject(401);
     if (method === "GET" && pathname === "/__n25/state") return Response.json({
-      transport: protocol.slice(0, -1), reads, writes, shellReadPosts, released,
+      transport: protocol.slice(0, -1), reads, writes, shellReadPosts, released, worklogMode, scmMode, graphql,
       held: !!pending, unexpected: unexpectedRequests.length, unexpectedRequests,
     });
     if (method === "POST" && pathname === "/__n25/phase" && !pending) {
@@ -81,6 +114,33 @@ const server = Bun.serve({
       pending();
       pending = undefined;
       return new Response(null, { status: 204 });
+    }
+    if (worklogMode && method === "GET") {
+      if (pathname === `${api}/search/jql` && searchParams.get("jql")?.startsWith("worklogAuthor = currentUser() AND worklogDate"))
+        return Response.json({ issues: [{ id: sourceId, key: "DEMO-1", fields: { summary: "Versandbelege" } }], isLast: true });
+      if (pathname === `${api}/issue/${sourceId}/worklog`) return Response.json({ startAt: 0, total: 2, worklogs: [
+        sourceWorklog, { ...sourceWorklog, id: "78", author: { accountId: "mock-user-001" } },
+      ] });
+      const source = pathname === `${api}/issue/${sourceId}/worklog/77`;
+      const target = pathname === `${api}/issue/DEMO-2` && searchParams.get("fields") === "summary,project";
+      const rights = pathname === `${api}/mypermissions` && searchParams.has("issueId");
+      if (source || target || rights) {
+        const read: Read = { phase, method, path: pathname.slice(api.length), query: search, account, origin: request.headers.get("origin"), status: 200 };
+        reads.push(read);
+        if (source && phase === "worklog-held") {
+          read.status = "held";
+          await new Promise<void>((resolve) => { pending = resolve; });
+          read.status = 200;
+          released.push(read.phase);
+        }
+        if (source) return Response.json(sourceWorklog);
+        if (rights) {
+          const names = searchParams.get("permissions")?.split(",") ?? [];
+          return Response.json({ permissions: Object.fromEntries(names.map((name) => [name, {
+            havePermission: name !== "DELETE_ALL_WORKLOGS" && !(name === "WORK_ON_ISSUES" && phase === "worklog-denied"),
+          }])) });
+        }
+      }
     }
     const compare = searchParams.get("fields") === duplicateFields;
     const key = pathname.startsWith(`${api}/issue/`) && (search === "?fields=issuelinks" || (phase.startsWith("n10-") && compare))

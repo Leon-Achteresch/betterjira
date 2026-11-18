@@ -4,6 +4,7 @@ import { button, check, click, fixtureDriver, same, signOut, wait } from "../c1-
 declare global {
   interface Window {
     __N25_REFRESH_ACCOUNT__: () => Promise<string | undefined>;
+    __C1_SCM_ORIGIN__?: string;
   }
 }
 
@@ -24,6 +25,9 @@ type Ledger = {
   held: boolean;
   released: string[];
   unexpected: number;
+  worklogMode?: boolean;
+  scmMode?: boolean;
+  graphql: string[];
 };
 
 const { control, preflight } = fixtureDriver("n25");
@@ -40,6 +44,11 @@ const phaseReads = async (name: string) => (await ledger()).reads.filter((read) 
 const sequence = (reads: readonly Read[]) => reads.map(({ method, path, query, status }) => [method, path + query, status]);
 const account = ["GET", "/myself", 200];
 const issue = (key: string, status: number | "held" = 200) => ["GET", `/issue/${key}?fields=issuelinks`, status];
+const snapshot = async (name: "N07" | "N08" | "N23") => {
+  await new Promise<void>((resolve) => setTimeout(resolve, 600));
+  await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+  await invoke("fixture_snapshot", { name });
+};
 const edge = (key: string, side: "inwardIssue" | "outwardIssue", id = "n25-link-42", typeId = "10000") => ({
   id, type: { id: typeId, name: "Blocks", outward: "blocks", inward: "is blocked by" }, [side]: { key },
 });
@@ -206,9 +215,144 @@ async function lateDuplicate(change: "ticket" | "account") {
   await phase("idle");
 }
 
+async function worklogs() {
+  const dialog = (label: string) => document.querySelector<HTMLElement>(`[role="dialog"][aria-label="${label}"]`);
+  const correction = () => dialog("Korrekturvorschau");
+  const typed = (input: HTMLInputElement, value: string) => {
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(input, value);
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  };
+  const rowButton = () => document.querySelector<HTMLButtonElement>('button[aria-label^="Korrekturvorschau für DEMO-1 um"]');
+  const pressEscape = (target: HTMLElement | null) => {
+    target?.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+  };
+  const verify = async (name: string) => {
+    await phase(name);
+    await click(rowButton, "known own worklog correction");
+    const field = await wait(() => correction()?.querySelector("input"), "target issue key");
+    typed(field, "DEMO-2");
+    await click(() => button("Ziel prüfen", correction()), "check exact target");
+    await wait(() => button("Ziel bestätigen", correction()), "explicit target choice offered");
+    check((await phaseReads(name)).every(({ path }) => !path.includes("/worklog/") && path !== "/mypermissions"), "N07 read the source or rights before confirmation");
+    await click(() => button("Ziel bestätigen", correction()), "explicit target confirmation");
+  };
+  const dismiss = async () => {
+    pressEscape(correction());
+    await wait(() => !correction(), "correction dismissed");
+  };
+  await wait(rowButton, "own worklog row in regular time tracking");
+  check(document.querySelectorAll('button[aria-label^="Korrekturvorschau für DEMO-1 um"]').length === 1, "foreign worklog offered a correction");
+  await verify("worklog-valid");
+  const preview = await wait(() => correction()?.querySelector('[aria-label="Geprüfte Korrekturwerte"]'), "confirmed source/target/read rights");
+  check(preview.textContent.includes("3600 s") && preview.textContent.includes("Versandbelege geprüft") && preview.textContent.includes("DEMO-2"), "unexpected correction preview");
+  await snapshot("N07");
+  const reads = await phaseReads("worklog-valid");
+  check(reads.filter(({ path, query }) => path === "/issue/DEMO-2" && new URLSearchParams(query).get("fields") === "summary,project").length === 2, "N07 did not revalidate the target");
+  same(reads.filter(({ path }) => path.endsWith("/worklog/77")).length, 1, "N07 did not verify the exact owned worklog");
+  same(reads.filter(({ path }) => path === "/mypermissions").length, 2, "N07 did not verify both permission sets");
+  await dismiss();
+  await verify("worklog-denied");
+  await wait(() => correction()?.querySelector('[role="alert"]')?.textContent?.includes("Jira-Rechte"), "missing target editing rights visible");
+  await dismiss();
+  await verify("worklog-held");
+  await wait(async () => (await ledger()).held, "held N07 source GET");
+  await dismiss();
+  await control("release", "POST");
+  await wait(async () => (await ledger()).released.includes("worklog-held"), "late worklog reply released");
+  check(!correction(), "a late source reply revived a closed preview");
+  same((await phaseReads("worklog-held")).filter(({ path }) => path === "/mypermissions"), [], "discarded worklog reply performed subsequent permission reads");
+
+  await phase("days");
+  const openDays = async () => {
+    await click(() => document.querySelector<HTMLAnchorElement>('a[href="/issue/DEMO-1?bereich=zeit"]'), "regular time link from worklog list");
+    await wait(() => location.pathname === "/issue/DEMO-1" && new URLSearchParams(location.search).get("bereich") === "zeit", "issue time detail");
+    await click(() => button("Einzelne Tage planen"), "N08 issue time entry");
+  };
+  await openDays();
+  const plan = () => dialog("Zeitbuchungen vorbereiten");
+  const input = (label: string) => {
+    const field = [...(plan()?.querySelectorAll("label") ?? [])].find((node) => node.textContent === label)?.htmlFor;
+    return field ? document.querySelector<HTMLInputElement>(`#${CSS.escape(field)}`) : undefined;
+  };
+  typed(await wait(() => input("Dauer je Tag"), "N08 duration"), "30m");
+  typed(await wait(() => input("Lokale Startzeit"), "N08 time"), "09:15");
+  for (const offset of [2, 3]) {
+    const day = new Date();
+    day.setDate(day.getDate() - offset);
+    typed(await wait(() => input("Einzelnen Tag wählen"), "N08 day"), day.toLocaleDateString("sv-SE"));
+    await click(() => button("Tag hinzufügen", plan()), "add only the chosen day");
+  }
+  await click(() => button("Vorschau prüfen", plan()), "explicit local plan");
+  const scheduled = await wait(() => plan()?.querySelector('[aria-label="Geplante Zeitbuchungen"]'), "N08 preview");
+  same(scheduled.querySelectorAll("li").length, 2, "N08 added an unselected day");
+  check(scheduled.textContent.includes("09:15") && scheduled.textContent.includes("DEMO-1") && scheduled.textContent.includes("30m"), "N08 duration, target and local time missing");
+  check(!button("Zeit erfassen", plan()), "N08 preview offered a write");
+  await snapshot("N08");
+  history.back();
+  await wait(() => !plan() && location.pathname === "/zeiterfassung", "navigation discards N08 preview");
+  await openDays();
+  await wait(plan, "N08 reopened");
+  check(!plan()?.querySelector('[aria-label="Geplante Zeitbuchungen"], [aria-label="Gewählte Tage"]'), "old N08 selection resurfaced on return");
+  pressEscape(plan());
+  await wait(() => !plan(), "N08 dismissed without mutation");
+  await signOut();
+  const final = await ledger();
+  same(final.writes, [], "Worklog preview sent a Jira mutation");
+  check(final.unexpected === 0 && final.reads.every(({ origin }) => origin === "tauri://localhost"), "Unexpected transport or request");
+  console.log("N07/N08 passed: owned worklog, exact target, read rights, discarded reply, explicit days and fresh plan after navigation; zero Jira writes");
+}
+
+async function scm() {
+  const origin = window.__C1_SCM_ORIGIN__;
+  if (!origin || origin !== window.__C1_JIRA_ORIGIN__) throw new Error("Missing native SCM fixture lock");
+  const auth = { kind: "token", id: "private-n23", username: null } as const;
+  const connection = { kind: "github", id: auth.id, label: "Private SCM fixture", baseUrl: origin, account: "fixture-viewer", auth } as const;
+  const review = () => button("Reviewgespräche zu fixture/repo #7 prüfen");
+  const dialog = () => popup("Reviewgespräche");
+  const denied = async (url: string, method: string, token: typeof auth | { kind: "gh"; host: string }) => {
+    const result = await invoke("scm_request", { auth: token, url, method, body: null }).then(() => false, (error: unknown) => String(error).includes("private GraphQL target"));
+    check(result, "SCM fixture did not reject an out-of-scope method, credential, or destination");
+  };
+  await phase("scm-read");
+  await denied(`${origin}/api/graphql`, "GET", auth);
+  await denied(`${origin}/not-graphql`, "POST", auth);
+  await denied(`${window.__C1_CANARY_ORIGIN__}/api/graphql`, "POST", auth);
+  await denied(`${origin}/api/graphql`, "POST", { kind: "gh", host: new URL(origin).host });
+  same((await ledger()).graphql, [], "Rejected transport requests reached the server");
+  localStorage.setItem("betterjira-scm", JSON.stringify({ state: { connections: [connection], repoLinks: { DEMO: [{ connectionId: auth.id, repo: "fixture/repo" }] } }, version: 0 }));
+  history.replaceState(null, "", "/pull-requests");
+  await import("../../../src/main");
+  const trigger = await wait(review, "regular native PR list");
+  same((await ledger()).graphql, ["scm-list"], "Review query sent before explicit selection");
+  trigger.focus();
+  await click(review, "explicit native review selection");
+  const list = await wait(() => dialog()?.querySelector('[aria-label="Gemeldete Reviewgespräche"]'), "native GraphQL read result");
+  check(["src/demo.ts", "Offen", "Codebezug veraltet"].every((value) => list.textContent.includes(value)), "Native review rendering did not preserve both flags");
+  check(!!button("Original öffnen", list), "Confirmed same-origin PR link unavailable");
+  await snapshot("N23");
+  dialog()?.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+  await wait(() => !dialog() && document.activeElement === review(), "N23 Escape and focus return");
+  await phase("scm-redirect");
+  await click(review, "second explicit review selection for redirect");
+  await wait(() => dialog()?.querySelector('[role="alert"]'), "redirect surfaces as a read error");
+  same((await ledger()).graphql, ["scm-list", "scm-read", "scm-redirect"], "SCM followed the loopback redirect or repeated a read");
+  await signOut();
+}
+
 async function run() {
   check(new URL(window.__C1_JIRA_ORIGIN__).protocol === "https:", "N25 did not start with a local HTTPS origin");
   await preflight();
+  const fixture = await ledger();
+  if (fixture.scmMode) {
+    await scm();
+    return;
+  }
+  if (fixture.worklogMode) {
+    history.replaceState(null, "", "/zeiterfassung");
+    await import("../../../src/main");
+    await worklogs();
+    return;
+  }
   history.replaceState(null, "", "/issue/DEMO-1");
   await import("../../../src/main");
 
