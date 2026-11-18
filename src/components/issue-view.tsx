@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { IssueActions } from "@/components/issues/issue-actions";
 import { IssueLinksPanel } from "@/components/issues/issue-links-panel";
+import { IssueApprovalsContent } from "@/components/issues/issue-approvals";
 import { DependencyNeighborhood } from "@/components/issues/dependency-neighborhood";
 import { AddIssueLink } from "@/components/issues/add-issue-link";
 import { MultiTicketLinks } from "@/components/issues/multi-ticket-links";
@@ -30,6 +31,7 @@ import { useIssueReadingPosition } from "@/hooks/use-issue-reading-position";
 import { useIssueActions } from "@/hooks/use-issue-actions";
 import { useIssueDevelopmentPanel } from "@/hooks/scm/use-issue-development-panel";
 import { useIssueHistory } from "@/hooks/jira/use-issue-history";
+import { useIssueApprovals } from "@/hooks/jira/use-issue-approvals";
 import { useIssueLinks } from "@/hooks/jira/use-issue-links";
 import { useRemoteLinks } from "@/hooks/jira/use-remote-links";
 import { useIssueCommentPages } from "@/hooks/jira/use-issue-comment-pages";
@@ -153,6 +155,7 @@ export function IssueView({
   const actions = useIssueActions(view.issue, site.data?.siteUrl, initialTab);
   const history = useIssueHistory(issueKey, view.issue?.key === issueKey ? { created: view.issue.fields.created, status: view.issue.fields.status } : undefined);
   const links = useIssueLinks(issueKey);
+  const approvals = useIssueApprovals(view.issue?.key === issueKey ? issueKey : undefined);
   const remoteLinks = useRemoteLinks(issueKey);
   const commentPages = useIssueCommentPages(
     view.issue?.key ?? issueKey,
@@ -261,6 +264,16 @@ export function IssueView({
           )}
 
           <JiraHelpdeskLinks references={helpdesk} />
+
+          {approvals.available && (
+            <Section title="Freigaben" aside={
+              <Button variant="outline" size="sm" className="min-h-8" disabled={approvals.loading} onClick={approvals.read}>
+                Freigaben prüfen
+              </Button>
+            }>
+              <IssueApprovalsContent key={approvals.context} page={approvals.page} error={approvals.error} loading={approvals.loading} />
+            </Section>
+          )}
 
           {(subtasks.length > 0 || !fields.issuetype.subtask) && (
             <Section title="Unteraufgaben" aside={!fields.issuetype.subtask && <Button variant="ghost" asChild className="ml-auto"><Link to="/neu" search={{ parent: issue.key }}>Unteraufgabe erstellen</Link></Button>}>

@@ -288,6 +288,11 @@ export const jiraSend = (path: string, init: JiraRequestInit, api: ApiVersion = 
 export const jiraAgile = <S extends Schema.Decoder<unknown>>(path: string, schema: S) =>
   authedFetch(`agile/1.0${path}`).pipe(Effect.flatMap(decode(schema)));
 
+export const jiraRequestApprovals = <S extends Schema.Decoder<unknown>>(key: string, limit: number, schema: S, scope: JiraRequestScope) =>
+  authedFetch(`servicedeskapi/request/${encodeURIComponent(key)}/approval?start=0&limit=${limit}`, {
+    method: "GET", scope, cache: "no-store", retry: false, maxRedirections: 0,
+  }).pipe(Effect.flatMap(decode(schema)));
+
 const AgileWriteResults = Schema.Struct({ entries: Schema.Array(Schema.Struct({
   issueId: Schema.Number,
   issueKey: Schema.String,

@@ -43,7 +43,7 @@ const project = {
   id: "1",
   key: "DEMO",
   name: "Produktentwicklung",
-  projectTypeKey: scenario === "jsm" ? "service_desk" : "software",
+  projectTypeKey: scenario === "jsm" || scenario === "approvals" ? "service_desk" : "software",
   avatarUrls: author.avatarUrls,
 };
 const projects =
@@ -1174,7 +1174,7 @@ const respondHistory = async (key, url) => {
 const respond = async (request) => {
   const url = new URL(request.url);
   if (url.hostname === "api.github.com") return { body: window.__qaUpdates.releases };
-  const path = url.pathname.replace(/^.*\/rest\/(?:api\/[23]|agile\/1\.0)/, "");
+  const path = url.pathname.replace(/^.*\/rest\/(?:api\/[23]|agile\/1\.0|servicedeskapi)/, "");
   if (request.method !== "GET") {
     if (path.endsWith("approximate-count")) return { body: { count: issues.length } };
     if (path.startsWith("/jql/parse")) return { body: { queries: [{ errors: [] }] } };
@@ -1340,7 +1340,7 @@ const respond = async (request) => {
   window.__qaReads?.push(path);
   window.__qa.reads.push(path);
   if (window.__qaReadRule) {
-    const override = await window.__qaReadRule(path, url.searchParams);
+    const override = await window.__qaReadRule(path, url.searchParams, url.pathname);
     if (override) return override;
   }
   if (/^\/issue\/[^/]+\/editmeta$/.test(path)) return { body: { fields: {
@@ -1772,9 +1772,10 @@ window.__TAURI_INTERNALS__ = {
     throw new Error(`Nicht simuliertes Tauri-Kommando: ${command}`);
   },
 };
-if (scenario === "table-field-apply" || scenario === "subtask-rows") {
+if (scenario === "table-field-apply" || scenario === "subtask-rows" || scenario === "approvals") {
   const bridge = window.__TAURI_INTERNALS__;
   const invoke = bridge.invoke;
-  const flag = scenario === "subtask-rows" ? "__qaSubtaskRows" : "__qaTableFieldApply";
+  const flag = scenario === "approvals" ? "__qaIssueApprovals"
+    : scenario === "subtask-rows" ? "__qaSubtaskRows" : "__qaTableFieldApply";
   Object.defineProperty(window, flag, { value: () => window.__TAURI_INTERNALS__ === bridge && bridge.invoke === invoke });
 }

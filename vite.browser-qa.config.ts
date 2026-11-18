@@ -17,6 +17,9 @@ export default mergeConfig(base({ command: "build", mode: "production" }), {
     }, {
       find: "@/lib/jira/subtask-rows-capability",
       replacement: join(import.meta.dirname, "tests/browser/subtask-rows-capability.ts"),
+    }, {
+      find: "@/lib/jira/issue-approvals-capability",
+      replacement: join(import.meta.dirname, "tests/browser/issue-approvals-capability.ts"),
     }],
   },
   plugins: [{
