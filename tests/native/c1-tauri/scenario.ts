@@ -36,7 +36,7 @@ async function run() {
   await confirm();
   await wait(() => !editor(), "confirmed save");
   const written = {
-    path: "/ex/jira/mock-cloud/rest/api/3/issue/DEMO-1",
+    path: "/ex/jira/mock-cloud/rest/api/3/issue/10000",
     payload: { fields: { description: paragraph("C1 Jira-Fassung ergänzt") } },
     status: 204,
   };

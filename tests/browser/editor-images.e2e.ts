@@ -209,7 +209,7 @@ test("bearbeitet die Beschreibung im Editor mit eingebetteten Bildern und speich
   await description(page).getByRole("button", { name: "Speichern" }).click();
   await expect(page.getByRole("textbox", { name: "Beschreibung" })).toHaveCount(0);
 
-  const saved = (await writes(page)).find((write) => write.method === "PUT" && write.path === "/issue/DEMO-1")?.input.fields?.description;
+  const saved = (await writes(page)).find((write) => write.method === "PUT" && write.path === "/issue/1")?.input.fields?.description;
   const singles = saved?.content?.filter((node) => node.type === "mediaSingle") ?? [];
   expect(singles.map((node) => mediaOf(node)?.attrs?.id).filter((id) => typeof id === "string" && id.startsWith("00000000"))).toHaveLength(1);
   expect(saved?.content?.[0]?.content?.[0]?.text).toBe("Vorher:");

@@ -51,13 +51,14 @@ const UploadedAttachments = Schema.Array(
   }),
 );
 
-export const uploadAttachments = (key: string, files: File[]) => {
+export const uploadAttachments = (key: string, files: File[], scope?: JiraRequestScope) => {
   const form = new FormData();
   for (const file of files) form.append("file", file, file.name);
   return jira(`${issuePath(key)}/attachments`, UploadedAttachments, {
     method: "POST",
     body: form,
     headers: { "X-Atlassian-Token": "no-check" },
+    ...(scope && { scope, retry: false }),
   }).pipe(Effect.map((attachments) => attachments.map((attachment) => ({ ...attachment, id: String(attachment.id) }))));
 };
 
@@ -71,8 +72,8 @@ export const attachmentMediaId = (id: string) =>
     }),
   );
 
-export const uploadFile = (key: string, file: File) =>
-  uploadAttachments(key, [file]).pipe(
+export const uploadFile = (key: string, file: File, scope?: JiraRequestScope) =>
+  uploadAttachments(key, [file], scope).pipe(
     Effect.flatMap(([attachment]) =>
       attachment ? Effect.succeed(attachment) : Effect.fail(new JiraApiError({ status: 502, body: "Jira hat den Anhang nicht bestätigt" })),
     ),

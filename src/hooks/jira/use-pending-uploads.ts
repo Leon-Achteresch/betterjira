@@ -3,7 +3,7 @@ import { Effect } from "effect";
 import { create } from "zustand";
 import type { JiraAttachment } from "@/hooks/jira/use-issue-media";
 import { attachmentContentUrl, attachmentLinkNode } from "@/lib/jira/attachment-link";
-import { currentSite } from "@/lib/jira/client";
+import { currentSite, type JiraRequestScope } from "@/lib/jira/client";
 import { attachmentMediaId, optionalAttachmentMediaId, uploadFile } from "@/lib/jira/issue";
 import { jiraKeys } from "@/lib/jira/keys";
 import { invalidateIssueChange } from "@/lib/jira/mutation-cache";
@@ -11,6 +11,7 @@ import { pendingMediaIds, replacePendingMedia } from "@/lib/jira/pending-media";
 
 type Uploaded = { attachment: JiraAttachment; mediaId?: string };
 type PendingUpload = { file: File; attachment: JiraAttachment; uploaded?: Uploaded };
+type UploadTarget = { issueId: string; scope: JiraRequestScope };
 
 type PendingUploadState = {
   uploads: Readonly<Record<string, PendingUpload>>;
@@ -33,9 +34,9 @@ export const usePendingUploads = create<PendingUploadState>()((set) => ({
 
 const running = new Map<string, Promise<Uploaded>>();
 
-const upload = async (queryClient: QueryClient, issueKey: string, id: string, { file, uploaded }: PendingUpload): Promise<Uploaded> => {
+const upload = async (queryClient: QueryClient, issueKey: string, id: string, { file, uploaded }: PendingUpload, target?: UploadTarget): Promise<Uploaded> => {
   const { settle } = usePendingUploads.getState();
-  const attachment = uploaded?.attachment ?? (await Effect.runPromise(uploadFile(issueKey, file)));
+  const attachment = uploaded?.attachment ?? (await Effect.runPromise(uploadFile(target?.issueId ?? issueKey, file, target?.scope)));
   if (!uploaded) {
     settle(id, { attachment });
     const preview = queryClient.getQueryData<string>(jiraKeys.attachment("content", id));
@@ -48,21 +49,21 @@ const upload = async (queryClient: QueryClient, issueKey: string, id: string, { 
   return { attachment, mediaId };
 };
 
-const uploadPending = (queryClient: QueryClient, issueKey: string, id: string): Promise<Uploaded> => {
+const uploadPending = (queryClient: QueryClient, issueKey: string, id: string, target?: UploadTarget): Promise<Uploaded> => {
   const entry = usePendingUploads.getState().uploads[id];
   if (!entry) return Promise.reject(new Error("Eine eingefügte Datei ist nicht mehr vorhanden. Entferne sie aus dem Text oder füge sie erneut ein."));
   if (entry.uploaded?.mediaId) return Promise.resolve(entry.uploaded);
-  const started = running.get(id) ?? upload(queryClient, issueKey, id, entry).finally(() => running.delete(id));
+  const started = running.get(id) ?? upload(queryClient, issueKey, id, entry, target).finally(() => running.delete(id));
   running.set(id, started);
   return started;
 };
 
-export const resolvePendingMedia = async <A>(queryClient: QueryClient, issueKey: string, input: A): Promise<A> => {
+export const resolvePendingMedia = async <A>(queryClient: QueryClient, issueKey: string, input: A, target?: UploadTarget): Promise<A> => {
   const ids = pendingMediaIds(input);
   if (ids.length === 0) return input;
-  const uploaded = new Map(await Promise.all(ids.map(async (id) => [id, await uploadPending(queryClient, issueKey, id)] as const)));
+  const uploaded = new Map(await Promise.all(ids.map(async (id) => [id, await uploadPending(queryClient, issueKey, id, target)] as const)));
   const linked = [...uploaded.values()].some((entry) => !entry.mediaId);
-  const siteUrl = linked ? ((await Effect.runPromise(currentSite))?.siteUrl ?? "") : "";
+  const siteUrl = linked ? (target?.scope.siteUrl ?? (await Effect.runPromise(currentSite))?.siteUrl ?? "") : "";
   return replacePendingMedia(input, (node, id) => {
     const entry = uploaded.get(id);
     if (!entry) return node;

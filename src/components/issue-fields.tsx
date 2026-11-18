@@ -226,7 +226,7 @@ export function EditableField({
     const baseline = current == null ? EMPTY_ADF_DRAFT : saved && JSON.stringify(saved);
     const done = () => setDraft(undefined);
     if (wiki || baseline === undefined) {
-      return <WikiEditor issueKey={issue.key} id={id} className={className} onDone={done} onSwitch={baseline === undefined ? undefined : () => setWiki(false)} />;
+      return <WikiEditor issueKey={issue.key} issueId={issue.id} id={id} className={className} onDone={done} onSwitch={baseline === undefined ? undefined : () => setWiki(false)} />;
     }
     return (
       <StringFieldForm
@@ -244,7 +244,7 @@ export function EditableField({
   }
 
   if (kind === "text") {
-    return <StringFieldForm issueKey={issue.key} id={id} initial={typeof current === "string" ? current : ""} mode="text" field={meta} className={className} onDone={() => setDraft(undefined)} />;
+    return <StringFieldForm issueKey={issue.key} issueId={issue.id} id={id} initial={typeof current === "string" ? current : ""} mode="text" field={meta} className={className} onDone={() => setDraft(undefined)} />;
   }
 
   const errors = jiraErrors(edit.error);
@@ -293,12 +293,14 @@ export function EditableField({
 
 function WikiEditor({
   issueKey,
+  issueId,
   id,
   className,
   onDone,
   onSwitch,
 }: {
   issueKey: string;
+  issueId: string;
   id: string;
   className?: string;
   onDone: () => void;
@@ -313,11 +315,12 @@ function WikiEditor({
     );
   }
   if (wiki.data === undefined) return <Spinner />;
-  return <StringFieldForm issueKey={issueKey} id={id} initial={wiki.data.text} initialRaw={wiki.data.raw} mode="wiki" className={className} onDone={onDone} onSwitch={onSwitch} />;
+  return <StringFieldForm issueKey={issueKey} issueId={issueId} id={id} initial={wiki.data.text} initialRaw={wiki.data.raw} mode="wiki" className={className} onDone={onDone} onSwitch={onSwitch} />;
 }
 
 function StringFieldForm({
   issueKey,
+  issueId,
   id,
   initial,
   initialRaw,
@@ -329,6 +332,7 @@ function StringFieldForm({
   onSwitch,
 }: {
   issueKey: string;
+  issueId?: string;
   id: string;
   initial: string;
   initialRaw?: unknown;
@@ -339,7 +343,7 @@ function StringFieldForm({
   issue?: JiraIssueDetail;
   onSwitch?: () => void;
 }) {
-  const editor = useFieldDraft({ issueKey, field: id, initial, initialRaw: mode === "wiki" ? initialRaw : issue?.fields[id], mode, onClose: onDone });
+  const editor = useFieldDraft({ issueKey, issueId: issueId ?? issue?.id, field: id, initial, initialRaw: mode === "wiki" ? initialRaw : issue?.fields[id], mode, onClose: onDone });
   const reduce = useReducedMotion();
   const rendered = useIssueRendered(mode === "adf" && id === "description" ? issue : undefined);
   const doc = useMemo(() => (mode === "adf" ? (parseAdfDraft(editor.text) ?? parseAdfDraft(initial)) : undefined), [mode, editor.text, initial]);
@@ -455,6 +459,9 @@ function StringFieldForm({
           </Button>
         )}
       </div>
+      {id === "description" && (
+        <p className="text-xs text-muted-foreground">Vor dem Speichern wird die Jira-Fassung geprüft. Änderungen nach dieser Prüfung können beim Speichern überschrieben werden.</p>
+      )}
       {mode !== "text" && (
         <span className="text-xs text-muted-foreground">
           {mode === "wiki" ? "Jira-Wiki-Syntax" : "Bilder per Einfügen oder Ziehen"} · {IS_MAC ? "⌘" : "Strg"} + Enter speichert

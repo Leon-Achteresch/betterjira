@@ -2,8 +2,13 @@ import { expect, test, type Page, type TestInfo } from "@playwright/test";
 import descriptionWithMedia from "../jira/fixtures/description-adf-media.json" with { type: "json" };
 
 type Write = { path: string; method: string; input: { fields?: { description?: unknown } } };
-type QaIssue = { key: string; fields: { description: unknown } };
-type QaWindow = { __qa: { writes: Write[]; reads: string[]; issues: QaIssue[]; wiki: Record<string, string | null>; failNextWrite: boolean; failDescriptionRead: boolean } };
+type QaIssue = { id: string; key: string; fields: { description: unknown } };
+type QaWindow = {
+  __qa: { accountId?: string; writes: Write[]; reads: string[]; issues: QaIssue[]; wiki: Record<string, string | null>; failNextWrite: boolean; failDescriptionRead: boolean };
+  __qaReadRule: (path: string, search: URLSearchParams) => Promise<unknown>;
+  __qaBulkWriteRule: (path: string) => unknown;
+  __c1: { release?: () => void; delivered?: boolean; descriptionReads: number; raced?: boolean };
+};
 
 const ISSUE = "/tests/browser/fixture.html?route=/issue/DEMO-1";
 const remote = (text: string) => ({ type: "doc", version: 1, content: [{ type: "paragraph", content: [{ type: "text", text }] }] });
@@ -11,7 +16,7 @@ const setRemoteDescription = (page: Page, doc: unknown) =>
   page.evaluate((value) => { (window as unknown as QaWindow).__qa.issues.find((issue) => issue.key === "DEMO-1")!.fields.description = value; }, doc);
 const changeRemote = (page: Page, text: string) => setRemoteDescription(page, remote(text));
 const descriptionWrites = (page: Page) =>
-  page.evaluate(() => (window as unknown as QaWindow).__qa.writes.filter((write) => write.method === "PUT" && write.path === "/issue/DEMO-1" && write.input.fields?.description !== undefined));
+  page.evaluate(() => (window as unknown as QaWindow).__qa.writes.filter((write) => write.method === "PUT" && write.input.fields?.description !== undefined));
 const panel = (page: Page) => page.getByRole("group", { name: "Beschreibung wurde in Jira geändert" });
 const shot = async (page: Page, testInfo: TestInfo, name: string) => {
   const dir = process.env.DESCRIPTION_CONFLICT_SHOTS;
@@ -24,6 +29,147 @@ const openDescription = async (page: Page) => {
   await expect(editor).toBeFocused();
   return editor;
 };
+
+async function seedLastRead(page: Page, hold = false, otherId = false) {
+  await page.addInitScript(({ hold, otherId }) => {
+    const app = window as unknown as QaWindow;
+    const state: QaWindow["__c1"] = { descriptionReads: 0 };
+    app.__c1 = state;
+    app.__qaReadRule = async (path, params) => {
+      if (path !== "/issue/DEMO-1" || params.get("fields") !== "description") return;
+      const issue = app.__qa.issues.find(({ key }) => key === "DEMO-1")!;
+      const body = { id: otherId ? "9999" : issue.id, key: issue.key, fields: { description: issue.fields.description } };
+      state.descriptionReads++;
+      if (hold && state.descriptionReads === 1) {
+        await new Promise<void>((resolve) => { state.release = resolve; });
+        state.delivered = true;
+      }
+      return { body };
+    };
+  }, { hold, otherId });
+}
+
+async function startLocalEdit(page: Page) {
+  await page.goto(ISSUE);
+  const editor = await openDescription(page);
+  await page.keyboard.press("ControlOrMeta+End");
+  await page.keyboard.type(" C1 lokaler Entwurf");
+  await expect(editor).toContainText("C1 lokaler Entwurf");
+  return editor;
+}
+
+async function guardLedger(page: Page, info: TestInfo) {
+  const calls = await page.evaluate(() => {
+    const app = window as unknown as QaWindow;
+    return { descriptionReads: app.__c1.descriptionReads, delivered: app.__c1.delivered, raced: app.__c1.raced, writes: app.__qa.writes };
+  });
+  await info.attach("c1-save-guard-ledger", { body: JSON.stringify(calls), contentType: "application/json" });
+  return calls;
+}
+
+test("C1 zeigt die GET→PUT-Grenze und verifiziert einen einzelnen PUT an die Jira-ID", async ({ page }, info) => {
+  await seedLastRead(page);
+  if (info.project.name === "narrow-dark-reduced") await page.setViewportSize({ width: 390, height: 844 });
+  const editor = await startLocalEdit(page);
+  const warning = page.getByText("Änderungen nach dieser Prüfung können beim Speichern überschrieben werden.", { exact: false });
+  await expect(warning).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(page.viewportSize()!.width);
+  const screenshots = process.env.C1_SAVE_GUARD_SHOTS;
+  if (screenshots) await editor.locator("xpath=ancestor::form").screenshot({ path: `${screenshots}/${info.project.name}-c1.png` });
+  await page.evaluate((later) => {
+    const app = window as unknown as QaWindow;
+    app.__qaBulkWriteRule = (path) => {
+      if (path === "/issue/1") {
+        app.__qa.issues.find(({ key }) => key === "DEMO-1")!.fields.description = later;
+        app.__c1.raced = true;
+      }
+    };
+  }, remote("Änderung nach dem letzten GET"));
+  await page.getByRole("button", { name: "Speichern", exact: true }).click();
+  await expect(editor).toHaveCount(0);
+  const ledger = await guardLedger(page, info);
+  expect(ledger).toMatchObject({ descriptionReads: 1, raced: true });
+  expect(ledger.writes).toHaveLength(1);
+  expect(ledger.writes[0]).toMatchObject({ method: "PUT", path: "/issue/1" });
+  expect(JSON.stringify(ledger.writes[0].input.fields?.description)).toContain("C1 lokaler Entwurf");
+  expect(await page.evaluate(() => JSON.stringify((window as unknown as QaWindow).__qa.issues[0].fields.description))).toContain("C1 lokaler Entwurf");
+});
+
+test("C1 meldet den nach dem GET erkannten Jira-409 als Vergleich ohne neuen PUT", async ({ page }, info) => {
+  await seedLastRead(page);
+  const editor = await startLocalEdit(page);
+  await page.evaluate((later) => {
+    const app = window as unknown as QaWindow;
+    app.__qaBulkWriteRule = (path) => {
+      if (path !== "/issue/1") return;
+      app.__qa.issues[0].fields.description = later;
+      app.__qaBulkWriteRule = () => undefined;
+      return { status: 409, body: { errorMessages: ["Konkurrierender Schreibzugriff"] } };
+    };
+  }, remote("Jira-Fassung nach 409"));
+  await page.getByRole("button", { name: "Speichern", exact: true }).click();
+  await expect(panel(page)).toContainText("Jira-Fassung nach 409");
+  await expect(editor).toContainText("C1 lokaler Entwurf");
+  await expect(confirm(page)).toBeDisabled();
+  expect(await guardLedger(page, info)).toMatchObject({ descriptionReads: 2, writes: [{ path: "/issue/1", method: "PUT", failed: 409 }] });
+  await panel(page).getByRole("checkbox").check();
+  await confirm(page).click();
+  await expect(editor).toHaveCount(0);
+  expect(await descriptionWrites(page)).toHaveLength(2);
+});
+
+test("C1 sendet keinen PUT bei abweichender Jira-ID trotz gleichem Schlüssel und Inhalt", async ({ page }, info) => {
+  await seedLastRead(page, false, true);
+  const editor = await startLocalEdit(page);
+  await page.getByRole("button", { name: "Speichern", exact: true }).click();
+  await expect(page.getByRole("alert").filter({ hasText: "Jira bestätigt das geöffnete Ticket nicht mehr" })).toBeVisible();
+  await expect(editor).toContainText("C1 lokaler Entwurf");
+  expect(await guardLedger(page, info)).toMatchObject({ descriptionReads: 1, writes: [] });
+});
+
+test("C1 stoppt bei einer vom Server gemeldeten anderen Kontoidentität schon vor dem Beschreibungs-GET", async ({ page }, info) => {
+  await seedLastRead(page);
+  const editor = await startLocalEdit(page);
+  await page.evaluate(() => { (window as unknown as QaWindow).__qa.accountId = "qa-other-account"; });
+  await page.getByRole("button", { name: "Speichern", exact: true }).click();
+  await expect(page.getByRole("alert").filter({ hasText: "Das Jira-Konto hat sich geändert" })).toBeVisible();
+  await expect(editor).toContainText("C1 lokaler Entwurf");
+  expect(await guardLedger(page, info)).toMatchObject({ descriptionReads: 0, writes: [] });
+});
+
+for (const change of ["close", "account", "ticket"] as const) {
+  test(`C1 blockiert eine verspätete letzte GET-Antwort nach Kontextverlust (${change})`, async ({ page }, info) => {
+    await seedLastRead(page, true);
+    const editor = await startLocalEdit(page);
+    await page.getByRole("button", { name: "Speichern", exact: true }).click();
+    await expect.poll(() => page.evaluate(() => !!(window as unknown as QaWindow).__c1.release)).toBe(true);
+    if (change === "account") {
+      const now = await page.evaluate(() => {
+        (window as unknown as QaWindow).__qa.accountId = "qa-other-account";
+        return Date.now();
+      });
+      await page.clock.setFixedTime(new Date(now + 120_000));
+      await page.evaluate(() => window.dispatchEvent(new Event("visibilitychange")));
+      await expect(editor).toHaveCount(0);
+    } else if (change === "ticket") {
+      await page.getByRole("link", { name: /DEMO-2/ }).first().click();
+      await expect(page).toHaveURL(/\/issue\/DEMO-2$/);
+    } else {
+      await editor.press("Escape");
+      await expect(editor).toHaveCount(0);
+    }
+    await page.evaluate(() => (window as unknown as QaWindow).__c1.release?.());
+    await expect.poll(() => page.evaluate(() => (window as unknown as QaWindow).__c1.delivered)).toBe(true);
+    await expect(panel(page)).toHaveCount(0);
+    expect(await guardLedger(page, info)).toMatchObject({ descriptionReads: 1, delivered: true, writes: [] });
+    if (change === "close") {
+      await page.getByRole("button", { name: "Beschreibung: Entwurf fortsetzen" }).press("Enter");
+      await expect(editor).toContainText("C1 lokaler Entwurf");
+      await expect(page.getByRole("button", { name: "Speichern", exact: true })).toBeEnabled();
+      expect(await descriptionWrites(page)).toHaveLength(0);
+    }
+  });
+}
 
 test("Konflikt zeigt Jira-Fassung, Cmd/Ctrl+Enter bestaetigt nie und R zu R2 verlangt erneute Pruefung", async ({ page }, testInfo) => {
   await page.goto(ISSUE);

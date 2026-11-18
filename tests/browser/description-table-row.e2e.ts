@@ -112,7 +112,7 @@ test("Eine gewählte Tabellenzeile lokal ergänzen, rückgängig machen und erst
   await expect(editor).toHaveCount(0);
   const ledger = await writes(page);
   expect(ledger).toEqual([expect.objectContaining({
-    method: "PUT", path: "/issue/DEMO-1",
+    method: "PUT", path: "/issue/1",
     input: { fields: { description: { ...initial, content: [...initial.content, adfTable(finalRows)] } } },
   })]);
   expect(externalRequests).toEqual([]);

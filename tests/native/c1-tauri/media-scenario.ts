@@ -113,7 +113,7 @@ async function run() {
   await confirm();
   await wait(() => !editor(), "confirmed ADF save to close");
   const written = {
-    path: "/ex/jira/mock-cloud/rest/api/3/issue/DEMO-1",
+    path: "/ex/jira/mock-cloud/rest/api/3/issue/10000",
     payload: { fields: { description: expectedMediaWrite } },
     status: 204,
   };

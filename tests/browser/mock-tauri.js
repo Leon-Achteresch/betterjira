@@ -1215,7 +1215,7 @@ const respond = async (request) => {
     }
     const uploadTarget = path.match(/^\/issue\/([^/]+)\/attachments$/);
     if (uploadTarget) {
-      const target = issues.find((issue) => issue.key === uploadTarget[1]);
+      const target = issues.find((issue) => (issue.key === uploadTarget[1] || issue.id === uploadTarget[1]));
       const text = new TextDecoder().decode(new Uint8Array(request.data ?? []));
       const parts = [...text.matchAll(/filename="([^"]*)"(?:\r\nContent-Type: ([^\r\n]+))?/g)];
       const names = parts.map((match) => match[1]);
@@ -1584,7 +1584,7 @@ const respond = async (request) => {
   if (issue && url.searchParams.get("fields") === "description" && window.__qa.failDescriptionRead)
     return { status: 403, body: { errorMessages: ["Test: Beschreibung nicht lesbar"] } };
   if (issue && url.pathname.includes("/api/2/") && url.searchParams.get("fields") === "description")
-    return { body: { fields: { description: wiki[issue.key] } } };
+    return { body: { id: issue.id, key: issue.key, fields: { description: wiki[issue.key] } } };
   if (issue && url.searchParams.get("fields") === "*all") {
     const rule = window.__qaIssueRule?.(issue.key) ?? {};
     if (rule.delayMs) await new Promise((resolve) => setTimeout(resolve, rule.delayMs));

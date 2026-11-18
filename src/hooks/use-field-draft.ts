@@ -32,6 +32,7 @@ export function useAdfFieldDraftPresence(issueKey: string, field: string) {
 
 export function useFieldDraft({
   issueKey,
+  issueId,
   field,
   initial,
   initialRaw,
@@ -39,6 +40,7 @@ export function useFieldDraft({
   onClose,
 }: {
   issueKey: string;
+  issueId?: string;
   field: string;
   initial: string;
   initialRaw?: unknown;
@@ -47,7 +49,7 @@ export function useFieldDraft({
 }) {
   const { id, draft, lockId, scope } = useScopedFieldDraft(issueKey, mode === "adf" ? adfDraftField(field) : field);
   const client = useQueryClient();
-  const context = useMemo(() => ({ id, mode }), [id, mode]);
+  const context = useMemo(() => ({ id, mode, issueId }), [id, mode, issueId]);
   const latestContext = useLatestRef(context);
   const active = useRef(true);
   useEffect(() => {
@@ -90,7 +92,7 @@ export function useFieldDraft({
     setNotice(undefined);
     try {
       const result = await submitFieldDraft(useFieldDraftStore, id, async (submitted) => {
-        if (description) return checked.mutateAsync({ draft: submitted, format: mode, reviewed });
+        if (description) return checked.mutateAsync(issueId ?? "", { draft: submitted, format: mode, reviewed }, isCurrentEditor);
         if (submitted.text !== initial) {
           if (mode === "wiki") await wikiEdit.mutateAsync({ [field]: submitted.text });
           else if (mode === "adf") {

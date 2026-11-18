@@ -10,10 +10,10 @@ const mock = vi.hoisted(() => {
   vi.stubGlobal("window", { localStorage });
   return { jira: vi.fn(), jiraSend: vi.fn(), close: vi.fn(), ready: true };
 });
-vi.mock("@/lib/jira/client", async (original) => ({ ...await original<typeof import("@/lib/jira/client")>(), currentSite: Effect.succeed({ cloudId: "site-a" }), jira: mock.jira, jiraSend: mock.jiraSend }));
+vi.mock("@/lib/jira/client", async (original) => ({ ...await original<typeof import("@/lib/jira/client")>(), currentSite: Effect.succeed({ cloudId: "site-a", siteUrl: "https://fixture.atlassian.net" }), jira: mock.jira, jiraSend: mock.jiraSend }));
 vi.mock("@/lib/jira/queries", async (original) => ({
   ...await original<typeof import("@/lib/jira/queries")>(),
-  useJiraSite: () => ({ data: mock.ready ? { cloudId: "site-a" } : undefined }),
+  useJiraSite: () => ({ data: mock.ready ? { cloudId: "site-a", siteUrl: "https://fixture.atlassian.net" } : undefined }),
   useJiraMyself: () => ({ data: mock.ready ? { accountId: "account-a" } : undefined }),
 }));
 vi.mock("@/lib/jira/mutation-cache", () => ({ invalidateIssueChange: vi.fn() }));
@@ -36,20 +36,20 @@ function Harness({ options, expose }: { options: Options; expose: (editor: Edito
 
 const mount = (overrides: Partial<Options> = {}) => {
   let captured: Editor | undefined;
-  renderToString(<QueryClientProvider client={client}><Harness options={{ issueKey: "DEMO-1", field: "description", initial: JSON.stringify(fixture.base), initialRaw: fixture.base, mode: "adf", onClose: mock.close, ...overrides }} expose={(editor) => { captured = editor; }} /></QueryClientProvider>);
+  renderToString(<QueryClientProvider client={client}><Harness options={{ issueKey: "DEMO-1", issueId: "1", field: "description", initial: JSON.stringify(fixture.base), initialRaw: fixture.base, mode: "adf", onClose: mock.close, ...overrides }} expose={(editor) => { captured = editor; }} /></QueryClientProvider>);
   if (!captured) throw new Error("editor missing");
   return captured;
 };
 
 beforeEach(() => {
   client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity }, mutations: { retry: false, gcTime: Infinity } } });
-  client.setQueryData(jiraKeys.site, { cloudId: "site-a" });
+  client.setQueryData(jiraKeys.site, { cloudId: "site-a", siteUrl: "https://fixture.atlassian.net" });
   client.setQueryData(jiraKeys.myself, { accountId: "account-a" });
   store.setState({ drafts: {}, saving: [] });
   remote = fixture.base;
   mock.ready = true;
   mock.close.mockReset();
-  mock.jira.mockReset().mockImplementation((_path: string, schema: Schema.Decoder<unknown>) => Schema.decodeUnknownEffect(schema)({ fields: { description: remote } }));
+  mock.jira.mockReset().mockImplementation((path: string, schema: Schema.Decoder<unknown>) => Schema.decodeUnknownEffect(schema)(path === "/myself" ? { accountId: "account-a" } : { id: "1", key: "DEMO-1", fields: { description: remote } }));
   mock.jiraSend.mockReset().mockReturnValue(Effect.void);
 });
 afterEach(() => client.clear());
@@ -73,7 +73,7 @@ describe("C1 im bestehenden Feldeditorfluss", () => {
     const id = fieldDraftId("site-a", "account-a", "DEMO-1", "description#adf");
     expect(store.getState().drafts[id].basis?.value).toEqual(fixture.base);
     await editor.submit();
-    expect(mock.jira).toHaveBeenCalledTimes(1);
+    expect(mock.jira).toHaveBeenCalledTimes(2);
     expect(mock.jiraSend).toHaveBeenCalledTimes(1);
     expect(store.getState().drafts[id]).toBeUndefined();
     expect(mock.close).toHaveBeenCalledOnce();
@@ -85,7 +85,7 @@ describe("C1 im bestehenden Feldeditorfluss", () => {
     remote = fixture.remote;
     await editor.submit();
     await editor.submit();
-    expect(mock.jira).toHaveBeenCalledTimes(2);
+    expect(mock.jira).toHaveBeenCalledTimes(4);
     expect(mock.jiraSend).not.toHaveBeenCalled();
     expect(mock.close).not.toHaveBeenCalled();
     expect(Object.values(store.getState().drafts)[0].text).toBe(JSON.stringify(fixture.local));
@@ -96,7 +96,7 @@ describe("C1 im bestehenden Feldeditorfluss", () => {
     store.getState().write(id, JSON.stringify(fixture.local));
     const editor = mount();
     await editor.submit();
-    mock.jira.mockReturnValue(Effect.fail(new DescriptionSaveError({ message: "offline" })));
+    mock.jira.mockImplementationOnce(() => Effect.succeed({ accountId: "account-a" })).mockReturnValueOnce(Effect.fail(new DescriptionSaveError({ message: "offline" })));
     await editor.submit();
     expect(mock.jiraSend).not.toHaveBeenCalled();
     expect(store.getState().drafts[id]).not.toHaveProperty("basis");
@@ -108,7 +108,7 @@ describe("C1 im bestehenden Feldeditorfluss", () => {
     const editor = mount({ mode: "wiki", initial: "", initialRaw: null });
     editor.setText(fixture.wiki.local);
     await editor.submit();
-    expect(mock.jira.mock.calls[0][3]).toBe("api/2");
+    expect(mock.jira.mock.calls[1][3]).toBe("api/2");
     expect(mock.jiraSend.mock.calls[0][2]).toBe("api/2");
     expect(mock.close).toHaveBeenCalledOnce();
   });
@@ -117,7 +117,7 @@ describe("C1 im bestehenden Feldeditorfluss", () => {
     const editor = mount();
     editor.setText(JSON.stringify(fixture.local));
     await Promise.all([editor.submit(), editor.submit()]);
-    expect(mock.jira).toHaveBeenCalledTimes(1);
+    expect(mock.jira).toHaveBeenCalledTimes(2);
     expect(mock.jiraSend).toHaveBeenCalledTimes(1);
   });
 

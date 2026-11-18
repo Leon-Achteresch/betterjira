@@ -40,6 +40,8 @@ const Session = Schema.Struct({
 });
 type Session = typeof Session.Type;
 let cachedSession: Session | undefined;
+let connectionRevision = 0;
+export const jiraConnectionRevision = () => connectionRevision;
 
 const TokenResponse = Schema.Struct({
   access_token: Schema.String,
@@ -114,7 +116,7 @@ const saveSession = (session: Session) =>
     catch: authError("Anmeldedaten konnten nicht gespeichert werden"),
   }).pipe(Effect.tap(() => Effect.sync(() => { cachedSession = session; })));
 
-const deleteSession = Effect.sync(() => { cachedSession = undefined; }).pipe(Effect.andThen(Effect.tryPromise({
+const deleteSession = Effect.sync(() => { cachedSession = undefined; connectionRevision++; }).pipe(Effect.andThen(Effect.tryPromise({
   try: () => invoke("session_delete"),
   catch: authError("Anmeldedaten konnten nicht gelöscht werden"),
 })));
@@ -169,6 +171,7 @@ export const login = Effect.gen(function* () {
   if (!site) return yield* new JiraAuthError({ message: "Dieser Account hat keinen Zugriff auf eine Jira-Site" });
 
   yield* saveSession({ ...tokens, cloudId: site.id, siteUrl: site.url, siteName: site.name }).pipe(
+    Effect.tap(() => Effect.sync(() => { connectionRevision++; })),
     refreshLock.withPermits(1),
   );
 });

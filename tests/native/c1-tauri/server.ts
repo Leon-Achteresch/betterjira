@@ -10,6 +10,7 @@ field.name = "Beschreibung";
 const key = "DEMO-1";
 const cloudPrefix = `/ex/jira/${jira.cloudId}/rest/`;
 const issuePath = `${cloudPrefix}api/3/issue/${key}`;
+const writePath = `${cloudPrefix}api/3/issue/${jira.jira.findIssue(key).id}`;
 const reads: { cloud: string; status: number | "pending"; description?: unknown }[] = [];
 const ticketReads: { status: number; description?: unknown }[] = [];
 const writes: { path: string; payload: unknown; status: number }[] = [];
@@ -95,7 +96,7 @@ const server = Bun.serve({
         read.description = await readDescription(response);
         return response;
       }
-      if (method === "PUT" && pathname === issuePath) {
+      if (method === "PUT" && pathname === writePath) {
         const payload: unknown = await request.clone().json();
         const response = await jira.handle(request);
         writes.push({ path: pathname, payload, status: response.status });

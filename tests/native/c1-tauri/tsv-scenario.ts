@@ -19,7 +19,7 @@ const noWrite = async (phase: string) => same((await ledger()).writes, [], `Unex
 const draftValues = ["Name", "Preis", "Notiz", "", "Büro", "", " =1+2 ", "Ende"];
 const savedValues = ["Name", "Preis", "Notiz", "", "Büro", "42", " =1+2 ", "Ende"];
 const written = {
-  path: "/ex/jira/mock-cloud/rest/api/3/issue/DEMO-1",
+  path: "/ex/jira/mock-cloud/rest/api/3/issue/10000",
   payload: { fields: { description: officeTableSaved } },
   status: 204,
 };

@@ -94,7 +94,7 @@ test("Zellen bleiben nach Wiederaufnahme editierbar und der explizite C1-Save se
   await conflict.getByRole("button", { name: "Entwurf trotzdem speichern" }).click();
   await expect(editor(page)).toHaveCount(0);
   expect(await writes(page)).toEqual([expect.objectContaining({
-    method: "PUT", path: "/issue/DEMO-1",
+    method: "PUT", path: "/issue/1",
     input: { fields: { description: officeTableSaved } },
   })]);
 });

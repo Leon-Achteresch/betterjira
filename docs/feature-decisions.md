@@ -47,6 +47,12 @@ API-Vertrag: https://developer.atlassian.com/cloud/jira/platform/rest/v2/api-gro
 
 ## Prüfung und Abbildungen
 
+### C1: Konfliktprüfung beim Speichern der Beschreibung
+
+Der Editor prüft vor dem Beschreibungs-GET das Konto und bindet die Anfrage an die aktuelle Jira-Verbindung und den geöffneten Editor. Das GET liest das Rohfeld mit `no-store` und muss Schlüssel und ID des geöffneten Tickets bestätigen. Für ADF gilt REST v3, für Wiki-Markup REST v2. Wenn eingefügte Dateien vorbereitet werden, folgt danach ein weiterer Beschreibungs-GET. Eine Bestätigung im Konfliktdialog führt nur zum PUT, wenn der letzte GET weiterhin die geprüfte Fassung liefert. Der PUT geht an die Jira-ID, ohne automatische Wiederholung. Bei `409 Conflict` liest BetterJira einmal nach und zeigt eine neue Vergleichsfassung, falls sich die Beschreibung geändert hat.
+
+Atlassians `Edit issue` dokumentiert `409` und die Feldupdate-Formate. Die Operationsverträge von REST v2 und v3 nennen keine Schreibvorbedingung über `If-Match`, eine erwartete Issue-Version oder den alten Rohwert. `409` ist damit keine Zusage, dass jeder PUT mit veralteter Basis abgewiesen wird. Änderungen nach dem letzten Beschreibungs-GET können weiterhin überschrieben werden. Ein bereits versandter PUT kann auch nach Schließen oder Sitzungswechsel ankommen. Eine stärkere Zusage braucht eine serverseitig erzwungene Vorbedingung und deren Nachweis am autorisierten Jira-Ziel. [REST v2](https://developer.atlassian.com/cloud/jira/platform/rest/v2/api-group-issues/#api-rest-api-2-issue-issueidorkey-put), [REST v3](https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-issues/#api-rest-api-3-issue-issueidorkey-put)
+
 ### N23: Reviewgespräche im PR-Bereich
 
 Die Aktion im isolierten QA-Build liest bis zu acht GitHub-Reviewgespräche per deklarierter GraphQL-Query. Die Antwort muss das aktuelle Konto, das Repository und die PR-Nummer bestätigen. Originallinks stammen aus der Antwort und müssen auf genau diesen PR am verbundenen HTTPS-Host verweisen. Unvollständige oder abgeschnittene Ergebnisse sind als Teilansicht erkennbar. Der reguläre Build lässt die Aktion deaktiviert. Eine Freigabe erfordert den Nachweis von Token- und Repo-Leserechten, der Hostbindung und des nativen SCM-Transports mit dem vorgesehenen Zielkonto. [GitHub-GraphQL-Referenz](https://docs.github.com/en/graphql/reference/pulls#pullrequestreviewthread)
