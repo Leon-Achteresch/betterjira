@@ -12,6 +12,8 @@ export const jiraKeys = {
     ["jira", "duplicate-comparison", context, instance, request] as const,
   linkDirectionPreview: (context: string, instance: string, request: number | undefined) =>
     ["jira", "link-direction-preview", context, instance, request] as const,
+  criteriaTestReview: (instance: string, request: number | undefined) =>
+    ["jira", "criteria-test-review", instance, request] as const,
   issueApprovals: (context: string, instance: string, request: number | undefined) =>
     ["jira", "issue-approvals", context, instance, request] as const,
   multiLinkWrite: (scope: JiraQueryScope | undefined) => ["jira", "multi-link-write", scope?.cloudId ?? "", scope?.accountId ?? ""] as const,

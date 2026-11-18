@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { IssueActions } from "@/components/issues/issue-actions";
 import { IssueLinksPanel } from "@/components/issues/issue-links-panel";
+import { CriteriaTestReview } from "@/components/issues/criteria-test-review";
 import { IssueApprovalsContent } from "@/components/issues/issue-approvals";
 import { DependencyNeighborhood } from "@/components/issues/dependency-neighborhood";
 import { AddIssueLink } from "@/components/issues/add-issue-link";
@@ -33,6 +34,7 @@ import { useIssueDevelopmentPanel } from "@/hooks/scm/use-issue-development-pane
 import { useIssueHistory } from "@/hooks/jira/use-issue-history";
 import { useIssueApprovals } from "@/hooks/jira/use-issue-approvals";
 import { useIssueLinks } from "@/hooks/jira/use-issue-links";
+import { useCriteriaTestReview } from "@/hooks/jira/use-criteria-test-review";
 import { useRemoteLinks } from "@/hooks/jira/use-remote-links";
 import { useIssueCommentPages } from "@/hooks/jira/use-issue-comment-pages";
 import { useIssueRendered } from "@/hooks/jira/use-issue-rendered";
@@ -155,6 +157,12 @@ export function IssueView({
   const actions = useIssueActions(view.issue, site.data?.siteUrl, initialTab);
   const history = useIssueHistory(issueKey, view.issue?.key === issueKey ? { created: view.issue.fields.created, status: view.issue.fields.status } : undefined);
   const links = useIssueLinks(issueKey);
+  const criteriaReview = useCriteriaTestReview({
+    key: view.issue?.key ?? "",
+    id: view.issue?.id ?? "",
+    revision: view.issue?.fields.updated ?? "",
+    description: view.issue?.fields.description,
+  }, links.previewContext, links.refreshError ? undefined : links.summary);
   const approvals = useIssueApprovals(view.issue?.key === issueKey ? issueKey : undefined);
   const remoteLinks = useRemoteLinks(issueKey);
   const commentPages = useIssueCommentPages(
@@ -293,6 +301,7 @@ export function IssueView({
             />
             <MultiTicketLinks state={links.multi} />
             <DependencyNeighborhood state={links.dependencies} />
+            <CriteriaTestReview state={criteriaReview} loadingLinks={links.retrying && !links.summary} />
           </Section>
 
           <motion.div variants={reveal(reduce)}>
