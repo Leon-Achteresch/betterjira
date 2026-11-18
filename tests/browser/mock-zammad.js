@@ -147,7 +147,10 @@ export async function zammadInvoke(command, args) {
   }
   if (/^\/users\/\d+$/.test(route))
     return response(route.endsWith("/7") ? customer : user);
-  if (route === "/users/me") return response(user);
+  if (route === "/users/me") {
+    await state.beforeMeResponse?.();
+    return response(state.me ?? user);
+  }
   if (route === "/users/search") return response([user, customer]);
   if (route === "/ticket_states")
     return response([
@@ -208,12 +211,15 @@ export async function zammadInvoke(command, args) {
   const articleTicketId = route.match(
     /^\/ticket_articles\/by_ticket\/(\d+)$/,
   )?.[1];
-  if (articleTicketId)
-    return response(
+  if (articleTicketId) {
+    const articles = response(
       state.articles.filter(
         (article) => article.ticket_id === Number(articleTicketId),
       ),
     );
+    await state.beforeArticleResponse?.(args);
+    return articles;
+  }
   if (route === "/ticket_articles" && method === "POST") {
     const article = {
       ...body,

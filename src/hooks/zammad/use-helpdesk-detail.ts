@@ -13,6 +13,7 @@ import { useSubmissionLock } from "@/hooks/use-submission-lock";
 import { useZammadPeople } from "./use-zammad-people";
 import { useZammadDraft } from "./use-zammad-draft";
 import { useZammadSourceQuote } from "./use-zammad-source-quote";
+import { useZammadSourceCc } from "./use-zammad-source-cc";
 import {
   authorId,
   articlePerson,
@@ -42,6 +43,7 @@ import {
   useZammadTags,
   useZammadTicket,
   useZammadTime,
+  useZammadUser,
 } from "./use-zammad-queries";
 import { useUserPicker } from "./use-user-picker";
 
@@ -52,6 +54,7 @@ export const useHelpdeskDetail = (input: string) => {
       : 0;
   const lock = useSubmissionLock();
   const connection = useZammadConnection();
+  const user = useZammadUser();
   const query = useZammadTicket(id);
   const ticket = query.data;
   const activeId = ticket?.id ?? 0;
@@ -79,8 +82,10 @@ export const useHelpdeskDetail = (input: string) => {
   );
   const update = useUpdateZammadTicket(ticket);
   const write = useZammadWrite(activeId);
+  const draftScope = [connection.data?.baseUrl, connection.data?.revision, id];
   const originalDraft = useZammadDraft(
-    `${connection.data?.baseUrl ?? ""}:${id}`,
+    JSON.stringify([...draftScope, user.data?.id ?? null]),
+    user.data?.id ? JSON.stringify([...draftScope, null]) : undefined,
   );
   const quote = useZammadSourceQuote(
     ticket?.id === id ? id : 0,
@@ -101,6 +106,17 @@ export const useHelpdeskDetail = (input: string) => {
   };
   const setFiles = (files: File[]) => updateDraft({ files });
   const replyTarget = draft.reply;
+  const sourceCc = useZammadSourceCc({
+    ticketId: activeId === id ? id : 0,
+    reply:
+      kind === "email" && !quote.active && !write.article.isPending
+        ? replyTarget
+        : null,
+    articles: articles.data ?? [],
+    connection: connection.data,
+    userId: user.data?.id,
+    addCc: originalDraft.addCc,
+  });
   const setReplyTarget = (reply: Article | null) => updateDraft({ reply });
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const people = useZammadPeople([
@@ -323,6 +339,7 @@ export const useHelpdeskDetail = (input: string) => {
     },
     onReply,
     quote,
+    sourceCc,
     replyTarget,
     inputRef,
     onComposerKeyDown,

@@ -291,6 +291,7 @@ test("390px: Tastatur, gekürzte Quelle, unbekannte Metadaten und sichere Leerzu
     /Autor unbekannt · Quellzeit unbekannt/,
   );
   await expect(composer(page)).toHaveValue(/auf 2.000 Zeichen gekürzt/);
+  await expect(page.getByRole("dialog")).toHaveCount(0);
   await page
     .getByRole("button", { name: "Als interne Notiz zitieren" })
     .nth(1)

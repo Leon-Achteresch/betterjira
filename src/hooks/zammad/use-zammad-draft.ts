@@ -1,6 +1,8 @@
 import type { Article } from "@/lib/zammad/model";
+import { useLayoutEffect } from "react";
 import { create } from "zustand";
 import { appendSourceQuote } from "@/lib/zammad/source-quote";
+import { appendSourceCc } from "@/lib/zammad/source-cc";
 
 type Draft = {
   reply: Article | null;
@@ -29,9 +31,36 @@ const useDraftStore = create<{
   update: (key: string, patch: Partial<Draft>) => void;
   complete: (key: string, sent: Draft) => void;
   quote: (key: string, sourceId: number, block: string) => void;
+  addCc: (key: string, reply: Article, addresses: readonly string[]) => boolean;
+  claim: (key: string, pendingKey: string) => void;
   clear: () => void;
 }>((set) => ({
   drafts: {},
+  claim: (key, pendingKey) =>
+    set((state) => {
+      const draft = state.drafts[pendingKey];
+      if (!draft || state.drafts[key]) return state;
+      const drafts = { ...state.drafts, [key]: draft };
+      delete drafts[pendingKey];
+      return { drafts };
+    }),
+  addCc: (key, reply, addresses) => {
+    let accepted = false;
+    set((state) => {
+      const draft = state.drafts[key];
+      if (draft?.kind !== "email" || draft.reply !== reply) return state;
+      const cc = appendSourceCc(draft.cc, draft.recipient, addresses);
+      accepted = cc !== null;
+      if (cc === null || cc === draft.cc) return state;
+      return {
+        drafts: {
+          ...state.drafts,
+          [key]: { ...draft, cc, revision: draft.revision + 1 },
+        },
+      };
+    });
+    return accepted;
+  },
   quote: (key, sourceId, block) =>
     set((state) => {
       const draft = state.drafts[key] ?? EMPTY_DRAFT;
@@ -63,8 +92,11 @@ const useDraftStore = create<{
     })),
   complete: (key, sent) =>
     set((state) => {
-      const current = state.drafts[key];
-      if (!current) return state;
+      const draftKey = state.drafts[key]
+        ? key
+        : Object.keys(state.drafts).find((item) => state.drafts[item] === sent);
+      if (!draftKey) return state;
+      const current = state.drafts[draftKey];
       const unchanged =
         current.revision === sent.revision &&
         current.body.trim() === sent.body.trim() &&
@@ -76,7 +108,7 @@ const useDraftStore = create<{
       return {
         drafts: {
           ...state.drafts,
-          [key]: {
+          [draftKey]: {
             ...current,
             body: unchanged ? "" : current.body,
             reply: unchanged ? null : current.reply,
@@ -90,15 +122,21 @@ const useDraftStore = create<{
   clear: () => set({ drafts: {} }),
 }));
 export const clearZammadDrafts = () => useDraftStore.getState().clear();
-export const useZammadDraft = (key: string) => {
+export const useZammadDraft = (key: string, pendingKey?: string) => {
   const draft = useDraftStore((state) => state.drafts[key] ?? EMPTY_DRAFT);
   const update = useDraftStore((state) => state.update);
   const complete = useDraftStore((state) => state.complete);
   const quote = useDraftStore((state) => state.quote);
+  const addCc = useDraftStore((state) => state.addCc);
+  useLayoutEffect(() => {
+    if (pendingKey) useDraftStore.getState().claim(key, pendingKey);
+  }, [key, pendingKey]);
   return {
     ...draft,
     update: (patch: Partial<Draft>) => update(key, patch),
     complete: () => complete(key, draft),
     quote: (sourceId: number, block: string) => quote(key, sourceId, block),
+    addCc: (reply: Article, addresses: readonly string[]) =>
+      addCc(key, reply, addresses),
   };
 };

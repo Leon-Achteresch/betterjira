@@ -12,6 +12,8 @@ export const zammadKeys = {
   articles: (id: number) => ["zammad", "ticket", id, "articles"] as const,
   quoteSource: (scope: string, request: string, sourceId: number) =>
     ["zammad", "source-quote", scope, request, sourceId] as const,
+  ccSource: (scope: string, request: string) =>
+    ["zammad", "source-cc", scope, request] as const,
   tags: (id: number) => ["zammad", "ticket", id, "tags"] as const,
   time: (id: number) => ["zammad", "ticket", id, "time"] as const,
   links: (id: number) => ["zammad", "ticket", id, "links"] as const,

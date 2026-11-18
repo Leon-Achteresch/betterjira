@@ -65,7 +65,7 @@ export const Article = Schema.Struct({
   subject: optionalText,
   from: optionalText,
   to: optionalText,
-  cc: optionalText,
+  cc: Schema.optional(Schema.Unknown),
   type: optionalText,
   sender: optionalText,
   created_at: Schema.String,

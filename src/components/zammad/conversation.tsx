@@ -33,6 +33,7 @@ import { Kbd } from "@/components/ui/kbd";
 import { FADE_IN, FADE_OUT } from "@/lib/ease";
 import { IS_MAC } from "@/lib/platform";
 import type { HelpdeskDetailModel } from "@/hooks/zammad/use-helpdesk-detail";
+import { SourceCcAction } from "./source-cc-action";
 
 export function Conversation({ model }: { model: HelpdeskDetailModel }) {
   return (
@@ -101,7 +102,8 @@ export function Conversation({ model }: { model: HelpdeskDetailModel }) {
                   {!article.internal && article.to && (
                     <p className="mb-2 truncate text-[11px] text-muted-foreground">
                       An {article.to}
-                      {article.cc && ` · CC ${article.cc}`}
+                      {typeof article.cc === "string" &&
+                        article.cc && ` · CC ${article.cc}`}
                     </p>
                   )}
                   {article.html ? (
@@ -410,6 +412,9 @@ function TicketComposer({ model }: { model: HelpdeskDetailModel }) {
                 className="border-transparent bg-muted/30 text-[13px] shadow-none"
               />
             </label>
+            {model.sourceCc.available && (
+              <SourceCcAction model={model.sourceCc} />
+            )}
             <label className="grid grid-cols-[3rem_minmax(0,1fr)] items-center text-xs text-muted-foreground">
               Betreff
               <Input
