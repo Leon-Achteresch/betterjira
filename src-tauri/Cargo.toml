@@ -18,7 +18,7 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [features]
-c1-ipc-fixture = []
+c1-ipc-fixture = ["tauri-plugin-http/rustls-tls-native-roots"]
 
 [[example]]
 name = "c1_ipc_fixture"

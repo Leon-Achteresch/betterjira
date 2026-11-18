@@ -114,6 +114,11 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
             "n22-ipc-fixture",
             "tests/native/n22-tauri/fixture.html",
         ),
+        "n25" => (
+            "betterjira N25 IPC Fixture",
+            "n25-ipc-fixture",
+            "tests/native/n25-tauri/fixture.html",
+        ),
         _ => return Err("Unknown IPC fixture scenario".into()),
     };
     let identifier = format!("com.leon.betterjira.{window}");
@@ -122,6 +127,14 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     let temporary = work.join("tmp");
     let state = work.join("data");
     let assets = work.join("dist");
+    let jira_tls = window == "n25-ipc-fixture";
+    let certs = work.join(
+        if jira_tls || matches!(window, "n16-ipc-fixture" | "n17-ipc-fixture") {
+            "tls/ca.pem"
+        } else {
+            "no-platform-trust.pem"
+        },
+    );
     if env::var_os("HOME").as_deref() != Some(home.as_os_str())
         || env::var_os("CFFIXED_USER_HOME").as_deref() != Some(home.as_os_str())
         || env::var_os("TMPDIR").as_deref() != Some(temporary.as_os_str())
@@ -133,12 +146,19 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     {
         return Err("Fixture requires fresh private app data, HOME and TMPDIR".into());
     }
+    if env::var_os("SSL_CERT_FILE").as_deref() != Some(certs.as_os_str())
+        || env::var_os("SSL_CERT_DIR").is_some()
+        || certs.canonicalize()? != certs
+    {
+        return Err("Fixture requires private TLS trust without access to the system store".into());
+    }
     let port: u16 = env::var("C1_IPC_JIRA_PORT")?.parse()?;
     let canary: u16 = env::var("C1_IPC_CANARY_PORT")?.parse()?;
     if port == 0 || canary == 0 || port == canary {
         return Err("Fixture requires separate nonzero loopback ports".into());
     }
-    let origin = format!("http://127.0.0.1:{port}");
+    let scheme = if jira_tls { "https" } else { "http" };
+    let origin = format!("{scheme}://127.0.0.1:{port}");
     let trap = format!("http://127.0.0.1:{canary}");
     let mut context = tauri::generate_context!("tauri.conf.json", test = true);
     let config = context.config_mut();
