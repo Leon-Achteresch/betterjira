@@ -43,9 +43,11 @@ describe("Explizite neue Restarbeit", () => {
   it("unterscheidet keine Vorgabe von bewusstem Nullwert", () => {
     expect(worklogEstimateQuery()).toBe("");
     expect(worklogEstimateQuery(" ")).toBe("");
+    expect(normalizeRemainingEstimate("0")).toBe("0m");
     expect(normalizeRemainingEstimate("0h 0m")).toBe("0m");
     expect(worklogEstimateQuery("0m")).toBe("?adjustEstimate=new&newEstimate=0m");
     expect(worklogEstimateQuery("2h 30m")).toBe("?adjustEstimate=new&newEstimate=2h+30m");
     expect(() => worklogEstimateQuery("-1h")).toThrow();
+    expect(() => worklogEstimateQuery("0h 0h")).toThrow();
   });
 });

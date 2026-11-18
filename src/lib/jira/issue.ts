@@ -1,7 +1,9 @@
-import { Effect, Schema } from "effect";
-import { jira, jiraImage, JiraApiError, jiraRedirectLocation, jiraSend, type JiraRequestScope } from "./client";
-import { worklogEstimateQuery } from "./worklog";
+import { Data, Effect, Schema } from "effect";
+import { jira, jiraImage, JiraApiError, jiraRedirectLocation, JiraRequestScopeChanged, jiraSend, type JiraRequestScope } from "./client";
+import { normalizeRemainingEstimate, worklogEstimateQuery, type WorklogBooking } from "./worklog";
 import { mediaIdFromLocation } from "./adf-media";
+import { worklogEstimateAllowed } from "@/lib/jira/worklog-estimate-capability";
+import { readJiraAccount } from "./query-scope";
 
 const issuePath = (key: string) => `/issue/${encodeURIComponent(key)}`;
 const json = (method: string, body: unknown) => ({
@@ -14,17 +16,30 @@ const WikiFields = Schema.Struct({
 
 export const editIssue = (key: string, fields: Record<string, unknown>) =>
   jiraSend(issuePath(key), json("PUT", { fields }));
-export const addWorklog = (
-  key: string,
-  worklog: { timeSpent: string; started: string; comment?: string; remainingEstimate?: string },
-) => Effect.suspend(() => {
-  const { remainingEstimate, ...body } = worklog;
-  try {
-    return jiraSend(`${issuePath(key)}/worklog${worklogEstimateQuery(remainingEstimate)}`, json("POST", body), "api/2");
-  } catch {
-    return Effect.fail(new JiraApiError({ status: 400, body: "Gib eine Restarbeit wie 0m oder 2h ein." }));
-  }
-});
+const AddedWorklog = Schema.Struct({ id: Schema.NonEmptyString, issueId: Schema.String });
+class WorklogBookingUnconfirmed extends Data.TaggedError("WorklogBookingUnconfirmed")<{}> {}
+
+export const addWorklog = (key: string, worklog: WorklogBooking) =>
+  Effect.gen(function* () {
+    const { remainingEstimate, ...body } = worklog;
+    if (!remainingEstimate) return yield* jiraSend(`${issuePath(key)}/worklog`, json("POST", body), "api/2");
+
+    const { issueId, scope, value } = remainingEstimate;
+    if (!normalizeRemainingEstimate(value) || !/^\d+$/.test(issueId))
+      return yield* new JiraApiError({ status: 400, body: "Restschätzung oder Ticket nicht gültig." });
+    if (!worklogEstimateAllowed(scope, scope.siteUrl) || !scope.isCurrent())
+      return yield* new JiraRequestScopeChanged();
+    const { onDispatch, ...readScope } = scope;
+    const account = yield* readJiraAccount(readScope, false);
+    if (account.accountId !== scope.accountId || !scope.isCurrent())
+      return yield* new JiraRequestScopeChanged();
+
+    const path = `${issuePath(issueId)}/worklog${worklogEstimateQuery(value)}`;
+    const added = yield* jira(path, AddedWorklog, {
+      ...json("POST", body), scope: { ...readScope, onDispatch }, retry: false, maxRedirections: 0,
+    }, "api/2");
+    if (added.issueId !== issueId) return yield* new WorklogBookingUnconfirmed();
+  });
 
 const UploadedAttachments = Schema.Array(
   Schema.Struct({

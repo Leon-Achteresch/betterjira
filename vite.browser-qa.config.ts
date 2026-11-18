@@ -20,6 +20,9 @@ export default mergeConfig(base({ command: "build", mode: "production" }), {
     }, {
       find: "@/lib/jira/issue-approvals-capability",
       replacement: join(import.meta.dirname, "tests/browser/issue-approvals-capability.ts"),
+    }, {
+      find: "@/lib/jira/worklog-estimate-capability",
+      replacement: join(import.meta.dirname, "tests/browser/worklog-estimate-capability.ts"),
     }],
   },
   plugins: [{

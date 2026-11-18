@@ -2,6 +2,7 @@ import { AdfContent } from "@/components/adf-content";
 import { JiraUserLabel } from "@/components/jira-user-avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Fade } from "@/components/motion/fade";
 import { Spinner } from "@/components/ui/spinner";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useIssueWorklog } from "@/hooks/use-issue-worklog";
@@ -22,7 +23,8 @@ export function IssueWorklog({
   issueId?: string;
   fields: Fields;
 }) {
-  const editor = useIssueWorklog(issueKey, fields);
+  const editor = useIssueWorklog(issueKey, issueId, fields);
+  const estimate = editor.estimate;
   const reduce = useReducedMotion();
 
   return (
@@ -40,7 +42,7 @@ export function IssueWorklog({
               type="button"
               variant={editor.timeSpent === duration ? "secondary" : "outline"}
               size="xs"
-              disabled={editor.pending}
+              disabled={editor.busy}
               aria-pressed={editor.timeSpent === duration}
               onClick={() => editor.setTimeSpent(duration)}
             >
@@ -49,7 +51,7 @@ export function IssueWorklog({
           ))}
         </div>
         <fieldset
-          disabled={editor.pending}
+          disabled={editor.busy}
           className="flex flex-wrap items-end gap-2"
         >
           <Input
@@ -73,13 +75,53 @@ export function IssueWorklog({
             onChange={(event) => editor.setComment(event.target.value)}
             className="min-w-48 flex-1"
           />
-          <Input
-            aria-label="Neue Restarbeit"
-            placeholder="Neue Restarbeit (optional), z. B. 0m"
-            value={editor.remainingEstimate}
-            onChange={(event) => editor.setRemainingEstimate(event.target.value)}
-            className="w-full sm:w-56"
-          />
+          {estimate.available && (
+            <div className="w-full space-y-2 rounded-xl border border-border/60 p-3">
+              <label className="flex min-h-8 items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  className="size-4 accent-primary"
+                  checked={estimate.selected}
+                  onChange={(event) =>
+                    event.target.checked
+                      ? estimate.setInput("")
+                      : estimate.clear()
+                  }
+                />
+                Restschätzung neu setzen
+              </label>
+              {estimate.selected ? (
+                <Fade>
+                  <Input
+                    aria-label="Neue Restschätzung"
+                    placeholder="z. B. 2h 30m oder 0"
+                    value={estimate.input}
+                    onChange={(event) => estimate.setInput(event.target.value)}
+                    aria-invalid={!!estimate.input.trim() && !estimate.value}
+                  />
+                  <p
+                    role="status"
+                    className="mt-2 text-sm text-muted-foreground"
+                  >
+                    {estimate.value ? (
+                      <>
+                        Restschätzung nach dieser Buchung{" "}
+                        <strong className="font-medium tabular-nums text-foreground">
+                          {estimate.value}
+                        </strong>
+                      </>
+                    ) : (
+                      "Gib eine Restschätzung wie 2h 30m oder 0 ein."
+                    )}
+                  </p>
+                </Fade>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  Jira passt die Restschätzung nach seinem Standard an.
+                </p>
+              )}
+            </div>
+          )}
           <Button
             type="button"
             variant="ghost"
@@ -88,14 +130,31 @@ export function IssueWorklog({
           >
             Beginn jetzt
           </Button>
-          <Button type="submit" size="sm" disabled={!editor.canSubmit}>
-            {editor.pending && <Spinner />}
-            Zeit erfassen
-          </Button>
+          {estimate.selected ? (
+            <Button
+              type="button"
+              size="sm"
+              disabled={!editor.canSubmit || !estimate.value}
+              onClick={editor.confirmEstimate}
+            >
+              {editor.pending && <Spinner />}
+              Zeit und Restschätzung bestätigen
+            </Button>
+          ) : (
+            <Button type="submit" size="sm" disabled={!editor.canSubmit}>
+              {editor.pending && <Spinner />}
+              Zeit erfassen
+            </Button>
+          )}
         </fieldset>
       </form>
-      {issueId && <WorklogSelectedDays target={{ id: issueId, key: issueKey, summary: fields.summary }}
-        seed={{ duration: editor.timeSpent, started: editor.started }} loaded={fields.worklog} />}
+      {issueId && (
+        <WorklogSelectedDays
+          target={{ id: issueId, key: issueKey, summary: fields.summary }}
+          seed={{ duration: editor.timeSpent, started: editor.started }}
+          loaded={fields.worklog}
+        />
+      )}
       <AnimatePresence initial={false}>
         {editor.error && (
           <motion.p
@@ -144,11 +203,13 @@ export function IssueWorklog({
           ))}
         </ol>
       )}
-      {fields.worklog && fields.worklog.total > fields.worklog.worklogs.length && (
-        <p className="text-xs text-muted-foreground">
-          {fields.worklog.worklogs.length} von {fields.worklog.total} Einträgen angezeigt.
-        </p>
-      )}
+      {fields.worklog &&
+        fields.worklog.total > fields.worklog.worklogs.length && (
+          <p className="text-xs text-muted-foreground">
+            {fields.worklog.worklogs.length} von {fields.worklog.total}{" "}
+            Einträgen angezeigt.
+          </p>
+        )}
     </div>
   );
 }

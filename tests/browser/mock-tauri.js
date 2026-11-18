@@ -1178,6 +1178,26 @@ const respond = async (request) => {
   if (request.method !== "GET") {
     if (path.endsWith("approximate-count")) return { body: { count: issues.length } };
     if (path.startsWith("/jql/parse")) return { body: { queries: [{ errors: [] }] } };
+    const book = request.method === "POST" && scenario === "worklog-estimate" && path.match(/^\/issue\/([^/]+)\/worklog$/);
+    if (book) {
+      const issue = issues.find(({ id, key }) => id === book[1] || key === book[1]);
+      const input = request.data ? JSON.parse(new TextDecoder().decode(new Uint8Array(request.data))) : {};
+      const params = Object.fromEntries(url.searchParams);
+      const account = window.__qa.accountId ?? "qa-user";
+      const fault = await window.__qaWorklogBookingRule?.(params);
+      const status = issue ? fault?.status ?? 201 : 404;
+      window.__qa.writes.push({ method: request.method, path, fullPath: url.pathname, params, input, status, account });
+      if (!issue || (status !== 201 && !fault?.commit))
+        return { status, body: { errorMessages: ["Synthetische Buchung nicht bestätigt"] } };
+      const created = { id: `work-${++nextId}`, issueId: issue.id, author, started: input.started,
+        timeSpent: input.timeSpent, ...(input.comment && { comment: paragraph(input.comment) }) };
+      issue.fields.worklog.worklogs.push(created);
+      issue.fields.worklog.total++;
+      if (params.adjustEstimate === "new") {
+        issue.fields.timetracking = { ...issue.fields.timetracking, remainingEstimate: params.newEstimate };
+      }
+      return { status, body: created };
+    }
     if (window.__qaWriteGate) await window.__qaWriteGate;
     if (window.__qa.delayMs) await new Promise((resolve) => setTimeout(resolve, window.__qa.delayMs));
     if (window.__qa.failNextWrite) {
@@ -1772,10 +1792,11 @@ window.__TAURI_INTERNALS__ = {
     throw new Error(`Nicht simuliertes Tauri-Kommando: ${command}`);
   },
 };
-if (scenario === "table-field-apply" || scenario === "subtask-rows" || scenario === "approvals") {
+if (scenario === "table-field-apply" || scenario === "subtask-rows" || scenario === "approvals" || scenario === "worklog-estimate") {
   const bridge = window.__TAURI_INTERNALS__;
   const invoke = bridge.invoke;
   const flag = scenario === "approvals" ? "__qaIssueApprovals"
+    : scenario === "worklog-estimate" ? "__qaWorklogEstimate"
     : scenario === "subtask-rows" ? "__qaSubtaskRows" : "__qaTableFieldApply";
   Object.defineProperty(window, flag, { value: () => window.__TAURI_INTERNALS__ === bridge && bridge.invoke === invoke });
 }

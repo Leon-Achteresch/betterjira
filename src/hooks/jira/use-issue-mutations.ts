@@ -25,6 +25,7 @@ import { deduplicateMutation } from "@/lib/jira/deduplicate-mutation";
 import { resolvePendingMedia } from "@/hooks/jira/use-pending-uploads";
 import { useJiraQueryScope } from "./use-jira-query-scope";
 import { jiraRequestScope, withJiraQueryScope } from "@/lib/jira/query-scope";
+import type { WorklogBooking } from "@/lib/jira/worklog";
 
 const useIssueMutation = <A>(
   key: string,
@@ -120,7 +121,7 @@ export const useJiraAddWorklog = (key: string) =>
   useIssueMutation(
     key,
     "worklog",
-    (worklog: { timeSpent: string; started: string; comment?: string; remainingEstimate?: string }) =>
+    (worklog: WorklogBooking) =>
       addWorklog(key, worklog),
   );
 

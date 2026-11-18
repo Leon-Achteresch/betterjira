@@ -1,4 +1,5 @@
 import { renderToStaticMarkup } from "react-dom/server";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import fixture from "../../../tests/jira/fixtures/issue-time.json";
 import { issueTimeSummary } from "@/lib/jira/issue-time";
@@ -9,6 +10,8 @@ vi.mock("@/hooks/jira/use-issue-mutations", async (original) => ({ ...await orig
 vi.mock("@/components/jira-user-avatar", async (original) => ({ ...await original<typeof import("@/components/jira-user-avatar")>(), JiraUserLabel: () => null }));
 const { IssueWorklog } = await import("@/components/issue-worklog");
 const rowsOf = (markup: string) => [...markup.matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/g)].map((row) => row[1].replace(/<[^>]+>/g, " "));
+const worklogMarkup = (issueKey: string, fields: Parameters<typeof IssueWorklog>[0]["fields"]) =>
+  renderToStaticMarkup(<QueryClientProvider client={new QueryClient()}><IssueWorklog issueKey={issueKey} fields={fields} /></QueryClientProvider>);
 beforeEach(() => mock.add.mockReset());
 
 describe("Ticket- und Jira-Gesamtzeiten im bestehenden Zeit-Tab", () => {
@@ -37,17 +40,17 @@ describe("Ticket- und Jira-Gesamtzeiten im bestehenden Zeit-Tab", () => {
     expect(rows[2]).toMatch(/0m\s+Jira-Textangabe\s+Unbekannt/);
   });
   it("integriert echte Hook-Ableitung und erhaelt Erfassungsformular sowie unvollstaendige Buchungsliste", () => {
-    const markup = renderToStaticMarkup(<IssueWorklog issueKey="DEMO-1" fields={fixture.fields} />);
+    const markup = worklogMarkup("DEMO-1", fixture.fields);
     expect(rowsOf(markup)[1]).toMatch(/24 h\s+48 h/);
-    expect(markup).toContain("Neue Restarbeit");
+    expect(markup).not.toContain("Restschätzung neu setzen");
     expect(markup).toContain("Zeit erfassen");
     expect(markup).toContain("1 von 9 Einträgen angezeigt");
     expect(mock.add).not.toHaveBeenCalled();
   });
   it("uebernimmt bei neuem Ticket keine Gesamtwerte der vorherigen Anzeige", () => {
-    renderToStaticMarkup(<IssueWorklog issueKey="DEMO-1" fields={fixture.fields} />);
+    worklogMarkup("DEMO-1", fixture.fields);
     const next = { ...fixture.fields, aggregatetimeoriginalestimate: null, aggregatetimespent: 0, aggregatetimeestimate: null };
-    const rows = rowsOf(renderToStaticMarkup(<IssueWorklog issueKey="DEMO-2" fields={next} />));
+    const rows = rowsOf(worklogMarkup("DEMO-2", next));
     expect(rows[1]).toContain("Unbekannt");
     expect(rows[1]).not.toContain("48 h");
     expect(rows[2]).toMatch(/2 h\s+0 min/);

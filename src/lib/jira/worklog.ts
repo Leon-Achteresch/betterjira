@@ -1,3 +1,16 @@
+import type { JiraRequestScope } from "./client";
+
+export type WorklogBooking = {
+  timeSpent: string;
+  started: string;
+  comment?: string;
+  remainingEstimate?: {
+    value: string;
+    issueId: string;
+    scope: JiraRequestScope & { accountId: string; siteUrl: string };
+  };
+};
+
 export const WORKLOG_PRESETS = ["15m", "30m", "1h", "2h"] as const;
 
 export const normalizeDuration = (value: string) => {
@@ -33,7 +46,11 @@ export const validateWorklog = (
 
 export const normalizeRemainingEstimate = (value: string) => {
   const trimmed = value.trim().toLowerCase();
-  if (/^(?:0+\s*[wdhm]\s*)+$/.test(trimmed)) return "0m";
+  if (trimmed === "0") return "0m";
+  if (/^(?:0+\s*[wdhm]\s*)+$/.test(trimmed)) {
+    const units = trimmed.match(/[wdhm]/g) ?? [];
+    return new Set(units).size === units.length ? "0m" : undefined;
+  }
   return normalizeDuration(value);
 };
 
@@ -41,5 +58,8 @@ export const worklogEstimateQuery = (remainingEstimate?: string) => {
   if (!remainingEstimate?.trim()) return "";
   const normalized = normalizeRemainingEstimate(remainingEstimate);
   if (!normalized) throw new Error("Gib eine Restarbeit wie 0m oder 2h ein.");
-  return "?" + new URLSearchParams({ adjustEstimate: "new", newEstimate: normalized });
+  return (
+    "?" +
+    new URLSearchParams({ adjustEstimate: "new", newEstimate: normalized })
+  );
 };
