@@ -1,5 +1,41 @@
 # Änderungen
 
+## 0.15.0 – 2026-11-18
+
+### Neu
+
+- apply reviewed TSV due dates in the local Jira fixture
+- preview per-issue due dates from TSV
+- show bounded issue dependency neighborhoods
+- import editable TSV tables into description drafts
+- compact hierarchy for explicit multi-ticket link review
+- preview and confirm explicit multi-ticket links
+- prepare scoped internal source quote drafts
+- readable hierarchy for explicitly selected status stays
+- reconstruct explicitly selected status stays
+- readable ADF preview and explicit local adoption in conflict review
+- compare conflicting Jira source before deliberate save
+- explicitly search for related issue hints
+- compare variants in loaded search results
+- show scoped component lead role hints
+- load remaining results with scoped limits and cancellation
+- distinguish issue time from Jira aggregates
+- preview and confirm relative due date shifts
+- remove explicitly selected files with scoped confirmation
+- apply scoped templates to validated target project
+- offer existing edit action at comment end
+- check description baseline before saving
+- explain configured sprint completion column
+
+### Fehlerbehebung
+
+- preserve ADF content in description conflict review
+- verify session host for multi-ticket links
+- scope status actions to the mounted context session
+- guard remote adoption and undo across editor changes
+- renew review for every raw remote change
+- Chrome als eine Fläche, Hauptbereich als abgerundete Karte ohne Doppelkanten
+
 ## 0.14.0 – 2026-11-15
 
 ### Neu
