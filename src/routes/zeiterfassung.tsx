@@ -128,7 +128,7 @@ function Zeiterfassung() {
                       </TimeNoticeSlot>
                     ) : (
                       <TimeNoticeSlot key="days">
-                        <TimeDayList days={page.days} emptyDayLabel="Keine Buchungen" totalLabel={page.dayTotalLabel} />
+                        <TimeDayList days={page.days} correction={page.correctionContext} emptyDayLabel="Keine Buchungen" totalLabel={page.dayTotalLabel} />
                       </TimeNoticeSlot>
                     )}
                   </AnimatePresence>

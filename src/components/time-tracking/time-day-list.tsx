@@ -1,26 +1,33 @@
 import { Link } from "@tanstack/react-router";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { AnimatePresence, motion, useIsPresent, useReducedMotion } from "motion/react";
 import { IssuePreviewTooltip } from "@/components/issues/issue-preview";
 import { Stagger, StaggerItem } from "@/components/motion/stagger";
 import { EASE_OUT, SPRING_LAYOUT } from "@/lib/ease";
+import type { WorklogCorrectionContext } from "@/hooks/time-tracking/use-worklog-correction";
+import type { WorklogCorrectionSource } from "@/lib/time-tracking/worklog-correction";
+import { WorklogCorrectionAction } from "./worklog-correction-action";
 
 export type TimeDayView = {
   day: string;
   label: string;
   total: string;
   isToday: boolean;
-  entries: readonly { id: string; issueKey: string; summary: string; comment: string; time: string; duration: string }[];
+  entries: readonly (WorklogCorrectionSource & { id: string; summary: string; comment: string; time: string; duration: string })[];
 };
 
-function TimeEntryRow({ entry }: { entry: TimeDayView["entries"][number] }) {
+function TimeEntryRow({ entry, correction }: { entry: TimeDayView["entries"][number]; correction: WorklogCorrectionContext | undefined }) {
   const reduce = useReducedMotion();
+  const present = useIsPresent();
+  const scope = correction?.scope;
+  const correctionKey = scope && JSON.stringify([scope, correction.filter, entry.issueId, entry.issueKey]);
+
   return (
-    <motion.li layout={reduce ? false : "position"} initial={{ opacity: 0, y: reduce ? 0 : 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, transition: { duration: 0.12, ease: EASE_OUT } }} whileTap={reduce ? undefined : { scale: 0.99 }} transition={{ duration: 0.16, ease: EASE_OUT, layout: SPRING_LAYOUT }}>
+    <motion.li className="flex items-center gap-1" layout={reduce ? false : "position"} initial={{ opacity: 0, y: reduce ? 0 : 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, transition: { duration: 0.12, ease: EASE_OUT } }} whileTap={reduce ? undefined : { scale: 0.99 }} transition={{ duration: 0.16, ease: EASE_OUT, layout: SPRING_LAYOUT }}>
       <Link
         to="/issue/$key"
         params={{ key: entry.issueKey }}
         search={{ bereich: "zeit" }}
-        className="grid min-h-12 grid-cols-[3rem_minmax(0,1fr)_auto] items-center gap-x-3 rounded-xl px-3 py-2 outline-none transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring"
+        className="grid min-h-12 min-w-0 flex-1 grid-cols-[3rem_minmax(0,1fr)_auto] items-center gap-x-3 rounded-xl px-3 py-2 outline-none transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring"
       >
         <span className="text-xs text-muted-foreground tabular-nums">{entry.time}</span>
         <span className="flex min-w-0 flex-col">
@@ -34,6 +41,9 @@ function TimeEntryRow({ entry }: { entry: TimeDayView["entries"][number] }) {
         </span>
         <span className="text-sm font-medium tabular-nums">{entry.duration}</span>
       </Link>
+      {present && correction && scope?.accountId === entry.worklog.author?.accountId && (
+        <WorklogCorrectionAction key={correctionKey} context={correction} source={entry} time={entry.time} duration={entry.duration} />
+      )}
     </motion.li>
   );
 }
@@ -42,10 +52,12 @@ export function TimeDayList({
   days,
   emptyDayLabel,
   totalLabel,
+  correction,
 }: {
   days: readonly TimeDayView[];
   emptyDayLabel: string;
   totalLabel: string;
+  correction?: WorklogCorrectionContext;
 }) {
   const reduce = useReducedMotion();
   return (
@@ -65,7 +77,7 @@ export function TimeDayList({
               <ul className="flex flex-col">
                 <AnimatePresence initial={false}>
                 {day.entries.map((entry) => (
-                  <TimeEntryRow key={entry.id} entry={entry} />
+                  <TimeEntryRow key={entry.id} entry={entry} correction={correction} />
                 ))}
                 </AnimatePresence>
               </ul>

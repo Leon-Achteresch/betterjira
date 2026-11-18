@@ -7,6 +7,8 @@ export type IssueWorklogResult = { issue: CandidateIssue; worklogs: readonly Wor
 export type TimeEntry = {
   id: string;
   issueKey: string;
+  issueId: string;
+  worklog: Worklog;
   summary: string;
   started: number;
   seconds: number;
@@ -51,7 +53,7 @@ export const aggregateWorklogs = ({
       if (!entries) continue;
       seen.add(worklog.id);
       issues.add(issue.key);
-      entries.push({ id: worklog.id, issueKey: issue.key, summary: issue.summary, started, seconds, comment: worklogComment(worklog.comment) });
+      entries.push({ id: worklog.id, issueKey: issue.key, issueId: issue.id, worklog, summary: issue.summary, started, seconds, comment: worklogComment(worklog.comment) });
     }
   }
   const summary = days.map((day) => {
