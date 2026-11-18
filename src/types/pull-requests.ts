@@ -1,3 +1,4 @@
+import type { PullRequestReviewState } from "@/hooks/scm/use-pull-request-review-threads";
 import type { PullRequestCheckFilter } from "@/lib/scm/pull-request-checks";
 import type { pullRequestsEmptyText } from "@/lib/scm/pull-request-empty";
 import type { PullRequestSort } from "@/lib/scm/pull-request-sort";
@@ -8,6 +9,7 @@ export type PullRequestsEmptyProps = ReturnType<typeof pullRequestsEmptyText> & 
 
 export type PullRequestListProps = {
   pullRequests: ListedPullRequest[];
+  review: PullRequestReviewState;
   failedRepos: PullRequestRepoState[];
   truncatedRepos: (Pick<PullRequestRepoState, "id" | "repo"> & { browseUrl: string })[];
   waiting: boolean;

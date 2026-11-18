@@ -36,7 +36,7 @@ API-Vertrag: https://developer.atlassian.com/cloud/jira/platform/rest/v2/api-gro
 | N20 | Ähnliche Labelvarianten vergleichen (N20, bedingt): | Zurückgestellt: zusätzlicher schreibender Sammelworkflow oder fremder Rechte-/Historien-/Integrationsvertrag; vorhandene Einzelaktionen und native Wege zuerst. Keine Teiloperation als atomare oder vollständige Übernahme ausgeben. |
 | N21 | Abgetrennten Beitrag seinem Teilanliegen zuordnen (N21, bedingt): | Zurückgestellt: zusätzlicher schreibender Sammelworkflow oder fremder Rechte-/Historien-/Integrationsvertrag; vorhandene Einzelaktionen und native Wege zuerst. Keine Teiloperation als atomare oder vollständige Übernahme ausgeben. |
 | N22 | Wartephasen eines Tickets zusammenrechnen (N22): | Zurückgestellt: zusätzlicher schreibender Sammelworkflow oder fremder Rechte-/Historien-/Integrationsvertrag; vorhandene Einzelaktionen und native Wege zuerst. Keine Teiloperation als atomare oder vollständige Übernahme ausgeben. |
-| N23 | Offene PR-Gespräche vom Codealter unterscheiden (N23, bedingt): | Zurückgestellt: zusätzlicher schreibender Sammelworkflow oder fremder Rechte-/Historien-/Integrationsvertrag; vorhandene Einzelaktionen und native Wege zuerst. Keine Teiloperation als atomare oder vollständige Übernahme ausgeben. |
+| N23 | Offene PR-Gespräche vom Codealter unterscheiden | Lokaler QA-Leseschnitt am PR-Eintrag. GitHub meldet Auflösungsstatus und Codebezug getrennt. Eine nachweislich offene, veraltete Diskussion bleibt offen. Bitbucket zeigt den bestätigten PR als Fallback. |
 | N24 | Mehrere Tickets zu einem Kundenhinweis redigieren (N24, bedingt): | Zurückgestellt: zusätzlicher schreibender Sammelworkflow oder fremder Rechte-/Historien-/Integrationsvertrag; vorhandene Einzelaktionen und native Wege zuerst. Keine Teiloperation als atomare oder vollständige Übernahme ausgeben. |
 | N25 | Richtung einer vorhandenen Beziehung prüfen | Lesende Vorschau pro bewusst gewähltem gerichteten Link im Ticketdetail. Dieselbe Link-ID, der Typ und beide Richtungsbezeichnungen müssen über frische Reads auf beiden Tickets zum aktuellen Konto und zur Verbindung passen. Die Vorschau zeigt je Endpunkt den aktuellen und umgekehrten Wortlaut. |
 | N26 | Komponentenleitung bei der Auswahl zeigen (N26, bedingt): | Zurückgestellt: zusätzlicher schreibender Sammelworkflow oder fremder Rechte-/Historien-/Integrationsvertrag; vorhandene Einzelaktionen und native Wege zuerst. Keine Teiloperation als atomare oder vollständige Übernahme ausgeben. |
@@ -46,6 +46,10 @@ API-Vertrag: https://developer.atlassian.com/cloud/jira/platform/rest/v2/api-gro
 | Bestand | Entwurfsabgleich, Vorlagenübernahme, Anhänge gesammelt entfernen, Kommentarende bearbeiten | Nicht in diesem PR erweitert: eigene Konflikt-/Mapping-/Lösch- bzw. Editorabläufe, nicht mit der abgegrenzten Zeitbuchungs-/Filtersuche vermischt. |
 
 ## Prüfung und Abbildungen
+
+### N23: Reviewgespräche im PR-Bereich
+
+Die Aktion im isolierten QA-Build liest bis zu acht GitHub-Reviewgespräche per deklarierter GraphQL-Query. Die Antwort muss das aktuelle Konto, das Repository und die PR-Nummer bestätigen. Originallinks stammen aus der Antwort und müssen auf genau diesen PR am verbundenen HTTPS-Host verweisen. Unvollständige oder abgeschnittene Ergebnisse sind als Teilansicht erkennbar. Der reguläre Build lässt die Aktion deaktiviert. Eine Freigabe erfordert den Nachweis von Token- und Repo-Leserechten, der Hostbindung und des nativen SCM-Transports mit dem vorgesehenen Zielkonto. [GitHub-GraphQL-Referenz](https://docs.github.com/en/graphql/reference/pulls#pullrequestreviewthread)
 
 ### N25: Richtungsvorschau im Ticketdetail
 

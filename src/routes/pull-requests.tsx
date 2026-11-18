@@ -51,6 +51,7 @@ function PullRequests() {
           />
           <PullRequestList
             pullRequests={page.pullRequests}
+            review={page.review}
             failedRepos={page.failedRepos}
             truncatedRepos={page.truncatedRepos}
             waiting={page.waiting}

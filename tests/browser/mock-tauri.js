@@ -719,13 +719,18 @@ const scmCloud = {
   DECLINED: [],
   SUPERSEDED: [],
 };
-const scmRespond = async ({ url, body }) => {
+const scmRespond = async ({ url, body, method, auth }) => {
   const qa = window.__qaScm;
   qa.requests.push(url);
+  if (scmScenario === "scm-review-threads") qa.transcript.push({ url, body, method, auth });
   if (qa.delayMs) await new Promise((resolve) => setTimeout(resolve, qa.delayMs));
   const json = (value, status = 200) => ({ status, body: JSON.stringify(value) });
   if (url.startsWith("https://api.github.com/graphql")) {
     const { query, variables } = JSON.parse(body);
+    if (/^\s*query N23ReviewThreads\b/.test(query) && scmScenario === "scm-review-threads") {
+      const result = await window.__qaReviewThreadsRule?.({ url, query, variables, method, auth });
+      return result ? json(result.body, result.status) : json({ message: "No N23 fixture response" }, 404);
+    }
     const repo = `${variables.owner}/${variables.name}`;
     if (qa.failRepos.includes(repo)) return json({ message: "Test: GitHub vorübergehend nicht erreichbar" }, 502);
     if (query.includes("search(")) return json({ data: { search: { nodes: [] }, repository: { refs: { nodes: [] } } } });
@@ -748,6 +753,7 @@ if (scmScenario) {
     failRepos: scmScenario === "scm-partial" ? ["qa-team/api"] : [],
     delayMs: scmScenario === "scm-slow" ? 1200 : 0,
     requests: [],
+    transcript: [],
     opened: [],
     hosts: scmScenario === "scm-empty" ? { hosts: {} } : { hosts: { "github.com": [{ state: "success", active: true, host: "github.com", login: "qa-user" }] } },
   };
@@ -1792,10 +1798,11 @@ window.__TAURI_INTERNALS__ = {
     throw new Error(`Nicht simuliertes Tauri-Kommando: ${command}`);
   },
 };
-if (scenario === "table-field-apply" || scenario === "subtask-rows" || scenario === "approvals" || scenario === "worklog-estimate") {
+if (scenario === "table-field-apply" || scenario === "subtask-rows" || scenario === "approvals" || scenario === "worklog-estimate" || scenario === "scm-review-threads") {
   const bridge = window.__TAURI_INTERNALS__;
   const invoke = bridge.invoke;
   const flag = scenario === "approvals" ? "__qaIssueApprovals"
+    : scenario === "scm-review-threads" ? "__qaReviewThreads"
     : scenario === "worklog-estimate" ? "__qaWorklogEstimate"
     : scenario === "subtask-rows" ? "__qaSubtaskRows" : "__qaTableFieldApply";
   Object.defineProperty(window, flag, { value: () => window.__TAURI_INTERNALS__ === bridge && bridge.invoke === invoke });

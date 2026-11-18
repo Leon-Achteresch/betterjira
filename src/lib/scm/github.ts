@@ -23,7 +23,7 @@ const restBase = (connection: ScmConnection) => {
   return `https://${host}/api/v3`;
 };
 
-const graphqlUrl = (connection: ScmConnection) => {
+export const graphqlUrl = (connection: ScmConnection) => {
   const host = hostOf(connection);
   return host === "github.com" || host.endsWith(".ghe.com") ? `${restBase(connection)}/graphql` : `https://${host}/api/graphql`;
 };

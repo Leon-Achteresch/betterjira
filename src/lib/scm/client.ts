@@ -23,6 +23,8 @@ export const scmKeys = {
   pullRequestsAll: ["scm", "pull-requests"] as const,
   pullRequests: (connectionId: string, repo: string, state: PullRequestListState) =>
     ["scm", "pull-requests", connectionId, repo, state] as const,
+  reviewThreads: (context: string, instance: string, request: number | undefined) =>
+    ["scm", "review-threads", context, instance, request] as const,
 };
 
 const ServerMessage = Schema.Struct({

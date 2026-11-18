@@ -23,9 +23,23 @@ export default mergeConfig(base({ command: "build", mode: "production" }), {
     }, {
       find: "@/lib/jira/worklog-estimate-capability",
       replacement: join(import.meta.dirname, "tests/browser/worklog-estimate-capability.ts"),
+    }, {
+      find: "@/lib/scm/review-threads-capability",
+      replacement: join(import.meta.dirname, "tests/browser/review-threads-capability.ts"),
     }],
   },
   plugins: [{
+    name: "qa-review-connection-refresh",
+    transform(source, id) {
+      if (id !== join(import.meta.dirname, "src/main.tsx")) return;
+      return `${source}
+import { scmKeys as fixtureScmKeys } from "@/lib/scm/client";
+if (window.__qaReviewThreads?.() === true) {
+  Object.defineProperty(window, "__qaRefreshScmHosts", { value: () =>
+    queryClient.refetchQueries({ queryKey: fixtureScmKeys.ghHosts, exact: true }, { throwOnError: true }) });
+}`;
+    },
+  }, {
     name: "qa-render-faults",
     enforce: "pre",
     transform(code, id) {
