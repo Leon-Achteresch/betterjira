@@ -1,8 +1,10 @@
 import { Node, type Editor, type JSONContent } from "@tiptap/core";
 import { closeHistory } from "@tiptap/pm/history";
-import { Selection } from "@tiptap/pm/state";
+import type { Node as EditorNode } from "@tiptap/pm/model";
+import { Selection, TextSelection, type EditorState } from "@tiptap/pm/state";
 import { goToNextCell } from "@tiptap/pm/tables";
 import type { AdfNode } from "./adf";
+import { OFFICE_TSV_LIMITS } from "./office-tsv";
 
 export const EDITABLE_TABLE = "adfTable";
 const ROW = "adfTableRow";
@@ -78,14 +80,61 @@ export function tableNodeFromEditor(node: JSONContent, fromEditor: (node: JSONCo
   };
 }
 
-export function insertEditableTable(editor: Editor, table: JSONContent) {
-  if (!editor.isEditable || editor.isDestroyed) return false;
-  const { $from } = editor.state.selection;
-  const position = $from.depth === 0 ? $from.pos : $from.after(1);
-  const tr = editor.state.tr.insert(position, editor.schema.nodeFromJSON(table));
+function insertWithHistory(editor: Editor, position: number, node: EditorNode) {
+  const tr = editor.state.tr.insert(position, node);
   const selection = Selection.findFrom(tr.doc.resolve(position), 1, true);
   if (selection) tr.setSelection(selection);
   editor.view.dispatch(closeHistory(tr).scrollIntoView());
   editor.view.dispatch(closeHistory(editor.state.tr));
+  return true;
+}
+
+export function insertEditableTable(editor: Editor, table: JSONContent) {
+  if (!editor.isEditable || editor.isDestroyed) return false;
+  const { $from } = editor.state.selection;
+  const position = $from.depth === 0 ? $from.pos : $from.after(1);
+  return insertWithHistory(editor, position, editor.schema.nodeFromJSON(table));
+}
+
+function cellTsvLength(cell: EditorNode) {
+  const text = cell.textBetween(0, cell.content.size, "\n", (node) => node.type.name === "hardBreak" ? "\n" : "\uFFFC");
+  return /[\t\r\n"]/.test(text) ? text.length + 2 + (text.match(/"/g)?.length ?? 0) : text.length;
+}
+
+function rowInsertion(state: EditorState) {
+  const { selection } = state;
+  if (!(selection instanceof TextSelection)) return;
+  const { $from, $to } = selection;
+  if ($from.depth < 4 || $to.depth !== $from.depth) return;
+  const depth = $from.depth - 2;
+  const row = $from.node(depth);
+  const table = $from.node(depth - 1);
+  if (table.type.name !== EDITABLE_TABLE || row.type.name !== ROW || $to.before(depth) !== $from.before(depth)) return;
+
+  const width = row.childCount;
+  if (table.childCount >= OFFICE_TSV_LIMITS.rows || width < 1 || width > OFFICE_TSV_LIMITS.columns) return;
+  let characters = (table.childCount + 1) * width - 1;
+  for (let index = 0; index < table.childCount; index++) {
+    const existing = table.child(index);
+    if (existing.childCount !== width) return;
+    for (let column = 0; column < width; column++) {
+      characters += cellTsvLength(existing.child(column));
+      if (characters > OFFICE_TSV_LIMITS.characters) return;
+    }
+  }
+  return { row, width, position: $from.after(depth) };
+}
+
+export const canInsertEditableTableRow = (state: EditorState) => !!rowInsertion(state);
+
+export function insertEditableTableRow(editor: Editor) {
+  if (!editor.isEditable || editor.isDestroyed) return false;
+  const target = rowInsertion(editor.state);
+  if (!target) return false;
+  const { row, width, position } = target;
+  const paragraph = editor.schema.nodes.paragraph.create();
+  const cell = row.child(0).type.create({ sourceAttrs: {} }, paragraph);
+  insertWithHistory(editor, position, row.type.create(null, Array.from({ length: width }, () => cell)));
+  editor.view.focus();
   return true;
 }

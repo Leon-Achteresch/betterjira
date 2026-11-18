@@ -2,7 +2,7 @@ import { useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, type R
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { EditorContent, NodeViewWrapper, ReactNodeViewRenderer, useEditor, useEditorState, type Editor, type ReactNodeViewProps } from "@tiptap/react";
 import type { SuggestionOptions } from "@tiptap/suggestion";
-import { BoldIcon, CodeIcon, ImagePlusIcon, ItalicIcon, ListIcon, ListOrderedIcon, XIcon, type LucideIcon } from "lucide-react";
+import { BoldIcon, CodeIcon, ImagePlusIcon, ItalicIcon, ListIcon, ListOrderedIcon, ListPlusIcon, XIcon, type LucideIcon } from "lucide-react";
 import { AdfContent, AdfNodeView } from "@/components/adf-content";
 import { AdfTableImport } from "@/components/adf-table-import";
 import { Tooltip } from "@/components/motion/tooltip";
@@ -26,7 +26,7 @@ import {
   isEditableAdf,
   type AdfNode,
 } from "@/lib/jira/adf";
-import { adfTableExtensions, insertEditableTable } from "@/lib/jira/adf-editable-table";
+import { adfTableExtensions, canInsertEditableTableRow, insertEditableTable, insertEditableTableRow } from "@/lib/jira/adf-editable-table";
 import { matchKnownMedia } from "@/lib/jira/adf-media";
 import { AdfUploadPlaceholder } from "@/lib/jira/adf-uploads";
 import { cn } from "@/lib/utils";
@@ -207,7 +207,10 @@ export function AdfEditor({
   });
   const active = useEditorState({
     editor,
-    selector: ({ editor }) => Object.fromEntries(tools.map((tool) => [tool.name, editor.isActive(tool.name)])),
+    selector: ({ editor }) => ({
+      formatting: Object.fromEntries(tools.map((tool) => [tool.name, editor.isActive(tool.name)])),
+      insertRow: enableTableImport && canInsertEditableTableRow(editor.state),
+    }),
   });
 
   useImperativeHandle(ref, () => ({ focus: () => editor.commands.focus("end") }), [editor]);
@@ -273,10 +276,10 @@ export function AdfEditor({
               <Button
                 key={name}
                 type="button"
-                variant={active[name] ? "secondary" : "ghost"}
+                variant={active.formatting[name] ? "secondary" : "ghost"}
                 size="icon-xs"
                 aria-label={toolLabel}
-                aria-pressed={active[name]}
+                aria-pressed={active.formatting[name]}
                 disabled={disabled}
                 onMouseDown={(event) => event.preventDefault()}
                 onClick={() => run(editor)}
@@ -294,6 +297,31 @@ export function AdfEditor({
                 focusEditor={() => { editor.commands.focus(); }}
               />
             )}
+            <AnimatePresence initial={false}>
+              {!disabled && active.insertRow && (
+                <motion.div
+                  key="insert-row"
+                  initial={{ opacity: 0, y: reduce ? 0 : -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, transition: { duration: 0.12, ease: EASE_OUT } }}
+                  transition={{ duration: 0.15, ease: EASE_OUT }}
+                >
+                  <Tooltip content="Leere Zeile darunter einfügen">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      className="size-8 rounded-xl"
+                      aria-label="Leere Zeile darunter einfügen"
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => insertEditableTableRow(editor)}
+                    >
+                      <ListPlusIcon />
+                    </Button>
+                  </Tooltip>
+                </motion.div>
+              )}
+            </AnimatePresence>
             {uploads.enabled && (
               <>
                 <input

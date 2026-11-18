@@ -200,9 +200,10 @@ test("Nach Uebernahme verlangt R zu R2 wieder einen Vergleich", async ({ page })
 
 test("Vorschau zeigt Medien, Mentions und Tabellen der Remotefassung ueber bekannte Anhaenge", async ({ page }) => {
   await page.goto("/tests/browser/fixture.html?scenario=adf-images&route=/issue/DEMO-1");
-  await page.getByRole("button", { name: "Beschreibung bearbeiten" }).click();
+  const editor = await openDescription(page);
   await page.keyboard.press("ControlOrMeta+End");
   await page.keyboard.type(" Lokal");
+  await expect(editor).toContainText("Lokal");
   await page.evaluate(() => {
     const issue = (window as unknown as QaWindow).__qa.issues.find((entry) => entry.key === "DEMO-1")!;
     issue.fields.description = { type: "doc", version: 1, content: [
