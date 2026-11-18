@@ -111,6 +111,17 @@ def run_host(root, executable, port, guard, scenario, case):
                 require(not ledger["writes"] and not ledger["armed"] and
                         ledger["released"] == [["ticket", "DEMO-11"], ["account", "DEMO-11"]],
                         f"Unexpected N05 fixture ledger: {ledger}")
+            elif scenario == "n09":
+                endpoint = "/ex/jira/mock-cloud/rest/api/3/search/jql"
+                expected_searches = [
+                    {"method": "GET", "path": endpoint, "params": {
+                        "jql": f'project = "{project}" AND (summary ~ "Gateway*" OR summary ~ "Fehler*") ORDER BY updated DESC',
+                        "fields": "summary,project,status,issuetype", "maxResults": "10",
+                    }} for project in ("10100", "10100", "10101")
+                ]
+                require(not ledger["writes"] and ledger["searches"] == expected_searches and
+                        ledger["released"] == [2] and ledger["details"] == [{"key": "DEMO-1", "status": 200}],
+                        f"Unexpected N09 fixture ledger: {ledger}")
             require(not list((root / "data").rglob("61746c61737369616e2d73657373696f6e")),
                     "Private session file still exists after logout")
             print("Network canary: one unsandboxed loopback control, zero hits from the isolated host or WebView")
@@ -120,7 +131,7 @@ def run_host(root, executable, port, guard, scenario, case):
 
 def main():
     require(sys.platform == "darwin", "This fixture requires macOS")
-    cases = ("c1", "c1-media", "c1-tsv", "n01", "n02", "n02-control", "n03", "n03-control", "n04", "n05")
+    cases = ("c1", "c1-media", "c1-tsv", "n01", "n02", "n02-control", "n03", "n03-control", "n04", "n05", "n09")
     require(len(sys.argv) in (3, 4), "Usage: python3 tests/native/c1-tauri/run.py <fixture executable> <fixture build> [" + "|".join(cases) + "]")
     case = sys.argv[3] if len(sys.argv) == 4 else "c1"
     require(case in cases, "Unknown IPC fixture scenario")
