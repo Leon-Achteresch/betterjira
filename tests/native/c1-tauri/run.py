@@ -122,6 +122,17 @@ def run_host(root, executable, port, guard, scenario, case):
                 require(not ledger["writes"] and ledger["searches"] == expected_searches and
                         ledger["released"] == [2] and ledger["details"] == [{"key": "DEMO-1", "status": 200}],
                         f"Unexpected N09 fixture ledger: {ledger}")
+            elif scenario == "n22":
+                expected_reads = [
+                    {"method": "GET", "path": f"/ex/jira/mock-cloud/rest/api/3/issue/{key}/changelog",
+                     "params": {"startAt": str(start), "maxResults": str(size)}, "status": status}
+                    for key, start, size, status in [
+                        ("DEMO-1", 0, 20, 200), ("DEMO-1", 26, 20, 200), ("DEMO-1", 6, 20, 403),
+                        ("DEMO-1", 6, 20, 200), ("DEMO-1", 0, 6, 200), ("DEMO-2", 0, 20, 200),
+                    ]
+                ]
+                require(not ledger["writes"] and ledger["reads"] == expected_reads and ledger["released"] == [5],
+                        f"Unexpected N22 fixture ledger: {ledger}")
             require(not list((root / "data").rglob("61746c61737369616e2d73657373696f6e")),
                     "Private session file still exists after logout")
             print("Network canary: one unsandboxed loopback control, zero hits from the isolated host or WebView")
@@ -131,7 +142,7 @@ def run_host(root, executable, port, guard, scenario, case):
 
 def main():
     require(sys.platform == "darwin", "This fixture requires macOS")
-    cases = ("c1", "c1-media", "c1-tsv", "n01", "n02", "n02-control", "n03", "n03-control", "n04", "n05", "n09")
+    cases = ("c1", "c1-media", "c1-tsv", "n01", "n02", "n02-control", "n03", "n03-control", "n04", "n05", "n09", "n22")
     require(len(sys.argv) in (3, 4), "Usage: python3 tests/native/c1-tauri/run.py <fixture executable> <fixture build> [" + "|".join(cases) + "]")
     case = sys.argv[3] if len(sys.argv) == 4 else "c1"
     require(case in cases, "Unknown IPC fixture scenario")
