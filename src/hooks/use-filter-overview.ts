@@ -29,6 +29,7 @@ export function useFilterOverview(search: FilterOverviewSearch) {
     setQuery(urlQuery);
   }
   const all = filters.data ?? [];
+  const error = filters.error ?? filters.scopeError;
 
   const toggleFavourite = (filter: JiraFilter, next = !filter.favourite) => {
     if (pending.isPending(filter.id)) return;
@@ -50,10 +51,13 @@ export function useFilterOverview(search: FilterOverviewSearch) {
   return {
     view,
     query,
-    status: filterOverviewStatus({ hasData: !!filters.data, isError: filters.isError }),
-    errorText: filters.isError ? jiraErrorText(filters.error) : "",
-    retrying: filters.isFetching,
-    retry: () => void filters.refetch(),
+    status: filterOverviewStatus({ hasData: !!filters.data, isError: !!error }),
+    errorText: error ? jiraErrorText(error) : "",
+    retrying: filters.isFetching || filters.checkingScope,
+    retry: () => void (filters.scopeError ? filters.retryScope() : filters.refetch()),
+    contentSearch: filters.scope && filters.data && !error
+      ? { context: JSON.stringify(filters.scope), filters: filters.data }
+      : null,
     counts: filterOverviewCounts(all),
     filters: visibleFilters(all, view, query),
     pendingIds: pending.ids,

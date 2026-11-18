@@ -5,30 +5,31 @@ import { useCreateFilter, useDeleteFilter, useFilterFavourite, useJiraFilter, us
 import { useJqlValidation } from "@/hooks/jira/use-jql-validation";
 import { jiraErrorText } from "@/lib/jira/field-values";
 import { filterProblem } from "@/lib/jira/filter-problem";
-import { useJiraMyself } from "@/lib/jira/queries";
+import { useContextSession } from "./use-context-session";
 
 
-type EditorState = { id: string; editing: boolean; draft?: string; applied?: string };
+type EditorState = { token: object; editing: boolean; draft?: string; applied?: string };
 
-export function useFilterEditor(id: string) {
+export function useFilterEditor(id: string, queryOnly = false) {
   const filter = useJiraFilter(id);
-  const myself = useJiraMyself();
   const update = useUpdateFilter();
   const create = useCreateFilter();
   const remove = useDeleteFilter();
   const favourite = useFilterFavourite();
   const navigate = useNavigate();
   const router = useRouter();
-  const isCurrentFilter = () => router.state.location.pathname.replace(/\/+$/, "") === `/filter/${encodeURIComponent(id)}`;
-  const [state, setState] = useState<EditorState>({ id, editing: false });
-  const scoped = (current: EditorState): EditorState => (current.id === id ? current : { id, editing: false });
+  const context = JSON.stringify([id, filter.scope, queryOnly]);
+  const session = useContextSession(context);
+  const isCurrentFilter = () => session.isCurrent() && router.state.location.pathname.replace(/\/+$/, "") === `/filter/${encodeURIComponent(id)}`;
+  const [state, setState] = useState<EditorState>({ token: session.token, editing: queryOnly });
+  const scoped = (current: EditorState): EditorState => (current.token === session.token ? current : { token: session.token, editing: queryOnly });
   const { editing, draft, applied } = scoped(state);
-  const patch = (next: Partial<Omit<EditorState, "id">>) => setState((current) => ({ ...scoped(current), ...next }));
+  const patch = (next: Partial<Omit<EditorState, "token">>) => setState((current) => ({ ...scoped(current), ...next }));
   const validation = useJqlValidation(draft ?? "");
 
   const saved = filter.data?.jql ?? "";
   const value = draft ?? saved;
-  const reset = () => setState((current) => (current.id === id ? { id, editing: current.editing } : current));
+  const reset = () => setState((current) => (current.token === session.token ? { token: session.token, editing: current.editing } : current));
   const save = (input: { name?: string; jql?: string }, success: string) => {
     if (!filter.data) return;
     const { name, jql, description } = filter.data;
@@ -45,14 +46,15 @@ export function useFilterEditor(id: string) {
   };
 
   return {
+    context,
     filter: filter.data,
-    loadError: !filter.data && filter.error ? filterProblem(filter.error) : undefined,
+    loadError: !filter.data && (filter.error || filter.scopeError) ? filterProblem(filter.error ?? filter.scopeError) : undefined,
     refreshFailed: !!filter.data && filter.isError,
-    retry: () => void filter.refetch(),
-    retrying: filter.isFetching,
-    isOwner: !!filter.data?.owner && filter.data.owner.accountId === myself.data?.accountId,
-    tableJql: applied ?? filter.data?.jql,
-    editing,
+    retry: () => void (filter.scopeError ? filter.retryScope() : filter.refetch()),
+    retrying: filter.isFetching || filter.checkingScope,
+    isOwner: !!filter.data?.owner && filter.data.owner.accountId === filter.scope?.accountId,
+    tableJql: applied ?? (queryOnly ? undefined : filter.data?.jql),
+    editing: !!filter.data && editing,
     setEditing: (next: boolean) => patch({ editing: next }),
     value,
     setValue: (next: string) => patch({ draft: next }),

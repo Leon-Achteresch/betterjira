@@ -1,4 +1,5 @@
 import type { JiraQueryScope } from "./query-scope";
+import type { JiraFilterScope } from "./saved-filters";
 
 export const jiraKeys = {
   all: ["jira"] as const,
@@ -43,6 +44,7 @@ export const jiraKeys = {
   componentLeads: (project: { key: string; id?: string } | undefined, ids: readonly string[], scope: JiraQueryScope | undefined) => ["jira", "component-leads", scope?.cloudId ?? "", scope?.accountId ?? "", project?.key ?? "", project?.id ?? "", [...ids].sort()] as const,
   creationHints: (owner: string, generation: number, jql: string, scope: JiraQueryScope | undefined) => ["jira", "creation-hints", scope?.cloudId ?? "", scope?.accountId ?? "", owner, generation, jql] as const,
   filter: (id: string) => ["jira", "filter", id] as const,
+  filterScoped: (id: string, scope?: JiraFilterScope) => [...jiraKeys.filter(id), scope?.cloudId, scope?.accountId, scope?.siteUrl] as const,
   filterFavourite: ["jira", "filter-favourite"] as const,
   jqlValidation: (jql: string) => ["jira", "jql-validation", jql] as const,
   issue: (key: string) => ["jira", "issue", key] as const,
@@ -55,6 +57,7 @@ export const jiraKeys = {
   transitions: (key: string) => ["jira", "transitions", key] as const,
   userSearch: (query: string, issueKey: string, assignee: boolean) => ["jira", "user-search", query, issueKey, assignee] as const,
   filters: ["jira", "filters"] as const,
+  filtersScoped: (scope?: JiraFilterScope) => [...jiraKeys.filters, scope?.cloudId, scope?.accountId, scope?.siteUrl] as const,
   myWork: ["jira", "my-work"] as const,
   projectBoards: (key: string) => ["jira", "project-boards", key] as const,
   board: (id: number, sprint?: number) => ["jira", "board", id, sprint ?? "open"] as const,

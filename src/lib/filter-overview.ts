@@ -39,6 +39,32 @@ export const visibleFilters = <T extends OverviewFilter>(filters: readonly T[], 
     );
 };
 
+export const FILTER_CONTENT_PAGE_SIZE = 8;
+const MATCH_CONTEXT = 44;
+
+const availableJql = (filter: OverviewFilter) => filter.jql?.trim() ? filter.jql : undefined;
+
+export const filterContentCoverage = (filters: readonly OverviewFilter[]) => ({
+  loaded: filters.length,
+  missing: filters.filter((filter) => !availableJql(filter)).length,
+});
+
+export function findFilterContent(filters: readonly OverviewFilter[], query: string) {
+  const term = query.trim();
+  if (!term) return [];
+  const literal = new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "iu");
+  return visibleFilters(filters, "alle", "").flatMap((filter) => {
+    const jql = availableJql(filter);
+    if (!jql) return [];
+    const match = literal.exec(jql);
+    if (!match) return [];
+    const index = match.index;
+    const from = Math.max(0, index - MATCH_CONTEXT);
+    const to = Math.min(jql.length, index + Math.min(match[0].length, 96) + MATCH_CONTEXT);
+    return [{ id: filter.id, name: filter.name, snippet: `${from > 0 ? "…" : ""}${jql.slice(from, to)}${to < jql.length ? "…" : ""}` }];
+  });
+}
+
 export type FilterOverviewStatus = "pending" | "error" | "ready";
 
 export const filterOverviewStatus = ({ hasData, isError }: { hasData: boolean; isError: boolean }): FilterOverviewStatus =>

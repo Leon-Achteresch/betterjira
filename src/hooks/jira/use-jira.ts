@@ -4,12 +4,13 @@ import { deduplicateMutation } from "@/lib/jira/deduplicate-mutation";
 import { resolvePendingMedia } from "@/hooks/jira/use-pending-uploads";
 import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { Effect, Schema } from "effect";
-import { currentSite, jira, jiraImage, logout, runLogin } from "@/lib/jira/client";
+import { currentSite, jira, JiraRequestScopeChanged, jiraImage, logout, runLogin } from "@/lib/jira/client";
 import { commentPageKeys, embeddedCommentsChanged, pagesOutdatedBy } from "@/lib/jira/comment-pages";
 import { RawComment } from "@/lib/jira/comment-thread";
 import { JiraStatus } from "@/lib/jira/status";
 import { JiraUser } from "@/lib/jira/user";
-import { jiraRequestScope, withJiraQueryScope, type JiraQueryScope } from "@/lib/jira/query-scope";
+import { jiraQueryScopeMatches, jiraRequestScope, withJiraQueryScope, type JiraQueryScope } from "@/lib/jira/query-scope";
+import { fetchSavedFilters, filterAccessLost, type JiraFilterScope } from "@/lib/jira/saved-filters";
 import { ISSUE_TIME_FIELDS } from "@/lib/jira/issue-time";
 import { readIssueTransitions, sendIssueTransition, type JiraTransitionBody } from "@/lib/jira/issue-transitions";
 
@@ -117,19 +118,38 @@ export const useJiraIssues = (jql: string, enabled = true) => {
   });
 };
 
-const Filters = Schema.Array(Schema.Struct({ id: Schema.String, name: Schema.String, favourite: Schema.optional(Schema.Boolean), jql: Schema.optional(Schema.String) }));
+export type { JiraFilter } from "@/lib/jira/saved-filters";
 
-export const useJiraFilters = () => {
+export const filterRequestScope = (client: QueryClient, scope: JiraFilterScope) => ({
+  cloudId: scope.cloudId,
+  siteUrl: scope.siteUrl,
+  isCurrent: () => jiraQueryScopeMatches(client, scope) &&
+    client.getQueryData<{ siteUrl: string }>(jiraKeys.site)?.siteUrl === scope.siteUrl &&
+    client.getQueryState(jiraKeys.myself)?.status === "success",
+});
+
+export const useJiraFilterScope = () => {
   const site = useJiraSite();
-  return useQuery({
-    queryKey: jiraKeys.filters,
-    queryFn: ({ signal }) =>
-      Effect.runPromise(jira("/filter/my?includeFavourites=true&expand=jql", Filters), { signal }),
-    enabled: !!site.data,
-  });
+  const myself = useJiraMyself();
+  const scope: JiraFilterScope | undefined = site.isSuccess && site.data && myself.isSuccess && myself.data.accountId
+    ? { cloudId: site.data.cloudId, siteUrl: site.data.siteUrl, accountId: myself.data.accountId }
+    : undefined;
+  return { scope, scopeError: myself.error, checkingScope: myself.isFetching, retryScope: myself.refetch };
 };
 
-export type JiraFilter = (typeof Filters.Type)[number];
+export const useJiraFilters = () => {
+  const context = useJiraFilterScope();
+  const client = useQueryClient();
+  const scope = context.scope;
+  const query = useQuery({
+    queryKey: jiraKeys.filtersScoped(scope),
+    queryFn: ({ signal }) => Effect.runPromise(scope
+      ? fetchSavedFilters(scope.accountId, filterRequestScope(client, scope))
+      : Effect.fail(new JiraRequestScopeChanged()), { signal }),
+    enabled: !!scope,
+  });
+  return { ...query, ...context, data: filterAccessLost(query.error) ? undefined : query.data };
+};
 
 export const useJiraLogin = () => {
   const queryClient = useQueryClient();

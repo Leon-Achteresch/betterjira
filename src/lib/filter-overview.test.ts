@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   filterOverviewCounts,
+  filterContentCoverage,
+  findFilterContent,
   filterOverviewEmptyState,
   filterOverviewSearch,
   filterOverviewStatus,
@@ -99,5 +101,21 @@ describe("JQL-Inhaltssuche", () => {
     expect(visibleFilters(rows, "favoriten", "  VERSAND ").map(f => f.id)).toEqual(["1"]);
     expect(visibleFilters(rows, "alle", "component").map(f => f.id)).toEqual(["1", "2"]);
     expect(visibleFilters(rows, "alle", "ohne").map(f => f.id)).toEqual(["3"]);
+  });
+
+  it("prüft die vollständige geladene Abfrage, sucht literal und zeigt einen kurzen Ausschnitt", () => {
+    const prefix = 'summary ~ "' + "unrelated ".repeat(600) + '" AND ';
+    const rows = [
+      { id: "11", name: "Treffer", jql: `${prefix}component = Versand[1]` },
+      { id: "12", name: "component = Versand[1]", jql: "project = DEMO" },
+      { id: "13", name: "Ohne Inhalt", jql: "  " },
+      { id: "14", name: "JQL nicht geliefert" },
+    ];
+    expect(filterContentCoverage(rows)).toEqual({ loaded: 4, missing: 2 });
+    expect(findFilterContent(rows, "  COMPONENT = VERSAND[1] ")).toEqual([
+      { id: "11", name: "Treffer", snippet: expect.stringMatching(/^….+component = Versand\[1\]$/) },
+    ]);
+    expect(findFilterContent(rows, "Versand1")).toEqual([]);
+    expect(findFilterContent(rows, " ")).toEqual([]);
   });
 });

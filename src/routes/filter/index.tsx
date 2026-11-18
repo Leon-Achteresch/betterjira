@@ -37,6 +37,7 @@ function FilterOverviewPage() {
           view={overview.view}
           query={overview.query}
           counts={overview.counts}
+          contentSearch={overview.contentSearch}
           filters={overview.filters}
           pendingIds={overview.pendingIds}
           errorText={overview.errorText}

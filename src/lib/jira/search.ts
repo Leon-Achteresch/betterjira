@@ -67,7 +67,8 @@ export type FilterInput = { name: string; jql: string; description?: string };
 
 const filterPath = (id: string) => `/filter/${encodeURIComponent(id)}`;
 
-export const fetchFilter = (id: string) => jira(filterPath(id), FilterDetail);
+export const fetchFilter = (id: string, scope?: JiraRequestScope) => jira(filterPath(id), FilterDetail,
+  scope ? { scope, cache: "no-store", retry: false } : undefined);
 
 export const updateFilter = (id: string, input: FilterInput) =>
   jira(filterPath(id), FilterDetail, { method: "PUT", body: JSON.stringify(input) });
@@ -77,5 +78,5 @@ export const createFilter = (input: FilterInput) =>
 
 export const deleteFilter = (id: string) => jiraSend(filterPath(id), { method: "DELETE" });
 
-export const setFilterFavourite = (id: string, favourite: boolean) =>
-  jiraSend(`${filterPath(id)}/favourite`, { method: favourite ? "PUT" : "DELETE" });
+export const setFilterFavourite = (id: string, favourite: boolean, scope?: JiraRequestScope) =>
+  jiraSend(`${filterPath(id)}/favourite`, { method: favourite ? "PUT" : "DELETE", scope });
