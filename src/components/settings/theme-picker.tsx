@@ -4,7 +4,7 @@ import { RadioGroup as RadioGroupPrimitive } from "radix-ui";
 import { SPRING_LAYOUT, SPRING_PRESS } from "@/lib/ease";
 import { cn } from "@/lib/utils";
 
-type Scheme = "light" | "dark";
+type Scheme = "light" | "dark" | "studio";
 
 export type ThemeOption<T extends string> = {
   value: T;
@@ -15,7 +15,7 @@ export type ThemeOption<T extends string> = {
 
 function SchemePreview({ scheme, className }: { scheme: Scheme; className?: string }) {
   return (
-    <span aria-hidden className={cn(scheme, "absolute inset-0 flex bg-background text-foreground", className)}>
+    <span aria-hidden data-slot="theme-preview" className={cn(scheme, "absolute inset-0 flex bg-background text-foreground", className)}>
       <span className="flex w-1/4 flex-col gap-1.5 bg-sidebar px-2 py-3">
         <span className="h-1.5 w-3/4 rounded-full bg-primary" />
         <span className="h-1 w-full rounded-full bg-muted-foreground/30" />
@@ -52,7 +52,7 @@ export function ThemePicker<T extends string>({
       aria-label={label}
       value={value}
       onValueChange={(next) => onChange(next as T)}
-      className="grid w-full max-w-2xl grid-cols-3 gap-4"
+      className="grid w-full max-w-2xl grid-cols-2 gap-4 sm:grid-cols-4"
     >
       {options.map((option) => {
         const selected = option.value === value;

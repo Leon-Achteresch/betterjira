@@ -1,15 +1,16 @@
-import { Monitor, Moon, Sun } from "lucide-react";
+import { LayersIcon, Monitor, Moon, Sun } from "lucide-react";
 import { useTheme as useNextTheme } from "next-themes";
 
-export type ThemePreference = "system" | "light" | "dark";
+export type ThemePreference = "system" | "light" | "dark" | "studio";
 
 const isThemePreference = (value: string | undefined): value is ThemePreference =>
-  value === "system" || value === "light" || value === "dark";
+  value === "system" || value === "light" || value === "dark" || value === "studio";
 
 const THEME_CYCLE = {
   system: { next: "light", label: "Helles Design verwenden", Icon: Monitor },
   light: { next: "dark", label: "Dunkles Design verwenden", Icon: Sun },
   dark: { next: "system", label: "Systemdesign verwenden", Icon: Moon },
+  studio: { next: "system", label: "Systemdesign verwenden", Icon: LayersIcon },
 } as const;
 
 export const useTheme = () => {

@@ -22,6 +22,7 @@ export function AppHeader() {
 
   return (
     <header
+      data-slot="app-header"
       data-tauri-drag-region="deep"
       className={cn(
         "relative z-20 flex h-[var(--app-header-height)] shrink-0 select-none items-center",
@@ -81,6 +82,7 @@ export function AppHeader() {
         <Tooltip content={`Ticket erstellen (${shortcutHint("createIssue")})`} side="bottom">
           <Link
             to="/neu"
+            data-slot="create-ticket"
             aria-label="Ticket erstellen"
             aria-keyshortcuts="C"
             className="relative hidden h-8 w-8 shrink-0 items-center justify-center gap-1.5 rounded-xl xl:w-auto xl:px-2.5 text-muted-foreground outline-none transition-colors after:absolute after:-inset-0.5 hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring sm:inline-flex"

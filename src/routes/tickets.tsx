@@ -22,13 +22,13 @@ function Tickets() {
   const reduce = useReducedMotion();
 
   return (
-    <div className="flex flex-col gap-6 p-4 sm:p-8">
-      <div className="flex items-center gap-3">
-        <div className="flex size-10 shrink-0 items-center justify-center rounded-md bg-muted">
+    <div data-slot="ticket-workspace" className="flex flex-col gap-6 p-4 sm:p-8">
+      <div data-slot="ticket-heading" className="flex items-center gap-3">
+        <div data-slot="ticket-heading-icon" className="flex size-10 shrink-0 items-center justify-center rounded-md bg-muted">
           <TicketIcon className="size-5 text-muted-foreground" />
         </div>
         <div className="min-w-0">
-          <h1 className="text-2xl font-semibold">Jira-Tickets</h1>
+          <h1 data-slot="ticket-title" className="text-2xl font-semibold">Jira-Tickets</h1>
           <AnimatePresence mode="wait" initial={false}>
             <motion.p
               key={connected ? preset : "signed-out"}

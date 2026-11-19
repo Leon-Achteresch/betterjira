@@ -8,7 +8,9 @@
     <script>
       {
         const theme = localStorage.getItem("theme");
-        const dark = theme === "dark" || (theme !== "light" && matchMedia("(prefers-color-scheme: dark)").matches);
+        const studio = theme === "studio";
+        const dark = theme === "dark" || (!studio && theme !== "light" && matchMedia("(prefers-color-scheme: dark)").matches);
+        document.documentElement.classList.toggle("studio", studio);
         document.documentElement.classList.toggle("dark", dark);
         const nativeGlass = "__TAURI_INTERNALS__" in window && /Mac/i.test(navigator.platform);
         document.documentElement.classList.toggle("native-glass", nativeGlass);

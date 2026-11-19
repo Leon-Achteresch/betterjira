@@ -1,7 +1,7 @@
 import { useRef } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { KeyboardIcon, MonitorIcon, MoonIcon, RotateCcwIcon, SunIcon } from "lucide-react";
+import { KeyboardIcon, LayersIcon, MonitorIcon, MoonIcon, RotateCcwIcon, SunIcon } from "lucide-react";
 import { ReadingPreview } from "@/components/settings/reading-preview";
 import { TextSizePicker } from "@/components/settings/text-size-picker";
 import { ThemePicker, type ThemeOption } from "@/components/settings/theme-picker";
@@ -22,6 +22,7 @@ const THEME_OPTIONS: ThemeOption<ThemePreference>[] = [
   { value: "system", label: "System", icon: MonitorIcon, schemes: ["light", "dark"] },
   { value: "light", label: "Hell", icon: SunIcon, schemes: ["light"] },
   { value: "dark", label: "Dunkel", icon: MoonIcon, schemes: ["dark"] },
+  { value: "studio", label: "Studio", icon: LayersIcon, schemes: ["studio"] },
 ];
 
 const PREVIEW = {
@@ -53,7 +54,7 @@ function Darstellung() {
         <div className="flex flex-col gap-1">
           <h2 className="font-medium">Erscheinungsbild</h2>
           <p className="text-sm text-muted-foreground">
-            „System“ folgt automatisch dem Hell- oder Dunkelmodus deines Betriebssystems.
+            „System“ folgt deinem Betriebssystem. „Studio“ bietet eine kompakte dunkle Arbeitsfläche.
           </p>
         </div>
         <ThemePicker label="Erscheinungsbild" value={theme} options={THEME_OPTIONS} onChange={setTheme} />

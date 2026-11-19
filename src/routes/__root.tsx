@@ -154,7 +154,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   errorComponent: RootError,
   notFoundComponent: NotFound,
   component: () => (
-    <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+    <ThemeProvider attribute="class" themes={["light", "dark", "studio"]} defaultTheme="system" enableSystem disableTransitionOnChange>
       <ReadabilitySync />
       <TooltipProvider>
         <AdfLinks>

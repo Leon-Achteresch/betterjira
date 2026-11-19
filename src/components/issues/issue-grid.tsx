@@ -39,6 +39,7 @@ import { KEY_COLUMN } from "@/lib/jira/issue-view";
 import type { IssueGridEntry } from "@/lib/jira/issue-grouping";
 import type { SortDirection } from "@/lib/jira/jql";
 import { cn } from "@/lib/utils";
+import { useIssueGridKeys } from "@/hooks/use-issue-grid-keys";
 
 export type GridColumn = {
   id: string;
@@ -208,9 +209,10 @@ export function IssueGrid({
   const reduce = useReducedMotion();
   const navigate = useNavigate();
   const row = reduce ? ROW_REDUCED : ROW;
+  const onKeyDown = useIssueGridKeys();
 
   return (
-    <Table>
+    <Table data-issue-grid data-dense={dense}>
       <TableHeader>
         <TableRow className="hover:bg-transparent">
           <TableHead className="w-10">
@@ -248,6 +250,7 @@ export function IssueGrid({
         initial="hidden"
         animate="show"
         data-slot="table-body"
+        onKeyDown={onKeyDown}
         className="[&_tr:last-child]:border-0"
       >
         <AnimatePresence initial={false}>

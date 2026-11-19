@@ -52,6 +52,7 @@ import {
 import { IS_MAC } from "@/lib/platform";
 import { useProjectPrefs } from "@/hooks/use-project-prefs";
 import { shortcutHint } from "@/lib/shortcuts";
+import { DEFAULT_TICKET_PRESET, TICKET_PRESET_IDS, TICKET_PRESETS, ticketPresetSearch } from "@/lib/jira/ticket-presets";
 import { useShortcutHelp } from "@/hooks/use-app-shortcuts";
 import { useLegacyIssueTabs } from "@/hooks/use-issue-tabs";
 import { useIssueTabStore } from "@/hooks/use-issue-tabs";
@@ -80,6 +81,7 @@ const THEMES: { value: ThemePreference; label: string; icon: typeof SunIcon }[] 
   { value: "system", label: "Design: wie System", icon: MonitorIcon },
   { value: "light", label: "Design: Hell", icon: SunIcon },
   { value: "dark", label: "Design: Dunkel", icon: MoonIcon },
+  { value: "studio", label: "Design: Studio", icon: LayersIcon },
 ];
 
 export function useAppCommandPalette() {
@@ -261,6 +263,16 @@ export function useAppCommandPalette() {
       hint: shortcutHint("tickets"),
       onSelect: () => void navigate({ to: "/tickets" }),
     },
+    ...(theme === "studio"
+      ? TICKET_PRESET_IDS.filter((id) => id !== DEFAULT_TICKET_PRESET).map((id) => ({
+          id: `nav:tickets:${id}`,
+          label: `Jira-Tickets: ${TICKET_PRESETS[id].label}`,
+          group: "Navigation",
+          icon: TicketIcon,
+          keywords: [TICKET_PRESETS[id].description],
+          onSelect: () => void navigate({ to: "/tickets", search: ticketPresetSearch(id) }),
+        }))
+      : []),
     {
       id: "nav:helpdesk", label: "Zammad-Tickets", group: "Navigation", icon: TicketIcon, keywords: ["support", "helpdesk", "zammad"],
       onSelect: () => void navigate({ to: "/helpdesk" }),

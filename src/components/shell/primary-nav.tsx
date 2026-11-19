@@ -40,7 +40,7 @@ export function PrimaryNav({ counts }: { counts: NavCounts }) {
   const reduce = useReducedMotion();
 
   return (
-    <nav aria-label="Hauptnavigation" className="flex flex-col gap-2">
+    <nav aria-label="Hauptnavigation" data-slot="workspace-navigation" className="flex flex-col gap-2">
       <LayoutGroup id="primary-nav">
         {GROUPS.map((group) => (
           <div key={group.label} className="flex flex-col">

@@ -44,6 +44,7 @@ import {
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "@/components/ui/input-group";
 import type { IssueTableState } from "@/hooks/use-issue-table";
 import { useIssueToolbar, type IssueToolbarFilters } from "@/hooks/use-issue-toolbar";
+import { useTheme } from "@/hooks/use-theme";
 import { EASE_OUT, SPRING_LAYOUT, SPRING_PRESS } from "@/lib/ease";
 import { QUICK_FILTERS } from "@/lib/jira/issue-view";
 import { ISSUE_GROUPINGS } from "@/lib/jira/issue-grouping";
@@ -343,6 +344,7 @@ export function IssueToolbar({
   onOpenSearch?: (jql: string) => void;
 }) {
   const filters = useIssueToolbar(table);
+  const { theme } = useTheme();
   const reduce = useReducedMotion();
   return (
     <div className="flex flex-col gap-3">
@@ -409,8 +411,18 @@ export function IssueToolbar({
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
-        <div className="ml-auto flex items-center gap-2">
+        <div className={cn("ml-auto flex items-center gap-2", theme === "studio" && "flex-wrap justify-end")}>
           <ResultCount loaded={table.issues.length} total={table.total} />
+          {theme === "studio" && (
+            <Button
+              variant={table.groupBy === "status" ? "secondary" : "outline"}
+              aria-pressed={table.groupBy === "status"}
+              onClick={() => table.setGrouping(table.groupBy === "status" ? "none" : "status")}
+            >
+              <GroupIcon aria-hidden />
+              Nach Status
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="icon-sm"
