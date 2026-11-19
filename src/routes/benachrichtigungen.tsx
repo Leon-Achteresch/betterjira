@@ -18,7 +18,7 @@ function Benachrichtigungen() {
   const inbox = useNotificationInbox();
 
   return (
-    <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 p-4 sm:p-8">
+    <div data-slot="notification-page" className="mx-auto flex w-full max-w-4xl flex-col gap-6 p-4 sm:p-8">
       <div className="flex items-center gap-3">
         <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-muted">
           <BellIcon className="size-5 text-muted-foreground" />

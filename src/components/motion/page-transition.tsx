@@ -12,6 +12,7 @@ export function PageTransition({
   const reduce = useReducedMotion();
   return (
     <motion.div
+      data-slot="workspace-page"
       key={id}
       initial={{ opacity: 0, y: reduce ? 0 : 6 }}
       animate={{ opacity: 1, y: 0 }}

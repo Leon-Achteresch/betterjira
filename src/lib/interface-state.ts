@@ -7,12 +7,13 @@ export type InterfaceAccount = typeof InterfaceAccount.Type;
 
 export const InterfacePreferences = Schema.Struct({
   sidebarOpen: Schema.Boolean,
+  studioPanelOpen: Schema.Boolean,
   accounts: Schema.Record(Schema.String, InterfaceAccount),
 });
 export type InterfacePreferences = typeof InterfacePreferences.Type;
 
 export const EMPTY_INTERFACE_ACCOUNT: InterfaceAccount = { sections: {}, projects: {}, tableSearches: {} };
-export const DEFAULT_INTERFACE_PREFERENCES: InterfacePreferences = { sidebarOpen: true, accounts: {} };
+export const DEFAULT_INTERFACE_PREFERENCES: InterfacePreferences = { sidebarOpen: true, studioPanelOpen: false, accounts: {} };
 export const INTERFACE_STORAGE_KEY = "betterjira-interface";
 
 const isRecord = Schema.is(Schema.Record(Schema.String, Schema.Unknown));
@@ -32,7 +33,11 @@ export const readInterfacePreferences = (persisted: unknown): InterfacePreferenc
       ? [[scope, { sections: booleans(value.sections), projects: booleans(value.projects), tableSearches: strings(value.tableSearches) }]]
       : []))
     : {};
-  return { sidebarOpen: typeof persisted.sidebarOpen === "boolean" ? persisted.sidebarOpen : true, accounts };
+  return {
+    sidebarOpen: typeof persisted.sidebarOpen === "boolean" ? persisted.sidebarOpen : DEFAULT_INTERFACE_PREFERENCES.sidebarOpen,
+    studioPanelOpen: typeof persisted.studioPanelOpen === "boolean" ? persisted.studioPanelOpen : DEFAULT_INTERFACE_PREFERENCES.studioPanelOpen,
+    accounts,
+  };
 };
 
 export const interfaceAccount = (preferences: InterfacePreferences, scope: string | null) =>

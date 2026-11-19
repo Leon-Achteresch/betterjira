@@ -94,6 +94,12 @@ const issues = Array.from({ length: scenario === "busy" ? 35 : scenario === "wor
         schema: { type: "string", system: "description" },
         operations: ["set"],
       },
+      ...(scenario === "studio" ? { duedate: {
+        name: "Fällig",
+        required: false,
+        schema: { type: "date", system: "duedate" },
+        operations: ["set"],
+      } } : {}),
     },
   },
   fields: {
@@ -106,6 +112,7 @@ const issues = Array.from({ length: scenario === "busy" ? 35 : scenario === "wor
     issuetype: { name: "Aufgabe", subtask: false },
     created: "2026-11-01T09:00:00Z",
     updated: "2026-11-04T10:00:00Z",
+    ...(scenario === "studio" ? { duedate: "2026-11-12" } : {}),
     description: paragraph(
       "Wir möchten die täglichen Abläufe mit weniger Kontextwechseln erledigen und die Zusammenarbeit im Team vereinfachen.",
     ),

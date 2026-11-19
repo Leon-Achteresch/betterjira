@@ -126,6 +126,7 @@ export function useIssueTable(scope: string, baseJql: string, externalText?: Iss
 
   return {
     scope,
+    accountScope: account.scope,
     transfer,
     bulk,
     searchLoad,

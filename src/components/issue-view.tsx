@@ -46,6 +46,7 @@ import { renderedDescription } from "@/lib/jira/rendered-issue";
 import { cn } from "@/lib/utils";
 
 const VITALS = ["assignee", "reporter", "priority", "duedate", "labels"];
+const disregardFocus = () => {};
 
 const container: Variants = { show: { transition: { staggerChildren: 0.03 } } };
 
@@ -79,7 +80,7 @@ function Property({ label, children, wide }: { label: string; children: ReactNod
 function Vitals({ issue }: { issue: JiraIssueDetail }) {
   const ids = VITALS.filter((id) => id in issue.fields || id in issue.editmeta.fields);
   return (
-    <dl className="flex flex-wrap items-start gap-x-8 gap-y-3 border-y py-3 @5xl:flex-col @5xl:flex-nowrap @5xl:items-stretch @5xl:gap-y-5 @5xl:border-y-0 @5xl:border-l @5xl:py-1 @5xl:pl-8">
+    <dl data-slot="issue-properties-items" className="flex flex-wrap items-start gap-x-8 gap-y-3 border-y py-3 @5xl:flex-col @5xl:flex-nowrap @5xl:items-stretch @5xl:gap-y-5 @5xl:border-y-0 @5xl:border-l @5xl:py-1 @5xl:pl-8">
       <Property label="Status">
         <IssueStatusMenu issueKey={issue.key} status={issue.fields.status} />
       </Property>
@@ -112,14 +113,14 @@ const LAYOUT = {
 
 export function IssueViewSkeleton() {
   return (
-    <div aria-busy aria-label="Ticket wird geladen" className={LAYOUT.article}>
-      <Skeleton className={cn(LAYOUT.bar, "h-9 w-full")} />
-      <div className={cn(LAYOUT.header, "flex flex-col gap-2")}>
+    <div data-slot="issue-detail" aria-busy aria-label="Ticket wird geladen" className={LAYOUT.article}>
+      <Skeleton data-issue-navigation className={cn(LAYOUT.bar, "h-9 w-full")} />
+      <div data-slot="issue-heading" className={cn(LAYOUT.header, "flex flex-col gap-2")}>
         <Skeleton className="h-8 w-full" />
         <Skeleton className="h-8 w-2/3" />
       </div>
-      <div className={LAYOUT.aside}>
-        <div className="flex flex-wrap gap-x-8 gap-y-5 border-y py-3 @5xl:flex-col @5xl:border-y-0 @5xl:border-l @5xl:py-1 @5xl:pl-8">
+      <div data-slot="issue-properties" className={LAYOUT.aside}>
+        <div data-slot="issue-properties-items" className="flex flex-wrap gap-x-8 gap-y-5 border-y py-3 @5xl:flex-col @5xl:border-y-0 @5xl:border-l @5xl:py-1 @5xl:pl-8">
           {Array.from({ length: 5 }, (_, index) => (
             <div key={index} className="flex flex-col gap-1.5">
               <Skeleton className="h-3 w-16" />
@@ -128,7 +129,7 @@ export function IssueViewSkeleton() {
           ))}
         </div>
       </div>
-      <div className={cn(LAYOUT.body, "gap-3")}>
+      <div data-slot="issue-body" className={cn(LAYOUT.body, "gap-3")}>
         <Skeleton className="h-3 w-24" />
         {["w-full", "w-11/12", "w-full", "w-3/4", "w-5/6"].map((width, index) => (
           <Skeleton key={index} className={cn("h-4", width)} />
@@ -142,18 +143,20 @@ export function IssueView({
   issueKey,
   initialTab,
   focusComment,
-  onFocusHandled,
+  onFocusHandled = disregardFocus,
+  embedded = false,
 }: {
   issueKey: string;
   initialTab?: IssueDrawerTab;
   focusComment?: string;
-  onFocusHandled: () => void;
+  onFocusHandled?: () => void;
+  embedded?: boolean;
 }) {
   const site = useJiraSite();
   const view = useIssueView(issueKey);
   const reduce = useReducedMotion();
   const helpdesk = useJiraHelpdesk(view.issue);
-  useIssueReadingPosition(issueKey, !!view.issue, !!focusComment);
+  useIssueReadingPosition(issueKey, !embedded && !!view.issue, !!focusComment);
   const actions = useIssueActions(view.issue, site.data?.siteUrl, initialTab);
   const history = useIssueHistory(issueKey, view.issue?.key === issueKey ? { created: view.issue.fields.created, status: view.issue.fields.status } : undefined);
   const links = useIssueLinks(issueKey);
@@ -186,8 +189,9 @@ export function IssueView({
   const attachmentCount = fields.attachment?.length ?? 0;
 
   return (
-    <motion.article variants={container} initial="hidden" animate="show" className={LAYOUT.article}>
+    <motion.article data-slot="issue-detail" variants={container} initial="hidden" animate="show" className={LAYOUT.article}>
       <motion.div
+        data-issue-navigation
         variants={reveal(reduce)}
         className={cn(LAYOUT.bar, "sticky top-0 z-20 -mx-2 flex flex-wrap items-center gap-1.5 border-b border-border/60 bg-background px-2 py-2 text-sm text-muted-foreground")}
       >
@@ -223,7 +227,7 @@ export function IssueView({
           onRefresh={view.refresh}
         />
       </motion.div>
-      <motion.header variants={reveal(reduce)} className={cn(LAYOUT.header, "flex flex-col gap-5")}>
+      <motion.header data-slot="issue-heading" variants={reveal(reduce)} className={cn(LAYOUT.header, "flex flex-col gap-5")}>
         <IssueRefreshNotice
           problem={view.load.refreshProblem}
           loadedLabel={view.loadedLabel}
@@ -240,12 +244,12 @@ export function IssueView({
         </p>
       </motion.header>
 
-      <motion.aside variants={reveal(reduce)} aria-label="Eigenschaften" className={LAYOUT.aside}>
+      <motion.aside data-slot="issue-properties" variants={reveal(reduce)} aria-label="Eigenschaften" className={LAYOUT.aside}>
         <Vitals issue={issue} />
       </motion.aside>
 
       <IssueMediaProvider attachments={fields.attachment}>
-        <div className={LAYOUT.body}>
+        <div data-slot="issue-body" className={LAYOUT.body}>
           <Section title="Beschreibung">
             <EditableField issue={issue} id="description" className="text-[0.95rem] leading-relaxed">
               {fields.description ? (

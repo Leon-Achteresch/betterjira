@@ -32,6 +32,7 @@ describe("dauerhafter Oberflächenzustand", () => {
   it("stellt Navigation und Suchtexte wieder her und trennt Konten", async () => {
     const state = useInterfaceState.getState();
     state.setSidebarOpen(false);
+    state.setStudioPanelOpen(true);
     state.setSection("own", "filters", false);
     state.setProject("own", "DEMO", true);
     state.setTableSearch("own", "project", "Dringend");
@@ -45,6 +46,7 @@ describe("dauerhafter Oberflächenzustand", () => {
     await useInterfaceState.persist.rehydrate();
     expect(useInterfaceState.persist.hasHydrated()).toBe(true);
     expect(useInterfaceState.getState().sidebarOpen).toBe(false);
+    expect(useInterfaceState.getState().studioPanelOpen).toBe(true);
     expect(interfaceAccount(useInterfaceState.getState(), "own")).toEqual({ sections: { filters: false }, projects: { DEMO: true }, tableSearches: { project: "Dringend" } });
     expect(interfaceAccount(useInterfaceState.getState(), "colleague").projects.DEMO).toBe(false);
     expect(interfaceAccount(useInterfaceState.getState(), null).tableSearches).toEqual({});

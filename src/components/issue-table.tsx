@@ -3,6 +3,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { SearchXIcon, TriangleAlertIcon } from "lucide-react";
 import { IssueGrid } from "@/components/issues/issue-grid";
+import { IssuePreviewPane } from "@/components/issues/issue-preview-pane";
 import { IssueToolbar } from "@/components/issues/issue-toolbar";
 import { SelectionToolbar } from "@/components/issues/selection-toolbar";
 import { SearchLoadControls } from "@/components/issues/search-load-controls";
@@ -12,6 +13,7 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { type IssueTableText, useIssueTable } from "@/hooks/use-issue-table";
+import { useIssuePreviewPane } from "@/hooks/use-issue-preview-pane";
 import { EASE_OUT, SPRING_LAYOUT } from "@/lib/ease";
 import { jiraErrors } from "@/lib/jira/field-values";
 import { useJiraSite } from "@/lib/jira/queries";
@@ -75,12 +77,13 @@ export function IssueTable({
   text?: IssueTableText;
 }) {
   const table = useIssueTable(scope, jql, text);
+  const preview = useIssuePreviewPane(table.accountScope);
   const reduce = useReducedMotion();
   const site = useJiraSite();
   const navigate = useNavigate();
   const filtered = table.filterCount > 0 || table.text.trim() !== "";
 
-  return (
+  const list = (
     <div className="flex flex-col gap-4">
       <IssueToolbar
         table={table}
@@ -182,6 +185,9 @@ export function IssueTable({
               onSortDirection={table.setSortDirection}
               onHide={table.toggleColumn}
               onMove={table.moveColumn}
+              activePreview={preview.selection?.key}
+              previewId={preview.id}
+              onOpenPreview={preview.open}
             />
             <AnimatePresence initial={false}>
               {table.loadMoreError && (
@@ -212,6 +218,15 @@ export function IssueTable({
         </>
       )}
       <SearchLoadControls state={table.searchLoad} />
+    </div>
+  );
+
+  return (
+    <div data-slot="issue-table-layout">
+      {list}
+      <AnimatePresence key={table.accountScope} initial={false}>
+        {preview.selection && <IssuePreviewPane id={preview.id} issueKey={preview.selection.key} focus={preview.selection.focus} onClose={preview.close} />}
+      </AnimatePresence>
     </div>
   );
 }

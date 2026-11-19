@@ -349,7 +349,7 @@ export function IssueToolbar({
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-2">
-        <InputGroup className="h-8 w-64">
+        <InputGroup className={cn("h-8", theme === "studio" ? "w-48" : "w-64")}>
           <InputGroupAddon>
             <SearchIcon />
           </InputGroupAddon>

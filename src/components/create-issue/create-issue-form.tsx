@@ -94,7 +94,7 @@ export function CreateIssueForm({ form }: { form: CreateIssueFormModel }) {
   const canSubmit = form.status === "ready" && !form.pending && !form.templatesPending;
 
   return (
-    <form onSubmit={form.submit} onKeyDown={form.onKeyDown} aria-busy={form.pending} className="flex flex-col gap-6" noValidate>
+    <form data-slot="create-ticket-form" onSubmit={form.submit} onKeyDown={form.onKeyDown} aria-busy={form.pending} className="flex flex-col gap-6" noValidate>
       <fieldset disabled={form.pending || !form.draftReady} className="flex min-w-0 flex-col gap-5 rounded-2xl border bg-card p-4 shadow-xs sm:p-6">
         <legend className="sr-only">Neues Ticket</legend>
         {form.parent && <div className="text-sm"><span className="text-muted-foreground">Übergeordnet: </span><Link to="/issue/$key" params={{ key: form.parent.key }} className="underline underline-offset-4">{form.parent.key} · {form.parent.fields.summary}</Link></div>}

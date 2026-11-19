@@ -1,4 +1,5 @@
 import { useNavigate } from "@tanstack/react-router";
+import type { MouseEvent } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { AnimatePresence, motion, useReducedMotion, type Variants } from "motion/react";
 import {
@@ -190,6 +191,9 @@ export function IssueGrid({
   onSortDirection,
   onHide,
   onMove,
+  activePreview,
+  previewId,
+  onOpenPreview,
 }: {
   columns: GridColumn[];
   entries: IssueGridEntry[];
@@ -205,6 +209,9 @@ export function IssueGrid({
   onSortDirection: (column: string, direction: SortDirection | undefined) => void;
   onHide: (column: string) => void;
   onMove: (column: string, offset: number) => void;
+  activePreview?: string;
+  previewId?: string;
+  onOpenPreview?: (issueKey: string, event: MouseEvent<HTMLAnchorElement>) => void;
 }) {
   const reduce = useReducedMotion();
   const navigate = useNavigate();
@@ -284,6 +291,7 @@ export function IssueGrid({
                       variants={row}
                       exit="exit"
                       data-state={selectedKeys.has(issue.key) ? "selected" : undefined}
+                      data-preview={issue.key === activePreview || undefined}
                       className="group/row relative has-[a[data-row-link]:focus-visible]:bg-muted"
                     >
                       <TableCell className="relative z-20 w-10">
@@ -303,7 +311,7 @@ export function IssueGrid({
                               "sticky left-0 z-10 bg-background transition-colors group-hover/row:bg-muted group-data-[state=selected]/row:bg-muted group-has-[a[data-row-link]:focus-visible]/row:bg-muted",
                           )}
                         >
-                          <IssueCell issue={issue} column={column.id} />
+                          <IssueCell issue={issue} column={column.id} onOpen={onOpenPreview} previewId={issue.key === activePreview ? previewId : undefined} />
                         </TableCell>
                       ))}
                     </MotionRow>

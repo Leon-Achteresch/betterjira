@@ -6,12 +6,14 @@ import { JiraUserAvatar } from "@/components/jira-user-avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { DateField } from "@/components/ui/date-field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { labelOf, optionsOf, type JiraFieldMeta, type JiraOption, type Kind } from "@/lib/jira/field-values";
 import { useJiraUserSearch, type JiraUserResult, type UserSearchScope } from "@/lib/jira/queries";
+import { useTheme } from "@/hooks/use-theme";
 
 const NONE = "__none__";
 
@@ -95,6 +97,7 @@ export function JiraFieldInput({
   issueKey?: string;
   onChange: (value: unknown) => void;
 }) {
+  const { theme } = useTheme();
   if (kind === "single") {
     const options = optionsOf(field);
     const selected = (value as JiraOption | null)?.id ?? "";
@@ -177,6 +180,7 @@ export function JiraFieldInput({
     );
   }
   if (kind === "richtext") return <AdfEditor id={id} label={field.name} value={value} onChange={onChange} />;
+  if (kind === "date" && theme === "studio") return <DateField id={id} value={String(value)} onChange={onChange} />;
   const type = kind === "number" ? "number" : kind === "date" ? "date" : kind === "datetime" ? "datetime-local" : "text";
   return (
     <Input

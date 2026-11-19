@@ -805,7 +805,7 @@ function BoardColumns({ boardId, columns, dnd }: { boardId: number; columns: Boa
   const hidden = useBoardFilters((state) => state.hiddenColumns[boardId] ?? EMPTY_COLUMNS);
   const reduce = useReducedMotion();
   return (
-    <div className="flex gap-3 overflow-x-auto pb-2">
+    <div data-slot="board-columns" className="flex gap-3 overflow-x-auto pb-2">
       <AnimatePresence initial={false} mode="popLayout">
         {columns.filter((column) => !hidden.includes(column.name)).map((column) => {
           const scope = `${boardId}:${column.name}`;

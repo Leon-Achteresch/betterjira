@@ -17,7 +17,7 @@ const TABS = [
 
 function Settings() {
   return (
-    <div className="flex flex-col items-start gap-6 p-4 sm:p-8">
+    <div data-slot="settings-workspace" className="flex flex-col items-start gap-6 p-4 sm:p-8">
       <h1 className="text-2xl font-semibold">Einstellungen</h1>
       <NavTabs id="settings-tabs" label="Einstellungen">
         {TABS.map((tab) => (

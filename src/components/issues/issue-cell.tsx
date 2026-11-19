@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+import type { MouseEvent } from "react";
 import { FieldValue } from "@/components/issue-fields";
 import { IssueStatusMenu } from "@/components/issue-status-menu";
 import { isAdfDoc } from "@/lib/jira/adf";
@@ -19,7 +20,12 @@ const iconOf = (value: unknown) => {
   return typeof iconUrl === "string" && typeof name === "string" ? { iconUrl, name } : undefined;
 };
 
-export function IssueCell({ issue, column }: { issue: SearchIssue; column: string }) {
+export function IssueCell({ issue, column, onOpen, previewId }: {
+  issue: SearchIssue;
+  column: string;
+  onOpen?: (issueKey: string, event: MouseEvent<HTMLAnchorElement>) => void;
+  previewId?: string;
+}) {
   const value = issue.fields[column];
   if (column === KEY_COLUMN) return <span className="font-mono text-muted-foreground">{issue.key}</span>;
   if (column === "summary") {
@@ -28,6 +34,8 @@ export function IssueCell({ issue, column }: { issue: SearchIssue; column: strin
         to="/issue/$key"
         params={{ key: issue.key }}
         data-row-link
+        aria-controls={previewId}
+        onClick={onOpen ? (event) => onOpen(issue.key, event) : undefined}
         className="block max-w-[32rem] truncate outline-none after:absolute after:inset-0 focus-visible:underline"
       >
         {typeof value === "string" ? value : issue.key}

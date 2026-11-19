@@ -14,6 +14,7 @@ import {
 
 type InterfaceState = InterfacePreferences & {
   setSidebarOpen: (open: boolean) => void;
+  setStudioPanelOpen: (open: boolean) => void;
   setSection: (scope: string | null, id: string, open: boolean) => void;
   setProject: (scope: string | null, id: string, open: boolean) => void;
   setTableSearch: (scope: string | null, id: string, text: string) => void;
@@ -24,6 +25,7 @@ export const useInterfaceState = create<InterfaceState>()(
     (set) => ({
       ...DEFAULT_INTERFACE_PREFERENCES,
       setSidebarOpen: (sidebarOpen) => set({ sidebarOpen }),
+      setStudioPanelOpen: (studioPanelOpen) => set({ studioPanelOpen }),
       setSection: (scope, id, open) => set((state) => updateInterfaceAccount(state, scope, "sections", (current) => ({ ...current, [id]: open }))),
       setProject: (scope, id, open) => set((state) => updateInterfaceAccount(state, scope, "projects", (current) => ({ ...current, [id]: open }))),
       setTableSearch: (scope, id, text) => set((state) => updateInterfaceAccount(state, scope, "tableSearches", (current) => {
@@ -35,7 +37,7 @@ export const useInterfaceState = create<InterfaceState>()(
       name: INTERFACE_STORAGE_KEY,
       version: 1,
       storage: createJSONStorage(() => LOCAL_PREFERENCE_STORAGE),
-      partialize: ({ sidebarOpen, accounts }) => readInterfacePreferences({ sidebarOpen, accounts }),
+      partialize: ({ sidebarOpen, studioPanelOpen, accounts }) => readInterfacePreferences({ sidebarOpen, studioPanelOpen, accounts }),
       migrate: (persisted) => readInterfacePreferences(persisted),
       merge: (persisted, current) => ({ ...current, ...readInterfacePreferences(persisted) }),
     },

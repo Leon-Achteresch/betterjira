@@ -35,7 +35,7 @@ export function Workday({ dashboard }: { dashboard: DashboardState }) {
 
 function Welcome({ login }: { login: DashboardState["login"] }) {
   return (
-    <div className="grid min-h-full place-items-center px-6 py-10">
+    <div data-slot="workday" className="grid min-h-full place-items-center px-6 py-10">
       <Fade>
         <div className="glass-card flex max-w-xl flex-col items-start gap-6 rounded-2xl p-6 sm:p-10">
           <img src="/logo.svg" alt="" className="size-14" />
@@ -67,7 +67,7 @@ function Dashboard({ dashboard }: { dashboard: DashboardState }) {
   const { freshness, attention, active, next, done, open } = dashboard;
 
   return (
-    <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 px-4 py-5 sm:px-6 lg:px-8">
+    <div data-slot="workday" className="mx-auto flex w-full max-w-7xl flex-col gap-5 px-4 py-5 sm:px-6 lg:px-8">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex min-w-0 flex-col gap-1">
           <p className="text-xs text-muted-foreground tabular-nums">
@@ -144,7 +144,7 @@ function Dashboard({ dashboard }: { dashboard: DashboardState }) {
 
 function DashboardSkeleton() {
   return (
-    <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 p-5" aria-busy aria-label="Arbeitsübersicht wird geladen">
+    <div data-slot="workday" className="mx-auto flex w-full max-w-7xl flex-col gap-4 p-5" aria-busy aria-label="Arbeitsübersicht wird geladen">
       <Skeleton className="h-5 w-48 rounded-xl" />
       <Skeleton className="h-8 w-64 max-w-full rounded-xl" />
       <div className="glass-card flex flex-col gap-3 rounded-2xl p-4">

@@ -54,7 +54,7 @@ function Darstellung() {
         <div className="flex flex-col gap-1">
           <h2 className="font-medium">Erscheinungsbild</h2>
           <p className="text-sm text-muted-foreground">
-            „System“ folgt deinem Betriebssystem. „Studio“ bietet eine kompakte dunkle Arbeitsfläche.
+            „System“ folgt deinem Betriebssystem. „Studio“ bietet eine kompakte helle Arbeitsfläche mit Ticketvorschau.
           </p>
         </div>
         <ThemePicker label="Erscheinungsbild" value={theme} options={THEME_OPTIONS} onChange={setTheme} />

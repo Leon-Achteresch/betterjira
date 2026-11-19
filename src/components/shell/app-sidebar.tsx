@@ -54,6 +54,7 @@ import { useProfileMenu } from "@/hooks/jira/use-profile-menu";
 import { useProjectStats } from "@/hooks/jira/use-project-stats";
 import { useProjectExpansion, useSidebarSection } from "@/hooks/use-interface-state";
 import { useSidebarSearch } from "@/hooks/use-sidebar-search";
+import { useTheme } from "@/hooks/use-theme";
 import { useOwnedUnreadCount } from "@/hooks/notifications/use-notification-store";
 import type { ProjectPrefsControls } from "@/hooks/use-project-prefs";
 import { cn } from "@/lib/utils";
@@ -217,6 +218,7 @@ function MenuSkeleton() {
 }
 
 export function AppSidebar() {
+  const { theme } = useTheme();
   const site = useJiraSite();
   const search = useSidebarSearch();
   const profile = useProfileMenu();
@@ -226,14 +228,19 @@ export function AppSidebar() {
 
   return (
     <Sidebar className="top-(--app-header-height) h-[calc(100svh-var(--app-header-height))] group-data-[side=left]:border-r-0">
+      {theme === "studio" && (
+        <div className="flex min-h-8 items-center px-3 pt-1 text-xs font-medium">
+          {isMobile ? "BetterJira" : "Bereiche und Filter"}
+        </div>
+      )}
       <SidebarContent className="gap-3 px-2 pt-3">
-        <PrimaryNav counts={{ notifications: unread }} />
+        {(theme !== "studio" || isMobile) && <PrimaryNav counts={{ notifications: unread }} markIssueSection={theme === "studio"} />}
         {site.data && (
           <div className="relative">
             <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
             <SidebarInput
               type="search"
-              placeholder="Bereiche und Filter filtern"
+              placeholder={theme === "studio" ? "Bereiche und Filter" : "Bereiche und Filter filtern"}
               aria-label="Bereiche und Filter suchen"
               className="rounded-xl border-border/60 glass-control pl-8 focus-visible:bg-background"
               value={search.query}

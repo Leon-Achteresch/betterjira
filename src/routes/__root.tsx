@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { Outlet, createRootRouteWithContext, useRouterState, type ErrorComponentProps } from "@tanstack/react-router";
 import type { QueryClient } from "@tanstack/react-query";
 import { ThemeProvider } from "next-themes";
@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
 import { AppHeader } from "@/components/shell/app-header";
 import { AppSidebar } from "@/components/shell/app-sidebar";
+import { StudioDock } from "@/components/shell/studio-dock";
 import { useNotificationPoller } from "@/hooks/notifications/use-notification-poller";
 import { AdfLinkContext } from "@/components/adf-content";
 import { useAppLinkHandler } from "@/hooks/use-app-link-handler";
@@ -32,6 +33,7 @@ import { useInterfaceState } from "@/hooks/use-interface-state";
 import { useNativeGlass } from "@/hooks/use-native-glass";
 import { useReadabilitySync } from "@/hooks/use-readability";
 import { useFileDropGuard } from "@/hooks/use-file-drop-guard";
+import { useTheme } from "@/hooks/use-theme";
 
 function NotificationPoller() {
   useNotificationPoller();
@@ -124,16 +126,25 @@ function NotFound() {
 
 function Shell() {
   useNativeGlass();
+  const { theme } = useTheme();
+  const studio = theme === "studio";
   const main = useMainContentFocus();
-  const sidebarOpen = useInterfaceState((state) => state.sidebarOpen);
-  const setSidebarOpen = useInterfaceState((state) => state.setSidebarOpen);
+  const sidebarOpen = useInterfaceState((state) => studio ? state.studioPanelOpen : state.sidebarOpen);
+  const setSidebarOpen = useInterfaceState((state) => studio ? state.setStudioPanelOpen : state.setSidebarOpen);
   return (
-    <SidebarProvider open={sidebarOpen} onOpenChange={setSidebarOpen} className="h-dvh min-h-0 flex-col bg-(--glass-chrome)">
+    <SidebarProvider
+      open={sidebarOpen}
+      onOpenChange={setSidebarOpen}
+      data-sidebar-open={sidebarOpen}
+      style={studio ? { "--sidebar-width": "var(--studio-sidebar-width)" } as CSSProperties : undefined}
+      className="h-dvh min-h-0 flex-col bg-(--glass-chrome)"
+    >
       <SkipLink href="#app-scroll" onClick={main.skipToContent}>
         Zum Inhalt
       </SkipLink>
       <AppHeader />
       <div className="flex min-h-0 flex-1">
+        {studio && <StudioDock />}
         <AppSidebar />
         <SidebarInset
           ref={main.ref}

@@ -19,6 +19,7 @@ export function NavTabs({
 }) {
   return (
     <nav
+      data-slot="nav-tabs"
       aria-label={label}
       className={cn(
         "glass-control flex max-w-full gap-1 overflow-x-auto rounded-2xl border border-border/50 p-1",
