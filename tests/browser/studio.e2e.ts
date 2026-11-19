@@ -60,4 +60,15 @@ test("Studio gruppiert Vorgänge direkt und navigiert zwischen Ticketlinks", asy
   await page.setViewportSize({ width: 390, height: 900 });
   await expect(grouping).toBeInViewport({ ratio: 1 });
   await expect(page.getByRole("button", { name: "Ansicht und Export" })).toBeInViewport({ ratio: 1 });
+
+  await page.setViewportSize({ width: 320, height: 900 });
+  await expect(page.getByRole("link", { name: "Alle meine" })).toBeInViewport({ ratio: 1 });
+  const menu = page.getByRole("button", { name: "Weitere Aktionen" });
+  const minimize = page.getByRole("button", { name: "Minimieren" });
+  if (await minimize.isVisible()) {
+    const [menuBox, minimizeBox] = await Promise.all([menu.boundingBox(), minimize.boundingBox()]);
+    expect(menuBox!.x + menuBox!.width).toBeLessThanOrEqual(minimizeBox!.x);
+  }
+  await menu.click();
+  await expect(page.getByRole("menuitem", { name: /Ticket erstellen/ })).toBeVisible();
 });

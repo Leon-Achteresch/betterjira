@@ -75,7 +75,7 @@ export function AppHeader() {
         />
         <LegacyTabsOffer offer={legacyTabs} className="max-sm:hidden" />
       </div>
-      <div className="flex shrink-0 lg:w-56">
+      <div data-slot="header-command" className="flex shrink-0 lg:w-56">
         <AppCommandPalette />
       </div>
       <nav className="ml-auto flex shrink-0 items-center gap-0.5 px-1.5 sm:gap-1 sm:px-3" aria-label="Werkzeuge">
@@ -97,6 +97,7 @@ export function AppHeader() {
         <Tooltip content="Einstellungen" side="bottom">
           <Link
             to="/settings"
+            data-slot="header-settings"
             aria-label="Einstellungen"
             className="inline-flex size-8 shrink-0 items-center justify-center rounded-xl text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
             activeProps={{ className: "bg-primary/12 text-foreground" }}

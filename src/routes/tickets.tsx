@@ -54,6 +54,7 @@ function Tickets() {
             <Link
               key={id}
               to="/tickets"
+              data-slot="ticket-view-tab"
               search={ticketPresetSearch(id)}
               activeOptions={{ exact: true }}
               aria-current={id === preset ? "page" : undefined}

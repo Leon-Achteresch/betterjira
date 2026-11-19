@@ -119,3 +119,23 @@
 :root.studio [data-issue-grid][data-dense="false"] [data-slot="table-cell"] {
     padding-block: 0.375rem;
 }
+
+@media (min-width: 64rem) {
+    :root.studio [data-slot="header-command"] {
+        width: 17rem;
+    }
+}
+
+@media (max-width: 22.5rem) {
+    :root.studio [data-slot="header-command"] > button {
+        margin-inline: 0;
+    }
+
+    :root.studio [data-slot="header-settings"] {
+        display: none;
+    }
+
+    :root.studio [data-slot="ticket-view-tab"] {
+        padding-inline: 0.375rem;
+    }
+}
